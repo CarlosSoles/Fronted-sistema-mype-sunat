@@ -49,8 +49,18 @@ src/modules/resilience/
 
 ---
 
-## 4. Instrucciones Específicas para Agentes de IA
-* Cuando edite o extienda este módulo:
   1. No altere el tipo de unión `'CLOSED' | 'OPEN' | 'HALF_OPEN'` sin verificar `uiStore.ts`.
   2. Asegure que los toggles de inyección de caos informen claramente su impacto en la UI.
   3. Verifique que `npm run build` pase con 0 errores tras cualquier edición.
+  4. Toda prueba debe residir en `test/unit/modules/resilience/`, nunca en `src/`.
+
+---
+
+## 5. Estrategia de Pruebas Unitarias (`test/unit/modules/resilience/`)
+
+* **Ubicación Exclusiva:** `test/unit/modules/resilience/`
+* **Casos Críticos a Probar:**
+  1. **`circuitBreakerSync.test.ts`:** Verificación de las transiciones de estado (`CLOSED` $\rightarrow$ `OPEN` $\rightarrow$ `HALF_OPEN`) y propagación al `uiStore`.
+  2. **`deadLetterQueue.test.ts`:** Reintentos de comprobantes en cola DLQ y manejo de errores persistentes.
+  3. **`chaosSchema.test.ts`:** Validación de límites del simulador de latencia y tasa de error inyectada.
+

@@ -50,8 +50,18 @@ src/modules/accounting/
 
 ---
 
-## 4. Instrucciones Específicas para Agentes de IA
-* Cuando modifique este módulo:
   1. No elimine la validación `.refine()` de partida doble en `validators/accountingSchema.ts`.
   2. Asegure que los campos monetarios de Debe y Haber acepten hasta 2 decimales.
   3. Verifique que `npm run build` pase con 0 errores tras cualquier edición.
+  4. Toda prueba debe escribirse en `test/unit/modules/accounting/`, nunca dentro de `src/`.
+
+---
+
+## 5. Estrategia de Pruebas Unitarias (`test/unit/modules/accounting/`)
+
+* **Ubicación Exclusiva:** `test/unit/modules/accounting/`
+* **Casos Críticos a Probar:**
+  1. **`doubleEntryValidation.test.ts`:** Validación estricta de partida doble ($\sum \text{Debe} == \sum \text{Haber}$), verificando que asientos descuadrados por S/ 0.01 sean rechazados por Zod.
+  2. **`financialRatios.test.ts`:** Cálculo de ratios financieros (Liquidez Corriente, Prueba Ácida, Margen Neto).
+  3. **`pleTxtGenerator.test.ts`:** Formateo de líneas delimitadas por tuberías (`|`) para libros electrónicos PLE según norma SUNAT.
+

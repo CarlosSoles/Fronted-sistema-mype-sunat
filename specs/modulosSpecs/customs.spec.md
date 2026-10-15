@@ -50,8 +50,18 @@ src/modules/customs/
 
 ---
 
-## 4. Instrucciones Específicas para Agentes de IA
-* Cuando modifique este módulo:
   1. No altere la fórmula de Casilla 4 DAM ($(\text{CIF} + \text{Ad-Valorem}) \times 18\%$) sin validar la base legal de Aduanas.
   2. Mantenga las variables monetarias tipadas y formateadas con `formatCurrency(val, 'USD')`.
   3. Verifique que `npm run build` pase con 0 errores tras cualquier edición.
+  4. Toda prueba debe escribirse en `test/unit/modules/customs/`, nunca dentro de `src/`.
+
+---
+
+## 5. Estrategia de Pruebas Unitarias (`test/unit/modules/customs/`)
+
+* **Ubicación Exclusiva:** `test/unit/modules/customs/`
+* **Casos Críticos a Probar:**
+  1. **`duaCalculator.test.ts`:** Verificación de fórmulas arancelarias: $\text{CIF} = \text{FOB} + \text{Flete} + \text{Seguro}$, $\text{Base IGV/IPM} = (\text{CIF} + \text{Ad-Valorem}) \times 18\%$, y liquidación total en PEN.
+  2. **`duaSchema.test.ts`:** Rechazo de importes negativos, validación de formato de DUA (`118-2026-10-XXXXXX`) y tasas arancelarias válidas.
+  3. **`kardexCosting.test.ts`:** Prorrateo de costos de importación y cálculo del costo unitario nacionalizado.
+

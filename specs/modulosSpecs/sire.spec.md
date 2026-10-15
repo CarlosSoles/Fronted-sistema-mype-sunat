@@ -51,8 +51,18 @@ src/modules/sire/
 
 ---
 
-## 4. Instrucciones Específicas para Agentes de IA
-* Cuando edite o extienda este módulo:
   1. No altere los tipos de `MatchStatus` sin verificar la consistencia con el backend.
   2. Asegure que la tabla de discrepancias soporte scroll horizontal en pantallas pequeñas sin romper el layout.
   3. Verifique que `npm run build` pase con 0 errores tras cualquier edición.
+  4. Toda prueba debe escribirse en `test/unit/modules/sire/`, nunca dentro de `src/`.
+
+---
+
+## 5. Estrategia de Pruebas Unitarias (`test/unit/modules/sire/`)
+
+* **Ubicación Exclusiva:** `test/unit/modules/sire/`
+* **Casos Críticos a Probar:**
+  1. **`sireComparator.test.ts`:** Identificación de diferencias en Base Imponible e IGV mayores a S/ 0.01 entre el ERP y la propuesta SUNAT.
+  2. **`sireFilenameValidator.test.ts`:** Verificación estricta del patrón de nombres de archivo SIRE (`LE<RUC><AÑO><MES>...`).
+  3. **`sireFilter.test.ts`:** Filtrado correcto de registros por estados `MATCH`, `DISCREPANCY`, `ONLY_INTERNAL` y `ONLY_SUNAT`.
+

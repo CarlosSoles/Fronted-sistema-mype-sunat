@@ -47,6 +47,19 @@ src/
     ├── customs/        # [M3: Carlos Ahumada] Liquidación DUA/DAM & Kardex
     ├── sire/           # [M4: Diego Toledo] Conciliación Fiscal SIRE (RVIE / RCE)
     └── accounting/     # [M5: Michael Velásquez] Contabilidad PCGE y Libros PLE
+
+test/                   # ESTRUCTURA CENTRALIZADA DE PRUEBAS (Simétrica al Backend)
+├── unit/               # Pruebas unitarias puras (sin renderizado de navegador)
+│   ├── lib/            # Pruebas de utilidades transversales (formatters, axios)
+│   └── modules/        # 1 carpeta aislada por cada módulo de negocio
+│       ├── auth/
+│       ├── invoices/
+│       ├── resilience/
+│       ├── customs/
+│       ├── sire/
+│       └── accounting/
+├── integration/        # Pruebas de integración de componentes y flujos de hooks
+└── e2e/                # Pruebas End-to-End simulando usuario en navegador
 ```
 
 ### Regla de Propiedad y Soberanía por Módulo:
@@ -152,7 +165,7 @@ Para mantener armonía absoluta entre los 5 integrantes:
 
 ---
 
-## 8. Workflow de Desarrollo en 6 Pasos (El Ciclo de Vida de una Feature)
+## 8. Workflow de Desarrollo en 7 Pasos (El Ciclo de Vida de una Feature)
 
 Cada vez que un desarrollador o agente de IA implemente una nueva pantalla:
 
@@ -167,6 +180,12 @@ Cada vez que un desarrollador o agente de IA implemente una nueva pantalla:
 │ 6. ROUTE        │  ◄──  │ 5. PAGE & ATOMS │  ◄──  │ 4. CUSTOM HOOK  │
 │ routes/*.tsx    │       │ pages/ & comp/  │       │ hooks/use*.ts   │
 └─────────────────┘       └─────────────────┘       └─────────────────┘
+         │
+         ▼
+┌───────────────────────────────────────────────┐
+│ 7. UNIT TESTS (En test/unit/modules/<m>/)    │
+│ Pruebas unitarias de Zod y cálculos tributarios│
+└───────────────────────────────────────────────┘
 ```
 
 1. **Paso 1 (Contrato de Datos):** Definir interfaces en `modules/<m>/types/<m>.types.ts` según los DTOs del backend.
@@ -175,6 +194,7 @@ Cada vez que un desarrollador o agente de IA implemente una nueva pantalla:
 4. **Paso 4 (Custom Hook):** Orquestar la consulta o mutación en `modules/<m>/hooks/use<Feature>.ts` con TanStack Query.
 5. **Paso 5 (Subcomponentes y Página):** Crear componentes atómicos (< 100 líneas) en `components/` y ensamblarlos en `pages/<Feature>Page.tsx`.
 6. **Paso 6 (Ruta y Lazy Loading):** Registrar la vista en `routes/appRoutes.tsx` usando `React.lazy()` y validar la accesibilidad.
+7. **Paso 7 (Prueba Unitaria):** Escribir la prueba en `test/unit/modules/<m>/<feature>.validator.test.ts` verificando que los esquemas rechacen datos inválidos y los cálculos tributarios sean exactos.
 
 ---
 
@@ -186,4 +206,22 @@ Cuando un Asistente de IA (Antigravity, Cursor, Copilot, etc.) trabaje en este r
 2. **Prohibición de Edición Cruzada:** Un agente **NO** debe modificar archivos de dos módulos de negocio distintos en la misma tarea, a menos que sea una refactorización transversal aprobada por el Arquitecto (Carlos Ahumada).
 3. **Prohibición de Instalación Silenciosa:** El agente no debe instalar librerías externas adicionales por npm sin justificación técnica y autorización expresa. Debe reutilizar `shadcn/ui`, `lucide-react`, `zod`, `axios` y `zustand`.
 4. **Validación de Compilación Obligatoria:** Tras realizar cualquier edición, el agente debe verificar que `npx tsc -b` y `npm run build` terminen con **Código 0 (Cero Errores)**.
-5. **Registro en Bitácora:** Cada acción, comando ejecutado o error resuelto debe registrarse detalladamente en `docs/redaccionEstructuraFronted.md`.
+5. **Ubicación Exclusiva de Tests:** Todo archivo de prueba creado por la IA debe residir en `test/unit/modules/<modulo>/` o `test/unit/lib/`. Está terminantemente prohibido generar archivos `.test.ts` dentro de `src/`.
+6. **Registro en Bitácora:** Cada acción relevante, comando ejecutado o error resuelto debe registrarse detalladamente en `docs/redaccionEstructuraFronted.md`.
+
+---
+
+## 10. Gobernanza y Estándar de la Carpeta Centralizada `test/`
+
+Para asegurar la misma disciplina del backend y mantener `src/` exclusivamente con código de producción:
+
+1. **Estructura Estricta:**
+   - `test/unit/lib/`: Pruebas de utilidades transversales (formateadores monetarios, fechas, interceptores).
+   - `test/unit/modules/<modulo>/`: Espacio soberano de cada desarrollador para sus validadores Zod, cálculos y hooks.
+   - `test/integration/`: Pruebas de integración de componentes combinados.
+   - `test/e2e/`: Pruebas de usuario final en navegador (Playwright / Cypress).
+2. **Reglas de Importación:**
+   - Se debe importar el código fuente usando el alias `@/` (ej: `import { invoiceSchema } from '@/modules/invoices/validators/invoiceSchema'`).
+3. **Prohibición de `any` en Mocks:**
+   - Los datos simulados para tests deben implementar las interfaces de `@/modules/<modulo>/types/`.
+

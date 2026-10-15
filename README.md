@@ -81,6 +81,20 @@ src/
 │           └── validators/  # Esquemas de validación Zod
 ├── routes/                  # Configuración de rutas (appRoutes.tsx, ProtectedRoute.tsx)
 └── stores/                  # Estados globales Zustand (authStore.ts, uiStore.ts)
+
+test/                        # DIRECTORIO CENTRALIZADO DE PRUEBAS (Simétrico al Backend)
+├── README.md                # Guía y lineamientos de QA para desarrolladores e IA
+├── unit/                    # Pruebas unitarias aisladas
+│   ├── lib/                 # Pruebas de utilidades transversales (formatters, env)
+│   └── modules/             # Pruebas unitarias organizadas por módulo (1 por desarrollador)
+│       ├── auth/            # Pruebas de validadores y store de autenticación
+│       ├── invoices/        # Pruebas de esquemas Zod y cálculo de IGV 18%
+│       ├── resilience/      # Pruebas de Circuit Breaker y cola IndexedDB
+│       ├── customs/         # Pruebas de cálculo de liquidación DUA (CIF, Ad-Valorem)
+│       ├── sire/            # Pruebas de conciliación RVIE/RCE y filtros
+│       └── accounting/      # Pruebas de partida doble (Debe == Haber) y ratios
+├── integration/             # Pruebas de integración de componentes y modales
+└── e2e/                     # Pruebas End-to-End simulando usuario en navegador
 ```
 
 ---
@@ -195,18 +209,24 @@ Para mantener el código ordenado y evitar conflictos entre los 5 integrantes de
 5. **No commitear secretos ni archivos privados:**
    - El archivo `.env` nunca debe subirse al repositorio (está protegido en `.gitignore`).
    - La carpeta `docs/` es de uso privado y está excluida del repositorio.
+6. **Estrategia Centralizada de Pruebas:**
+   - Todo archivo de test debe ubicarse dentro de `test/unit/modules/<tu_modulo>/`.
+   - Está prohibido crear archivos `.test.ts` dentro de `src/` para mantener el código de producción limpio.
+   - Importa el código fuente a probar usando el alias `@/` (ejemplo: `@/modules/invoices/validators/...`).
+   - Consulta [`test/README.md`](test/README.md) para más detalles.
 
 ---
 
 ## 👥 8. Equipo de Desarrollo & Asignación de Módulos
 
-| Integrante | Módulo Asignado | Especificación de Referencia |
-| :--- | :--- | :--- |
-| Desarrollador 1 | **Facturación Electrónica** | [`specs/modulosSpecs/01_invoices.spec.md`](specs/modulosSpecs/01_invoices.spec.md) |
-| Desarrollador 2 | **Resiliencia & Contingencia SUNAT** | [`specs/modulosSpecs/02_resilience.spec.md`](specs/modulosSpecs/02_resilience.spec.md) |
-| Desarrollador 3 | **Aduanas e Importaciones (DUA)** | [`specs/modulosSpecs/03_customs.spec.md`](specs/modulosSpecs/03_customs.spec.md) |
-| Desarrollador 4 | **Integración SIRE (RVIE/RCE)** | [`specs/modulosSpecs/04_sire.spec.md`](specs/modulosSpecs/04_sire.spec.md) |
-| Desarrollador 5 | **Contabilidad & Balances MYPE** | [`specs/modulosSpecs/05_accounting.spec.md`](specs/modulosSpecs/05_accounting.spec.md) |
+| Integrante | Módulo Asignado | Especificación de Negocio | Carpeta de Pruebas Unitarias |
+| :--- | :--- | :--- | :--- |
+| Desarrollador 1 | **Facturación Electrónica** | [`specs/modulosSpecs/invoices.spec.md`](specs/modulosSpecs/invoices.spec.md) | `test/unit/modules/invoices/` |
+| Desarrollador 2 | **Resiliencia & Contingencia SUNAT** | [`specs/modulosSpecs/resilience.spec.md`](specs/modulosSpecs/resilience.spec.md) | `test/unit/modules/resilience/` |
+| Desarrollador 3 | **Aduanas e Importaciones (DUA)** | [`specs/modulosSpecs/customs.spec.md`](specs/modulosSpecs/customs.spec.md) | `test/unit/modules/customs/` |
+| Desarrollador 4 | **Integración SIRE (RVIE/RCE)** | [`specs/modulosSpecs/sire.spec.md`](specs/modulosSpecs/sire.spec.md) | `test/unit/modules/sire/` |
+| Desarrollador 5 | **Contabilidad & Balances MYPE** | [`specs/modulosSpecs/accounting.spec.md`](specs/modulosSpecs/accounting.spec.md) | `test/unit/modules/accounting/` |
+
 
 ---
 

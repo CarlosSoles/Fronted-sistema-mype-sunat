@@ -60,3 +60,14 @@ src/modules/auth/
 ## 5. Instrucciones Específicas para Agentes de IA
 * Si se requiere mockear el login para pruebas locales, hágalo exclusivamente a través del hook `useLogin.ts` mediante un bloque de contingencia de desarrollo, sin alterar la firma del servicio `authApi.ts`.
 * Verifique siempre que el token JWT se inyecte en el header `Authorization: Bearer <token>`.
+* Toda prueba unitaria debe crearse en `test/unit/modules/auth/`, nunca dentro de `src/`.
+
+---
+
+## 6. Estrategia de Pruebas Unitarias (`test/unit/modules/auth/`)
+
+* **Ubicación Exclusiva:** `test/unit/modules/auth/`
+* **Casos Críticos a Probar:**
+  1. **`loginSchema.test.ts`:** Validación de correo electrónico bien formado, rechazo de contraseñas cortas (< 8 caracteres), y obligatoriedad de campos.
+  2. **`authStore.test.ts`:** Persistencia correcta de JWT y empresa activa en LocalStorage, y borrado total de credenciales tras cerrar sesión.
+

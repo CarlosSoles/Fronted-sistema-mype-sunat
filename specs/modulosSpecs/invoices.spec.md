@@ -59,3 +59,15 @@ src/modules/invoices/
   1. No altere la interfaz `Invoice` en `types/` sin verificar compatibilidad con el backend.
   2. Asegure que la tabla de comprobantes sea operable mediante teclado (accesibilidad WCAG 2.1 AA).
   3. Verifique que `npm run build` pase con 0 errores tras cualquier edición.
+  4. Toda prueba debe escribirse en `test/unit/modules/invoices/`, nunca dentro de `src/`.
+
+---
+
+## 5. Estrategia de Pruebas Unitarias (`test/unit/modules/invoices/`)
+
+* **Ubicación Exclusiva:** `test/unit/modules/invoices/`
+* **Casos Críticos a Probar:**
+  1. **`invoiceSchema.test.ts`:** Validación de RUC (11 dígitos, prefijos válidos 10/20), rechazo de montos negativos, validación de series autorizadas (`F001`, `B001`).
+  2. **`taxCalculation.test.ts`:** Comprobación matemática de Operaciones Gravadas + 18% IGV = Total, sin descuadres de centavos.
+  3. **`useInvoices.test.ts`:** Verificación del consumo de `invoicesApi` y estados devueltos por TanStack Query.
+
