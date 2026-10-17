@@ -7,7 +7,7 @@
 
 ## 📌 1. Sobre el Proyecto
 
-**SYNC-SUNAT** es una plataforma web modular diseñada para que las MYPES peruanas gestionen sus operaciones comerciales, financieras y obligaciones tributarias ante la **SUNAT** de manera ágil, confiable y automatizada.
+**SYNC-SUNAT** es una plataforma web modular diseñada para que las MYPES gestionen sus operaciones comerciales, financieras y obligaciones tributarias ante la **SUNAT** de manera ágil, confiable y automatizada.
 
 ### Funcionalidades Principales
 1. **Facturación Electrónica (CPE):** Emisión y consulta de Facturas (`01`), Boletas (`03`), Notas de Crédito (`07`) y Débito (`08`) con cálculo de IGV (18%), estados de validez SUNAT y descarga de representaciones impresas (PDF) y XML homologados.
