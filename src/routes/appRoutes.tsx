@@ -2,55 +2,113 @@ import React, { Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ProtectedRoute } from './ProtectedRoute';
+import { RoleProtectedRoute } from './RoleProtectedRoute';
+import { useAuth } from '@/hooks/useAuth';
+import { getDefaultRouteForRole } from './roleNavigation';
 import { Loader2 } from 'lucide-react';
 
-// Carga perezosa (Route-based Code Splitting) para rendimiento < 200 KB
+// Carga perezosa (Route-based Code Splitting)
 const LoginPage = React.lazy(() => import('@/modules/auth/pages/LoginPage'));
+const RegisterPage = React.lazy(() => import('@/modules/auth/pages/RegisterPage'));
+const ProfilePage = React.lazy(() => import('@/modules/auth/pages/ProfilePage'));
+const SecurityPage = React.lazy(() => import('@/modules/auth/pages/SecurityPage'));
+
 const InvoicesListPage = React.lazy(() => import('@/modules/invoices/pages/InvoicesListPage'));
 const ResilienceDashboardPage = React.lazy(() => import('@/modules/resilience/pages/ResilienceDashboardPage'));
 const DuaCalculatorPage = React.lazy(() => import('@/modules/customs/pages/DuaCalculatorPage'));
 const SireReconciliationPage = React.lazy(() => import('@/modules/sire/pages/SireReconciliationPage'));
 const AccountingEntriesPage = React.lazy(() => import('@/modules/accounting/pages/AccountingEntriesPage'));
 
-// Componente de carga elegante mientras se descarga el chunk del módulo
+// Fallback de carga durante la descarga del chunk
 const PageLoadingFallback = () => (
   <div className="h-[60vh] flex flex-col items-center justify-center gap-3 text-muted-foreground">
     <Loader2 className="h-6 w-6 animate-spin text-primary" />
-    <span className="text-xs font-medium">Cargando módulo vertical...</span>
+    <span className="text-xs font-medium">Cargando módulo...</span>
   </div>
 );
+
+// Redirección dinámica al módulo correspondiente según la Matriz RBAC del rol activo
+const RoleHomeRedirect = () => {
+  const { user } = useAuth();
+  const target = getDefaultRouteForRole(user?.role);
+  return <Navigate to={target} replace />;
+};
 
 export const AppRoutes = () => {
   return (
     <Suspense fallback={<PageLoadingFallback />}>
       <Routes>
-        {/* Ruta Pública: Login */}
+        {/* Rutas Públicas */}
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
 
-        {/* Rutas Privadas / Protegidas con Layout Maestro */}
+        {/* Rutas Protegidas bajo Layout Principal */}
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
-            <Route index element={<Navigate to="/invoices" replace />} />
-            
-            {/* [M1: Jhordy] Facturación UBL 2.1 */}
-            <Route path="/invoices" element={<InvoicesListPage />} />
+            <Route index element={<RoleHomeRedirect />} />
 
-            {/* [M2: Oliver] Resiliencia SUNAT & Circuit Breaker */}
-            <Route path="/resilience" element={<ResilienceDashboardPage />} />
+            {/* Módulo de Identidad & Perfil */}
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/settings/security" element={<SecurityPage />} />
 
-            {/* [M3: Carlos] Aduanas DUA/DAM & Kardex */}
-            <Route path="/customs" element={<DuaCalculatorPage />} />
+            {/* [M1: Facturación] ADMIN, OPERADOR_FACTURACION, CONTADOR, AUDITOR */}
+            <Route
+              path="/invoices"
+              element={
+                <RoleProtectedRoute
+                  allowedRoles={['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT']}
+                >
+                  <InvoicesListPage />
+                </RoleProtectedRoute>
+              }
+            />
 
-            {/* [M4: Diego] Conciliación Fiscal SIRE */}
-            <Route path="/sire" element={<SireReconciliationPage />} />
+            {/* [M2: Resiliencia] ADMIN, AUDITOR */}
+            <Route
+              path="/resilience"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'AUDITOR']}>
+                  <ResilienceDashboardPage />
+                </RoleProtectedRoute>
+              }
+            />
 
-            {/* [M5: Michael] Contabilidad PCGE & Libros PLE */}
-            <Route path="/accounting" element={<AccountingEntriesPage />} />
+            {/* [M3: Aduanas] ADMIN, OPERADOR_ADUANAS, CONTADOR, AUDITOR */}
+            <Route
+              path="/customs"
+              element={
+                <RoleProtectedRoute
+                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
+                >
+                  <DuaCalculatorPage />
+                </RoleProtectedRoute>
+              }
+            />
+
+            {/* [M4: Conciliación SIRE] ADMIN, CONTADOR, AUDITOR */}
+            <Route
+              path="/sire"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <SireReconciliationPage />
+                </RoleProtectedRoute>
+              }
+            />
+
+            {/* [M5: Contabilidad PCGE] ADMIN, CONTADOR, AUDITOR */}
+            <Route
+              path="/accounting"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <AccountingEntriesPage />
+                </RoleProtectedRoute>
+              }
+            />
           </Route>
         </Route>
 
-        {/* Ruta comodín: Redirección al módulo principal */}
-        <Route path="*" element={<Navigate to="/invoices" replace />} />
+        {/* Ruta comodín con redirección según rol */}
+        <Route path="*" element={<RoleHomeRedirect />} />
       </Routes>
     </Suspense>
   );

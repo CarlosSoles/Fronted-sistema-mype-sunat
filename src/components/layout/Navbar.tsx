@@ -3,10 +3,11 @@ import { useTheme } from '@/hooks/useTheme';
 import { useUiStore } from '@/stores/uiStore';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Building2, LogOut, Menu, Moon, Sun, User } from 'lucide-react';
+import { Building2, Menu, Moon, Sun } from 'lucide-react';
+import { UserNavDropdown } from './UserNavDropdown';
 
 export const Navbar = () => {
-  const { user, activeCompany, logout } = useAuth();
+  const { activeCompany } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { toggleSidebar } = useUiStore();
 
@@ -59,31 +60,10 @@ export const Navbar = () => {
             )}
           </Button>
 
-          {/* Perfil de usuario */}
-          <div className="flex items-center gap-2 pl-2 border-l">
-            <div className="flex flex-col text-right hidden sm:flex">
-              <span className="text-xs font-medium leading-none">
-                {user?.name || 'Usuario MYPE'}
-              </span>
-              <span className="text-[10px] text-muted-foreground">
-                {user?.role || 'OPERATOR'}
-              </span>
-            </div>
-            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs">
-              <User className="h-4 w-4" />
-            </div>
+          {/* Menú de Usuario con Badges Cromáticos y Dropdown */}
+          <div className="pl-2 border-l">
+            <UserNavDropdown />
           </div>
-
-          {/* Botón Logout */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={logout}
-            aria-label="Cerrar sesión"
-            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-          >
-            <LogOut className="h-4 w-4" />
-          </Button>
         </div>
       </div>
     </header>

@@ -16,6 +16,10 @@ import {
   type SireReconciliationSummary,
 } from '../types/sire.types';
 
+import { extractApiErrorMessage } from '@/lib/apiErrors';
+import { useRolePermissions } from '@/hooks/useRolePermissions';
+import { Badge } from '@/components/ui';
+
 const EMPTY_LOCAL_RECORDS: SireLocalRecord[] = [];
 const EMPTY_SUMMARY: SireReconciliationSummary = {
   totalPropuestaSunat: 0,
@@ -35,6 +39,7 @@ export default function SireReconciliationPage() {
   const [bookType, setBookType] = useState<SireBookType>('RVIE_VENTAS');
   const [appliedPeriod, setAppliedPeriod] = useState(period);
   const [appliedBookType, setAppliedBookType] = useState(bookType);
+  const { isAuditor } = useRolePermissions();
   const { data, error, isFetching, isLoading } = useSireReconciliation(
     appliedPeriod,
     appliedBookType,
@@ -46,7 +51,13 @@ export default function SireReconciliationPage() {
       <PageHeader
         title="Conciliación Fiscal SIRE (RVIE / RCE)"
         description="Cruce entre la propuesta de SUNAT y los registros locales."
-      />
+      >
+        {isAuditor && (
+          <Badge variant="outline" className="h-8 px-3 text-xs bg-muted/60 text-muted-foreground border-dashed">
+            👁️ Auditoría Tributaria (Solo Lectura)
+          </Badge>
+        )}
+      </PageHeader>
       <SirePeriodFilter
         period={period}
         bookType={bookType}
@@ -69,7 +80,7 @@ export default function SireReconciliationPage() {
       {error && (
         <Alert variant="destructive">
           <AlertTitle>No se pudo consultar SIRE</AlertTitle>
-          <AlertDescription>{error.message}</AlertDescription>
+          <AlertDescription>{extractApiErrorMessage(error)}</AlertDescription>
         </Alert>
       )}
       <SireMetricsCards summary={data?.summary ?? EMPTY_SUMMARY} />

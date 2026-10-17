@@ -28,16 +28,16 @@ import {
 import { formatCurrency, formatDateToPeru } from '@/lib/formatters';
 import { FilePlus, RefreshCw, Info } from 'lucide-react';
 
+import { useRolePermissions } from '@/hooks/useRolePermissions';
+
 const cdrStatusLabels = {
-  ACEPTADO_SUNAT: 'Aceptado',
-  EN_COLA_OUTBOX: 'Buffer Outbox',
-  FALLO_CRITICO: 'En Cola DLQ',
-  RECHAZADO_SUNAT: 'Rechazado',
+  ACEPTADO_SUNAT: 'Aceptado', EN_COLA_OUTBOX: 'Buffer Outbox', FALLO_CRITICO: 'En Cola DLQ', RECHAZADO_SUNAT: 'Rechazado',
 } as const;
 
 export default function InvoicesListPage() {
   const { data, isLoading, refetch, isRefetching } = useInvoicesList();
   const [searchTerm, setSearchTerm] = useState('');
+  const { canEmitInvoices, isAuditor } = useRolePermissions();
 
   const filteredInvoices = (data?.data ?? []).filter((inv) =>
     `${inv.serie}-${inv.numero} ${inv.clienteRazonSocial} ${inv.clienteRuc}`
@@ -55,10 +55,16 @@ export default function InvoicesListPage() {
           <RefreshCw aria-hidden="true" />
           Actualizar
         </Button>
-        <Button size="sm">
-          <FilePlus aria-hidden="true" />
-          Nueva Factura
-        </Button>
+        {canEmitInvoices ? (
+          <Button size="sm">
+            <FilePlus aria-hidden="true" />
+            Nueva Factura
+          </Button>
+        ) : (
+          <Badge variant="outline" className="h-9 px-3 text-xs bg-muted/60 text-muted-foreground border-dashed">
+            {isAuditor ? '👁️ Inspección Fiscal (Solo Lectura)' : '📊 Consulta Contable (Lectura)'}
+          </Badge>
+        )}
       </PageHeader>
 
       <Alert variant="info">
@@ -133,17 +139,9 @@ export default function InvoicesListPage() {
 
       <Pagination>
         <PaginationContent>
-          <PaginationItem>
-            <PaginationPrevious />
-          </PaginationItem>
-          <PaginationItem>
-            <PaginationLink isActive>
-              1
-            </PaginationLink>
-          </PaginationItem>
-          <PaginationItem>
-            <PaginationNext />
-          </PaginationItem>
+          <PaginationItem><PaginationPrevious /></PaginationItem>
+          <PaginationItem><PaginationLink isActive>1</PaginationLink></PaginationItem>
+          <PaginationItem><PaginationNext /></PaginationItem>
         </PaginationContent>
       </Pagination>
     </Page>

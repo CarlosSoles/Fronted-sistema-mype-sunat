@@ -9,6 +9,8 @@ import { INITIAL_DUA_FORM, DEMO_SUNAT_FORM } from '../lib/customsConstants';
 import { type RegisterDuaItemPayload, type RegisterDuaPayload } from '../types/customs.types';
 import { ArrowLeft, Sparkles, AlertTriangle } from 'lucide-react';
 
+import { extractApiErrorMessage } from '@/lib/apiErrors';
+
 interface Props {
   onBack: () => void;
   onSuccess: () => void;
@@ -61,11 +63,19 @@ export const DuaRegistrationView = ({ onBack, onSuccess }: Props) => {
     if (!isBalanced) return;
     setErrorMsg(null);
     try {
-      await registerMutation.mutateAsync(form);
+      // Saneamiento de datos para compatibilidad estricta con DTOs de SUNAT
+      const sanitizedPayload: RegisterDuaPayload = {
+        ...form,
+        customs_agency_code: form.customs_agency_code.slice(0, 3).trim(),
+        items: form.items.map((it) => ({
+          ...it,
+          hs_code: it.hs_code.replace(/\D/g, ''),
+        })),
+      };
+      await registerMutation.mutateAsync(sanitizedPayload);
       onSuccess();
     } catch (err: unknown) {
-      const errorResponse = err as { response?: { data?: { message?: string } }; message?: string };
-      setErrorMsg(errorResponse.response?.data?.message || errorResponse.message || 'Error al registrar la DAM');
+      setErrorMsg(extractApiErrorMessage(err, 'Error al registrar la DAM ante SUNAT'));
     }
   };
 

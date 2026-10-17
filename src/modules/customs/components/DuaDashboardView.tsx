@@ -10,6 +10,9 @@ import { useCustomsDeclarations } from '../hooks/useCustomsDeclarations';
 import { useKardexMovements } from '../hooks/useKardexMovements';
 import { Plus, Search, FileText, Layers, RefreshCw } from 'lucide-react';
 
+import { Badge } from '@/components/ui/badge';
+import { useRolePermissions } from '@/hooks/useRolePermissions';
+
 interface Props {
   onOpenRegistration: () => void;
 }
@@ -18,6 +21,7 @@ export const DuaDashboardView = ({ onOpenRegistration }: Props) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDeclarationId, setSelectedDeclarationId] = useState<string | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const { canRegisterDua, isAuditor, isContador } = useRolePermissions();
 
   const {
     data: declarations = [],
@@ -58,10 +62,16 @@ export const DuaDashboardView = ({ onOpenRegistration }: Props) => {
             <RefreshCw className="h-3.5 w-3.5" />
             Actualizar
           </Button>
-          <Button onClick={onOpenRegistration} size="sm" className="h-9 gap-1.5 text-xs font-semibold shadow-xs">
-            <Plus className="h-4 w-4" />
-            + Registrar Nueva Declaración
-          </Button>
+          {canRegisterDua ? (
+            <Button onClick={onOpenRegistration} size="sm" className="h-9 gap-1.5 text-xs font-semibold shadow-xs">
+              <Plus className="h-4 w-4" />
+              + Registrar Nueva Declaración
+            </Button>
+          ) : (
+            <Badge variant="outline" className="h-9 px-3 text-xs bg-muted/60 text-muted-foreground border-dashed">
+              {isAuditor ? '👁️ Inspección Aduanera (Solo Lectura)' : '📊 Consulta de Crédito Fiscal (Lectura)'}
+            </Badge>
+          )}
         </div>
       </div>
 

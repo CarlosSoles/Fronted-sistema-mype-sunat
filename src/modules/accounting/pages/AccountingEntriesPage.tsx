@@ -17,8 +17,11 @@ import {
 import { formatCurrency, formatDateToPeru } from '@/lib/formatters';
 import { BookOpen, Download, PlusCircle, RefreshCw } from 'lucide-react';
 
+import { useRolePermissions } from '@/hooks/useRolePermissions';
+
 export default function AccountingEntriesPage() {
   const { data: entries, isLoading, refetch, isRefetching } = useAccountingEntries();
+  const { canCreateAccountingEntry, isAuditor } = useRolePermissions();
 
   const totalDebe = entries?.reduce((acc, e) => acc + e.totalDebe, 0) ?? 0;
   const totalHaber = entries?.reduce((acc, e) => acc + e.totalHaber, 0) ?? 0;
@@ -37,10 +40,16 @@ export default function AccountingEntriesPage() {
           <Download aria-hidden="true" />
           Exportar PLE (.txt)
         </Button>
-        <Button size="sm">
-          <PlusCircle aria-hidden="true" />
-          Nuevo Asiento
-        </Button>
+        {canCreateAccountingEntry ? (
+          <Button size="sm">
+            <PlusCircle aria-hidden="true" />
+            Nuevo Asiento
+          </Button>
+        ) : isAuditor ? (
+          <Badge variant="outline" className="h-9 px-3 text-xs bg-muted/60 text-muted-foreground border-dashed">
+            👁️ Auditoría Contable (Solo Lectura)
+          </Badge>
+        ) : null}
       </PageHeader>
 
       {/* Tarjeta de validación de partida doble */}
