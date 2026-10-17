@@ -1,4 +1,5 @@
 import { CircuitBreakerWidget } from '../components/CircuitBreakerWidget';
+import { OfflineQueueSection } from '../components/OfflineQueueSection';
 import { useResilienceMetrics } from '../hooks/useResilienceMetrics';
 import {
   Badge,
@@ -99,6 +100,9 @@ export default function ResilienceDashboardPage() {
           </CardContent>
         </Card>
       </PageGrid>
+
+      {/* [TA-27] Cola offline de comprobantes con IndexedDB */}
+      <OfflineQueueSection />
     </Page>
   );
 }
