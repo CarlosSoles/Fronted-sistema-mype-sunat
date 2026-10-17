@@ -2,7 +2,7 @@ import { type RegisterDuaPayload } from '../types/customs.types';
 
 export const INITIAL_DUA_FORM: RegisterDuaPayload = {
   dua_number: '',
-  customs_agency_code: '118 - MARÍTIMA DEL CALLAO',
+  customs_agency_code: '118',
   regime_code: '10',
   numeration_date: new Date().toISOString().split('T')[0],
   exchange_rate: 3.8,
@@ -26,7 +26,7 @@ export const INITIAL_DUA_FORM: RegisterDuaPayload = {
 
 export const DEMO_SUNAT_FORM: RegisterDuaPayload = {
   dua_number: '118-2026-10-001234',
-  customs_agency_code: '118 - MARÍTIMA DEL CALLAO',
+  customs_agency_code: '118',
   regime_code: '10',
   numeration_date: '2026-10-15',
   exchange_rate: 3.8,
@@ -39,7 +39,7 @@ export const DEMO_SUNAT_FORM: RegisterDuaPayload = {
     {
       item_order: 1,
       item_code: 'LAP-GAMER-01',
-      hs_code: '8471.30.00.00',
+      hs_code: '8471300000',
       commercial_description: 'Laptop Gamer Intel Core i7 16GB RAM',
       quantity: 10,
       unit_code: 'NIU',
@@ -48,7 +48,7 @@ export const DEMO_SUNAT_FORM: RegisterDuaPayload = {
     {
       item_order: 2,
       item_code: 'MON-LED-27',
-      hs_code: '8528.52.00.00',
+      hs_code: '8528520000',
       commercial_description: 'Monitor LED 27 pulgadas Curvo 144Hz',
       quantity: 20,
       unit_code: 'NIU',

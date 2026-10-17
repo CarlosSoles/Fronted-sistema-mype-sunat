@@ -1,5 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { useUiStore } from '@/stores/uiStore';
+import { useAuth } from '@/hooks/useAuth';
+import { type Role } from '@/modules/auth/types/auth.types';
 import { cn } from '@/lib/utils';
 import {
   Activity,
@@ -16,6 +18,7 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   badge?: string;
   developer: string;
+  allowedRoles: Role[];
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -24,24 +27,28 @@ const NAV_ITEMS: NavItem[] = [
     path: '/invoices',
     icon: FileText,
     developer: 'Jhordy Salirrosas',
+    allowedRoles: ['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT'],
   },
   {
     title: 'Aduanas DUA & Kardex',
     path: '/customs',
     icon: Ship,
     developer: 'Carlos Ahumada',
+    allowedRoles: ['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
   },
   {
     title: 'Conciliación SIRE',
     path: '/sire',
     icon: CheckSquare,
     developer: 'Diego Toledo',
+    allowedRoles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
   },
   {
     title: 'Contabilidad PCGE',
     path: '/accounting',
     icon: BookOpen,
     developer: 'Michael Velásquez',
+    allowedRoles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
   },
   {
     title: 'Resiliencia SUNAT',
@@ -49,11 +56,20 @@ const NAV_ITEMS: NavItem[] = [
     icon: Activity,
     badge: 'Caos',
     developer: 'Oliver Saldaña',
+    allowedRoles: ['ADMIN', 'AUDITOR'],
   },
 ];
 
 export const Sidebar = () => {
   const { isSidebarCollapsed } = useUiStore();
+  const { user } = useAuth();
+  const currentRole = user?.role;
+
+  // Filtrado reactivo según la Matriz RBAC (especificacionAuth.md sección 7.1)
+  const visibleNavItems = NAV_ITEMS.filter((item) => {
+    if (!currentRole || currentRole === 'ADMIN') return true;
+    return item.allowedRoles.includes(currentRole);
+  });
 
   return (
     <aside
@@ -75,9 +91,9 @@ export const Sidebar = () => {
         )}
       </div>
 
-      {/* Lista de Módulos Verticales */}
+      {/* Lista de Módulos Verticales autorizados */}
       <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-        {NAV_ITEMS.map((item) => (
+        {visibleNavItems.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
@@ -95,22 +111,28 @@ export const Sidebar = () => {
             {!isSidebarCollapsed && (
               <div className="flex-1 flex items-center justify-between truncate">
                 <span className="truncate">{item.title}</span>
-                {item.badge && (
+                {currentRole === 'AUDITOR' ? (
+                  <span className="text-[9px] uppercase font-bold px-1 py-0.5 rounded bg-muted text-muted-foreground">
+                    Lectura
+                  </span>
+                ) : item.badge ? (
                   <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400">
                     {item.badge}
                   </span>
-                )}
+                ) : null}
               </div>
             )}
           </NavLink>
         ))}
       </nav>
 
-      {/* Pie de la barra lateral */}
+      {/* Pie de la barra lateral con Rol Activo */}
       {!isSidebarCollapsed && (
         <div className="p-3 border-t text-[11px] text-muted-foreground bg-muted/30">
           <p className="font-semibold text-foreground/80">SYNC-SUNAT v1.0.0</p>
-          <p className="text-[10px]">Arquitectura Vertical Slice</p>
+          <p className="text-[10px] text-primary font-medium truncate">
+            Rol: {currentRole || 'ADMIN'}
+          </p>
         </div>
       )}
     </aside>
