@@ -23,3 +23,28 @@ export interface SireReconciliationSummary {
   comprobantesConDiscrepancia: number;
   diferenciaNeta: number;
 }
+
+export type SireBookType = 'RVIE_VENTAS' | 'RCE_COMPRAS';
+
+export interface SireLocalRecord {
+  id: string;
+  tipoComprobante: SireVoucher['tipoComprobante'];
+  serie: string;
+  numero: string;
+  emisorRuc: string;
+  emisorRazonSocial: string;
+  fechaEmision: string;
+  montoLocal: number;
+}
+
+export interface SireReconciliationRequest {
+  period: string;
+  bookType: SireBookType;
+  localRecords: SireLocalRecord[];
+}
+
+export interface SireReconciliationResult {
+  vouchers: SireVoucher[];
+  summary: SireReconciliationSummary;
+  source: 'api' | 'mock';
+}

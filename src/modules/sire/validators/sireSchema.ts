@@ -1,10 +1,12 @@
 import { z } from 'zod';
 
 export const sirePeriodSchema = z.object({
-  periodo: z.string().regex(/^\d{6}$/, {
-    message: 'El período fiscal SIRE debe tener formato AAAAMM (ej. 202610)',
+  period: z.string().regex(/^\d{4}(0[1-9]|1[0-2])$/, {
+    message: 'El período fiscal SIRE debe tener formato YYYYMM con mes entre 01 y 12',
   }),
-  tipoRegistro: z.enum(['VENTAS_RVIE', 'COMPRAS_RCE']),
+  bookType: z.enum(['RVIE_VENTAS', 'RCE_COMPRAS']),
 });
 
-export type SirePeriodFormData = z.infer<typeof sirePeriodSchema>;
+export const sireSchema = sirePeriodSchema;
+
+export type SirePeriodFormData = z.infer<typeof sireSchema>;

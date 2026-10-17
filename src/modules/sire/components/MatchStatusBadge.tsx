@@ -1,5 +1,5 @@
 import { type MatchStatus } from '../types/sire.types';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/components/ui';
 import { CheckCircle2, AlertTriangle, HelpCircle } from 'lucide-react';
 
 interface Props {
