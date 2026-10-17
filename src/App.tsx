@@ -1,5 +1,5 @@
-import { AppRoutes } from '@/routes/appRoutes';
+import InvoiceList from './modules/invoices/InvoiceList';
 
 export default function App() {
-  return <AppRoutes />;
+  return <InvoiceList />;
 }
