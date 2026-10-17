@@ -8,8 +8,8 @@ import { z } from 'zod';
 const envSchema = z.object({
   VITE_API_URL: z
     .string()
-    .url({ message: 'VITE_API_URL debe ser una URL válida (ej. http://localhost:8080/api/v1)' })
-    .default('http://localhost:8080/api/v1'),
+    .url({ message: 'VITE_API_URL debe ser una URL válida (ej. http://localhost:3000/api/v1)' })
+    .default('http://localhost:3000/api/v1'),
   VITE_SUNAT_ENV: z
     .enum(['BETA', 'PRODUCCION'], {
       message: 'VITE_SUNAT_ENV debe ser BETA o PRODUCCION',
