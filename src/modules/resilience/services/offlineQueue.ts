@@ -29,14 +29,14 @@ let dbPromise: Promise<OfflineDb> | null = null;
 function getDb(): Promise<OfflineDb> {
   if (!dbPromise) {
     dbPromise = openDB<OfflineQueueSchema>(OFFLINE_DB_NAME, OFFLINE_DB_VERSION, {
-      upgrade(db) {
+      upgrade(db: IDBPDatabase<OfflineQueueSchema>) {
         const store = db.createObjectStore(OFFLINE_STORE, { keyPath: 'id' });
         store.createIndex('by-status', 'status');
         store.createIndex('by-created', 'createdAt');
       },
     });
   }
-  return dbPromise;
+  return dbPromise!;
 }
 
 /** Cierra la conexion. Solo se usa en las pruebas. */
@@ -82,7 +82,7 @@ export async function listByStatus(
   const db = await getDb();
   const items = await db.getAllFromIndex(OFFLINE_STORE, 'by-status', status);
 
-  return items.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  return items.sort((a: OfflineQueueItem, b: OfflineQueueItem) => a.createdAt.localeCompare(b.createdAt));
 }
 
 /** Aplica cambios parciales a un elemento y actualiza updatedAt. */

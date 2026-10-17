@@ -21,7 +21,7 @@ export const DuaDashboardView = ({ onOpenRegistration }: Props) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDeclarationId, setSelectedDeclarationId] = useState<string | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const { canRegisterDua, isAuditor, isContador } = useRolePermissions();
+  const { canRegisterDua, isAuditor } = useRolePermissions();
 
   const {
     data: declarations = [],
