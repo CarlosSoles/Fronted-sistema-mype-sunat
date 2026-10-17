@@ -1,15 +1,19 @@
-import { PageHeader } from '@/components/layout/PageHeader';
 import { DoubleEntryBalanceCard } from '../components/DoubleEntryBalanceCard';
 import { useAccountingEntries } from '../hooks/useAccountingEntries';
-import { Button } from '@/components/ui/button';
 import {
+  Badge,
+  Button,
+  Card,
+  Page,
+  PageHeader,
+  PageText,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from '@/components/ui';
 import { formatCurrency, formatDateToPeru } from '@/lib/formatters';
 import { BookOpen, Download, PlusCircle, RefreshCw } from 'lucide-react';
 
@@ -20,21 +24,21 @@ export default function AccountingEntriesPage() {
   const totalHaber = entries?.reduce((acc, e) => acc + e.totalHaber, 0) ?? 0;
 
   return (
-    <div className="space-y-6">
+    <Page>
       <PageHeader
         title="Contabilidad PCGE & Libros PLE"
         description="Libro Diario, Mayor y generación de archivos estructurados para SUNAT (PLE 5.1)"
       >
         <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isRefetching}>
-          <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${isRefetching ? 'animate-spin' : ''}`} />
+          <RefreshCw aria-hidden="true" />
           Refrescar
         </Button>
-        <Button variant="outline" size="sm" className="gap-1.5">
-          <Download className="h-4 w-4" />
+        <Button variant="outline" size="sm">
+          <Download aria-hidden="true" />
           Exportar PLE (.txt)
         </Button>
-        <Button size="sm" className="gap-1.5">
-          <PlusCircle className="h-4 w-4" />
+        <Button size="sm">
+          <PlusCircle aria-hidden="true" />
           Nuevo Asiento
         </Button>
       </PageHeader>
@@ -43,57 +47,55 @@ export default function AccountingEntriesPage() {
       <DoubleEntryBalanceCard totalDebe={totalDebe} totalHaber={totalHaber} />
 
       {/* Tabla de Asientos Contables */}
-      <div className="border rounded-xl bg-card overflow-hidden shadow-sm">
+      <Card flush>
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>N° Asiento</TableHead>
               <TableHead>Fecha</TableHead>
               <TableHead>Glosa / Concepto</TableHead>
-              <TableHead className="text-right">Total Debe</TableHead>
-              <TableHead className="text-right">Total Haber</TableHead>
-              <TableHead className="text-center">Estado</TableHead>
+              <TableHead align="right">Total Debe</TableHead>
+              <TableHead align="right">Total Haber</TableHead>
+              <TableHead align="center">Estado</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center text-xs text-muted-foreground">
+                <TableCell colSpan={6} align="center">
                   Cargando libro diario PCGE...
                 </TableCell>
               </TableRow>
             ) : entries && entries.length > 0 ? (
               entries.map((entry) => (
                 <TableRow key={entry.id}>
-                  <TableCell className="font-semibold text-xs">{entry.numeroAsiento}</TableCell>
-                  <TableCell className="text-xs">{formatDateToPeru(entry.fechaContable)}</TableCell>
-                  <TableCell className="text-xs">{entry.glosa}</TableCell>
-                  <TableCell className="text-right text-xs font-semibold">
+                  <TableCell>{entry.numeroAsiento}</TableCell>
+                  <TableCell>{formatDateToPeru(entry.fechaContable)}</TableCell>
+                  <TableCell>{entry.glosa}</TableCell>
+                  <TableCell align="right">
                     {formatCurrency(entry.totalDebe, 'PEN')}
                   </TableCell>
-                  <TableCell className="text-right text-xs font-semibold">
+                  <TableCell align="right">
                     {formatCurrency(entry.totalHaber, 'PEN')}
                   </TableCell>
-                  <TableCell className="text-center text-xs">
-                    <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${entry.estaCuadrado ? 'bg-emerald-500/10 text-emerald-600' : 'bg-destructive/10 text-destructive'}`}>
+                  <TableCell align="center">
+                    <Badge variant={entry.estaCuadrado ? 'secondary' : 'destructive'}>
                       {entry.estaCuadrado ? 'Cuadrado' : 'Descuadrado'}
-                    </span>
+                    </Badge>
                   </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center text-xs text-muted-foreground">
-                  <div className="flex flex-col items-center justify-center gap-1">
-                    <BookOpen className="h-6 w-6 text-muted-foreground/60 mb-1" />
-                    <span>No hay asientos contables registrados en el período activo.</span>
-                  </div>
+                <TableCell colSpan={6} align="center">
+                  <BookOpen aria-hidden="true" />
+                  <PageText variant="muted">No hay asientos contables registrados en el período activo.</PageText>
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
-      </div>
-    </div>
+      </Card>
+    </Page>
   );
 }

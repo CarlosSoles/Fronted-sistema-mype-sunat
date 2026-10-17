@@ -62,12 +62,19 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
   )
 }
 
-function TableHead({ className, ...props }: React.ComponentProps<"th">) {
+type TableAlignment = "left" | "center" | "right"
+
+function TableHead({
+  align = "left",
+  className,
+  ...props
+}: React.ComponentProps<"th"> & { align?: TableAlignment }) {
   return (
     <th
       data-slot="table-head"
+      data-align={align}
       className={cn(
-        "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0",
+        "h-10 px-2 align-middle font-medium whitespace-nowrap text-foreground data-[align=left]:text-left data-[align=center]:text-center data-[align=right]:text-right [&:has([role=checkbox])]:pr-0",
         className
       )}
       {...props}
@@ -75,14 +82,16 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   )
 }
 
-function TableCell({ className, ...props }: React.ComponentProps<"td">) {
+function TableCell({
+  align = "left",
+  className,
+  ...props
+}: React.ComponentProps<"td"> & { align?: TableAlignment }) {
   return (
     <td
       data-slot="table-cell"
-      className={cn(
-        "p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0",
-        className
-      )}
+      data-align={align}
+      className={cn("p-2 align-middle whitespace-nowrap data-[align=left]:text-left data-[align=center]:text-center data-[align=right]:text-right [&:has([role=checkbox])]:pr-0", className)}
       {...props}
     />
   )

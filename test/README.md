@@ -21,6 +21,8 @@ En un sistema tributario y financiero como **SYNC-SUNAT**, las pruebas de fronte
 test/
 ├── README.md                      # Esta guía técnica de testing
 ├── unit/                          # PRUEBAS UNITARIAS (Lógica aislada sin navegador)
+│   ├── components/                 # Componentes globales de src/components/ui/
+│   │   └── uiComponents.test.tsx   # Roles accesibles, variantes y estados visuales UI
 │   ├── lib/                       # Pruebas de utilidades transversales (formatters, axios, env)
 │   └── modules/                   # 1 subcarpeta por cada módulo vertical (1 por desarrollador)
 │       ├── auth/                  # Pruebas de login, validadores de credenciales y roles
@@ -71,3 +73,21 @@ Cuando un asistente de IA escriba o mantenga pruebas en este proyecto:
 1. **Ubicación Obligatoria:** Las pruebas **NUNCA** deben crearse dentro de `src/`. Deben residir en `test/unit/modules/<modulo>/` o `test/unit/lib/`.
 2. **Prohibición de `any` en Tests:** Los mocks y datos de prueba deben implementar estrictamente los tipos definidos en `@/modules/<modulo>/types/`.
 3. **Verificación de Tipos:** Ejecutar `npx tsc -b` para asegurar que las pruebas no rompan el tipado estricto del proyecto.
+
+## 🧪 5. Ejecutar pruebas de componentes UI
+
+El proyecto usa Vitest, jsdom y React Testing Library para verificar los componentes compartidos sin navegador:
+
+```powershell
+npm ci
+npm test -- test/unit/components/uiComponents.test.tsx
+```
+
+Para capturar la salida de la ejecución como evidencia local:
+
+```powershell
+npm test -- --reporter=verbose test/unit/components/uiComponents.test.tsx 2>&1 |
+  Tee-Object -FilePath "$env:TEMP\test-results-ui-components.txt"
+```
+
+El reporte se guarda en la carpeta temporal del usuario y no se agrega al control de versiones.

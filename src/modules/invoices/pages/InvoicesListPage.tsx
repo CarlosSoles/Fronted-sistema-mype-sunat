@@ -1,86 +1,151 @@
-import { PageHeader } from '@/components/layout/PageHeader';
-import { CdrStatusBadge } from '../components/CdrStatusBadge';
+import { useState } from 'react';
 import { useInvoicesList } from '../hooks/useInvoicesList';
-import { Button } from '@/components/ui/button';
 import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Badge,
+  Button,
+  Card,
+  FilterBar,
+  FilterSearch,
+  Page,
+  PageHeader,
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PageText,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from '@/components/ui';
 import { formatCurrency, formatDateToPeru } from '@/lib/formatters';
-import { FilePlus, RefreshCw } from 'lucide-react';
+import { FilePlus, RefreshCw, Info } from 'lucide-react';
+
+const cdrStatusLabels = {
+  ACEPTADO_SUNAT: 'Aceptado',
+  EN_COLA_OUTBOX: 'Buffer Outbox',
+  FALLO_CRITICO: 'En Cola DLQ',
+  RECHAZADO_SUNAT: 'Rechazado',
+} as const;
 
 export default function InvoicesListPage() {
   const { data, isLoading, refetch, isRefetching } = useInvoicesList();
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filteredInvoices = (data?.data ?? []).filter((inv) =>
+    `${inv.serie}-${inv.numero} ${inv.clienteRazonSocial} ${inv.clienteRuc}`
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase())
+  );
 
   return (
-    <div className="space-y-6">
+    <Page>
       <PageHeader
         title="Facturación Electrónica UBL 2.1"
         description="Emisión, consulta y seguimiento de comprobantes electrónicos sincronizados con SUNAT"
       >
         <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isRefetching}>
-          <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${isRefetching ? 'animate-spin' : ''}`} />
+          <RefreshCw aria-hidden="true" />
           Actualizar
         </Button>
-        <Button size="sm" className="gap-1.5">
-          <FilePlus className="h-4 w-4" />
+        <Button size="sm">
+          <FilePlus aria-hidden="true" />
           Nueva Factura
         </Button>
       </PageHeader>
 
-      <div className="border rounded-xl bg-card overflow-hidden shadow-sm">
+      <Alert variant="info">
+        <Info aria-hidden="true" />
+        <AlertTitle>Canal de Comunicación SUNAT Activo</AlertTitle>
+        <AlertDescription>
+          Los comprobantes emitidos se firman digitalmente y se encolan con garantía de entrega outbox.
+        </AlertDescription>
+      </Alert>
+
+      <FilterBar>
+        <FilterSearch
+          value={searchTerm}
+          onChange={setSearchTerm}
+          onClear={() => setSearchTerm('')}
+          placeholder="Filtrar por serie, número o RUC de cliente..."
+        />
+      </FilterBar>
+
+      <Card flush>
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Comprobante</TableHead>
               <TableHead>Cliente</TableHead>
               <TableHead>Fecha Emisión</TableHead>
-              <TableHead className="text-right">Total</TableHead>
-              <TableHead className="text-center">Estado CDR</TableHead>
+              <TableHead align="right">Total</TableHead>
+              <TableHead align="center">Estado CDR</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-32 text-center text-xs text-muted-foreground">
+                <TableCell colSpan={5} align="center">
                   Cargando comprobantes...
                 </TableCell>
               </TableRow>
-            ) : data?.data && data.data.length > 0 ? (
-              data.data.map((inv) => (
+            ) : filteredInvoices.length > 0 ? (
+              filteredInvoices.map((inv) => (
                 <TableRow key={inv.id}>
-                  <TableCell className="font-semibold text-xs">
+                  <TableCell>
                     {inv.serie}-{inv.numero}
                   </TableCell>
                   <TableCell>
-                    <p className="text-xs font-medium">{inv.clienteRazonSocial}</p>
-                    <p className="text-[10px] text-muted-foreground">RUC: {inv.clienteRuc}</p>
+                    <PageText variant="label">{inv.clienteRazonSocial}</PageText>
+                    <PageText variant="caption">RUC: {inv.clienteRuc}</PageText>
                   </TableCell>
-                  <TableCell className="text-xs">
+                  <TableCell>
                     {formatDateToPeru(inv.fechaEmision)}
                   </TableCell>
-                  <TableCell className="text-right text-xs font-semibold">
+                  <TableCell align="right">
                     {formatCurrency(inv.total, inv.moneda)}
                   </TableCell>
-                  <TableCell className="text-center">
-                    <CdrStatusBadge status={inv.cdrStatus} codigo={inv.cdrCodigo} />
+                  <TableCell align="center">
+                    <Badge variant={inv.cdrStatus === 'FALLO_CRITICO' ? 'destructive' : 'outline'}>
+                      {cdrStatusLabels[inv.cdrStatus]}
+                      {inv.cdrCodigo ? ` (${inv.cdrCodigo})` : ''}
+                    </Badge>
                   </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={5} className="h-32 text-center text-xs text-muted-foreground">
+                <TableCell colSpan={5} align="center">
                   No se encontraron comprobantes registrados en este periodo.
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
-      </div>
-    </div>
+      </Card>
+
+      <Pagination>
+        <PaginationContent>
+          <PaginationItem>
+            <PaginationPrevious />
+          </PaginationItem>
+          <PaginationItem>
+            <PaginationLink isActive>
+              1
+            </PaginationLink>
+          </PaginationItem>
+          <PaginationItem>
+            <PaginationNext />
+          </PaginationItem>
+        </PaginationContent>
+      </Pagination>
+    </Page>
   );
 }

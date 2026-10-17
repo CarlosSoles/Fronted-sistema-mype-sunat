@@ -2,9 +2,16 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { loginSchema, type LoginFormData } from '../validators/authSchema';
 import { useLogin } from '../hooks/useLogin';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { LogIn, Loader2 } from 'lucide-react';
+import {
+  Alert,
+  AlertDescription,
+  Button,
+  Input,
+  PageField,
+  PageForm,
+  PageText,
+} from '@/components/ui';
+import { LogIn } from 'lucide-react';
 
 export const LoginForm = () => {
   const { mutate: login, isPending, error } = useLogin();
@@ -26,47 +33,51 @@ export const LoginForm = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <PageForm onSubmit={handleSubmit(onSubmit)}>
       {error && (
-        <div className="p-3 text-xs bg-destructive/15 text-destructive rounded-lg border border-destructive/20">
-          Credenciales incorrectas o servidor no disponible.
-        </div>
+        <Alert variant="destructive">
+          <AlertDescription>
+            Credenciales incorrectas o servidor no disponible.
+          </AlertDescription>
+        </Alert>
       )}
 
-      <div className="space-y-1.5 text-left">
-        <label className="text-xs font-medium text-foreground">Correo Electrónico</label>
+      <PageField label="Correo Electrónico" htmlFor="login-email">
         <Input
+          id="login-email"
           type="email"
           placeholder="contador@mype.pe"
           {...register('email')}
           aria-invalid={!!errors.email}
+          aria-describedby={errors.email ? 'login-email-error' : undefined}
         />
         {errors.email && (
-          <p className="text-[11px] text-destructive">{errors.email.message}</p>
+          <PageText id="login-email-error" variant="error" role="alert">
+            {errors.email.message}
+          </PageText>
         )}
-      </div>
+      </PageField>
 
-      <div className="space-y-1.5 text-left">
-        <label className="text-xs font-medium text-foreground">Contraseña</label>
+      <PageField label="Contraseña" htmlFor="login-password">
         <Input
+          id="login-password"
           type="password"
           placeholder="••••••••"
           {...register('password')}
           aria-invalid={!!errors.password}
+          aria-describedby={errors.password ? 'login-password-error' : undefined}
         />
         {errors.password && (
-          <p className="text-[11px] text-destructive">{errors.password.message}</p>
+          <PageText id="login-password-error" variant="error" role="alert">
+            {errors.password.message}
+          </PageText>
         )}
-      </div>
+      </PageField>
 
-      <Button type="submit" className="w-full gap-2" disabled={isPending}>
-        {isPending ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <LogIn className="h-4 w-4" />
-        )}
+      <Button type="submit" fullWidth disabled={isPending}>
+        <LogIn aria-hidden="true" />
         Iniciar Sesión
       </Button>
-    </form>
+    </PageForm>
   );
 };

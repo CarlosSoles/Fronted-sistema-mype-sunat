@@ -7,9 +7,15 @@ node_modules/
 .pnp
 .pnp.js
 
-# Carpeta personal / Notas privadas de documentación (NO SUBIR)
-docs/
-/docs/
+# Carpeta personal / Notas privadas de documentación
+docs/*
+!docs/linea-de-diseno.md
+!docs/guia-de-componentes.md
+!docs/evidencia-lighthouse-local.md
+!docs/evidencia-lighthouse-local.jpg
+!docs/evidencia-lighthouse-invoices.jpg
+!docs/evidencia-lighthouse-sire.jpg
+!docs/evidencia-lighthouse-login.jpg
 
 # Variables de Entorno y Secretos (Seguridad)
 .env

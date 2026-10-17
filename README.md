@@ -26,7 +26,7 @@
 | **Framework UI** | [React 19](https://react.dev/) | Librería base con soporte para React Actions y transiciones concurrentes |
 | **Lenguaje** | [TypeScript 6](https://www.typescriptlang.org/) | Tipado estático estricto y seguro de punto a punto |
 | **Bundler / Dev Server** | [Vite 8](https://vite.dev/) | Compilación HMR ultrarrápida y optimización ESM |
-| **Estilos & UI** | [Tailwind CSS v4](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/) | Sistema de diseño profesional, accesible, responsivo y modo oscuro |
+| **Estilos & UI** | [Tailwind CSS v4](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/) | Biblioteca oficial del frontend; componentes en `src/components/ui/`, importados desde `@/components/ui` |
 | **Gestión Asíncrona & Cache** | [TanStack React Query v5](https://tanstack.com/query/latest) | Manejo de estado remoto, caché inteligente y revalidación |
 | **Estado Global** | [Zustand](https://zustand.docs.pmnd.rs/) | Store global liviano con persistencia local de sesión (`authStore`, `uiStore`) |
 | **Cliente HTTP** | [Axios](https://axios-http.com/) | Interceptores automáticos de Bearer Token, cabecera `X-Tenant-Id` y manejo de 401 |
@@ -48,6 +48,9 @@ Este proyecto se desarrolla bajo el estándar de **Desarrollo Guiado por Especif
   - `03_customs.spec.md`: Declaraciones Únicas de Aduanas (DUA) e importaciones.
   - `04_sire.spec.md`: Conciliación de ventas (RVIE) y compras (RCE) con SUNAT.
   - `05_accounting.spec.md`: Libros contables, balances y estados financieros.
+- 🎨 **[Línea de Diseño y Tokens (`docs/linea-de-diseno.md`)](docs/linea-de-diseno.md):** Documentación formal de tokens sobre Tailwind v4 (tipografía, colores OKLCH, espaciados, radios y los 5 estados interactivos).
+- 🧩 **[Guía de Uso de Componentes (`docs/guia-de-componentes.md`)](docs/guia-de-componentes.md):** Catálogo de componentes web reutilizables (`@/components/ui`) con un ejemplo de código por componente.
+- 🔎 **[Auditoría Lighthouse local (`docs/evidencia-lighthouse-local.md`)](docs/evidencia-lighthouse-local.md):** Evidencia reproducible de la compilación local; no sustituye la medición pendiente sobre el despliegue público.
 
 ---
 
@@ -208,7 +211,7 @@ Para mantener el código ordenado y evitar conflictos entre los 5 integrantes de
 4. **Validación de Formularios:** Todo formulario que capture datos debe ser validado con esquemas Zod en `validators/` y enlazado con `react-hook-form`.
 5. **No commitear secretos ni archivos privados:**
    - El archivo `.env` nunca debe subirse al repositorio (está protegido en `.gitignore`).
-   - La carpeta `docs/` es de uso privado y está excluida del repositorio.
+   - Los apuntes y archivos locales privados deben mantenerse fuera del repositorio; las guías compartidas de `docs/` sí forman parte de la documentación del proyecto.
 6. **Estrategia Centralizada de Pruebas:**
    - Todo archivo de test debe ubicarse dentro de `test/unit/modules/<tu_modulo>/`.
    - Está prohibido crear archivos `.test.ts` dentro de `src/` para mantener el código de producción limpio.

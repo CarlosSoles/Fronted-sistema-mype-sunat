@@ -86,6 +86,12 @@ test/                   # ESTRUCTURA CENTRALIZADA DE PRUEBAS (Simétrica al Back
 | **I - Interface Segregation (ISP)** | No pasar objetos gigantes a componentes que solo necesitan dos propiedades. Usar interfaces pequeñas y específicas en los `props`. |
 | **D - Dependency Inversion (DIP)** | Las vistas no dependen directamente de Axios. Dependen de abstracciones expuestas por Custom Hooks (`useInvoicesList`, `useDuaCalculator`). |
 
+### 3.3. Regla de una Única Fuente de UI (Normativa TA-23)
+* **Prohibición de HTML y CSS propios en pantallas:** Ninguna pantalla o vista (`pages/`) puede declarar elementos HTML/JSX intrínsecos (`div`, `button`, `input`, etc.), etiquetas `<style>`, estilos inline ni clases de presentación Tailwind. La estructura y presentación visual se componen mediante los componentes exportados desde `@/components/ui`.
+* **Importación centralizada obligatoria:** Las pantallas importan los componentes de interfaz exclusivamente desde el punto público `@/components/ui`; no deben importar directamente archivos internos de `src/components/ui/`.
+* **Componentes y extensiones:** Los componentes globales de interfaz, incluidos los auxiliares de composición y layout, viven en `src/components/ui/` y se exportan desde `@/components/ui`. Si hace falta una variante o un patrón visual que aún no exista, se añade allí; no se resuelve con JSX o estilos propios de una pantalla. Hooks, servicios, tipos, iconos y lógica de negocio quedan fuera de esta prohibición visual.
+* **Consumo exclusivo:** Los controles y patrones visuales compartidos (botones, campos, tablas, diálogos, alertas, paginación, badges, selectores y filtros) se consumen desde `@/components/ui`; no se crean equivalentes locales por pantalla.
+
 ---
 
 ## 4. Separación Estricta de Responsabilidades por Subcarpeta
@@ -224,4 +230,3 @@ Para asegurar la misma disciplina del backend y mantener `src/` exclusivamente c
    - Se debe importar el código fuente usando el alias `@/` (ej: `import { invoiceSchema } from '@/modules/invoices/validators/invoiceSchema'`).
 3. **Prohibición de `any` en Mocks:**
    - Los datos simulados para tests deben implementar las interfaces de `@/modules/<modulo>/types/`.
-
