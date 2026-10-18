@@ -19,7 +19,7 @@ import { CheckCircle2, Flame, RefreshCw, Zap } from 'lucide-react';
 
 export default function ResilienceDashboardPage() {
   const { data: metrics, refetch, isRefetching } = useResilienceMetrics();
-  const { isChaosActive, isPending, toggle } = useChaosToggle();
+  const { isChaosActive, isPending, isError, toggle } = useChaosToggle();
 
   return (
     <Page>
@@ -75,6 +75,13 @@ export default function ResilienceDashboardPage() {
               <Badge variant={isChaosActive ? 'destructive' : 'secondary'}>
                 {isChaosActive ? 'Caos activo' : 'Inactivo'}
               </Badge>
+              {isError && (
+                <PageText variant="caption">
+                  No se pudo contactar al backend de resiliencia. Verifica que
+                  los endpoints <code>/api/v1/resilience</code> estén
+                  desplegados.
+                </PageText>
+              )}
             </Card>
           </CardContent>
         </Card>
