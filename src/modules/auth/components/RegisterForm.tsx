@@ -8,6 +8,7 @@ import { RegisterCompanyFields } from './RegisterCompanyFields';
 import { RegisterAdminFields } from './RegisterAdminFields';
 import { Alert, AlertDescription, Button, PageForm } from '@/components/ui';
 import { Loader2 } from 'lucide-react';
+import { extractApiErrorMessage } from '@/lib/apiErrors';
 
 export const RegisterForm = () => {
   const { mutate: registerMype, isPending, error } = useRegister();
@@ -44,7 +45,10 @@ export const RegisterForm = () => {
       {error && (
         <Alert variant="destructive">
           <AlertDescription>
-            No se pudo completar el registro. Verifica que el RUC o correo no estén ya registrados.
+            {extractApiErrorMessage(
+              error,
+              'No se pudo completar el registro. Verifica los datos ingresados o que el RUC/correo no estén ya registrados.'
+            )}
           </AlertDescription>
         </Alert>
       )}
