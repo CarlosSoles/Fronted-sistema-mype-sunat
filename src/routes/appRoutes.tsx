@@ -15,6 +15,14 @@ const SecurityPage = React.lazy(() => import('@/modules/auth/pages/SecurityPage'
 
 const InvoicesListPage = React.lazy(() => import('@/modules/invoices/pages/InvoicesListPage'));
 const ResilienceDashboardPage = React.lazy(() => import('@/modules/resilience/pages/ResilienceDashboardPage'));
+const CustomsDashboardPage = React.lazy(() => import('@/modules/customs/pages/CustomsDashboardPage'));
+const ShipmentsListPage = React.lazy(() => import('@/modules/customs/pages/ShipmentsListPage'));
+const ShipmentDetailPage = React.lazy(() => import('@/modules/customs/pages/ShipmentDetailPage'));
+const DuaRegistrationWizardPage = React.lazy(() => import('@/modules/customs/pages/DuaRegistrationWizardPage'));
+const CustomsLiquidationPage = React.lazy(() => import('@/modules/customs/pages/CustomsLiquidationPage'));
+const LandedCostSheetPage = React.lazy(() => import('@/modules/customs/pages/LandedCostSheetPage'));
+const KardexPermanentPage = React.lazy(() => import('@/modules/customs/pages/KardexPermanentPage'));
+const SireExportAuditPage = React.lazy(() => import('@/modules/customs/pages/SireExportAuditPage'));
 const DuaCalculatorPage = React.lazy(() => import('@/modules/customs/pages/DuaCalculatorPage'));
 const SireReconciliationPage = React.lazy(() => import('@/modules/sire/pages/SireReconciliationPage'));
 const AccountingEntriesPage = React.lazy(() => import('@/modules/accounting/pages/AccountingEntriesPage'));
@@ -73,9 +81,110 @@ export const AppRoutes = () => {
               }
             />
 
-            {/* [M3: Aduanas] ADMIN, OPERADOR_ADUANAS, CONTADOR, AUDITOR */}
+            {/* [M3: Suite Aduanera e Inventarios] ADMIN, OPERADOR_ADUANAS, CONTADOR, AUDITOR */}
             <Route
               path="/customs"
+              element={
+                <RoleProtectedRoute
+                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
+                >
+                  <CustomsDashboardPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/customs/dashboard"
+              element={
+                <RoleProtectedRoute
+                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
+                >
+                  <CustomsDashboardPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/customs/shipments"
+              element={
+                <RoleProtectedRoute
+                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
+                >
+                  <ShipmentsListPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/customs/shipments/:id"
+              element={
+                <RoleProtectedRoute
+                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
+                >
+                  <ShipmentDetailPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/customs/declarations/new"
+              element={
+                <RoleProtectedRoute
+                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
+                >
+                  <DuaRegistrationWizardPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/customs/settlements"
+              element={
+                <RoleProtectedRoute
+                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
+                >
+                  <CustomsLiquidationPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/customs/landed-cost"
+              element={
+                <RoleProtectedRoute
+                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
+                >
+                  <LandedCostSheetPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/customs/shipments/:id/landed-cost"
+              element={
+                <RoleProtectedRoute
+                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
+                >
+                  <LandedCostSheetPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/customs/inventory/kardex"
+              element={
+                <RoleProtectedRoute
+                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
+                >
+                  <KardexPermanentPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/customs/reports/fiscal-sire"
+              element={
+                <RoleProtectedRoute
+                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
+                >
+                  <SireExportAuditPage />
+                </RoleProtectedRoute>
+              }
+            />
+            {/* Ruta legacy de retrocompatibilidad */}
+            <Route
+              path="/customs/legacy"
               element={
                 <RoleProtectedRoute
                   allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
