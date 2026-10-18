@@ -27,14 +27,18 @@ export const useChaosToggle = () => {
 
   const mutation = useMutation({
     mutationFn: (scenario: ChaosScenario) => resilienceApi.toggleChaos(scenario),
-    onSuccess: () => {
+    // El estado se marca solo cuando el backend confirma: si el endpoint no
+    // existe o falla, el boton no debe mentir diciendo que el caos esta activo.
+    onSuccess: (_data, scenario) => {
+      setIsChaosActive(
+        scenario.simulateSunatDown || scenario.simulateHighLatency,
+      );
       void queryClient.invalidateQueries({ queryKey: ['resilience-metrics'] });
     },
   });
 
   /** Fuerza HTTP 503 en el Mock: el Circuit Breaker debe abrirse. */
   const activateSunatDown = (): void => {
-    setIsChaosActive(true);
     mutation.mutate({
       simulateSunatDown: true,
       simulateHighLatency: false,
@@ -44,7 +48,6 @@ export const useChaosToggle = () => {
 
   /** Vuelve al comportamiento normal del Mock. */
   const deactivate = (): void => {
-    setIsChaosActive(false);
     mutation.mutate(SIN_CAOS);
   };
 
