@@ -1,33 +1,17 @@
-import { useState } from 'react';
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-  Page,
-  PageHeader,
-} from '@/components/ui';
+import { useState, type FormEvent } from 'react';
+import { Alert, AlertDescription, AlertTitle, Button, Page, PageHeader } from '@/components/ui';
+import { LoaderCircle } from 'lucide-react';
+import { useAuthStore } from '@/stores/authStore';
+import { SireComprobantesTable } from '../components/SireComprobantesTable';
 import { SireMetricsCards } from '../components/SireMetricsCards';
 import { SirePeriodFilter } from '../components/SirePeriodFilter';
 import { SireVouchersTable } from '../components/SireVouchersTable';
 import { useSireReconciliation } from '../hooks/useSireReconciliation';
-import {
-  type SireBookType,
-  type SireLocalRecord,
-  type SireReconciliationSummary,
-} from '../types/sire.types';
+import type { ComprobanteDraft } from '../types/sire.types';
 
-import { extractApiErrorMessage } from '@/lib/apiErrors';
-import { useRolePermissions } from '@/hooks/useRolePermissions';
-import { Badge } from '@/components/ui';
-
-const EMPTY_LOCAL_RECORDS: SireLocalRecord[] = [];
-const EMPTY_SUMMARY: SireReconciliationSummary = {
-  totalPropuestaSunat: 0,
-  totalRegistroLocal: 0,
-  comprobantesConciliados: 0,
-  comprobantesConDiscrepancia: 0,
-  diferenciaNeta: 0,
-};
+const emptyVoucher = (): ComprobanteDraft => ({
+  tipoComprobante: '01', serie: '', correlativo: '', baseImponible: '', igv: '', total: '',
+});
 
 const currentPeriod = () => {
   const now = new Date();
@@ -36,55 +20,77 @@ const currentPeriod = () => {
 
 export default function SireReconciliationPage() {
   const [period, setPeriod] = useState(currentPeriod);
-  const [bookType, setBookType] = useState<SireBookType>('RVIE_VENTAS');
-  const [appliedPeriod, setAppliedPeriod] = useState(period);
-  const [appliedBookType, setAppliedBookType] = useState(bookType);
-  const { isAuditor } = useRolePermissions();
-  const { data, error, isFetching, isLoading } = useSireReconciliation(
-    appliedPeriod,
-    appliedBookType,
-    EMPTY_LOCAL_RECORDS,
-  );
+  const [ruc, setRuc] = useState(() => useAuthStore.getState().activeCompany?.ruc ?? '');
+  const [comprobantes, setComprobantes] = useState<ComprobanteDraft[]>([emptyVoucher()]);
+  const [inputError, setInputError] = useState<string | null>(null);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const { reconcile, loading, error, data } = useSireReconciliation();
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setShowFeedback(true);
+    const mapped = comprobantes.map((row) => ({
+      tipoComprobante: row.tipoComprobante,
+      serie: row.serie,
+      correlativo: row.correlativo,
+      baseImponible: row.baseImponible.trim() ? Number(row.baseImponible) : Number.NaN,
+      igv: row.igv.trim() ? Number(row.igv) : Number.NaN,
+      total: row.total.trim() ? Number(row.total) : Number.NaN,
+    }));
+    if (mapped.some((row) => ![row.baseImponible, row.igv, row.total].every(Number.isFinite))) {
+      setInputError('Completa cada importe con un número finito para enviar los comprobantes.');
+      return;
+    }
+    setInputError(null);
+    void reconcile({ period, ruc, comprobantes: mapped }).catch(() => undefined);
+  };
 
   return (
     <Page>
       <PageHeader
-        title="Conciliación Fiscal SIRE (RVIE / RCE)"
-        description="Cruce entre la propuesta de SUNAT y los registros locales."
-      >
-        {isAuditor && (
-          <Badge variant="outline" className="h-8 px-3 text-xs bg-muted/60 text-muted-foreground border-dashed">
-            👁️ Auditoría Tributaria (Solo Lectura)
-          </Badge>
-        )}
-      </PageHeader>
-      <SirePeriodFilter
-        period={period}
-        bookType={bookType}
-        isFetching={isFetching}
-        onPeriodChange={setPeriod}
-        onBookTypeChange={setBookType}
-        onApply={() => {
-          setAppliedPeriod(period);
-          setAppliedBookType(bookType);
-        }}
+        title="Conciliación fiscal SIRE"
+        description="Compara los comprobantes del ERP con la información fiscal de SUNAT."
       />
-      {data?.source === 'mock' && (
-        <Alert variant="info">
-          <AlertTitle>Datos de demostración</AlertTitle>
-          <AlertDescription>
-            El backend SIRE no está disponible. Se muestran datos simulados; no son registros fiscales reales.
-          </AlertDescription>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <SirePeriodFilter
+          period={period}
+          ruc={ruc}
+          disabled={loading}
+          showFeedback={showFeedback}
+          onPeriodChange={setPeriod}
+          onRucChange={setRuc}
+        />
+        <SireComprobantesTable
+          comprobantes={comprobantes}
+          showFeedback={showFeedback}
+          onChange={setComprobantes}
+        />
+        <Button type="submit" disabled={loading}>
+          {loading && <LoaderCircle className="animate-spin" aria-hidden="true" />}
+          {loading ? 'Conciliando…' : 'Conciliar'}
+        </Button>
+      </form>
+
+      {(inputError || error) && (
+        <Alert variant="destructive" className="mt-4">
+          <AlertTitle>No se pudo completar la conciliación</AlertTitle>
+          <AlertDescription>{inputError ?? error}</AlertDescription>
         </Alert>
       )}
-      {error && (
-        <Alert variant="destructive">
-          <AlertTitle>No se pudo consultar SIRE</AlertTitle>
-          <AlertDescription>{extractApiErrorMessage(error)}</AlertDescription>
-        </Alert>
+      {data && (
+        <div className="mt-6 space-y-6">
+          <SireMetricsCards summary={data.summary} />
+          <SireVouchersTable results={data.results} />
+          {data.results.some((result) => result.escenario === 'DUPLICADO_LLAVE') && (
+            <Alert variant="warning">
+              <AlertTitle>Se requiere resolución manual</AlertTitle>
+              <AlertDescription>
+                Las llaves duplicadas no tienen un registro elegido automáticamente. Revisa el origen indicado en cada fila.
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
       )}
-      <SireMetricsCards summary={data?.summary ?? EMPTY_SUMMARY} />
-      <SireVouchersTable vouchers={data?.vouchers ?? []} isLoading={isLoading} />
     </Page>
   );
 }

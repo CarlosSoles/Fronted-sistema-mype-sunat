@@ -15,7 +15,11 @@ import {
   FilePlus,
   FileText,
   FolderGit2,
+  GitCompareArrows,
+  History,
   LayoutDashboard,
+  FileUp,
+  ClipboardCheck,
   Ship,
   Sparkles,
 } from 'lucide-react';
@@ -61,11 +65,17 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
-    title: 'Conciliación SIRE',
+    title: 'SIRE',
     path: '/sire',
     icon: CheckSquare,
     developer: 'Diego Toledo',
     allowedRoles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
+    subItems: [
+      { title: 'Importar Propuesta', path: '/sire/importar', icon: FileUp },
+      { title: 'Conciliación y Cruce', path: '/sire/conciliacion', icon: GitCompareArrows },
+      { title: 'Resumen de Cierre', path: '/sire/cierre', icon: ClipboardCheck },
+      { title: 'Historial', path: '/sire/historial', icon: History },
+    ],
   },
   {
     title: 'Contabilidad PCGE',
@@ -94,12 +104,16 @@ export const Sidebar = () => {
   // Control reactivo de expansión de submódulos
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({
     '/customs': true,
+    '/sire': true,
   });
 
   // Auto-expandir cuando la ruta actual pertenezca al módulo
   useEffect(() => {
     NAV_ITEMS.forEach((item) => {
-      if (item.subItems && location.pathname.startsWith(item.path)) {
+      if (
+        item.subItems &&
+        (location.pathname === item.path || location.pathname.startsWith(`${item.path}/`))
+      ) {
         setExpandedItems((prev) => ({ ...prev, [item.path]: true }));
       }
     });
@@ -109,7 +123,11 @@ export const Sidebar = () => {
     setExpandedItems((prev) => {
       const willExpand = !prev[item.path];
       // Si se expande y estamos fuera del módulo, navegar a su ruta principal
-      if (willExpand && !location.pathname.startsWith(item.path)) {
+      if (
+        willExpand &&
+        location.pathname !== item.path &&
+        !location.pathname.startsWith(`${item.path}/`)
+      ) {
         navigate(item.path === '/customs' ? '/customs/dashboard' : item.path);
       }
       return { ...prev, [item.path]: willExpand };
@@ -145,7 +163,8 @@ export const Sidebar = () => {
       {/* Lista de Módulos Verticales autorizados */}
       <nav className="flex-1 p-2 space-y-1.5 overflow-y-auto">
         {visibleNavItems.map((item) => {
-          const isModuleActive = location.pathname.startsWith(item.path);
+          const isModuleActive =
+            location.pathname === item.path || location.pathname.startsWith(`${item.path}/`);
           const isExpanded = Boolean(expandedItems[item.path]);
 
           return (

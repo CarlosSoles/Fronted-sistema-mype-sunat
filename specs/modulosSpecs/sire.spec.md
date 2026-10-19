@@ -1,68 +1,59 @@
-# Especificación Técnica de Módulo: 04_SIRE (Conciliación Fiscal SIRE)
-## Guía Operativa para Desarrolladores y Agentes de IA
+# Módulo SIRE: conciliación fiscal
 
-**Módulo:** `src/modules/sire/`  
-**Responsable Técnico:** Diego Toledo  
-**Normativa SUNAT:** R.S. N° 112-2021/SUNAT y R.S. N° 040-2022/SUNAT (Sistema Integrado de Registros Electrónicos)  
-**Estatus:** 🔒 VINCULANTE (Spec-Driven Development)
+## Alcance disponible
 
----
+La pantalla permite enviar comprobantes locales al endpoint de conciliación y mostrar la respuesta calculada y persistida por el backend. El `companyId` se obtiene del usuario autenticado y no forma parte del cuerpo de la petición.
 
-## 1. Alcance y Propósito del Módulo
-El módulo `sire` es responsable de:
-1. Gestión del **RVIE** (Registro de Ventas e Ingresos Electrónico) y **RCE** (Registro de Compras Electrónico).
-2. Descarga y visualización de la **Propuesta Oficial de SUNAT** para el período fiscal (AAAAMM).
-3. **Cruce y Conciliación Automática** entre la Propuesta de SUNAT y los comprobantes registrados en el ERP:
-   * `CONCILIADO`: Coinciden serie, número, RUC y montos dentro de la tolerancia de $\pm S/ 0.05$.
-   * `DISCREPANCIA`: Diferencia en base imponible, IGV o tipo de comprobante.
-   * `SOLO_SUNAT`: Comprobante que SUNAT propone pero que no existe en el sistema local de la MYPE.
-   * `SOLO_LOCAL`: Comprobante que la MYPE emitió/registró pero que SUNAT no tiene en su propuesta.
-4. Generación del ticket de aceptación, complementación o reemplazo de la propuesta SIRE.
+No están disponibles la importación de propuestas TXT ni la generación de archivos planos RVIE/RCE de reemplazo. No se deben añadir botones ni llamadas para esas funciones hasta que exista soporte backend y layouts oficiales.
 
----
+## Integración
 
-## 2. Mapa de Carpetas y Responsabilidades
+`POST /api/v1/sire/reconcile` requiere `Authorization: Bearer <token>`.
 
-```text
-src/modules/sire/
-├── components/       # MatchStatusBadge.tsx, DiscrepancyTable.tsx, SireUploadDropzone.tsx, SireSummaryCards.tsx
-├── hooks/            # useSireReconciliation.ts, useSireAcceptProposal.ts, useSireImport.ts
-├── pages/            # SireReconciliationPage.tsx, SireDiscrepanciesPage.tsx
-├── services/         # sireApi.ts (endpoints /sire/reconcile, /sire/accept-proposal, /sire/upload)
-├── types/            # sire.types.ts (SireVoucher, MatchStatus, SireReconciliationSummary)
-└── validators/       # sireSchema.ts (validación Zod de períodos y filtros de cruce)
+El cuerpo tiene exactamente esta forma:
+
+```json
+{
+  "period": "YYYYMM",
+  "ruc": "12345678901",
+  "comprobantes": [
+    {
+      "tipoComprobante": "01",
+      "serie": "F001",
+      "correlativo": "00001234",
+      "baseImponible": 100.00,
+      "igv": 18.00,
+      "total": 118.00
+    }
+  ]
+}
 ```
 
----
+No agregar propiedades al contrato ni enviar `companyId`. Los tipos admitidos son `01`, `03`, `07` y `08`. El backend valida período, RUC e importes; el frontend muestra feedback de formato y presenta los errores de validación.
 
-## 3. Normativa de Desarrollo (Qué SÍ y qué NO se puede hacer)
+La respuesta contiene `period`, `summary` y `results`. Mostrar el `porcentajeCumplimiento` enviado por el backend sin recalcularlo y mostrar `diferenciaBase` y `diferenciaIgv` en cada resultado.
 
-### ✅ Lo que SÍ se debe hacer:
-* Toda tabla de cruce debe identificar el estado de conciliación mediante [MatchStatusBadge.tsx](file:///c:/Users/Carlos%20Ahumada%20Soles/OneDrive/Documentos/taller-integrador/fronted-mype-sunat/src/modules/sire/components/MatchStatusBadge.tsx).
-* Las discrepancias monetarias deben resaltarse visualmente en color destructivo/rojo para alertar al contador antes de enviar el registro a SUNAT.
-* El componente de carga masiva de archivos debe validar que los nombres sigan la nomenclatura reglamentaria de SUNAT (`LE + RUC + AAAAMM + ...`).
-* Implementar filtros accesibles por estado (`Todos`, `Solo Discrepancias`, `Solo SUNAT`, `Conciliados`).
+## Escenarios y presentación
 
-### 🚫 Lo que está TERMINANTEMENTE PROHIBIDO:
-* **PROHIBIDO** permitir la aceptación de la propuesta si existen discrepancias críticas sin advertencia modal previa.
-* **PROHIBIDO** manipular o redondear montos fiscales sin respetar la precisión de 2 decimales exigida por SUNAT.
-* **PROHIBIDO** hacer la lógica de cruce de datos dentro del componente visual; el cálculo de discrepancias viene del backend o se orquesta en `useSireReconciliation.ts`.
-* **PROHIBIDO** sobrepasar las 120 líneas por componente.
+| Escenario | Etiqueta | Color |
+| --- | --- | --- |
+| `COINCIDENCIA_EXACTA` | Coincidencia exacta | Verde |
+| `DIFERENCIA_MONTOS` | Diferencia de montos | Amarillo |
+| `OMISION_LOCAL` | Falta en ERP local | Azul |
+| `OMISION_SUNAT` | No lo reconoce SUNAT | Naranja |
+| `DUPLICADO_LLAVE` | Llave duplicada · acción manual | Rojo |
 
----
+Solo para `DUPLICADO_LLAVE`, mostrar `duplicateSource` (`LOCAL`, `SIRE` o `AMBOS`). El backend no elige un registro duplicado: advertir que el usuario debe resolverlo manualmente.
 
-  1. No altere los tipos de `MatchStatus` sin verificar la consistencia con el backend.
-  2. Asegure que la tabla de discrepancias soporte scroll horizontal en pantallas pequeñas sin romper el layout.
-  3. Verifique que `npm run build` pase con 0 errores tras cualquier edición.
-  4. Toda prueba debe escribirse en `test/unit/modules/sire/`, nunca dentro de `src/`.
+Los valores de porcentaje, diferencias y escenarios provienen del backend; el frontend no debe implementar lógica de conciliación ni persistencia adicional.
 
----
+## Navegación del módulo
 
-## 5. Estrategia de Pruebas Unitarias (`test/unit/modules/sire/`)
+| Ruta | Vista | Disponibilidad |
+| --- | --- | --- |
+| `/sire/importar` | Importar Propuesta | Placeholder; selección de archivo e importación deshabilitadas hasta disponer del endpoint y layout TXT oficial. |
+| `/sire/conciliacion` | Conciliación y Cruce | Conciliación activa mediante el endpoint descrito arriba. |
+| `/sire/cierre` | Resumen de Cierre | Presenta el resumen de la última conciliación de la sesión; la generación de reemplazos está deshabilitada. |
+| `/sire/historial` | Historial | Placeholder hasta que exista un endpoint de periodos conciliados y cerrados. |
 
-* **Ubicación Exclusiva:** `test/unit/modules/sire/`
-* **Casos Críticos a Probar:**
-  1. **`sireComparator.test.ts`:** Identificación de diferencias en Base Imponible e IGV mayores a S/ 0.01 entre el ERP y la propuesta SUNAT.
-  2. **`sireFilenameValidator.test.ts`:** Verificación estricta del patrón de nombres de archivo SIRE (`LE<RUC><AÑO><MES>...`).
-  3. **`sireFilter.test.ts`:** Filtrado correcto de registros por estados `MATCH`, `DISCREPANCY`, `ONLY_INTERNAL` y `ONLY_SUNAT`.
-
+La ruta anterior `/sire` redirige a `/sire/conciliacion`. No simular importaciones, cierres ni registros históricos.

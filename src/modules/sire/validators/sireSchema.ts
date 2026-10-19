@@ -1,12 +1,18 @@
-import { z } from 'zod';
+export const getPeriodFeedback = (period: string): string | null => {
+  if (!period) return 'El período es obligatorio y debe tener formato YYYYMM.';
+  if (!/^\d{6}$/.test(period)) return 'Use el formato YYYYMM, por ejemplo 202610.';
+  const month = Number(period.slice(4));
+  return month < 1 || month > 12 ? 'El mes debe estar entre 01 y 12.' : null;
+};
 
-export const sirePeriodSchema = z.object({
-  period: z.string().regex(/^\d{4}(0[1-9]|1[0-2])$/, {
-    message: 'El período fiscal SIRE debe tener formato YYYYMM con mes entre 01 y 12',
-  }),
-  bookType: z.enum(['RVIE_VENTAS', 'RCE_COMPRAS']),
-});
+export const getRucFeedback = (ruc: string): string | null => {
+  if (!ruc) return 'Ingrese el RUC de 11 dígitos.';
+  return /^\d{11}$/.test(ruc) ? null : 'El RUC debe contener 11 dígitos numéricos.';
+};
 
-export const sireSchema = sirePeriodSchema;
-
-export type SirePeriodFormData = z.infer<typeof sireSchema>;
+export const getAmountFeedback = (amount: string): string | null => {
+  if (!amount || !Number.isFinite(Number(amount))) return 'Ingrese un importe numérico.';
+  return /^\d+(?:\.\d{1,2})?$/.test(amount)
+    ? null
+    : 'El importe debe tener hasta 2 decimales.';
+};

@@ -1,50 +1,64 @@
-export type MatchStatus = 'CONCILIADO' | 'DISCREPANCIA' | 'SOLO_SUNAT' | 'SOLO_LOCAL';
+export type ReconcileScenario =
+  | 'COINCIDENCIA_EXACTA'
+  | 'DIFERENCIA_MONTOS'
+  | 'OMISION_LOCAL'
+  | 'OMISION_SUNAT'
+  | 'DUPLICADO_LLAVE';
 
-export interface SireVoucher {
-  id: string;
-  periodo: string; // YYYYMM (ej. 202610)
-  tipoComprobante: '01' | '03' | '07' | '08';
+export type DuplicateSource = 'LOCAL' | 'SIRE' | 'AMBOS';
+export type TipoComprobante = '01' | '03' | '07' | '08';
+
+export interface SireComprobante {
+  tipoComprobante: TipoComprobante;
   serie: string;
-  numero: string;
-  emisorRuc: string;
-  emisorRazonSocial: string;
-  fechaEmision: string;
-  montoSunat: number;
-  montoLocal?: number;
-  diferencia?: number;
-  matchStatus: MatchStatus;
-  motivoDiscrepancia?: string;
+  correlativo: string;
+  baseImponible: number;
+  igv: number;
+  total: number;
 }
 
-export interface SireReconciliationSummary {
-  totalPropuestaSunat: number;
-  totalRegistroLocal: number;
-  comprobantesConciliados: number;
-  comprobantesConDiscrepancia: number;
-  diferenciaNeta: number;
+export interface ComprobanteDraft extends Omit<SireComprobante, 'baseImponible' | 'igv' | 'total'> {
+  baseImponible: string;
+  igv: string;
+  total: string;
 }
 
-export type SireBookType = 'RVIE_VENTAS' | 'RCE_COMPRAS';
-
-export interface SireLocalRecord {
-  id: string;
-  tipoComprobante: SireVoucher['tipoComprobante'];
-  serie: string;
-  numero: string;
-  emisorRuc: string;
-  emisorRazonSocial: string;
-  fechaEmision: string;
-  montoLocal: number;
-}
-
-export interface SireReconciliationRequest {
+export interface ReconcileRequest {
   period: string;
-  bookType: SireBookType;
-  localRecords: SireLocalRecord[];
+  ruc: string;
+  comprobantes: SireComprobante[];
 }
 
-export interface SireReconciliationResult {
-  vouchers: SireVoucher[];
-  summary: SireReconciliationSummary;
-  source: 'api' | 'mock';
+export interface ReconcileSummary {
+  total: number;
+  coincidenciaExacta: number;
+  diferenciaMontos: number;
+  omisionLocal: number;
+  omisionSunat: number;
+  duplicadoLlave: number;
+  porcentajeCumplimiento: number;
+}
+
+interface ReconcileResultBase {
+  llave: string;
+  tipoComprobante: TipoComprobante;
+  serie: string;
+  correlativo: string;
+  baseLocal: number;
+  baseSire: number;
+  igvLocal: number;
+  igvSire: number;
+  diferenciaBase: number;
+  diferenciaIgv: number;
+}
+
+export type ReconcileResult = ReconcileResultBase & (
+  | { escenario: 'DUPLICADO_LLAVE'; duplicateSource: DuplicateSource | null }
+  | { escenario: Exclude<ReconcileScenario, 'DUPLICADO_LLAVE'>; duplicateSource?: never }
+);
+
+export interface ReconcileResponse {
+  period: string;
+  summary: ReconcileSummary;
+  results: ReconcileResult[];
 }
