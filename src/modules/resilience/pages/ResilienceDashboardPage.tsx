@@ -1,5 +1,6 @@
 import { CircuitBreakerWidget } from '../components/CircuitBreakerWidget';
 import { OfflineQueueSection } from '../components/OfflineQueueSection';
+import { useChaosToggle } from '../hooks/useChaosToggle';
 import { useResilienceMetrics } from '../hooks/useResilienceMetrics';
 import {
   Badge,
@@ -18,6 +19,7 @@ import { CheckCircle2, Flame, RefreshCw, Zap } from 'lucide-react';
 
 export default function ResilienceDashboardPage() {
   const { data: metrics, refetch, isRefetching } = useResilienceMetrics();
+  const { isChaosActive, isPending, isError, toggle } = useChaosToggle();
 
   return (
     <Page>
@@ -62,7 +64,24 @@ export default function ResilienceDashboardPage() {
             <Card>
               <PageText variant="label">Simular Caída 500 SUNAT</PageText>
               <PageText variant="caption">Fuerza estado OPEN en Circuit Breaker</PageText>
-              <Badge variant="secondary">Inactivo</Badge>
+              <Button
+                variant={isChaosActive ? 'destructive' : 'default'}
+                size="sm"
+                onClick={toggle}
+                disabled={isPending}
+              >
+                {isChaosActive ? 'Desactivar caos' : 'Activar caída 500'}
+              </Button>
+              <Badge variant={isChaosActive ? 'destructive' : 'secondary'}>
+                {isChaosActive ? 'Caos activo' : 'Inactivo'}
+              </Badge>
+              {isError && (
+                <PageText variant="caption">
+                  No se pudo contactar al backend de resiliencia. Verifica que
+                  los endpoints <code>/api/v1/resilience</code> estén
+                  desplegados.
+                </PageText>
+              )}
             </Card>
           </CardContent>
         </Card>
