@@ -1,76 +1,114 @@
-import { apiClient } from '@/lib/axios';
-import axios from 'axios';
-import {
-  type SireReconciliationRequest,
-  type SireReconciliationResult,
-} from '../types/sire.types';
+import { ENV } from '@/config/env.config';
+import { useAuthStore } from '@/stores/authStore';
+import type { ReconcileRequest, ReconcileResponse } from '../types/sire.types';
 
-const createMockResult = (
-  request: SireReconciliationRequest,
-): SireReconciliationResult => ({
-  source: 'mock',
-  summary: {
-    totalPropuestaSunat: 1180,
-    totalRegistroLocal: 1160,
-    comprobantesConciliados: 1,
-    comprobantesConDiscrepancia: 1,
-    diferenciaNeta: 20,
-  },
-  vouchers: [
-    {
-      id: `${request.period}-001`,
-      periodo: request.period,
-      tipoComprobante: '01',
-      serie: request.bookType === 'RVIE_VENTAS' ? 'F001' : 'FC01',
-      numero: '000001',
-      emisorRuc: '20123456789',
-      emisorRazonSocial: 'Comercial MYPE S.A.C.',
-      fechaEmision: `${request.period.slice(0, 4)}-${request.period.slice(4)}-05`,
-      montoSunat: 1180,
-      montoLocal: 1180,
-      matchStatus: 'CONCILIADO',
-    },
-    {
-      id: `${request.period}-002`,
-      periodo: request.period,
-      tipoComprobante: '03',
-      serie: request.bookType === 'RVIE_VENTAS' ? 'B001' : 'BC01',
-      numero: '000024',
-      emisorRuc: '20987654321',
-      emisorRazonSocial: 'Distribuidora del Perú S.R.L.',
-      fechaEmision: `${request.period.slice(0, 4)}-${request.period.slice(4)}-12`,
-      montoSunat: 500,
-      montoLocal: 480,
-      diferencia: 20,
-      matchStatus: 'DISCREPANCIA',
-      motivoDiscrepancia: 'Diferencia en el total registrado localmente.',
-    },
-  ],
-});
+export class SireApiError extends Error {
+  readonly status: number | null;
+
+  constructor(
+    message: string,
+    status: number | null,
+  ) {
+    super(message);
+    this.name = 'SireApiError';
+    this.status = status;
+  }
+}
+
+const getBackendMessage = (body: unknown): string | undefined => {
+  if (typeof body !== 'object' || body === null) return undefined;
+  const response = body as { message?: unknown; detail?: unknown };
+  const formatItem = (item: unknown): string => {
+    if (typeof item === 'string') return item;
+    if (typeof item !== 'object' || item === null) return '';
+    const validation = item as { field?: unknown; message?: unknown; rule?: unknown };
+    if (typeof validation.message === 'string') return validation.message;
+    if (typeof validation.field === 'string') {
+      const fields: Record<string, string> = {
+        period: 'período',
+        ruc: 'RUC',
+        comprobantes: 'comprobantes',
+        tipoComprobante: 'tipo de comprobante',
+        baseImponible: 'base imponible',
+        igv: 'IGV',
+        total: 'total',
+      };
+      const field = fields[validation.field] ?? validation.field;
+      return `${field}: ${typeof validation.rule === 'string' ? validation.rule : 'dato inválido'}`;
+    }
+    return '';
+  };
+
+  if (typeof response.message === 'string') return response.message;
+  if (Array.isArray(response.message)) {
+    const messages = response.message.map(formatItem).filter(Boolean);
+    if (messages.length) return messages.join(' • ');
+  }
+  if (typeof response.message === 'object' && response.message !== null) {
+    const message = formatItem(response.message);
+    if (message) return message;
+  }
+  if (typeof response.detail === 'string') return response.detail;
+  return undefined;
+};
+
+const getStatusMessage = (status: number, detail?: string): string => {
+  const messages: Record<number, string> = {
+    400: 'Los datos enviados no son válidos. Revisa el período, el RUC y los comprobantes.',
+    401: 'Tu sesión venció o no es válida. Inicia sesión nuevamente.',
+    403: 'No tienes permisos para realizar la conciliación SIRE.',
+    500: 'Ocurrió un error en el servidor al procesar la conciliación. Inténtalo nuevamente.',
+  };
+  const message = messages[status] ?? 'No se pudo completar la conciliación SIRE.';
+  return detail ? `${message} ${detail}` : message;
+};
 
 export const sireApi = {
-  reconcile: async (
-    request: SireReconciliationRequest,
-  ): Promise<SireReconciliationResult> => {
+  async reconcile(payload: ReconcileRequest): Promise<ReconcileResponse> {
+    const token = useAuthStore.getState().token;
+    if (!token) {
+      throw new SireApiError('Tu sesión venció o no es válida. Inicia sesión nuevamente.', 401);
+    }
+
+    let response: Response;
     try {
-      const response = await apiClient.post<
-        Omit<SireReconciliationResult, 'source'>
-      >('/sire/reconcile', request);
-      return { ...response.data, source: 'api' };
+      response = await fetch(`${ENV.VITE_API_URL}/sire/reconcile`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
     } catch (error) {
-      if (axios.isAxiosError(error) && !error.response) {
-        console.warn('[SIRE] Backend unavailable; using clearly marked mock data.');
-        return createMockResult(request);
+      if (error instanceof TypeError) {
+        throw new SireApiError('No fue posible conectar con el servidor. Verifica tu conexión e inténtalo nuevamente.', null);
       }
       throw error;
     }
-  },
 
-  acceptProposal: async (periodo: string): Promise<{ success: boolean; ticket: string }> => {
-    const response = await apiClient.post<{ success: boolean; ticket: string }>(
-      '/sire/accept-proposal',
-      { periodo }
-    );
-    return response.data;
+    let body: unknown;
+    try {
+      body = await response.json();
+    } catch (error) {
+      if (error instanceof SyntaxError) {
+        if (response.ok) {
+          throw new SireApiError('El servidor devolvió una respuesta con formato inválido.', response.status);
+        }
+        body = undefined;
+      } else {
+        throw error;
+      }
+    }
+
+    if (!response.ok) {
+      throw new SireApiError(
+        getStatusMessage(response.status, getBackendMessage(body)),
+        response.status,
+      );
+    }
+
+    return body as ReconcileResponse;
   },
 };

@@ -1,58 +1,56 @@
-import {
-  Button,
-  FilterBar,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui';
-import { type SireBookType } from '../types/sire.types';
+import { Input } from '@/components/ui';
+import { getPeriodFeedback, getRucFeedback } from '../validators/sireSchema';
+
 interface Props {
   period: string;
-  bookType: SireBookType;
-  isFetching: boolean;
-  onPeriodChange: (period: string) => void;
-  onBookTypeChange: (bookType: SireBookType) => void;
-  onApply: () => void;
+  ruc: string;
+  disabled: boolean;
+  showFeedback: boolean;
+  onPeriodChange: (value: string) => void;
+  onRucChange: (value: string) => void;
 }
-const periods = Array.from({ length: 12 }, (_, index) => {
-  const date = new Date();
-  date.setDate(1);
-  date.setMonth(date.getMonth() - index);
-  return `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}`;
-});
-
-const isBookType = (value: string): value is SireBookType =>
-  value === 'RVIE_VENTAS' || value === 'RCE_COMPRAS';
 
 export const SirePeriodFilter = ({
   period,
-  bookType,
-  isFetching,
+  ruc,
+  disabled,
+  showFeedback,
   onPeriodChange,
-  onBookTypeChange,
-  onApply,
-}: Props) => (
-  <FilterBar>
-    <Select value={period} onValueChange={onPeriodChange}>
-      <SelectTrigger aria-label="Período fiscal"><SelectValue /></SelectTrigger>
-      <SelectContent>
-        {periods.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
-      </SelectContent>
-    </Select>
-    <Select
-      value={bookType}
-      onValueChange={(value) => {
-        if (isBookType(value)) onBookTypeChange(value);
-      }}
-    >
-      <SelectTrigger aria-label="Libro electrónico"><SelectValue /></SelectTrigger>
-      <SelectContent>
-        <SelectItem value="RVIE_VENTAS">RVIE - Ventas</SelectItem>
-        <SelectItem value="RCE_COMPRAS">RCE - Compras</SelectItem>
-      </SelectContent>
-    </Select>
-    <Button type="button" onClick={onApply} disabled={isFetching}>Consultar</Button>
-  </FilterBar>
-);
+  onRucChange,
+}: Props) => {
+  const periodFeedback = showFeedback ? getPeriodFeedback(period) : null;
+  const rucFeedback = showFeedback ? getRucFeedback(ruc) : null;
+
+  return (
+    <div className="grid gap-4 rounded-xl border bg-card p-4 md:grid-cols-2">
+      <label className="space-y-1.5 text-sm font-medium">
+        Período (YYYYMM)
+        <Input
+          aria-label="Período (YYYYMM)"
+          inputMode="numeric"
+          maxLength={6}
+          placeholder="202610"
+          value={period}
+          disabled={disabled}
+          onChange={(event) => onPeriodChange(event.target.value.replace(/\D/g, '').slice(0, 6))}
+          aria-invalid={!!periodFeedback}
+        />
+        {periodFeedback && <span className="block text-xs text-amber-700">{periodFeedback}</span>}
+      </label>
+      <label className="space-y-1.5 text-sm font-medium">
+        RUC
+        <Input
+          aria-label="RUC"
+          inputMode="numeric"
+          maxLength={11}
+          placeholder="20123456789"
+          value={ruc}
+          disabled={disabled}
+          onChange={(event) => onRucChange(event.target.value.replace(/\D/g, '').slice(0, 11))}
+          aria-invalid={!!rucFeedback}
+        />
+        {rucFeedback && <span className="block text-xs text-amber-700">{rucFeedback}</span>}
+      </label>
+    </div>
+  );
+};

@@ -25,6 +25,9 @@ const KardexPermanentPage = React.lazy(() => import('@/modules/customs/pages/Kar
 const SireExportAuditPage = React.lazy(() => import('@/modules/customs/pages/SireExportAuditPage'));
 const DuaCalculatorPage = React.lazy(() => import('@/modules/customs/pages/DuaCalculatorPage'));
 const SireReconciliationPage = React.lazy(() => import('@/modules/sire/pages/SireReconciliationPage'));
+const SireImportPage = React.lazy(() => import('@/modules/sire/pages/SireImportPage'));
+const SireClosurePage = React.lazy(() => import('@/modules/sire/pages/SireClosurePage'));
+const SireHistoryPage = React.lazy(() => import('@/modules/sire/pages/SireHistoryPage'));
 const AccountingEntriesPage = React.lazy(() => import('@/modules/accounting/pages/AccountingEntriesPage'));
 
 // Fallback de carga durante la descarga del chunk
@@ -194,12 +197,40 @@ export const AppRoutes = () => {
               }
             />
 
-            {/* [M4: Conciliación SIRE] ADMIN, CONTADOR, AUDITOR */}
+            {/* [M4: SIRE] ADMIN, CONTADOR, AUDITOR */}
             <Route
               path="/sire"
+              element={<Navigate to="/sire/conciliacion" replace />}
+            />
+            <Route
+              path="/sire/importar"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <SireImportPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/sire/conciliacion"
               element={
                 <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
                   <SireReconciliationPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/sire/cierre"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <SireClosurePage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/sire/historial"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <SireHistoryPage />
                 </RoleProtectedRoute>
               }
             />
