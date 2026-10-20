@@ -8,13 +8,14 @@ function Page({ className, ...props }: PageProps) {
 }
 
 type PageGridProps = React.ComponentProps<"div"> & {
-  columns?: 2 | 3
+  columns?: 2 | 3 | 4
 }
 
 function PageGrid({ className, columns = 2, ...props }: PageGridProps) {
   const columnClasses = {
     2: "grid-cols-1 lg:grid-cols-2",
     3: "grid-cols-1 sm:grid-cols-3",
+    4: "grid-cols-1 sm:grid-cols-2 xl:grid-cols-4",
   }
 
   return (
@@ -152,7 +153,6 @@ interface PageHeaderProps {
   badge?: React.ReactNode
   children?: React.ReactNode
 }
-
 function PageHeader({ title, description, badge, children }: PageHeaderProps) {
   return (
     <div
