@@ -5,7 +5,8 @@
  * derivan con el motor real de `../lib/invoiceCalculations`.
  *
  * IMPORTANTE: el RUC del adquirente nunca puede coincidir con el del emisor
- * (RUC 20601234567). SUNAT lo rechaza con el código de error 2022.
+ * (RUC 20601012341). SUNAT lo rechaza con el código de error 2022. Todos los
+ * RUC de ejemplo superan el módulo 11 para no ensuciar las validaciones.
  */
 import { construir } from './invoiceDemoTypes';
 
@@ -21,8 +22,8 @@ export type {
   TipoOperacion,
 } from './invoiceDemoTypes';
 
-/** RUC de la empresa emisora del turno de demostración. */
-export const RUC_EMISOR = '20601234567';
+/** RUC de la empresa emisora del turno de demostración (módulo 11 válido). */
+export const RUC_EMISOR = '20601012341';
 
 /** RUC válido (módulo 11) usado como adquirente en las notas de crédito. */
 const RUC_CORPORACION = '20100070970';
@@ -40,19 +41,19 @@ export const COMPROBANTES_DEMO = [
     ],
   }),
   construir({
-    tipo: '03', serie: 'B001', correlativo: 108, ruc: '10458963251',
+    tipo: '03', serie: 'B001', correlativo: 108, ruc: '10458963253',
     razonSocial: 'JUAN CARLOS PEREZ GOMEZ',
     fecha: '2026-10-16', base: 150, estado: 'ACEPTADO', cdrCodigo: '0',
   }),
   construir({
-    tipo: '01', serie: 'F001', correlativo: 43, ruc: '20481234567',
+    tipo: '01', serie: 'F001', correlativo: 43, ruc: '20481234566',
     razonSocial: 'SUPERMERCADOS PERUANOS S.A.C.',
     fecha: '2026-10-15', base: 2500, detraccionPct: 0.12,
     estado: 'ACEPTADO', cdrCodigo: '0',
     formaPago: 'Credito', numeroCuotas: 2,
   }),
   construir({
-    tipo: '01', serie: 'F001', correlativo: 44, ruc: '20554433221',
+    tipo: '01', serie: 'F001', correlativo: 44, ruc: '20554433228',
     razonSocial: 'DISTRIBUIDORA CALLAO E.I.R.L.',
     fecha: '2026-10-15', base: 980, agenteRetencion: true,
     estado: 'OBSERVADO', cdrCodigo: '4272',
@@ -75,7 +76,7 @@ export const COMPROBANTES_DEMO = [
     },
   }),
   construir({
-    tipo: '08', serie: 'FD01', correlativo: 3, ruc: '20481234567',
+    tipo: '08', serie: 'FD01', correlativo: 3, ruc: '20481234566',
     razonSocial: 'SUPERMERCADOS PERUANOS S.A.C.',
     fecha: '2026-10-13', base: 450, estado: 'ACEPTADO', cdrCodigo: '0',
     documentoAfectado: 'F001-43',
@@ -85,7 +86,7 @@ export const COMPROBANTES_DEMO = [
     },
   }),
   construir({
-    tipo: '01', serie: 'F001', correlativo: 45, ruc: '20998877665',
+    tipo: '01', serie: 'F001', correlativo: 45, ruc: '20998877661',
     razonSocial: 'CONSTRUCTORA ANDINA DEL SUR S.A.C.',
     fecha: '2026-10-13', base: 1800, estado: 'RECHAZADO', cdrCodigo: '2017',
   }),

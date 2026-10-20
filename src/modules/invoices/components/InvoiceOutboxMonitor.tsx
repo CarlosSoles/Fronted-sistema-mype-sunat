@@ -21,6 +21,8 @@ import type { ResumenFiscal } from '../lib/invoiceMetrics';
 interface InvoiceOutboxMonitorProps {
   comprobantes: readonly ComprobanteDemo[];
   resumen: ResumenFiscal;
+  /** Descarga el reporte SIRE RVIE del periodo. */
+  onExportarSire: (comprobantes: readonly ComprobanteDemo[]) => void;
 }
 
 /** Distribución de códigos CDR del periodo. */
@@ -42,6 +44,7 @@ const contarCodigosCdr = (
 export const InvoiceOutboxMonitor = ({
   comprobantes,
   resumen,
+  onExportarSire,
 }: InvoiceOutboxMonitorProps) => {
   const codigos = contarCodigosCdr(comprobantes);
   const pendientes = comprobantes.filter((c) => c.estado === 'EN_COLA');
@@ -109,7 +112,11 @@ export const InvoiceOutboxMonitor = ({
             </div>
           ))}
 
-          <Button variant="outline" size="sm">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onExportarSire(comprobantes)}
+          >
             <Download aria-hidden="true" />
             Descargar CDR del periodo
           </Button>

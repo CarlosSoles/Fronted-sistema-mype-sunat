@@ -27,9 +27,17 @@ const TIPO_LABEL: Record<ComprobanteDemo['tipo'], string> = {
 
 interface InvoiceTableRowProps {
   comprobante: ComprobanteDemo;
+  onVerXml: (c: ComprobanteDemo) => void;
+  onVerCdr: (c: ComprobanteDemo) => void;
+  onDescargarPdf: (c: ComprobanteDemo) => void;
 }
 
-export const InvoiceTableRow = ({ comprobante: c }: InvoiceTableRowProps) => {
+export const InvoiceTableRow = ({
+  comprobante: c,
+  onVerXml,
+  onVerCdr,
+  onDescargarPdf,
+}: InvoiceTableRowProps) => {
   const descuento = c.detraccion + c.retencion;
 
   return (
@@ -38,6 +46,11 @@ export const InvoiceTableRow = ({ comprobante: c }: InvoiceTableRowProps) => {
         <PageText variant="label">{TIPO_LABEL[c.tipo]}</PageText>
         <PageText variant="caption">
           {c.serie}-{String(c.correlativo).padStart(4, '0')}
+        </PageText>
+        <PageText variant="caption">
+          {c.formaPago === 'Credito'
+            ? `Crédito (${c.cuotas.length} cuotas)`
+            : 'Contado'}
         </PageText>
         {c.documentoAfectado && (
           <PageText variant="caption">
@@ -97,6 +110,7 @@ export const InvoiceTableRow = ({ comprobante: c }: InvoiceTableRowProps) => {
             size="icon-xs"
             aria-label={`Ver XML de ${c.serie}-${c.correlativo}`}
             title="Ver XML"
+            onClick={() => onVerXml(c)}
           >
             <FileCode2 aria-hidden="true" />
           </Button>
@@ -105,6 +119,7 @@ export const InvoiceTableRow = ({ comprobante: c }: InvoiceTableRowProps) => {
             size="icon-xs"
             aria-label={`Ver CDR de ${c.serie}-${c.correlativo}`}
             title="Ver CDR"
+            onClick={() => onVerCdr(c)}
           >
             <FileCheck2 aria-hidden="true" />
           </Button>
@@ -113,6 +128,7 @@ export const InvoiceTableRow = ({ comprobante: c }: InvoiceTableRowProps) => {
             size="icon-xs"
             aria-label={`Descargar PDF de ${c.serie}-${c.correlativo}`}
             title="Descargar PDF"
+            onClick={() => onDescargarPdf(c)}
           >
             <Download aria-hidden="true" />
           </Button>

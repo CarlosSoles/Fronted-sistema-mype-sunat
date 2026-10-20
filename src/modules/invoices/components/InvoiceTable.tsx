@@ -20,6 +20,9 @@ interface InvoiceTableProps {
   comprobantes: readonly ComprobanteDemo[];
   /** Mensaje mostrado cuando el filtro no devuelve resultados. */
   mensajeVacio?: string;
+  onVerXml: (c: ComprobanteDemo) => void;
+  onVerCdr: (c: ComprobanteDemo) => void;
+  onDescargarPdf: (c: ComprobanteDemo) => void;
 }
 
 const COLUMNAS = [
@@ -49,6 +52,9 @@ const ALINEACION: Record<string, 'right' | 'center'> = {
 export const InvoiceTable = ({
   comprobantes,
   mensajeVacio = 'No se encontraron comprobantes con los filtros aplicados.',
+  onVerXml,
+  onVerCdr,
+  onDescargarPdf,
 }: InvoiceTableProps) => {
   return (
     <Card flush>
@@ -71,6 +77,9 @@ export const InvoiceTable = ({
               <InvoiceTableRow
                 key={comprobante.id}
                 comprobante={comprobante}
+                onVerXml={onVerXml}
+                onVerCdr={onVerCdr}
+                onDescargarPdf={onDescargarPdf}
               />
             ))
           ) : (
