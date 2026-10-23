@@ -18,7 +18,7 @@ export const useSireReconciliation = () => {
     try {
       const result = await sireApi.reconcile(payload);
       setData(result);
-      setSummary(result.period, result.summary);
+      setSummary(result.period, result.bookType, result.summary);
       return result;
     } catch (cause) {
       const message = cause instanceof Error

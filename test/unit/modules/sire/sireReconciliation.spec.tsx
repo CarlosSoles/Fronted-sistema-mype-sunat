@@ -15,6 +15,7 @@ import type { ReconcileRequest, ReconcileResponse, ReconcileScenario } from '@/m
 const payload: ReconcileRequest = {
   period: '202610',
   ruc: '20123456789',
+  bookType: 'RVIE_VENTAS',
   comprobantes: [{
     tipoComprobante: '01',
     serie: 'F001',
@@ -27,6 +28,7 @@ const payload: ReconcileRequest = {
 
 const response: ReconcileResponse = {
   period: payload.period,
+  bookType: payload.bookType,
   summary: {
     total: 1,
     coincidenciaExacta: 0,
@@ -42,12 +44,34 @@ const response: ReconcileResponse = {
     serie: 'F001',
     correlativo: '00001234',
     escenario: 'DUPLICADO_LLAVE',
-    baseLocal: 100,
-    baseSire: 100,
-    igvLocal: 18,
-    igvSire: 18,
+    totalLocal: 118,
+    totalSire: 118,
+    diferenciaTotal: 0,
     diferenciaBase: 0,
     diferenciaIgv: 0,
+    duplicateSource: 'AMBOS',
+  }],
+};
+
+const backendResponse = {
+  period: payload.period,
+  bookType: payload.bookType,
+  totalLocalRecords: 1,
+  totalSireRecords: 1,
+  exactMatchesCount: 0,
+  discrepanciesCount: 1,
+  complianceRate: 72.35,
+  discrepancies: [{
+    discrepancyType: 'DUPLICADO_LLAVE',
+    emitterRuc: payload.ruc,
+    documentType: '01',
+    series: 'F001',
+    correlative: '00001234',
+    localTotalAmount: 118,
+    sireTotalAmount: 118,
+    amountDifference: 0,
+    taxableBaseDifference: 0,
+    igvDifference: 0,
     duplicateSource: 'AMBOS',
   }],
 };
@@ -67,7 +91,7 @@ describe('sireApi.reconcile', () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      json: vi.fn().mockResolvedValue(response),
+      json: vi.fn().mockResolvedValue(backendResponse),
     });
     vi.stubGlobal('fetch', fetchMock);
 
@@ -77,7 +101,19 @@ describe('sireApi.reconcile', () => {
     expect(url).toBe(`${ENV.VITE_API_URL}/sire/reconcile`);
     expect(request.method).toBe('POST');
     expect(new Headers(request.headers).get('Authorization')).toBe('Bearer test-access-token');
-    expect(JSON.parse(request.body as string)).toEqual(payload);
+    expect(JSON.parse(request.body as string)).toEqual({
+      period: '202610',
+      bookType: 'RVIE_VENTAS',
+      localRecords: [{
+        emitterRuc: '20123456789',
+        documentType: '01',
+        series: 'F001',
+        correlative: '00001234',
+        taxableBase: 100,
+        igvAmount: 18,
+        totalAmount: 118,
+      }],
+    });
     expect(JSON.parse(request.body as string)).not.toHaveProperty('companyId');
   });
 
@@ -114,11 +150,11 @@ describe('sireApi.reconcile', () => {
       ok: false,
       status: 400,
       json: vi.fn().mockResolvedValue({
-        message: [{ field: 'ruc', rule: 'debe tener 11 dígitos' }],
+        message: [{ field: 'period', rule: 'debe tener formato YYYYMM' }],
       }),
     }));
 
-    await expect(sireApi.reconcile(payload)).rejects.toThrow('RUC: debe tener 11 dígitos');
+    await expect(sireApi.reconcile(payload)).rejects.toThrow('período: debe tener formato YYYYMM');
   });
 });
 

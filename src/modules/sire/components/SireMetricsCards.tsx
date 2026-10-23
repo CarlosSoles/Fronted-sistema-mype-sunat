@@ -28,7 +28,7 @@ export const SireMetricsCards = ({ summary }: Props) => (
     </PageGrid>
     <Card>
       <CardContent className="flex flex-wrap items-center justify-between gap-2">
-        <PageText variant="caption">Porcentaje de cumplimiento (calculado por SUNAT)</PageText>
+        <PageText variant="caption">Porcentaje de cumplimiento informado por el backend</PageText>
         <PageText variant="metric">{summary.porcentajeCumplimiento.toFixed(2)}%</PageText>
       </CardContent>
     </Card>
