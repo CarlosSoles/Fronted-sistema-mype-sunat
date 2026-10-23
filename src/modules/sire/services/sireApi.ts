@@ -1,10 +1,14 @@
 import { ENV } from '@/config/env.config';
 import { useAuthStore } from '@/stores/authStore';
 import type {
+  CloseSirePeriodResponse,
   ImportSireProposalRequest,
   ImportSireProposalResponse,
+  ReconcileScenario,
   ReconcileRequest,
   ReconcileResponse,
+  SireHistoryResponse,
+  TipoComprobante,
 } from '../types/sire.types';
 
 export class SireApiError extends Error {
@@ -58,28 +62,120 @@ const getBackendMessage = (body: unknown): string | undefined => {
   return undefined;
 };
 
-const getStatusMessage = (status: number, detail?: string): string => {
-  const messages: Record<number, string> = {
-    400: 'Los datos enviados no son válidos. Revisa el período, el RUC y los comprobantes.',
-    401: 'Tu sesión venció o no es válida. Inicia sesión nuevamente.',
-    403: 'No tienes permisos para realizar la conciliación SIRE.',
-    500: 'Ocurrió un error en el servidor al procesar la conciliación. Inténtalo nuevamente.',
-  };
-  const message = messages[status] ?? 'No se pudo completar la conciliación SIRE.';
-  return detail ? `${message} ${detail}` : message;
-};
-
 const getImportStatusMessage = (status: number, detail?: string): string => {
   const messages: Record<number, string> = {
     400: 'No se pudo importar la propuesta. Revisa el periodo, el libro y el formato del archivo.',
     401: 'Tu sesión venció o no es válida. Inicia sesión nuevamente.',
     403: 'No tienes permisos para importar propuestas SIRE.',
+    404: 'El backend no encontró la ruta de importación SIRE. Verifica que esté desplegada la versión correcta del API.',
     409: 'El periodo fiscal está cerrado y no admite nuevas importaciones.',
     413: 'El archivo supera el límite de 5 MiB.',
     500: 'Ocurrió un error en el servidor al importar la propuesta. Inténtalo nuevamente.',
+    502: 'El servidor del frontend no pudo comunicarse con el backend. Verifica que esté iniciado y accesible.',
+    503: 'El backend no está disponible en este momento. Verifica que esté iniciado e inténtalo nuevamente.',
   };
   const message = messages[status] ?? 'No se pudo importar la propuesta SIRE.';
   return detail ? `${message} ${detail}` : message;
+};
+
+const getSireStatusMessage = (status: number, detail?: string): string => {
+  const messages: Record<number, string> = {
+    400: 'Los datos enviados no son válidos. Revisa el periodo y la información del libro.',
+    401: 'Tu sesión venció o no es válida. Inicia sesión nuevamente.',
+    403: 'No tienes permisos para realizar esta operación SIRE.',
+    404: 'No se encontró la conciliación del periodo y libro indicados.',
+    409: 'El periodo ya está cerrado y no admite cambios.',
+    500: 'Ocurrió un error en el servidor al procesar la operación SIRE.',
+  };
+  const message = messages[status] ?? 'No se pudo completar la operación SIRE.';
+  return detail ? `${message} ${detail}` : message;
+};
+
+interface BackendReconciliation {
+  period: string;
+  bookType: 'RVIE_VENTAS' | 'RCE_COMPRAS';
+  totalLocalRecords: number;
+  totalSireRecords: number;
+  exactMatchesCount: number;
+  discrepanciesCount: number;
+  complianceRate: number;
+  discrepancies: {
+    discrepancyType: ReconcileScenario;
+    emitterRuc: string;
+    documentType: string;
+    series: string;
+    correlative: string;
+    localTotalAmount?: number | null;
+    sireTotalAmount?: number | null;
+    amountDifference: number;
+    taxableBaseDifference?: number | null;
+    igvDifference?: number | null;
+    duplicateSource?: 'LOCAL' | 'SIRE' | 'AMBOS' | null;
+  }[];
+}
+
+const toTipoComprobante = (documentType: string): TipoComprobante => {
+  if (documentType === '01' || documentType === '03' || documentType === '07' || documentType === '08') {
+    return documentType;
+  }
+  throw new SireApiError('El servidor devolvió un tipo de comprobante desconocido.', null);
+};
+
+const mapReconciliation = (response: BackendReconciliation): ReconcileResponse => {
+  const countByScenario = (scenario: ReconcileScenario) =>
+    response.discrepancies.filter((item) => item.discrepancyType === scenario).length;
+
+  return {
+    period: response.period,
+    bookType: response.bookType,
+    summary: {
+      total: Math.max(response.totalLocalRecords, response.totalSireRecords),
+      coincidenciaExacta: response.exactMatchesCount,
+      diferenciaMontos: countByScenario('DIFERENCIA_MONTOS'),
+      omisionLocal: countByScenario('OMISION_LOCAL'),
+      omisionSunat: countByScenario('OMISION_SUNAT'),
+      duplicadoLlave: countByScenario('DUPLICADO_LLAVE'),
+      porcentajeCumplimiento: response.complianceRate,
+    },
+    results: response.discrepancies.map((item) => ({
+      llave: `${item.emitterRuc}-${item.documentType}-${item.series}-${item.correlative}`,
+      tipoComprobante: toTipoComprobante(item.documentType),
+      serie: item.series,
+      correlativo: item.correlative,
+      totalLocal: item.localTotalAmount ?? undefined,
+      totalSire: item.sireTotalAmount ?? undefined,
+      diferenciaTotal: item.amountDifference,
+      diferenciaBase: item.taxableBaseDifference ?? 0,
+      diferenciaIgv: item.igvDifference ?? 0,
+      escenario: item.discrepancyType,
+      duplicateSource: item.duplicateSource,
+    })),
+  };
+};
+
+const authenticatedHeaders = (token: string, json = false): HeadersInit => ({
+  Authorization: `Bearer ${token}`,
+  Accept: 'application/json',
+  ...(json ? { 'Content-Type': 'application/json' } : {}),
+});
+
+const readResponse = async <T>(response: Response, message: (status: number, detail?: string) => string): Promise<T> => {
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      if (response.ok) {
+        throw new SireApiError('El servidor devolvió una respuesta con formato inválido.', response.status);
+      }
+    } else {
+      throw error;
+    }
+  }
+  if (!response.ok) {
+    throw new SireApiError(message(response.status, getBackendMessage(body)), response.status);
+  }
+  return body as T;
 };
 
 export const sireApi = {
@@ -98,10 +194,7 @@ export const sireApi = {
     try {
       response = await fetch(`${ENV.VITE_API_URL}/sire/import`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
-        },
+        headers: authenticatedHeaders(token),
         body: formData,
       });
     } catch (error) {
@@ -114,25 +207,7 @@ export const sireApi = {
       throw error;
     }
 
-    let body: unknown;
-    try {
-      body = await response.json();
-    } catch (error) {
-      if (error instanceof SyntaxError) {
-        if (response.ok) {
-          throw new SireApiError('El servidor devolvió una respuesta con formato inválido.', response.status);
-        }
-        body = undefined;
-      } else {
-        throw error;
-      }
-    }
-
-    if (!response.ok) {
-      throw new SireApiError(getImportStatusMessage(response.status, getBackendMessage(body)), response.status);
-    }
-
-    return body as ImportSireProposalResponse;
+    return readResponse<ImportSireProposalResponse>(response, getImportStatusMessage);
   },
 
   async reconcile(payload: ReconcileRequest): Promise<ReconcileResponse> {
@@ -145,12 +220,20 @@ export const sireApi = {
     try {
       response = await fetch(`${ENV.VITE_API_URL}/sire/reconcile`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify(payload),
+        headers: authenticatedHeaders(token, true),
+        body: JSON.stringify({
+          period: payload.period,
+          bookType: payload.bookType,
+          localRecords: payload.comprobantes.map((item) => ({
+            emitterRuc: payload.ruc,
+            documentType: item.tipoComprobante,
+            series: item.serie,
+            correlative: item.correlativo,
+            taxableBase: item.baseImponible,
+            igvAmount: item.igv,
+            totalAmount: item.total,
+          })),
+        }),
       });
     } catch (error) {
       if (error instanceof TypeError) {
@@ -162,24 +245,48 @@ export const sireApi = {
       throw error;
     }
 
-    let body: unknown;
+    const body = await readResponse<BackendReconciliation>(response, getSireStatusMessage);
+    return mapReconciliation(body);
+  },
+
+  async closePeriod(period: string, bookType: 'RVIE_VENTAS' | 'RCE_COMPRAS'): Promise<CloseSirePeriodResponse> {
+    const token = useAuthStore.getState().token;
+    if (!token) {
+      throw new SireApiError('Tu sesión venció o no es válida. Inicia sesión nuevamente.', 401);
+    }
+    let response: Response;
     try {
-      body = await response.json();
+      response = await fetch(`${ENV.VITE_API_URL}/sire/close`, {
+        method: 'POST',
+        headers: authenticatedHeaders(token, true),
+        body: JSON.stringify({ period, bookType }),
+      });
     } catch (error) {
-      if (error instanceof SyntaxError) {
-        if (response.ok) {
-          throw new SireApiError('El servidor devolvió una respuesta con formato inválido.', response.status);
-        }
-        body = undefined;
-      } else {
-        throw error;
+      if (error instanceof TypeError) {
+        throw new SireApiError('No fue posible conectar con el servidor. Verifica tu conexión e inténtalo nuevamente.', null);
       }
+      throw error;
     }
+    return readResponse<CloseSirePeriodResponse>(response, getSireStatusMessage);
+  },
 
-    if (!response.ok) {
-      throw new SireApiError(getStatusMessage(response.status, getBackendMessage(body)), response.status);
+  async getHistory(page = 1, limit = 20): Promise<SireHistoryResponse> {
+    const token = useAuthStore.getState().token;
+    if (!token) {
+      throw new SireApiError('Tu sesión venció o no es válida. Inicia sesión nuevamente.', 401);
     }
-
-    return body as ReconcileResponse;
+    let response: Response;
+    try {
+      response = await fetch(`${ENV.VITE_API_URL}/sire/history?page=${page}&limit=${limit}`, {
+        method: 'GET',
+        headers: authenticatedHeaders(token),
+      });
+    } catch (error) {
+      if (error instanceof TypeError) {
+        throw new SireApiError('No fue posible conectar con el servidor. Verifica tu conexión e inténtalo nuevamente.', null);
+      }
+      throw error;
+    }
+    return readResponse<SireHistoryResponse>(response, getSireStatusMessage);
   },
 };

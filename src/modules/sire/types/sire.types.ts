@@ -38,6 +38,7 @@ export interface ComprobanteDraft extends Omit<SireComprobante, 'baseImponible' 
 export interface ReconcileRequest {
   period: string;
   ruc: string;
+  bookType: SireBookType;
   comprobantes: SireComprobante[];
 }
 
@@ -51,26 +52,46 @@ export interface ReconcileSummary {
   porcentajeCumplimiento: number;
 }
 
-interface ReconcileResultBase {
+export interface ReconcileResult {
   llave: string;
   tipoComprobante: TipoComprobante;
   serie: string;
   correlativo: string;
-  baseLocal: number;
-  baseSire: number;
-  igvLocal: number;
-  igvSire: number;
+  totalLocal?: number;
+  totalSire?: number;
+  diferenciaTotal: number;
   diferenciaBase: number;
   diferenciaIgv: number;
+  escenario: ReconcileScenario;
+  duplicateSource?: DuplicateSource | null;
 }
-
-export type ReconcileResult = ReconcileResultBase & (
-  | { escenario: 'DUPLICADO_LLAVE'; duplicateSource: DuplicateSource | null }
-  | { escenario: Exclude<ReconcileScenario, 'DUPLICADO_LLAVE'>; duplicateSource?: never }
-);
 
 export interface ReconcileResponse {
   period: string;
+  bookType: SireBookType;
   summary: ReconcileSummary;
   results: ReconcileResult[];
+}
+
+export interface SireHistoryItem {
+  id: string;
+  period: string;
+  bookType: 'RVIE' | 'RCE';
+  status: 'EN_REVISION' | 'CONCILIADO' | 'CERRADO';
+  createdAt: string;
+  complianceRate: number;
+  totalsByScenario: Record<ReconcileScenario, number>;
+}
+
+export interface SireHistoryResponse {
+  page: number;
+  limit: number;
+  total: number;
+  items: SireHistoryItem[];
+}
+
+export interface CloseSirePeriodResponse {
+  period: string;
+  bookType: SireBookType;
+  status: 'CERRADO';
 }

@@ -71,6 +71,24 @@ describe('sireApi.importProposal', () => {
     });
   });
 
+  it('explica cuando el backend desplegado no expone la ruta de importación', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        json: vi.fn().mockResolvedValue({}),
+      }),
+    );
+
+    await expect(
+      sireApi.importProposal(
+        { period: '202610', bookType: 'RVIE_VENTAS' },
+        new File(['row'], 'proposal.txt', { type: 'text/plain' }),
+      ),
+    ).rejects.toThrow('El backend no encontró la ruta de importación SIRE.');
+  });
+
   it('no hace la petición si no hay sesión autenticada', async () => {
     useAuthStore.setState({ token: null });
     const fetchMock = vi.fn();
