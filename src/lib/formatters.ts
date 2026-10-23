@@ -22,9 +22,23 @@ export const formatCurrency = (
 
 /**
  * Convierte una fecha ISO (ej. "2026-10-14T18:00:00Z") al formato estándar peruano DD/MM/YYYY.
+ *
+ * Una fecha sin hora ("2026-10-23") representa un día calendario, no un
+ * instante: `new Date("2026-10-23")` la interpreta como medianoche UTC y al
+ * mostrarla en Lima (UTC-5) retrocedía al día anterior. Por eso la fecha pura
+ * se formatea sin pasar por la zona horaria.
  */
 export const formatDateToPeru = (isoDateString: string | Date | null | undefined): string => {
   if (!isoDateString) return '-';
+
+  if (typeof isoDateString === 'string') {
+    const soloFecha = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDateString.trim());
+    if (soloFecha) {
+      const [, anio, mes, dia] = soloFecha;
+      return `${dia}/${mes}/${anio}`;
+    }
+  }
+
   const date = typeof isoDateString === 'string' ? new Date(isoDateString) : isoDateString;
   if (isNaN(date.getTime())) return '-';
 

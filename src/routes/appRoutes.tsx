@@ -13,7 +13,7 @@ const RegisterPage = React.lazy(() => import('@/modules/auth/pages/RegisterPage'
 const ProfilePage = React.lazy(() => import('@/modules/auth/pages/ProfilePage'));
 const SecurityPage = React.lazy(() => import('@/modules/auth/pages/SecurityPage'));
 
-const InvoicesListPage = React.lazy(() => import('@/modules/invoices/pages/InvoicesListPage'));
+const InvoicesListPage = React.lazy(() => import('@/modules/invoices/InvoiceList'));
 const ResilienceDashboardPage = React.lazy(() => import('@/modules/resilience/pages/ResilienceDashboardPage'));
 const CustomsDashboardPage = React.lazy(() => import('@/modules/customs/pages/CustomsDashboardPage'));
 const ShipmentsListPage = React.lazy(() => import('@/modules/customs/pages/ShipmentsListPage'));
