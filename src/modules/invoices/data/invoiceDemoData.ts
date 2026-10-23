@@ -41,7 +41,10 @@ export const COMPROBANTES_DEMO = [
     ],
   }),
   construir({
-    tipo: '03', serie: 'B001', correlativo: 108, ruc: '10458963253',
+    // Una Boleta solo puede emitirse a una persona natural con DNI de 8
+    // dígitos (Catálogo 06). Antes llevaba un RUC 10, que corresponde a una
+    // Factura y SUNAT habría rechazado.
+    tipo: '03', serie: 'B001', correlativo: 108, ruc: '45896325',
     razonSocial: 'JUAN CARLOS PEREZ GOMEZ',
     fecha: '2026-10-16', base: 150, estado: 'ACEPTADO', cdrCodigo: '0',
   }),

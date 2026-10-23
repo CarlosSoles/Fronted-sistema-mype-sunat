@@ -21,6 +21,7 @@ import type {
   FormaPago,
   ItemDemo,
   SemillaComprobante,
+  TipoDocIdentidad,
   TipoOperacion,
 } from './invoiceDemoSchema';
 
@@ -33,8 +34,18 @@ export type {
   MotivoNota,
   SemillaComprobante,
   TipoComprobante,
+  TipoDocIdentidad,
   TipoOperacion,
 } from './invoiceDemoSchema';
+
+/**
+ * Deriva el tipo de documento del cliente (Catálogo 06) a partir del número.
+ *
+ * El RUC peruano tiene 11 dígitos y el DNI 8; cualquier otro largo se trata
+ * como documento de identidad genérico (DNI) para no romper el XML.
+ */
+export const tipoDocDesdeNumero = (documento: string): TipoDocIdentidad =>
+  documento.length === 11 ? '6' : '1';
 
 /** Construye un comprobante derivando IGV, detracción, retención y neto. */
 export function construir(semilla: SemillaComprobante): ComprobanteDemo {
@@ -73,6 +84,7 @@ export function construir(semilla: SemillaComprobante): ComprobanteDemo {
     serie: semilla.serie,
     correlativo: semilla.correlativo,
     clienteRuc: semilla.ruc,
+    clienteTipoDoc: semilla.tipoDocCliente ?? tipoDocDesdeNumero(semilla.ruc),
     clienteRazonSocial: semilla.razonSocial,
     fechaEmision: semilla.fecha,
     moneda: 'PEN',

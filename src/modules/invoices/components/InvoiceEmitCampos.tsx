@@ -9,15 +9,24 @@ import {
   SERIES_POR_TIPO,
   MOTIVOS_NC,
   MOTIVOS_ND,
-  documentoClienteValido,
+  documentoValidoParaTipo,
+  mensajeErrorDocumento,
 } from '../lib/invoiceEmitValidation';
+import {
+  cambiarTipo,
+  esTipoNota,
+  vincularDocumentoAfectado,
+} from '../lib/invoiceEmitDraft';
 import type { BorradorEmision } from '../lib/invoiceEmitDraft';
+import type { ComprobanteDemo } from '../data/invoiceDemoTypes';
 import { CampoSelect, CampoTexto } from './InvoiceEmitCamposBase';
 import { InvoiceEmitCamposTributarios } from './InvoiceEmitCamposTributarios';
 
 interface InvoiceEmitCamposProps {
   borrador: BorradorEmision;
   actualizar: (parcial: Partial<BorradorEmision>) => void;
+  /** Comprobantes ya emitidos: se usan para vincular las notas. */
+  existentes: readonly ComprobanteDemo[];
 }
 
 const OPCIONES_TIPO = [
@@ -31,9 +40,13 @@ const OPCIONES_TIPO = [
 export const InvoiceEmitCampos = ({
   borrador: b,
   actualizar,
+  existentes,
 }: InvoiceEmitCamposProps) => {
-  const esNota = b.tipo === '07' || b.tipo === '08';
+  const esNota = esTipoNota(b.tipo);
   const motivos = b.tipo === '08' ? MOTIVOS_ND : MOTIVOS_NC;
+  const afectado = existentes.find(
+    (c) => c.id.toUpperCase() === b.documentoAfectado.trim().toUpperCase(),
+  );
 
   return (
     <div className="grid gap-3 sm:grid-cols-2">
@@ -41,12 +54,7 @@ export const InvoiceEmitCampos = ({
         id="tipo-cpe"
         label="Tipo de comprobante"
         value={b.tipo}
-        onChange={(v) =>
-          actualizar({
-            tipo: v as BorradorEmision['tipo'],
-            serie: SERIES_POR_TIPO[v]?.[0] ?? 'F001',
-          })
-        }
+        onChange={(v) => actualizar(cambiarTipo(b, v as BorradorEmision['tipo']))}
         opciones={OPCIONES_TIPO}
       />
 
@@ -59,24 +67,29 @@ export const InvoiceEmitCampos = ({
           value: s,
           label: s,
         }))}
+        // La serie F/B de una Nota debe coincidir con el documento que afecta.
+        disabled={esNota && Boolean(b.documentoAfectado.trim())}
       />
 
       <CampoTexto
         id="doc-cliente"
-        label="RUC / DNI del cliente"
+        label={
+          b.tipo === '03' ? 'DNI del cliente' : 'RUC / DNI del cliente'
+        }
         value={b.clienteDoc}
         onChange={(v) => actualizar({ clienteDoc: v.replace(/\D/g, '') })}
-        placeholder="20100070970"
+        placeholder={b.tipo === '03' ? '45678912' : '20100070970'}
         error={
-          b.clienteDoc.length > 0 && !documentoClienteValido(b.clienteDoc)
-            ? 'Documento inválido (RUC módulo 11 o DNI 8 dígitos)'
+          b.clienteDoc.length > 0 &&
+          !documentoValidoParaTipo(b.tipo, b.clienteDoc)
+            ? mensajeErrorDocumento(b.tipo)
             : undefined
         }
       />
 
       <CampoTexto
         id="razon-cliente"
-        label="Razón social"
+        label="Razón social / nombre"
         value={b.clienteRazonSocial}
         onChange={(v) => actualizar({ clienteRazonSocial: v })}
         placeholder="CORPORACIÓN TEXTIL DEL NORTE S.A.C."
@@ -101,13 +114,37 @@ export const InvoiceEmitCampos = ({
 
       {esNota && (
         <>
-          <CampoTexto
-            id="doc-afectado"
-            label="Documento afectado"
-            value={b.documentoAfectado}
-            onChange={(v) => actualizar({ documentoAfectado: v })}
-            placeholder="F001-0042"
-          />
+          <div className="sm:col-span-2">
+            <CampoTexto
+              id="doc-afectado"
+              label="Documento afectado"
+              value={b.documentoAfectado}
+              onChange={(v) =>
+                actualizar(
+                  vincularDocumentoAfectado(
+                    { ...b, documentoAfectado: v },
+                    existentes,
+                  ).borrador,
+                )
+              }
+              placeholder="F001-0042"
+              error={
+                b.documentoAfectado.trim() && !afectado
+                  ? 'No existe un comprobante con ese número en la grilla.'
+                  : undefined
+              }
+            />
+          </div>
+          {afectado && (
+            <div className="sm:col-span-2 rounded-lg border bg-muted/40 p-2">
+              <p className="text-[11px] text-muted-foreground">
+                Se vincula con {afectado.id} · {afectado.clienteRazonSocial} ·
+                total S/{' '}
+                {afectado.baseImponible.toFixed(2)} + IGV de{' '}
+                {afectado.igv.toFixed(2)}
+              </p>
+            </div>
+          )}
           <CampoSelect
             id="motivo"
             label="Motivo de la nota"

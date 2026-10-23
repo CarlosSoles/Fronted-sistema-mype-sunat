@@ -57,7 +57,7 @@ export const InvoiceCdrModal = ({
     igv: c.igv,
     total: c.totalNeto,
     fecha: c.fechaEmision,
-    tipoDocCliente: c.clienteRuc.length === 11 ? '6' : '1',
+    tipoDocCliente: c.clienteTipoDoc,
     numDocCliente: c.clienteRuc,
     hashCpe: c.hashCpe,
   });

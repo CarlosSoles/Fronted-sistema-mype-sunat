@@ -75,7 +75,9 @@ describe('generarXmlUbl21Comprobante', () => {
   });
 
   it('las boletas exponen al cliente con documento tipo 1', () => {
-    expect(boletaConDni).toHaveLength(2);
+    // Toda la semilla de boletas va a personas naturales: si aparece una
+    // boleta con RUC, es un dato inválido para SUNAT y debe verse aquí.
+    expect(boletaConDni).toHaveLength(3);
 
     for (const b of boletaConDni) {
       const xml = generarXmlUbl21Comprobante(b);
@@ -84,11 +86,13 @@ describe('generarXmlUbl21Comprobante', () => {
       expect(xml).toContain('</Invoice>');
     }
 
-    // Una boleta a empresa sigue declarando el RUC con esquema 6.
-    expect(boleta.clienteRuc).toHaveLength(11);
-    expect(generarXmlUbl21Comprobante(boleta)).toContain(
-      `<cbc:ID schemeID="6">${boleta.clienteRuc}</cbc:ID>`,
+    // Una factura declara el RUC del adquirente con esquema 6.
+    expect(factura.clienteRuc).toHaveLength(11);
+    expect(factura.clienteTipoDoc).toBe('6');
+    expect(generarXmlUbl21Comprobante(factura)).toContain(
+      `<cbc:ID schemeID="6">${factura.clienteRuc}</cbc:ID>`,
     );
+    expect(boleta).toBeDefined();
   });
 
   it('el nombre del archivo sigue el formato RUC-tipo-serie-correlativo', () => {

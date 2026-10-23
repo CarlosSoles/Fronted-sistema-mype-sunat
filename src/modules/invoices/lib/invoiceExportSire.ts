@@ -30,9 +30,6 @@ const COLUMNAS_RVIE = [
   'Doc_Modificado',
 ] as const;
 
-/** Tipo de documento del cliente según Catálogo 06. */
-const tipoDocCliente = (ruc: string): string => (ruc.length === 11 ? '6' : '1');
-
 /** Escapa un campo CSV entrecomillándolo siempre. */
 const campo = (valor: string | number): string =>
   `"${String(valor).replace(/"/g, '""')}"`;
@@ -48,7 +45,7 @@ const filaRvie = (c: ComprobanteDemo, carSunat: number): string => {
     c.tipo,
     c.serie,
     c.correlativo,
-    tipoDocCliente(c.clienteRuc),
+    c.clienteTipoDoc,
     c.clienteRuc,
     c.clienteRazonSocial,
     c.moneda,

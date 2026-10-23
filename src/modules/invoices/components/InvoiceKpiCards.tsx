@@ -19,10 +19,15 @@ import type { ResumenFiscal } from '../lib/invoiceMetrics';
 
 interface InvoiceKpiCardsProps {
   resumen: ResumenFiscal;
+  /** `true` cuando las tarjetas reflejan un filtro y no el periodo completo. */
+  filtrado?: boolean;
 }
 
 /** Tarjetas de métricas fiscales del periodo. */
-export const InvoiceKpiCards = ({ resumen }: InvoiceKpiCardsProps) => {
+export const InvoiceKpiCards = ({
+  resumen,
+  filtrado = false,
+}: InvoiceKpiCardsProps) => {
   const despacho =
     resumen.despachoPromedioMs > 0
       ? `${resumen.despachoPromedioMs} ms promedio`
@@ -35,7 +40,7 @@ export const InvoiceKpiCards = ({ resumen }: InvoiceKpiCardsProps) => {
           <CardTitle>Total Facturado del Periodo</CardTitle>
           <CardAction>
             <Badge variant="outline" className="text-[10px]">
-              Base + IGV 18%
+              {filtrado ? 'Vista filtrada' : 'Base + IGV 18%'}
             </Badge>
           </CardAction>
         </CardHeader>

@@ -25,6 +25,19 @@ interface InvoiceOutboxMonitorProps {
   onExportarSire: (comprobantes: readonly ComprobanteDemo[]) => void;
 }
 
+/**
+ * Comprobantes que deben aparecer en el RVIE.
+ *
+ * SUNAT no admite en el registro de ventas los comprobantes rechazados ni las
+ * comunicaciones de baja (RA), que ya no forman parte de la venta declarada.
+ */
+const comprobantesParaRvie = (
+  comprobantes: readonly ComprobanteDemo[],
+): ComprobanteDemo[] =>
+  comprobantes.filter(
+    (c) => c.estado !== 'RECHAZADO' && c.tipo !== 'RA' && c.tipo !== 'RC',
+  );
+
 /** Distribución de códigos CDR del periodo. */
 const contarCodigosCdr = (
   comprobantes: readonly ComprobanteDemo[],
@@ -48,6 +61,7 @@ export const InvoiceOutboxMonitor = ({
 }: InvoiceOutboxMonitorProps) => {
   const codigos = contarCodigosCdr(comprobantes);
   const pendientes = comprobantes.filter((c) => c.estado === 'EN_COLA');
+  const paraRvie = comprobantesParaRvie(comprobantes);
 
   return (
     <PageGrid columns={2}>
@@ -115,11 +129,16 @@ export const InvoiceOutboxMonitor = ({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => onExportarSire(comprobantes)}
+            onClick={() => onExportarSire(paraRvie)}
+            disabled={paraRvie.length === 0}
           >
             <Download aria-hidden="true" />
             Descargar CDR del periodo
           </Button>
+          <PageText variant="caption">
+            {paraRvie.length} comprobantes válidos para el RVIE (sin rechazos ni
+            bajas).
+          </PageText>
         </CardContent>
       </Card>
     </PageGrid>

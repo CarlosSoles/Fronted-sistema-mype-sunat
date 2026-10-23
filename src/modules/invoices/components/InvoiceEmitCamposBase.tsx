@@ -64,6 +64,7 @@ export interface CampoSelectProps<T extends string> {
   value: T | string;
   onChange: (valor: string) => void;
   opciones: readonly OpcionSelect<T>[];
+  disabled?: boolean;
 }
 
 /** Select con etiqueta construido sobre los primitivos de `@/components/ui`. */
@@ -73,9 +74,10 @@ export const CampoSelect = <T extends string>({
   value,
   onChange,
   opciones,
+  disabled = false,
 }: CampoSelectProps<T>) => (
   <PageField label={label} htmlFor={id}>
-    <Select value={value} onValueChange={onChange}>
+    <Select value={value} onValueChange={onChange} disabled={disabled}>
       <SelectTrigger id={id}>
         <SelectValue />
       </SelectTrigger>

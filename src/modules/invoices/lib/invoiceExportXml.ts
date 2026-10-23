@@ -81,7 +81,7 @@ ${bloqueReferencia(c)}
   <cac:AccountingCustomerParty>
     <cac:Party>
       <cac:PartyIdentification>
-        <cbc:ID schemeID="${c.clienteRuc.length === 11 ? '6' : '1'}">${esc(c.clienteRuc)}</cbc:ID>
+        <cbc:ID schemeID="${c.clienteTipoDoc}">${esc(c.clienteRuc)}</cbc:ID>
       </cac:PartyIdentification>
       <cac:PartyLegalEntity>
         <cbc:RegistrationName>${esc(c.clienteRazonSocial)}</cbc:RegistrationName>

@@ -41,6 +41,15 @@ export interface ItemDemo {
   afectacion: AfectacionIgv;
 }
 
+/**
+ * Tipo de documento de identidad del adquirente (Catálogo 06 de SUNAT).
+ *
+ * Se deriva del largo del documento cuando la semilla no lo declara: 11
+ * dígitos es RUC (`6`) y 8 dígitos es DNI (`1`). La Boleta solo admite DNI,
+ * por eso el tipo viaja con el comprobante en lugar de inferirse en cada capa.
+ */
+export type TipoDocIdentidad = '1' | '6';
+
 /** Fila enriquecida que consume la tabla del módulo. */
 export interface ComprobanteDemo {
   id: string;
@@ -48,6 +57,8 @@ export interface ComprobanteDemo {
   serie: string;
   correlativo: number;
   clienteRuc: string;
+  /** Tipo de documento del cliente según el Catálogo 06. */
+  clienteTipoDoc: TipoDocIdentidad;
   clienteRazonSocial: string;
   fechaEmision: string;
   moneda: 'PEN' | 'USD';
@@ -79,6 +90,8 @@ export interface SemillaComprobante {
   serie: string;
   correlativo: number;
   ruc: string;
+  /** Tipo de documento del cliente; si se omite se infiere del largo de `ruc`. */
+  tipoDocCliente?: TipoDocIdentidad;
   razonSocial: string;
   fecha: string;
   base: number;

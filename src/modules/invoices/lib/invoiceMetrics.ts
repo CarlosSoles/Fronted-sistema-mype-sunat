@@ -84,8 +84,11 @@ export const calcularResumenFiscal = (
     ? Math.round(despachos.reduce((a, b) => a + b, 0) / despachos.length)
     : 0;
 
-  const tasaExito = comprobantes.length
-    ? round2((aceptados / comprobantes.length) * 100)
+  // La tasa de éxito se mide sobre los comprobantes que SUNAT ya respondió:
+  // los que siguen en cola todavía no tienen veredicto y no deben hundirla.
+  const respondidos = comprobantes.filter((c) => c.estado !== 'EN_COLA');
+  const tasaExito = respondidos.length
+    ? round2((aceptados / respondidos.length) * 100)
     : 0;
 
   return {
