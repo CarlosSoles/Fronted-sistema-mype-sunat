@@ -7,6 +7,18 @@ export type ReconcileScenario =
 
 export type DuplicateSource = 'LOCAL' | 'SIRE' | 'AMBOS';
 export type TipoComprobante = '01' | '03' | '07' | '08';
+export type SireBookType = 'RVIE_VENTAS' | 'RCE_COMPRAS';
+
+export interface ImportSireProposalRequest {
+  period: string;
+  bookType: SireBookType;
+}
+
+export interface ImportSireProposalResponse {
+  imported: number;
+  rejected: number;
+  errors: { line: number; reason: string }[];
+}
 
 export interface SireComprobante {
   tipoComprobante: TipoComprobante;

@@ -4,7 +4,19 @@
 
 La pantalla permite enviar comprobantes locales al endpoint de conciliación y mostrar la respuesta calculada y persistida por el backend. El `companyId` se obtiene del usuario autenticado y no forma parte del cuerpo de la petición.
 
-No están disponibles la importación de propuestas TXT ni la generación de archivos planos RVIE/RCE de reemplazo. No se deben añadir botones ni llamadas para esas funciones hasta que exista soporte backend y layouts oficiales.
+La importación de propuestas TXT está habilitada usando el formato interno provisional de nueve columnas descrito abajo. Este formato no es el layout oficial SUNAT y la pantalla debe advertirlo antes de cargar archivos. La generación de archivos planos RVIE/RCE de reemplazo sigue sin estar disponible.
+
+## Importación de propuestas
+
+`POST /api/v1/sire/import` requiere `multipart/form-data` con los campos `file` (`.txt`, máximo 5 MiB), `period` (`YYYYMM`) y `bookType` (`RVIE_VENTAS` o `RCE_COMPRAS`). El backend autentica al usuario y determina la empresa desde su JWT.
+
+El parser provisional espera una fila por comprobante, separada por `|`, en este orden:
+
+```text
+RUC|tipo|serie|correlativo|fecha (YYYY-MM-DD)|base|IGV|total|CAR
+```
+
+La respuesta informa `imported`, `rejected` y `errors` con número de línea y motivo. La interfaz presenta estos totales y errores por fila. No presentar este flujo como compatible con los TXT oficiales de SUNAT hasta verificar e implementar el layout vigente para cada libro.
 
 ## Integración
 
@@ -51,7 +63,7 @@ Los valores de porcentaje, diferencias y escenarios provienen del backend; el fr
 
 | Ruta | Vista | Disponibilidad |
 | --- | --- | --- |
-| `/sire/importar` | Importar Propuesta | Placeholder; selección de archivo e importación deshabilitadas hasta disponer del endpoint y layout TXT oficial. |
+| `/sire/importar` | Importar Propuesta | Importación habilitada solo para el formato interno provisional de nueve columnas; no usar con TXT oficiales SUNAT. |
 | `/sire/conciliacion` | Conciliación y Cruce | Conciliación activa mediante el endpoint descrito arriba. |
 | `/sire/cierre` | Resumen de Cierre | Presenta el resumen de la última conciliación de la sesión; la generación de reemplazos está deshabilitada. |
 | `/sire/historial` | Historial | Placeholder hasta que exista un endpoint de periodos conciliados y cerrados. |

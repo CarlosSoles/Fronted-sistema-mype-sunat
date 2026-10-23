@@ -1,14 +1,16 @@
 import { ENV } from '@/config/env.config';
 import { useAuthStore } from '@/stores/authStore';
-import type { ReconcileRequest, ReconcileResponse } from '../types/sire.types';
+import type {
+  ImportSireProposalRequest,
+  ImportSireProposalResponse,
+  ReconcileRequest,
+  ReconcileResponse,
+} from '../types/sire.types';
 
 export class SireApiError extends Error {
   readonly status: number | null;
 
-  constructor(
-    message: string,
-    status: number | null,
-  ) {
+  constructor(message: string, status: number | null) {
     super(message);
     this.name = 'SireApiError';
     this.status = status;
@@ -21,7 +23,11 @@ const getBackendMessage = (body: unknown): string | undefined => {
   const formatItem = (item: unknown): string => {
     if (typeof item === 'string') return item;
     if (typeof item !== 'object' || item === null) return '';
-    const validation = item as { field?: unknown; message?: unknown; rule?: unknown };
+    const validation = item as {
+      field?: unknown;
+      message?: unknown;
+      rule?: unknown;
+    };
     if (typeof validation.message === 'string') return validation.message;
     if (typeof validation.field === 'string') {
       const fields: Record<string, string> = {
@@ -63,27 +69,47 @@ const getStatusMessage = (status: number, detail?: string): string => {
   return detail ? `${message} ${detail}` : message;
 };
 
+const getImportStatusMessage = (status: number, detail?: string): string => {
+  const messages: Record<number, string> = {
+    400: 'No se pudo importar la propuesta. Revisa el periodo, el libro y el formato del archivo.',
+    401: 'Tu sesión venció o no es válida. Inicia sesión nuevamente.',
+    403: 'No tienes permisos para importar propuestas SIRE.',
+    409: 'El periodo fiscal está cerrado y no admite nuevas importaciones.',
+    413: 'El archivo supera el límite de 5 MiB.',
+    500: 'Ocurrió un error en el servidor al importar la propuesta. Inténtalo nuevamente.',
+  };
+  const message = messages[status] ?? 'No se pudo importar la propuesta SIRE.';
+  return detail ? `${message} ${detail}` : message;
+};
+
 export const sireApi = {
-  async reconcile(payload: ReconcileRequest): Promise<ReconcileResponse> {
+  async importProposal(payload: ImportSireProposalRequest, file: File): Promise<ImportSireProposalResponse> {
     const token = useAuthStore.getState().token;
     if (!token) {
       throw new SireApiError('Tu sesión venció o no es válida. Inicia sesión nuevamente.', 401);
     }
 
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('period', payload.period);
+    formData.append('bookType', payload.bookType);
+
     let response: Response;
     try {
-      response = await fetch(`${ENV.VITE_API_URL}/sire/reconcile`, {
+      response = await fetch(`${ENV.VITE_API_URL}/sire/import`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
           Accept: 'application/json',
         },
-        body: JSON.stringify(payload),
+        body: formData,
       });
     } catch (error) {
       if (error instanceof TypeError) {
-        throw new SireApiError('No fue posible conectar con el servidor. Verifica tu conexión e inténtalo nuevamente.', null);
+        throw new SireApiError(
+          'No fue posible conectar con el servidor. Verifica tu conexión e inténtalo nuevamente.',
+          null,
+        );
       }
       throw error;
     }
@@ -103,10 +129,55 @@ export const sireApi = {
     }
 
     if (!response.ok) {
-      throw new SireApiError(
-        getStatusMessage(response.status, getBackendMessage(body)),
-        response.status,
-      );
+      throw new SireApiError(getImportStatusMessage(response.status, getBackendMessage(body)), response.status);
+    }
+
+    return body as ImportSireProposalResponse;
+  },
+
+  async reconcile(payload: ReconcileRequest): Promise<ReconcileResponse> {
+    const token = useAuthStore.getState().token;
+    if (!token) {
+      throw new SireApiError('Tu sesión venció o no es válida. Inicia sesión nuevamente.', 401);
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(`${ENV.VITE_API_URL}/sire/reconcile`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+    } catch (error) {
+      if (error instanceof TypeError) {
+        throw new SireApiError(
+          'No fue posible conectar con el servidor. Verifica tu conexión e inténtalo nuevamente.',
+          null,
+        );
+      }
+      throw error;
+    }
+
+    let body: unknown;
+    try {
+      body = await response.json();
+    } catch (error) {
+      if (error instanceof SyntaxError) {
+        if (response.ok) {
+          throw new SireApiError('El servidor devolvió una respuesta con formato inválido.', response.status);
+        }
+        body = undefined;
+      } else {
+        throw error;
+      }
+    }
+
+    if (!response.ok) {
+      throw new SireApiError(getStatusMessage(response.status, getBackendMessage(body)), response.status);
     }
 
     return body as ReconcileResponse;
