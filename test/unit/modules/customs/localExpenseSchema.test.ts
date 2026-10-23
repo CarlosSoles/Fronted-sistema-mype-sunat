@@ -99,7 +99,7 @@ describe('localExpenseSchema — Validación Zod de Comprobantes Locales y Algor
 
       const invalidMethod = localExpenseSchema.safeParse({
         ...validExpense,
-        proration_method: 'ALEATORIO' as any,
+        proration_method: 'ALEATORIO' as unknown as never,
       });
       expect(invalidMethod.success).toBe(false);
     });

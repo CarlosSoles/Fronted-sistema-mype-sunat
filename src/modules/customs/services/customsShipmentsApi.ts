@@ -15,7 +15,9 @@ export const customsShipmentsApi = {
    * Obtiene la lista de expedientes de importación con filtros y paginación.
    */
   getShipments: async (filters?: ShipmentFilters): Promise<CustomsShipmentSummary[]> => {
-    const response = await apiClient.get<any>('/customs/shipments', {
+    // El backend puede responder el arreglo o un envoltorio { data };
+    // se tipa con la forma relajada y se decide tras la validación runtime.
+    const response = await apiClient.get<CustomsShipmentSummary[] | { data: CustomsShipmentSummary[] }>('/customs/shipments', {
       params: filters,
     });
     if (Array.isArray(response.data)) return response.data;

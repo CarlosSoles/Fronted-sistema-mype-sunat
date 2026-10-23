@@ -19,6 +19,16 @@ interface NewShipmentModalProps {
   onSubmit: (data: ShipmentFormData) => Promise<unknown>;
 }
 
+/**
+ * Genera el número de expediente inicial.
+ *
+ * `Math.random()` es impuro: llamarlo dentro de `defaultValues` lo ejecuta en
+ * cada render y cambia el valor mientras el usuario escribe. Se encapsula para
+ * que el hook lo invoque una sola vez al montar (y el linter lo vea).
+ */
+const numeroExpedienteInicial = (): string =>
+  `EXP-2026-${Math.floor(10000 + Math.random() * 90000)}`;
+
 export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
   isOpen,
   onClose,
@@ -32,7 +42,7 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
   } = useForm<ShipmentFormData>({
     resolver: zodResolver(shipmentSchema),
     defaultValues: {
-      shipment_number: `EXP-2026-${Math.floor(10000 + Math.random() * 90000)}`,
+      shipment_number: numeroExpedienteInicial(),
       supplier_id: 'a0000000-0000-0000-0000-000000000001',
       incoterm: 'FOB',
       currency_code: 'USD',

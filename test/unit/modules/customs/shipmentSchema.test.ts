@@ -40,7 +40,7 @@ describe('shipmentSchema — Validación Zod de Apertura de Expedientes Aduanero
       expect(res.success).toBe(true);
     }
 
-    const invalidRes = shipmentSchema.safeParse({ ...validShipment, incoterm: 'INVALID' as any });
+    const invalidRes = shipmentSchema.safeParse({ ...validShipment, incoterm: 'INVALID' as unknown as never });
     expect(invalidRes.success).toBe(false);
   });
 

@@ -141,7 +141,8 @@ describe('duaWizardSchema — Validación Zod del Asistente DAM / DUA SUNAT', ()
         expect(res.success).toBe(true);
       }
 
-      const invalidMode = duaWizardSchema.safeParse({ ...validWizardPayload, dispatch_mode: '99' as any });
+      // El cast es deliberado: se inyecta un valor fuera del esquema para probar la validación.
+      const invalidMode = duaWizardSchema.safeParse({ ...validWizardPayload, dispatch_mode: '99' as unknown as never });
       expect(invalidMode.success).toBe(false);
     });
   });

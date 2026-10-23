@@ -9,6 +9,7 @@ import {
   DuaStep4Confirmation,
 } from '../components';
 import { useDuaWizard } from '../hooks/useDuaWizard';
+import type { RegisterDuaWizardPayload } from '../types/customsDeclaration.types';
 import { ArrowLeft, ArrowRight, RotateCcw, CheckCircle2, CreditCard } from 'lucide-react';
 
 export default function DuaRegistrationWizardPage() {
@@ -33,7 +34,8 @@ export default function DuaRegistrationWizardPage() {
 
   const handleFinalSubmit = async () => {
     try {
-      await submitDuaWizard(formData as any);
+      // El borrador está incompleto hasta el paso 4; el backend valida el DTO completo.
+      await submitDuaWizard(formData as unknown as RegisterDuaWizardPayload);
     } catch {
       // Manejado por react-query
     }

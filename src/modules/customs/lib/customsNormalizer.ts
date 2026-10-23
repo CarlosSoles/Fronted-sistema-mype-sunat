@@ -1,7 +1,9 @@
 import {
   type CustomsDeclarationDetail,
   type CustomsDeclarationSummary,
+  type CustomsStatus,
   type KardexMovementRecord,
+  type KardexMovementType,
 } from '../types/customs.types';
 
 /**
@@ -19,7 +21,7 @@ export const normalizeDeclarationSummary = (
     cif_value_usd: Number(raw.cif_value_usd ?? raw.cifValueUsd ?? 0),
     cif_value_pen: Number(raw.cif_value_pen ?? raw.cifValuePen ?? 0),
     total_customs_taxes_pen: Number(raw.total_customs_taxes_pen ?? raw.totalCustomsTaxesPen ?? 0),
-    status: (raw.status as any) || 'REGISTRADO',
+    status: (raw.status as CustomsStatus) || 'REGISTRADO',
     items_count: Number(
       raw.items_count ??
         raw.itemsCount ??
@@ -39,7 +41,7 @@ export const normalizeKardexRecord = (
     id: String(raw.id || ''),
     company_id: String(raw.company_id ?? raw.companyId ?? ''),
     movement_date: String(raw.movement_date ?? raw.movementDate ?? ''),
-    movement_type: (raw.movement_type ?? raw.movementType ?? 'INGRESO_IMPORTACION') as any,
+    movement_type: (raw.movement_type ?? raw.movementType ?? 'INGRESO_IMPORTACION') as KardexMovementType,
     item_code: String(raw.item_code ?? raw.itemCode ?? ''),
     description: String(raw.description || ''),
     source_reference_id:
@@ -133,7 +135,7 @@ export const normalizeDeclarationDetail = (
     total_customs_taxes_pen: Number(
       raw.total_customs_taxes_pen ?? raw.totalCustomsTaxesPen ?? 0
     ),
-    status: (raw.status as any) || 'REGISTRADO',
+    status: (raw.status as CustomsStatus) || 'REGISTRADO',
     items,
     kardex_movements_registered: Number(
       raw.kardex_movements_registered ?? raw.kardexMovementsRegistered ?? 0
