@@ -1,16 +1,22 @@
 import { create } from 'zustand';
-import type { ReconcileSummary } from '../types/sire.types';
+import type { ReconcileSummary, SireBookType } from '../types/sire.types';
 
 interface SireReconciliationState {
   period: string | null;
+  bookType: SireBookType | null;
   summary: ReconcileSummary | null;
-  setSummary: (period: string, summary: ReconcileSummary) => void;
+  isClosed: boolean;
+  setSummary: (period: string, bookType: SireBookType, summary: ReconcileSummary) => void;
+  setClosed: () => void;
   clearSummary: () => void;
 }
 
 export const useSireReconciliationStore = create<SireReconciliationState>((set) => ({
   period: null,
+  bookType: null,
   summary: null,
-  setSummary: (period, summary) => set({ period, summary }),
-  clearSummary: () => set({ period: null, summary: null }),
+  isClosed: false,
+  setSummary: (period, bookType, summary) => set({ period, bookType, summary, isClosed: false }),
+  setClosed: () => set({ isClosed: true }),
+  clearSummary: () => set({ period: null, bookType: null, summary: null, isClosed: false }),
 }));

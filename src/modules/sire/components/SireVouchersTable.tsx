@@ -41,8 +41,9 @@ export const SireVouchersTable = ({ results }: Props) => {
           <TableHeader>
             <TableRow>
               <TableHead>Comprobante</TableHead>
-              <TableHead>Base local / SIRE</TableHead>
-              <TableHead>IGV local / SIRE</TableHead>
+              <TableHead align="right">Total local</TableHead>
+              <TableHead align="right">Total SIRE</TableHead>
+              <TableHead align="right">Diferencia total</TableHead>
               <TableHead align="right">Diferencia base</TableHead>
               <TableHead align="right">Diferencia IGV</TableHead>
               <TableHead>Escenario</TableHead>
@@ -53,8 +54,9 @@ export const SireVouchersTable = ({ results }: Props) => {
             {visibleResults.length ? visibleResults.map((result, index) => (
               <TableRow key={`${result.llave}-${index}`}>
                 <TableCell>{result.tipoComprobante} · {result.serie}-{result.correlativo}</TableCell>
-                <TableCell>{money(result.baseLocal)} / {money(result.baseSire)}</TableCell>
-                <TableCell>{money(result.igvLocal)} / {money(result.igvSire)}</TableCell>
+                <TableCell align="right">{result.totalLocal == null ? '—' : money(result.totalLocal)}</TableCell>
+                <TableCell align="right">{result.totalSire == null ? '—' : money(result.totalSire)}</TableCell>
+                <TableCell align="right">{money(result.diferenciaTotal)}</TableCell>
                 <TableCell align="right">{money(result.diferenciaBase)}</TableCell>
                 <TableCell align="right">{money(result.diferenciaIgv)}</TableCell>
                 <TableCell><MatchStatusBadge status={result.escenario} /></TableCell>
@@ -66,7 +68,7 @@ export const SireVouchersTable = ({ results }: Props) => {
               </TableRow>
             )) : (
               <TableRow>
-                <TableCell colSpan={7} align="center">
+                <TableCell colSpan={8} align="center">
                   {results.length ? 'No hay resultados para este filtro.' : 'Aún no hay resultados de conciliación.'}
                 </TableCell>
               </TableRow>
