@@ -12,6 +12,7 @@
  * el backend está planificada para el Sprint 2.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Page, PageHeader, Tabs, TabsContent } from '@/components/ui';
 import { COMPROBANTES_DEMO } from './data/invoiceDemoData';
 import type { ComprobanteDemo } from './data/invoiceDemoTypes';
@@ -19,7 +20,9 @@ import { InvoiceKpiCards } from './components/InvoiceKpiCards';
 import { InvoiceDemoNotice } from './components/InvoiceDemoNotice';
 import {
   InvoiceTabsNav,
+  RUTA_POR_TAB,
   contarPorTab,
+  tabDesdeRuta,
   type InvoiceTabId,
 } from './components/InvoiceTabsNav';
 import {
@@ -77,7 +80,9 @@ interface VisorState {
 }
 
 export const InvoiceList = () => {
-  const [activeTab, setActiveTab] = useState<InvoiceTabId>('comprobantes');
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const activeTab = tabDesdeRuta(pathname);
   const [filtros, setFiltros] = useState<InvoiceFiltros>(FILTROS_INICIALES);
   const [comprobantes, setComprobantes] =
     useState<readonly ComprobanteDemo[]>(COMPROBANTES_DEMO);
@@ -118,9 +123,9 @@ export const InvoiceList = () => {
   const agregarComprobante = useCallback((nuevo: ComprobanteDemo) => {
     setComprobantes((previos) => [nuevo, ...previos]);
     setModalEmision(null);
-    setActiveTab('comprobantes');
+    navigate(RUTA_POR_TAB.comprobantes);
     setFiltros({ ...FILTROS_INICIALES });
-  }, []);
+  }, [navigate]);
 
   /** Reproduce el ciclo del worker cuando el usuario pulsa "Refrescar". */
   const refrescarCola = useCallback(() => {
@@ -157,7 +162,9 @@ export const InvoiceList = () => {
 
       <Tabs
         value={activeTab}
-        onValueChange={(valor) => setActiveTab(valor as InvoiceTabId)}
+        onValueChange={(valor) =>
+          navigate(RUTA_POR_TAB[valor as InvoiceTabId])
+        }
       >
         <InvoiceTabsNav conteo={conteo} />
 
