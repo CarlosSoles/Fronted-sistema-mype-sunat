@@ -63,8 +63,39 @@ export const AppRoutes = () => {
             <Route path="/settings/security" element={<SecurityPage />} />
 
             {/* [M1: Facturación] ADMIN, OPERADOR_FACTURACION, CONTADOR, AUDITOR */}
+            <Route path="/invoices" element={<Navigate to="/invoices/facturas" replace />} />
             <Route
-              path="/invoices"
+              path="/invoices/facturas"
+              element={
+                <RoleProtectedRoute
+                  allowedRoles={['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT']}
+                >
+                  <InvoicesListPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/invoices/notas"
+              element={
+                <RoleProtectedRoute
+                  allowedRoles={['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT']}
+                >
+                  <InvoicesListPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/invoices/bajas"
+              element={
+                <RoleProtectedRoute
+                  allowedRoles={['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT']}
+                >
+                  <InvoicesListPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/invoices/monitor"
               element={
                 <RoleProtectedRoute
                   allowedRoles={['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT']}

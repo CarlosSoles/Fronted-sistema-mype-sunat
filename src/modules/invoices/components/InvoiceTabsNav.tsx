@@ -17,6 +17,26 @@ export type InvoiceTabId =
   | 'bajas'
   | 'monitor';
 
+/** Ruta del menú lateral asociada a cada apartado. */
+export const RUTA_POR_TAB: Record<InvoiceTabId, string> = {
+  comprobantes: '/invoices/facturas',
+  notas: '/invoices/notas',
+  bajas: '/invoices/bajas',
+  monitor: '/invoices/monitor',
+};
+
+/**
+ * Traduce el tramo final de la URL a su apartado.
+ *
+ * `/invoices` sin sufijo abre la pestaña de facturas y boletas.
+ */
+export const tabDesdeRuta = (pathname: string): InvoiceTabId => {
+  const entrada = Object.entries(RUTA_POR_TAB).find(
+    ([, ruta]) => ruta === pathname,
+  );
+  return (entrada?.[0] as InvoiceTabId) ?? 'comprobantes';
+};
+
 /** Definición de cada apartado y sus tipos de comprobante. */
 export const INVOICE_TABS: ReadonlyArray<{
   id: InvoiceTabId;

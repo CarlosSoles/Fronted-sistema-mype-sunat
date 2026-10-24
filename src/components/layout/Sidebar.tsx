@@ -13,7 +13,9 @@ import {
   CreditCard,
   FileCheck2,
   FilePlus,
+  FileMinus2,
   FileText,
+  FileX2,
   FolderGit2,
   GitCompareArrows,
   History,
@@ -47,6 +49,12 @@ const NAV_ITEMS: NavItem[] = [
     icon: FileText,
     developer: 'Jhordy Salirrosas',
     allowedRoles: ['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT'],
+    subItems: [
+      { title: 'Facturas y Boletas', path: '/invoices/facturas', icon: FileText },
+      { title: 'Notas de Crédito y Débito', path: '/invoices/notas', icon: FileMinus2 },
+      { title: 'Bajas y Resúmenes Diarios', path: '/invoices/bajas', icon: FileX2 },
+      { title: 'Monitor Outbox y CDR', path: '/invoices/monitor', icon: Activity },
+    ],
   },
   {
     title: 'Aduanas DUA & Kardex',
@@ -122,13 +130,13 @@ export const Sidebar = () => {
   const toggleExpand = (item: NavItem) => {
     setExpandedItems((prev) => {
       const willExpand = !prev[item.path];
-      // Si se expande y estamos fuera del módulo, navegar a su ruta principal
+      // Si se expande y estamos fuera del módulo, navegar a su primera sección
       if (
         willExpand &&
         location.pathname !== item.path &&
         !location.pathname.startsWith(`${item.path}/`)
       ) {
-        navigate(item.path === '/customs' ? '/customs/dashboard' : item.path);
+        navigate(item.subItems?.[0]?.path ?? item.path);
       }
       return { ...prev, [item.path]: willExpand };
     });
