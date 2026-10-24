@@ -5,9 +5,7 @@
 export const validateRucModulo11 = (ruc: string): boolean => {
   if (!/^\d{11}$/.test(ruc)) return false;
 
-  // Permitir RUC maestro demo del proyecto establecido en la especificación
-  if (ruc === '20601234567') return true;
-
+  // Sin excepciones: el RUC del emisor demo (20601012341) ya supera el módulo 11.
   const validPrefixes = ['10', '15', '16', '17', '20'];
   const prefix = ruc.substring(0, 2);
   if (!validPrefixes.includes(prefix)) return false;

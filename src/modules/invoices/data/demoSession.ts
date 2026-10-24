@@ -12,6 +12,7 @@
  * Solo se activa en desarrollo; en producción el login exige el backend real.
  */
 import type { ActiveCompany, UserSession } from '@/stores/authStore';
+import { RUC_EMISOR } from './invoiceDemoData';
 
 /** Clave de persistencia definida en `stores/authStore.ts`. */
 export const AUTH_STORAGE_KEY = 'sync-sunat-auth';
@@ -19,7 +20,7 @@ export const AUTH_STORAGE_KEY = 'sync-sunat-auth';
 /** Empresa demo alineada con los comprobantes de ejemplo del módulo M1. */
 export const EMPRESA_DEMO: ActiveCompany = {
   tenantId: 'demo-tenant',
-  ruc: '20601234567',
+  ruc: RUC_EMISOR,
   razonSocial: 'MYPE CONFECCIONES INDUSTRIALES S.A.C.',
   regimen: 'MYPE_TRIBUTARIO',
 };

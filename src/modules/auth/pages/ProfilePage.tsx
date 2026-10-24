@@ -92,7 +92,7 @@ export default function ProfilePage() {
             <div>
               <span className="text-muted-foreground block text-[11px]">RUC:</span>
               <span className="font-mono font-semibold text-foreground">
-                {activeCompany?.ruc || '20601234567'}
+                {activeCompany?.ruc || '20601012341'}
               </span>
             </div>
           </div>

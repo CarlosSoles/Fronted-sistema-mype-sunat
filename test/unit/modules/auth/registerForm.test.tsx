@@ -37,10 +37,15 @@ describe('RegisterForm & RUC Modulo 11', () => {
   });
 
   it('validador de RUC Módulo 11 aprueba RUCs oficiales válidos', () => {
-    // 20601234567 es RUC demo válido
-    expect(validateRucModulo11('20601234567')).toBe(true);
+    // 20601012341 es el RUC del emisor demo y supera el módulo 11
+    expect(validateRucModulo11('20601012341')).toBe(true);
     // 20100070970 es RUC válido de Superintendencia SUNAT
     expect(validateRucModulo11('20100070970')).toBe(true);
+  });
+
+  it('validador de RUC Módulo 11 no deja pasar el RUC demo antiguo (dígito inválido)', () => {
+    // 20601234567 fallaba el módulo 11 y sólo pasaba por una excepción hardcodeada
+    expect(validateRucModulo11('20601234567')).toBe(false);
   });
 
   it('validador de RUC Módulo 11 rechaza RUCs con dígito verificador adulterado o longitud incorrecta', () => {

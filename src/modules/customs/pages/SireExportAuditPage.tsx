@@ -16,7 +16,7 @@ export default function SireExportAuditPage() {
   const [month, setMonth] = useState('10');
 
   const period = `${year}${month}`;
-  const ruc = user?.companyRuc || '20601234567';
+  const ruc = user?.companyRuc || '20601012341';
 
   const {
     records,
