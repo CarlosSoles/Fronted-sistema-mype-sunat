@@ -93,7 +93,7 @@ export const UserNavDropdown = () => {
             </p>
             <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5 font-mono">
               <Building2 className="h-3 w-3" />
-              RUC: {activeCompany?.ruc || '20601234567'}
+              RUC: {activeCompany?.ruc || '20601012341'}
             </p>
           </div>
 

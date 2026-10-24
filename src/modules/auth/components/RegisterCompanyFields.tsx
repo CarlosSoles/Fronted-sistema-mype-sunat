@@ -27,7 +27,7 @@ export const RegisterCompanyFields = ({
         <PageField label="RUC (11 dígitos)" htmlFor="reg-ruc">
           <Input
             id="reg-ruc"
-            placeholder="20601234567"
+            placeholder="20601012341"
             maxLength={11}
             {...register('ruc')}
             aria-invalid={!!errors.ruc}
