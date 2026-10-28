@@ -36,5 +36,4 @@ export * from './DuaGlobalValuesBlock';
 export * from './DuaItemsGridBlock';
 export * from './DuaRealtimeSummaryCard';
 export * from './DuaRegistrationView';
-export * from './DuaSummaryCard';
 export * from './KardexTable';
