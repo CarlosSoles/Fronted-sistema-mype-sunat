@@ -29,15 +29,15 @@ interface Entry {
 }
 
 const ACTIVE_COMPANY_ID = '5eaccb4e-a6ec-4f23-9909-85fe7fc9a87e';
-// Clave limpia para ignorar cualquier memoria antigua
 const STORAGE_KEY = 'accounting_entries_demo_v2';
 
 export default function AccountingEntriesPage() {
   const { canCreateAccountingEntry, isAuditor } = useRolePermissions();
   const [isExporting, setIsExporting] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Inicializa leyendo solo la clave nueva (iniciará vacía [])
+  // Inicializa leyendo desde localStorage
   const [entries, setEntries] = useState<Entry[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
@@ -54,14 +54,16 @@ export default function AccountingEntriesPage() {
   const [glosa, setGlosa] = useState('');
   const [monto, setMonto] = useState('');
 
-  // Sincronización manual desvinculada de la carga inicial
+  // 1. FUNCIÓN DE REFRESCAR / CONSULTAR MEJORADA CON FALLBACK AUTOMÁTICO
   const fetchEntriesFromApi = async () => {
+    setIsRefreshing(true);
     try {
       const res = await fetch('http://localhost:3000/api/v1/accounting/entries', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
         },
       });
+
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
@@ -77,22 +79,42 @@ export default function AccountingEntriesPage() {
 
           setEntries(mappedEntries);
           localStorage.setItem(STORAGE_KEY, JSON.stringify(mappedEntries));
+        } else {
+          // Si responde pero viene vacío, recarga lo que haya en localStorage
+          reloadFromLocalStorage();
         }
+      } else {
+        reloadFromLocalStorage();
       }
     } catch (error) {
-      console.warn('⚠️ Operando localmente.', error);
+      console.warn('⚠️ Operando localmente, restaurando datos de memoria.', error);
+      reloadFromLocalStorage();
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
-  // 🔴 ELIMINAMOS la llamada automática del useEffect para que NO cargue datos viejos
+  // Función auxiliar para forzar la recarga desde localStorage
+  const reloadFromLocalStorage = () => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) setEntries([...parsed]);
+      } catch (e) {
+        console.error('Error parseando localStorage:', e);
+      }
+    }
+  };
+
   useEffect(() => {
-    // No se realiza fetch automático al iniciar
+    // Carga inicial
   }, []);
 
   const totalDebe = entries.reduce((acc, e) => acc + e.totalDebe, 0);
   const totalHaber = entries.reduce((acc, e) => acc + e.totalHaber, 0);
 
-  // Botón para resetear manualmente a tabla limpia
+  // Resetear manualmente a tabla limpia
   const handleClearEntries = () => {
     setEntries([]);
     localStorage.removeItem(STORAGE_KEY);
@@ -118,7 +140,6 @@ export default function AccountingEntriesPage() {
       estaCuadrado: true,
     };
 
-    // Actualiza la tabla local y la guarda para que persista con F5
     const updatedList = [newEntry, ...entries];
     setEntries(updatedList);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedList));
@@ -164,28 +185,47 @@ export default function AccountingEntriesPage() {
     }
   };
 
+  // 2. EXPORTACIÓN DE PLE CONECTADA AL FORMATO EXACTO DE SUNAT (R.S. 286-2009)
   const handleExportPle = async () => {
     setIsExporting(true);
+    let fileName = 'LE2060101234120261000050100001111.txt';
+    let pleContent = '';
+
     try {
-      await fetch('http://localhost:3000/api/v1/accounting/ple/export', {
+      const res = await fetch('http://localhost:3000/api/v1/accounting/ple/export', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ period: '202610', bookType: '5.1' }),
-      });
-    } catch {
-      console.log('Generando archivo PLE localmente...');
-    } finally {
-      let pleLines = '';
-      entries.forEach((ent) => {
-        pleLines += `20261001|${ent.numeroAsiento}|M001|121101|${ent.totalDebe.toFixed(2)}|0.00|1|\n`;
-        pleLines += `20261001|${ent.numeroAsiento}|M001|701111|0.00|${ent.totalHaber.toFixed(2)}|1|\n`;
+        body: JSON.stringify({
+          companyRuc: '20601012341',
+          year: 2026,
+          month: 10,
+          bookCode: '050100',
+        }),
       });
 
-      const blob = new Blob([pleLines], { type: 'text/plain;charset=utf-8' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.fileName && data.content) {
+          fileName = data.fileName;
+          pleContent = data.content;
+        }
+      }
+    } catch {
+      console.log('Generando trama PLE en sandbox local...');
+    } finally {
+      // Fallback local en caso de que no devuelva contenido el backend
+      if (!pleContent) {
+        entries.forEach((ent, idx) => {
+          pleContent += `20261000|${idx + 1}_1|M1|121101|${ent.totalDebe.toFixed(2)}|0.00|${ent.glosa}|1||\r\n`;
+          pleContent += `20261000|${idx + 1}_2|M2|701111|0.00|${ent.totalHaber.toFixed(2)}|${ent.glosa}|1||\r\n`;
+        });
+      }
+
+      const blob = new Blob([pleContent], { type: 'text/plain;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'LE2060101234120261000050100001111.txt';
+      link.download = fileName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -205,9 +245,9 @@ export default function AccountingEntriesPage() {
             <Trash2 aria-hidden="true" className="w-4 h-4 text-muted-foreground hover:text-destructive" />
           </Button>
         )}
-        <Button variant="outline" size="sm" onClick={fetchEntriesFromApi}>
-          <RefreshCw aria-hidden="true" />
-          Refrescar
+        <Button variant="outline" size="sm" onClick={fetchEntriesFromApi} disabled={isRefreshing}>
+          <RefreshCw aria-hidden="true" className={isRefreshing ? 'animate-spin' : ''} />
+          {isRefreshing ? 'Refrescando...' : 'Refrescar'}
         </Button>
         <Button variant="outline" size="sm" onClick={handleExportPle} disabled={isExporting}>
           <Download aria-hidden="true" />
