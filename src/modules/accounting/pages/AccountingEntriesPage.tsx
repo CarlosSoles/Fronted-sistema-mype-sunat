@@ -37,7 +37,7 @@ export default function AccountingEntriesPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Inicializa leyendo desde localStorage
+  // Carga inicial desde memoria local
   const [entries, setEntries] = useState<Entry[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
@@ -54,7 +54,7 @@ export default function AccountingEntriesPage() {
   const [glosa, setGlosa] = useState('');
   const [monto, setMonto] = useState('');
 
-  // 1. FUNCIÓN DE REFRESCAR / CONSULTAR MEJORADA CON FALLBACK AUTOMÁTICO
+  // 1. REFRESCAR / RECARGAR DESDE BACKEND O LOCALSTORAGE
   const fetchEntriesFromApi = async () => {
     setIsRefreshing(true);
     try {
@@ -80,21 +80,18 @@ export default function AccountingEntriesPage() {
           setEntries(mappedEntries);
           localStorage.setItem(STORAGE_KEY, JSON.stringify(mappedEntries));
         } else {
-          // Si responde pero viene vacío, recarga lo que haya en localStorage
           reloadFromLocalStorage();
         }
       } else {
         reloadFromLocalStorage();
       }
-    } catch (error) {
-      console.warn('⚠️ Operando localmente, restaurando datos de memoria.', error);
+    } catch {
       reloadFromLocalStorage();
     } finally {
       setIsRefreshing(false);
     }
   };
 
-  // Función auxiliar para forzar la recarga desde localStorage
   const reloadFromLocalStorage = () => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
@@ -107,21 +104,25 @@ export default function AccountingEntriesPage() {
     }
   };
 
-  useEffect(() => {
-    // Carga inicial
-  }, []);
-
   const totalDebe = entries.reduce((acc, e) => acc + e.totalDebe, 0);
   const totalHaber = entries.reduce((acc, e) => acc + e.totalHaber, 0);
 
-  // Resetear manualmente a tabla limpia
-  const handleClearEntries = () => {
-    setEntries([]);
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem('accounting_entries');
+  // 2. BORRADO COMPLETO (RESET PARA DEMO)
+  const handleClearAllEntries = () => {
+    if (confirm('¿Deseas limpiar todos los asientos contables de la vista?')) {
+      setEntries([]);
+      localStorage.removeItem(STORAGE_KEY);
+    }
   };
 
-  // Guardar un nuevo asiento y persistirlo localmente
+  // 3. BORRADO INDIVIDUAL FILA POR FILA
+  const handleDeleteSingleEntry = (idToDelete: string) => {
+    const updated = entries.filter((item) => item.id !== idToDelete);
+    setEntries(updated);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  };
+
+  // 4. GUARDAR NUEVO ASIENTO
   const handleSaveEntry = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!glosa || !monto) return;
@@ -159,25 +160,13 @@ export default function AccountingEntriesPage() {
           glosa: glosa,
           sourceModule: 'MANUAL',
           lines: [
-            {
-              lineOrder: 1,
-              accountCode: '121101',
-              accountName: 'Cuentas por Cobrar Comerciales',
-              debitAmount: val,
-              creditAmount: 0,
-            },
-            {
-              lineOrder: 2,
-              accountCode: '701111',
-              accountName: 'Venta de Mercaderías',
-              debitAmount: 0,
-              creditAmount: val,
-            },
+            { lineOrder: 1, accountCode: '121101', accountName: 'Cuentas por Cobrar', debitAmount: val, creditAmount: 0 },
+            { lineOrder: 2, accountCode: '701111', accountName: 'Venta de Mercaderías', debitAmount: 0, creditAmount: val },
           ],
         }),
       });
-    } catch (error) {
-      console.warn('⚠️ Guardado en sandbox local.', error);
+    } catch {
+      console.warn('Operando en sandbox local.');
     } finally {
       setGlosa('');
       setMonto('');
@@ -185,8 +174,13 @@ export default function AccountingEntriesPage() {
     }
   };
 
-  // 2. EXPORTACIÓN DE PLE CONECTADA AL FORMATO EXACTO DE SUNAT (R.S. 286-2009)
+  // 5. EXPORTACIÓN PLE ESTRICTAMENTE SINCRONIZADA CON LA TABLA ACTUAL
   const handleExportPle = async () => {
+    if (entries.length === 0) {
+      alert('No hay asientos registrados para exportar en el período activo.');
+      return;
+    }
+
     setIsExporting(true);
     let fileName = 'LE2060101234120261000050100001111.txt';
     let pleContent = '';
@@ -211,14 +205,17 @@ export default function AccountingEntriesPage() {
         }
       }
     } catch {
-      console.log('Generando trama PLE en sandbox local...');
+      console.log('Generando trama desde la tabla local...');
     } finally {
-      // Fallback local en caso de que no devuelva contenido el backend
+      // Si el backend no devuelve trama, se construye con los asientos visibles en pantalla (entries)
       if (!pleContent) {
+        let lines: string[] = [];
         entries.forEach((ent, idx) => {
-          pleContent += `20261000|${idx + 1}_1|M1|121101|${ent.totalDebe.toFixed(2)}|0.00|${ent.glosa}|1||\r\n`;
-          pleContent += `20261000|${idx + 1}_2|M2|701111|0.00|${ent.totalHaber.toFixed(2)}|${ent.glosa}|1||\r\n`;
+          const numAsiento = ent.numeroAsiento || `001-202610-00${idx + 1}`;
+          lines.push(`20261000|${numAsiento}|M001|121101|${ent.totalDebe.toFixed(2)}|0.00|${ent.glosa}|1||`);
+          lines.push(`20261000|${numAsiento}|M002|701111|0.00|${ent.totalHaber.toFixed(2)}|${ent.glosa}|1||`);
         });
+        pleContent = lines.join('\r\n') + '\r\n';
       }
 
       const blob = new Blob([pleContent], { type: 'text/plain;charset=utf-8' });
@@ -241,7 +238,7 @@ export default function AccountingEntriesPage() {
         description="Libro Diario, Mayor y generación de archivos estructurados para SUNAT (PLE 5.1)"
       >
         {entries.length > 0 && (
-          <Button variant="ghost" size="sm" onClick={handleClearEntries} title="Limpiar para la demo">
+          <Button variant="ghost" size="sm" onClick={handleClearAllEntries} title="Limpiar todo (Demo)">
             <Trash2 aria-hidden="true" className="w-4 h-4 text-muted-foreground hover:text-destructive" />
           </Button>
         )}
@@ -249,7 +246,7 @@ export default function AccountingEntriesPage() {
           <RefreshCw aria-hidden="true" className={isRefreshing ? 'animate-spin' : ''} />
           {isRefreshing ? 'Refrescando...' : 'Refrescar'}
         </Button>
-        <Button variant="outline" size="sm" onClick={handleExportPle} disabled={isExporting}>
+        <Button variant="outline" size="sm" onClick={handleExportPle} disabled={isExporting || entries.length === 0}>
           <Download aria-hidden="true" />
           {isExporting ? 'Exportando...' : 'Exportar PLE (.txt)'}
         </Button>
@@ -278,6 +275,7 @@ export default function AccountingEntriesPage() {
               <TableHead align="right">Total Debe</TableHead>
               <TableHead align="right">Total Haber</TableHead>
               <TableHead align="center">Estado</TableHead>
+              <TableHead align="center">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -287,22 +285,28 @@ export default function AccountingEntriesPage() {
                   <TableCell>{entry.numeroAsiento}</TableCell>
                   <TableCell>{formatDateToPeru(entry.fechaContable)}</TableCell>
                   <TableCell>{entry.glosa}</TableCell>
-                  <TableCell align="right">
-                    {formatCurrency(entry.totalDebe, 'PEN')}
-                  </TableCell>
-                  <TableCell align="right">
-                    {formatCurrency(entry.totalHaber, 'PEN')}
-                  </TableCell>
+                  <TableCell align="right">{formatCurrency(entry.totalDebe, 'PEN')}</TableCell>
+                  <TableCell align="right">{formatCurrency(entry.totalHaber, 'PEN')}</TableCell>
                   <TableCell align="center">
                     <Badge variant={entry.estaCuadrado ? 'secondary' : 'destructive'}>
                       {entry.estaCuadrado ? 'Cuadrado' : 'Descuadrado'}
                     </Badge>
                   </TableCell>
+                  <TableCell align="center">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteSingleEntry(entry.id)}
+                      title="Eliminar este asiento"
+                    >
+                      <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} align="center">
+                <TableCell colSpan={7} align="center">
                   <BookOpen aria-hidden="true" />
                   <PageText variant="muted">No hay asientos contables registrados en el período activo.</PageText>
                 </TableCell>
@@ -333,7 +337,7 @@ export default function AccountingEntriesPage() {
                 <input
                   type="text"
                   required
-                  placeholder="Ej. Por cobro de factura de clientes"
+                  placeholder="Ej. Venta de mercaderías al contado"
                   value={glosa}
                   onChange={(e) => setGlosa(e.target.value)}
                   className="w-full px-3 py-2 text-sm bg-muted/40 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
@@ -346,7 +350,7 @@ export default function AccountingEntriesPage() {
                   type="number"
                   step="0.01"
                   required
-                  placeholder="1000.00"
+                  placeholder="2500.00"
                   value={monto}
                   onChange={(e) => setMonto(e.target.value)}
                   className="w-full px-3 py-2 text-sm bg-muted/40 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
