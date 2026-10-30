@@ -1,17 +1,32 @@
-import { Outlet } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
 import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
 import { SunatStatusBanner } from '@/components/feedback/SunatStatusBanner';
 import { ErrorBoundaryGlobal } from '@/components/feedback/ErrorBoundaryGlobal';
 import { OfflineIndicator } from '@/components/feedback/OfflineIndicator';
+import { useUiStore } from '@/stores/uiStore';
 
 export const AppLayout = () => {
+  const { pathname } = useLocation();
+  const setSidebarCollapsed = useUiStore((state) => state.setSidebarCollapsed);
+
+  useEffect(() => {
+    const closeMobileSidebar = () => {
+      if (window.matchMedia('(max-width: 639px)').matches) setSidebarCollapsed(true);
+    };
+
+    closeMobileSidebar();
+    window.addEventListener('resize', closeMobileSidebar);
+    return () => window.removeEventListener('resize', closeMobileSidebar);
+  }, [pathname, setSidebarCollapsed]);
+
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground antialiased selection:bg-primary/20">
       {/* Sello de Resiliencia: Banner de alerta cuando SUNAT está caída */}
       <SunatStatusBanner />
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="relative flex-1 flex overflow-hidden">
         {/* Barra lateral de navegación por módulos */}
         <Sidebar />
 

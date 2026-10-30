@@ -152,7 +152,9 @@ export const Sidebar = () => {
     <aside
       className={cn(
         'border-r bg-card transition-all duration-300 flex flex-col shrink-0',
-        isSidebarCollapsed ? 'w-16' : 'w-64'
+        isSidebarCollapsed
+          ? 'w-16 max-sm:hidden'
+          : 'w-64 max-sm:absolute max-sm:inset-y-0 max-sm:left-0 max-sm:z-50 max-sm:shadow-xl'
       )}
       aria-label="Navegación principal"
     >

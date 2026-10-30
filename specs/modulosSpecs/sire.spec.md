@@ -62,6 +62,24 @@ Solo para `DUPLICADO_LLAVE`, mostrar `duplicateSource` (`LOCAL`, `SIRE` o `AMBOS
 
 Los valores de porcentaje, diferencias y escenarios provienen del backend; el frontend no debe implementar lógica de conciliación ni persistencia adicional.
 
+## Dashboard de conexión y resiliencia
+
+La pantalla de conciliación SIRE obtiene las métricas de `GET /api/v1/sire/dashboard/metrics` y consulta las gráficas
+con `GET /api/v1/sire/dashboard/history?start=<ISO>&end=<ISO>&granularity=minute|hour|day&limit=<n>&offset=<n>`.
+Ambas solicitudes usan `Authorization: Bearer <token>` y no envían `companyId`.
+
+Las métricas incluyen `state`, `recentFailedCalls`, `failureRate`, `slowCallRate`, `bufferedInvoicesCount`,
+`totalCalls`, `successfulCalls`, `failedCalls`, `totalRetries`, `lastStateChange`, `mttd`, `mttr` y `mtbf`.
+El semáforo es verde para cero fallos recientes, ámbar para uno a cuatro, y rojo para cinco o más o circuito `OPEN`.
+Los valores nulos de MTTD, MTTR o MTBF se presentan como “No disponible”.
+
+El endpoint histórico pagina con `limit`, `offset` y `hasMore` y devuelve `points` con `timestamp`, `retries` y
+`availabilityPercent`. Una disponibilidad nula significa que no hubo llamadas observadas en ese intervalo; no se
+dibuja como cero. Los errores y estados de carga de ambas consultas se presentan sin bloquear el formulario ni
+reemplazar el historial de conciliaciones de `GET /api/v1/sire/history`.
+
+No se generan datos simulados en producción. Si el historial no contiene puntos, las gráficas muestran un estado vacío.
+
 ## Navegación del módulo
 
 | Ruta | Vista | Disponibilidad |
