@@ -4,6 +4,7 @@ import {
   Badge,
   Button,
   Card,
+  Input,
   Page,
   PageHeader,
   PageText,
@@ -15,7 +16,7 @@ import {
   TableRow,
 } from '@/components/ui';
 import { formatCurrency, formatDateToPeru } from '@/lib/formatters';
-import { BookOpen, Download, PlusCircle, RefreshCw, Trash2, X } from 'lucide-react';
+import { BookOpen, CheckCircle2, Download, PlusCircle, RefreshCw, Trash2, X } from 'lucide-react';
 import { useRolePermissions } from '@/hooks/useRolePermissions';
 
 interface Entry {
@@ -207,7 +208,6 @@ export default function AccountingEntriesPage() {
     } catch {
       console.log('Generando trama desde la tabla local...');
     } finally {
-      // Si el backend no devuelve trama, se construye con los asientos visibles en pantalla (entries)
       if (!pleContent) {
         let lines: string[] = [];
         entries.forEach((ent, idx) => {
@@ -317,52 +317,61 @@ export default function AccountingEntriesPage() {
       </Card>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-background border border-border rounded-lg max-w-md w-full p-6 shadow-xl relative text-foreground">
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-lg max-w-md w-full p-6 shadow-xl relative text-card-foreground space-y-4">
             <button
               onClick={() => setIsModalOpen(false)}
-              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
+              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
 
-            <h3 className="text-lg font-semibold mb-1">Registrar Nuevo Asiento (PCGE)</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Ingresa el concepto y monto del movimiento para el Libro Diario.
-            </p>
+            <div>
+              <h3 className="text-lg font-semibold tracking-tight">Registrar Nuevo Asiento (PCGE)</h3>
+              <p className="text-sm text-muted-foreground">
+                Ingresa el concepto y monto del movimiento para el Libro Diario.
+              </p>
+            </div>
 
             <form onSubmit={handleSaveEntry} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium mb-1">Glosa / Concepto Contable</label>
-                <input
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium leading-none text-foreground">
+                  Glosa / Concepto Contable
+                </label>
+                <Input
                   type="text"
                   required
                   placeholder="Ej. Venta de mercaderías al contado"
                   value={glosa}
                   onChange={(e) => setGlosa(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-muted/40 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-medium mb-1">Monto Total (PEN)</label>
-                <input
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium leading-none text-foreground">
+                  Monto Total (PEN)
+                </label>
+                <Input
                   type="number"
                   step="0.01"
                   required
                   placeholder="2500.00"
                   value={monto}
                   onChange={(e) => setMonto(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-muted/40 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
 
-              <div className="p-3 bg-muted/30 border border-border rounded-md text-xs space-y-1 text-muted-foreground">
-                <p>✔️ Cuentas automáticas PCGE: 1211 (Debe) / 7011 (Haber)</p>
-                <p>✔️ Partida Doble: Validada y Cuadrada</p>
+              <div className="p-3 bg-muted/40 border border-border/80 rounded-md text-xs space-y-1.5 text-muted-foreground">
+                <div className="flex items-center gap-1.5 text-foreground font-medium">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0" />
+                  <span>Cuentas automáticas PCGE: 1211 (Debe) / 7011 (Haber)</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-foreground font-medium pl-5">
+                  <span>Partida Doble: Validada y Cuadrada</span>
+                </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex justify-end gap-2 pt-2 border-t border-border">
                 <Button type="button" variant="outline" size="sm" onClick={() => setIsModalOpen(false)}>
                   Cancelar
                 </Button>
