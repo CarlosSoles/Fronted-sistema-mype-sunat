@@ -28,7 +28,7 @@ interface Entry {
   estaCuadrado: boolean;
 }
 
-const ACTIVE_COMPANY_ID = '5eaccb4e-a6ec-4f23-9909-85fe7fc9a87e';
+const ACTIVE_COMPANY_ID = '5eaccb4e-a6ec-4f23-9909-85fe7fc9e879';
 const STORAGE_KEY = 'accounting_entries_demo_v2';
 
 export default function AccountingEntriesPage() {
