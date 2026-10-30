@@ -1,10 +1,53 @@
 import { apiClient } from '@/lib/axios';
 import {
+  type CustomsChannel,
   type CustomsDeclarationRecord,
   type CustomsSettlementRecord,
   type PaySettlementPayload,
   type RegisterDuaWizardPayload,
 } from '../types';
+
+export const normalizeDeclarationRecord = (
+  raw: Record<string, unknown>
+): CustomsDeclarationRecord => {
+  return {
+    id: String(raw.id || ''),
+    company_id: String(raw.company_id ?? raw.companyId ?? ''),
+    shipment_id: String(raw.shipment_id ?? raw.shipmentId ?? ''),
+    dua_number: String(raw.dua_number ?? raw.duaNumber ?? ''),
+    customs_code: String(raw.customs_code ?? raw.customsCode ?? raw.customsAgencyCode ?? '118'),
+    declaration_year: Number(raw.declaration_year ?? raw.declarationYear ?? 2026),
+    regime_code: String(raw.regime_code ?? raw.regimeCode ?? '10'),
+    correlative_number: String(raw.correlative_number ?? raw.correlativeNumber ?? ''),
+    numeration_date: String(raw.numeration_date ?? raw.numerationDate ?? ''),
+    dispatch_mode: (raw.dispatch_mode ?? raw.dispatchMode ?? '10') as any,
+    channel: (raw.channel as CustomsChannel) || 'VERDE',
+    transport_doc_number: String(raw.transport_doc_number ?? raw.transportDocNumber ?? ''),
+    manifest_number:
+      raw.manifest_number != null
+        ? String(raw.manifest_number)
+        : raw.manifestNumber != null
+        ? String(raw.manifestNumber)
+        : undefined,
+    fob_total_usd: Number(raw.fob_total_usd ?? raw.fobTotalUsd ?? raw.fobValueUsd ?? 0),
+    freight_total_usd: Number(raw.freight_total_usd ?? raw.freightTotalUsd ?? raw.freightValueUsd ?? 0),
+    insurance_total_usd: Number(raw.insurance_total_usd ?? raw.insuranceTotalUsd ?? raw.insuranceValueUsd ?? 0),
+    cif_total_usd: Number(raw.cif_total_usd ?? raw.cifTotalUsd ?? raw.cifValueUsd ?? 0),
+    exchange_rate: Number(raw.exchange_rate ?? raw.exchangeRate ?? 3.82),
+    cif_total_pen: Number(raw.cif_total_pen ?? raw.cifTotalPen ?? raw.cifValuePen ?? 0),
+    total_ad_valorem_pen: Number(raw.total_ad_valorem_pen ?? raw.totalAdValoremPen ?? 0),
+    total_igv_pen: Number(raw.total_igv_pen ?? raw.totalIgvPen ?? 0),
+    total_ipm_pen: Number(raw.total_ipm_pen ?? raw.totalIpmPen ?? 0),
+    total_perception_pen: Number(raw.total_perception_pen ?? raw.totalPerceptionPen ?? 0),
+    has_article_160_guarantee: Boolean(
+      raw.has_article_160_guarantee ?? raw.hasArticle160Guarantee ?? false
+    ),
+    version: Number(raw.version ?? 1),
+    created_at: String(raw.created_at ?? raw.createdAt ?? ''),
+    series: Array.isArray(raw.series) ? (raw.series as any) : [],
+    settlements: Array.isArray(raw.settlements) ? (raw.settlements as any) : undefined,
+  };
+};
 
 export const DEFAULT_DEMO_SETTLEMENTS: CustomsSettlementRecord[] = [
   {
@@ -79,11 +122,11 @@ export const customsDeclarationsApi = {
   registerDuaWizard: async (
     payload: RegisterDuaWizardPayload
   ): Promise<CustomsDeclarationRecord> => {
-    const response = await apiClient.post<CustomsDeclarationRecord>(
+    const response = await apiClient.post<Record<string, unknown>>(
       '/customs/declarations/wizard',
       payload
     );
-    return response.data;
+    return normalizeDeclarationRecord(response.data);
   },
 
   /**
@@ -91,8 +134,9 @@ export const customsDeclarationsApi = {
    */
   getDeclarations: async (): Promise<CustomsDeclarationRecord[]> => {
     try {
-      const response = await apiClient.get<CustomsDeclarationRecord[]>('/customs/declarations');
-      return Array.isArray(response.data) ? response.data : [];
+      const response = await apiClient.get<Record<string, unknown>[]>('/customs/declarations');
+      const list = Array.isArray(response.data) ? response.data : [];
+      return list.map(normalizeDeclarationRecord);
     } catch {
       return [];
     }
@@ -102,8 +146,8 @@ export const customsDeclarationsApi = {
    * Consulta el detalle completo de una DAM con sus series y liquidaciones con CDA.
    */
   getDeclarationById: async (id: string): Promise<CustomsDeclarationRecord> => {
-    const response = await apiClient.get<CustomsDeclarationRecord>(`/customs/declarations/${id}`);
-    return response.data;
+    const response = await apiClient.get<Record<string, unknown>>(`/customs/declarations/${id}`);
+    return normalizeDeclarationRecord(response.data);
   },
 
   /**

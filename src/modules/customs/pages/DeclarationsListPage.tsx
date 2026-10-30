@@ -96,9 +96,10 @@ export default function DeclarationsListPage() {
   });
 
   const filteredDams = declarations.filter((d) => {
-    const matchesSearch =
-      d.dua_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (d.shipment_id || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const term = (searchTerm || '').trim().toLowerCase();
+    const duaNumber = String(d.dua_number || (d as any).duaNumber || '').toLowerCase();
+    const shipmentId = String(d.shipment_id || (d as any).shipmentId || '').toLowerCase();
+    const matchesSearch = !term || duaNumber.includes(term) || shipmentId.includes(term);
     const matchesChannel = channelFilter === 'ALL' || d.channel === channelFilter;
     return matchesSearch && matchesChannel;
   });

@@ -43,11 +43,15 @@ export default function ShipmentsListPage() {
     }
   };
 
-  const filteredShipments = shipments.filter(
-    (s) =>
-      s.shipment_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (s.supplier_name || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredShipments = shipments.filter((s) => {
+    const term = (searchTerm || '').trim().toLowerCase();
+    if (!term) return true;
+    const shipmentNum = String(s.shipment_number || (s as any).shipmentNumber || '').toLowerCase();
+    const supplierName = String(
+      s.supplier_name || (s as any).supplier?.business_name || ''
+    ).toLowerCase();
+    return shipmentNum.includes(term) || supplierName.includes(term);
+  });
 
   const handleSelectShipment = (id: string) => {
     navigate(`/customs/shipments/${id}`);

@@ -55,11 +55,13 @@ export default function InventoryStocksPage() {
     loadData();
   }, []);
 
-  const filteredBalances = balances.filter(
-    (b) =>
-      b.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      b.description.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+  const filteredBalances = balances.filter((b) => {
+    const term = (searchTerm || '').trim().toLowerCase();
+    if (!term) return true;
+    const sku = String(b.sku || '').toLowerCase();
+    const desc = String(b.description || '').toLowerCase();
+    return sku.includes(term) || desc.includes(term);
+  });
 
   return (
     <div className="space-y-6">

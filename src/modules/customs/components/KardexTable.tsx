@@ -12,12 +12,17 @@ interface Props {
 
 export const KardexTable = ({ movements, isLoading, searchQuery }: Props) => {
   const filtered = movements.filter((m) => {
-    const q = searchQuery.toLowerCase().trim();
+    const q = (searchQuery || '').trim().toLowerCase();
     if (!q) return true;
+    const itemCode = String(m.item_code || (m as any).itemCode || '').toLowerCase();
+    const desc = String(m.description || '').toLowerCase();
+    const sourceRef = String(
+      m.source_reference_id || (m as any).sourceReferenceId || ''
+    ).toLowerCase();
     return (
-      m.item_code.toLowerCase().includes(q) ||
-      m.description.toLowerCase().includes(q) ||
-      (m.source_reference_id && m.source_reference_id.toLowerCase().includes(q))
+      itemCode.includes(q) ||
+      desc.includes(q) ||
+      (sourceRef && sourceRef.includes(q))
     );
   });
 
