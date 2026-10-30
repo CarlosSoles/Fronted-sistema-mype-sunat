@@ -14,6 +14,7 @@ const ProfilePage = React.lazy(() => import('@/modules/auth/pages/ProfilePage'))
 const SecurityPage = React.lazy(() => import('@/modules/auth/pages/SecurityPage'));
 
 const InvoicesListPage = React.lazy(() => import('@/modules/invoices/InvoiceList'));
+const InvoiceEmissionPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceEmissionPage'));
 const ResilienceDashboardPage = React.lazy(() => import('@/modules/resilience/pages/ResilienceDashboardPage'));
 const CustomsDashboardPage = React.lazy(() => import('@/modules/customs/pages/CustomsDashboardPage'));
 const ShipmentsListPage = React.lazy(() => import('@/modules/customs/pages/ShipmentsListPage'));
@@ -28,7 +29,11 @@ const SireReconciliationPage = React.lazy(() => import('@/modules/sire/pages/Sir
 const SireImportPage = React.lazy(() => import('@/modules/sire/pages/SireImportPage'));
 const SireClosurePage = React.lazy(() => import('@/modules/sire/pages/SireClosurePage'));
 const SireHistoryPage = React.lazy(() => import('@/modules/sire/pages/SireHistoryPage'));
+
+// Submódulos de Contabilidad PCGE (M4)
 const AccountingEntriesPage = React.lazy(() => import('@/modules/accounting/pages/AccountingEntriesPage'));
+const AccountingPlanCuentasPage = React.lazy(() => import('@/modules/accounting/pages/AccountingPlanCuentasPage'));
+const AccountingPlePage = React.lazy(() => import('@/modules/accounting/pages/AccountingPlePage'));
 
 // Fallback de carga durante la descarga del chunk
 const PageLoadingFallback = () => (
@@ -71,6 +76,16 @@ export const AppRoutes = () => {
                   allowedRoles={['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT']}
                 >
                   <InvoicesListPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/invoices/emision"
+              element={
+                <RoleProtectedRoute
+                  allowedRoles={['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT']}
+                >
+                  <InvoiceEmissionPage />
                 </RoleProtectedRoute>
               }
             />
@@ -272,6 +287,22 @@ export const AppRoutes = () => {
               element={
                 <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
                   <AccountingEntriesPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/accounting/plan-cuentas"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <AccountingPlanCuentasPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/accounting/ple"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <AccountingPlePage />
                 </RoleProtectedRoute>
               }
             />

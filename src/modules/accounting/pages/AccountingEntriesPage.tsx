@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DoubleEntryBalanceCard } from '../components/DoubleEntryBalanceCard';
 import {
   Badge,
@@ -16,7 +17,7 @@ import {
   TableRow,
 } from '@/components/ui';
 import { formatCurrency, formatDateToPeru } from '@/lib/formatters';
-import { BookOpen, CheckCircle2, Download, PlusCircle, RefreshCw, Trash2, X } from 'lucide-react';
+import { BookOpen, CheckCircle2, Download, FilePlus, PlusCircle, RefreshCw, Trash2, X } from 'lucide-react';
 import { useRolePermissions } from '@/hooks/useRolePermissions';
 
 interface Entry {
@@ -33,6 +34,7 @@ const ACTIVE_COMPANY_ID = '5eaccb4e-a6ec-4f23-9909-85fe7fc9e879';
 const STORAGE_KEY = 'accounting_entries_demo_v2';
 
 export default function AccountingEntriesPage() {
+  const navigate = useNavigate();
   const { canCreateAccountingEntry, isAuditor } = useRolePermissions();
   const [isExporting, setIsExporting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -123,7 +125,7 @@ export default function AccountingEntriesPage() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
   };
 
-  // 4. GUARDAR NUEVO ASIENTO
+  // 4. GUARDAR NUEVO ASIENTO MANUAL
   const handleSaveEntry = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!glosa || !monto) return;
@@ -175,7 +177,7 @@ export default function AccountingEntriesPage() {
     }
   };
 
-  // 5. EXPORTACIÓN PLE ESTRICTAMENTE SINCRONIZADA CON LA TABLA ACTUAL
+  // 5. EXPORTACIÓN PLE ESTRICTAMENTE SINCRONIZADA
   const handleExportPle = async () => {
     if (entries.length === 0) {
       alert('No hay asientos registrados para exportar en el período activo.');
@@ -234,25 +236,33 @@ export default function AccountingEntriesPage() {
   return (
     <Page>
       <PageHeader
-        title="Contabilidad PCGE & Libros PLE"
-        description="Libro Diario, Mayor y generación de archivos estructurados para SUNAT (PLE 5.1)"
+        title="Libro Diario (PCGE)"
+        description="Auditoría de asientos contables del periodo fiscal activo y validación de partida doble"
       >
+        {/* ACCESO DIRECTO A EMISIÓN DE COMPROBANTES (TA-24) */}
+        <Button variant="default" size="sm" onClick={() => navigate('/invoices/emision')}>
+          <FilePlus aria-hidden="true" className="w-4 h-4 mr-1" />
+          Emitir Comprobante
+        </Button>
+
         {entries.length > 0 && (
           <Button variant="ghost" size="sm" onClick={handleClearAllEntries} title="Limpiar todo (Demo)">
             <Trash2 aria-hidden="true" className="w-4 h-4 text-muted-foreground hover:text-destructive" />
           </Button>
         )}
+
         <Button variant="outline" size="sm" onClick={fetchEntriesFromApi} disabled={isRefreshing}>
           <RefreshCw aria-hidden="true" className={isRefreshing ? 'animate-spin' : ''} />
           {isRefreshing ? 'Refrescando...' : 'Refrescar'}
         </Button>
+
         <Button variant="outline" size="sm" onClick={handleExportPle} disabled={isExporting || entries.length === 0}>
           <Download aria-hidden="true" />
           {isExporting ? 'Exportando...' : 'Exportar PLE (.txt)'}
         </Button>
 
         {canCreateAccountingEntry ? (
-          <Button size="sm" onClick={() => setIsModalOpen(true)}>
+          <Button variant="outline" size="sm" onClick={() => setIsModalOpen(true)}>
             <PlusCircle aria-hidden="true" />
             Nuevo Asiento
           </Button>
