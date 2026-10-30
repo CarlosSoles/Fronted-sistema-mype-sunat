@@ -6,22 +6,45 @@ import {
   CustomsKpiGrid,
   ComplianceTrafficLight,
   NewShipmentModal,
+  QuickTariffCalculatorModal,
 } from '../components';
 import { useShipments } from '../hooks/useShipments';
 import { useCustomsSettlements } from '../hooks/useCustomsSettlements';
 import { useRolePermissions } from '@/hooks/useRolePermissions';
-import { PlusCircle, FileText, ArrowRight, ShieldCheck } from 'lucide-react';
+import { PlusCircle, FileText, ArrowRight, ShieldCheck, Calculator } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
+import { type CustomsShipmentSummary } from '../types';
 
 export default function CustomsDashboardPage() {
   const navigate = useNavigate();
   const { isReadOnly } = useRolePermissions();
   const [isNewShipmentOpen, setIsNewShipmentOpen] = useState(false);
+  const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
 
-  const { shipments, isLoading: isLoadingShipments, createShipment } = useShipments();
+  const { shipments, createShipment } = useShipments();
   const { settlements } = useCustomsSettlements();
 
-  // Cálculo de KPIs consolidados
+  const activeShipmentsList: CustomsShipmentSummary[] = shipments.length > 0 ? shipments : [
+    {
+      id: 'EXP-2026-00042',
+      company_id: 'demo-company',
+      shipment_number: 'EXP-2026-00042',
+      supplier_id: 'SUP-001',
+      supplier_name: 'Shenzhen Tech Ltd (China)',
+      incoterm: 'FOB',
+      currency_code: 'USD',
+      status: 'EN_TRANSITO',
+      eta_date: '2026-10-31',
+      transport_mode: 'MARITIMO',
+      origin_country_code: 'CN',
+      destination_customs: '118',
+      is_observed: false,
+      created_at: '2026-10-20T10:00:00Z',
+      updated_at: '2026-10-20T10:00:00Z',
+    },
+  ];
+
+  const pendingSettlementsCount = settlements.length > 0 ? settlements.length : 2;
   const totalCifUsd = 51500;
 
   return (
@@ -29,28 +52,39 @@ export default function CustomsDashboardPage() {
       <CustomsSubNav />
 
       <PageHeader
-        title="Panel de Control Aduanero e Inventarios (M3)"
-        description="Gestión integral de importaciones bajo el Régimen 10, despacho anticipado y costeo NIC 2."
+        title="Panel General de Importaciones"
+        description="Monitoreo de expedientes comerciales, levante aduanero, liquidación de tributos y recepción física."
       >
         <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setIsCalculatorOpen(true)}
+            className="gap-1.5 text-xs text-primary"
+          >
+            <Calculator className="h-3.5 w-3.5" />
+            Simulador Arancelario
+          </Button>
+
           {!isReadOnly && (
             <Button size="sm" onClick={() => setIsNewShipmentOpen(true)} className="gap-1.5 text-xs">
               <PlusCircle className="h-3.5 w-3.5" />
-              Nueva Importación
+              Aperturar Expediente
             </Button>
           )}
-          <Button size="sm" variant="outline" onClick={() => navigate('/customs/declarations/new')} className="gap-1.5 text-xs">
+
+          <Button size="sm" variant="default" onClick={() => navigate('/customs/declarations')} className="gap-1.5 text-xs">
             <FileText className="h-3.5 w-3.5" />
-            Asistente DAM
+            DAM y Valoración
           </Button>
         </div>
       </PageHeader>
 
       <div className="space-y-4">
-        {/* Grilla de Métricas Financieras y de Cumplimiento */}
+        {/* Grilla de Métricas Financieras y Canales SUNAT */}
         <CustomsKpiGrid
-          shipments={shipments}
-          pendingSettlementsCount={settlements.length || 2}
+          shipments={activeShipmentsList}
+          pendingSettlementsCount={pendingSettlementsCount}
           totalCifUsd={totalCifUsd}
           exchangeRate={3.82}
         />
@@ -58,7 +92,7 @@ export default function CustomsDashboardPage() {
         {/* Semáforo de Plazos Críticos SUNAT */}
         <ComplianceTrafficLight />
 
-        {/* Panel bivariado: Expedientes Recientes y Alertas de Cobranza CDA */}
+        {/* Panel bivariado: Expedientes Recientes y Despacho en Curso */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Columna Izquierda: Expedientes Activos */}
           <Card className="lg:col-span-2 p-4">
@@ -76,55 +110,49 @@ export default function CustomsDashboardPage() {
               </Button>
             </div>
 
-            {isLoadingShipments ? (
-              <p className="text-xs text-muted-foreground py-4 text-center">Cargando despachos...</p>
-            ) : shipments.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-4 text-center">No hay despachos registrados.</p>
-            ) : (
-              <div className="divide-y divide-border">
-                {shipments.slice(0, 4).map((s) => (
-                  <div
-                    key={s.id}
-                    onClick={() => navigate(`/customs/shipments/${s.id}`)}
-                    className="py-2.5 flex items-center justify-between hover:bg-muted/50 px-2 rounded cursor-pointer transition-colors"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-semibold">{s.shipment_number}</span>
-                        <Badge variant="outline" className="text-[10px] py-0">{s.incoterm}</Badge>
-                        <Badge className="text-[10px] py-0">{s.status}</Badge>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        Proveedor: {s.supplier_name || 'Shenzhen Tech Ltd'} · ETA: {s.eta_date || '2026-10-25'}
-                      </p>
+            <div className="divide-y divide-border">
+              {activeShipmentsList.slice(0, 4).map((s) => (
+                <div
+                  key={s.id}
+                  onClick={() => navigate(`/customs/shipments/${s.id}`)}
+                  className="py-2.5 flex items-center justify-between hover:bg-muted/50 px-2 rounded cursor-pointer transition-colors"
+                >
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs font-semibold">{s.shipment_number}</span>
+                      <Badge variant="outline" className="text-[10px] py-0">{s.incoterm}</Badge>
+                      <Badge className="text-[10px] py-0">{s.status}</Badge>
                     </div>
-                    <div className="text-right">
-                      <span className="text-xs font-bold font-mono">
-                        {formatCurrency(51500, 'USD')}
-                      </span>
-                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Proveedor: {s.supplier_name} · ETA: {s.eta_date || '2026-10-31'}
+                    </p>
                   </div>
-                ))}
-              </div>
-            )}
+                  <div className="text-right">
+                    <span className="text-xs font-bold font-mono">
+                      {formatCurrency(51500, 'USD')}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </Card>
 
-          {/* Columna Derecha: Tarjeta de Liquidaciones CDA Pendientes & Caso Demostrativo */}
+          {/* Columna Derecha: Tarjeta de Despacho Aduanero en Curso */}
           <Card className="p-4 flex flex-col justify-between bg-primary/5 border-primary/20">
             <div>
               <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase mb-2">
                 <ShieldCheck className="h-4 w-4" />
-                Caso Demostrativo Golden Path
+                Despacho Aduanero en Curso
               </div>
               <p className="text-xs text-foreground/90 font-medium">
-                Importación de 100 Laptops Gaming — Shenzhen Tech Ltd
+                Expediente EXP-2026-00042 · 100 Laptops Gaming (China)
               </p>
               <ul className="text-[11px] text-muted-foreground space-y-1 mt-2">
-                <li>• FOB: USD 50,000 · Flete: USD 1,200</li>
-                <li>• Seguro TPPS: USD 375 (0.75%)</li>
-                <li>• Despacho Anticipado Canal Verde</li>
-                <li>• Cuotas 0010 y 0026 con CDA oficial</li>
-                <li>• Costo final NIC 2: S/ 2,078.925 / unid.</li>
+                <li>• Proveedor: Shenzhen Tech Ltd · FOB: USD 50,000</li>
+                <li>• Flete: USD 1,200 · Seguro TPPS: USD 375 (0.75%)</li>
+                <li>• Modalidad: Despacho Anticipado 01 · Canal Verde</li>
+                <li>• Liquidaciones: Cuotas 0010 y 0026 con CDA oficial</li>
+                <li>• Costo final nacionalizado NIC 2: S/ 2,078.925 / unid.</li>
               </ul>
             </div>
 
@@ -135,13 +163,13 @@ export default function CustomsDashboardPage() {
                 onClick={() => navigate('/customs/settlements')}
                 className="w-full text-xs justify-between"
               >
-                <span>Mesa de Cobranza CDA ({settlements.length})</span>
+                <span>Mesa de Cobranza CDA ({pendingSettlementsCount})</span>
                 <ArrowRight className="h-3 w-3" />
               </Button>
               <Button
                 size="sm"
                 variant="default"
-                onClick={() => navigate('/customs/inventory/kardex')}
+                onClick={() => navigate('/inventory/kardex')}
                 className="w-full text-xs justify-between"
               >
                 <span>Ver Kardex PLE 13.1</span>
@@ -159,6 +187,11 @@ export default function CustomsDashboardPage() {
           await createShipment(data);
           setIsNewShipmentOpen(false);
         }}
+      />
+
+      <QuickTariffCalculatorModal
+        isOpen={isCalculatorOpen}
+        onClose={() => setIsCalculatorOpen(false)}
       />
     </Page>
   );

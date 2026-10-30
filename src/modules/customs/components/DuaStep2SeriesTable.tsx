@@ -99,7 +99,7 @@ export const DuaStep2SeriesTable: React.FC<DuaStep2SeriesTableProps> = ({
                 </Button>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                 <div>
                   <label className="text-[11px] text-muted-foreground block mb-0.5">Subpartida SPN (10 dígitos)</label>
                   <Input
@@ -125,6 +125,17 @@ export const DuaStep2SeriesTable: React.FC<DuaStep2SeriesTableProps> = ({
                     onChange={(e) => handleUpdateItem(index, { fob_usd: parseFloat(e.target.value) || 0 })}
                     className="h-7 text-xs font-mono font-bold text-primary"
                   />
+                </div>
+                <div>
+                  <label className="text-[11px] text-muted-foreground block mb-0.5">Destino Contable</label>
+                  <select
+                    value={item.destination_type || 'MERCADERIA'}
+                    onChange={(e) => handleUpdateItem(index, { destination_type: e.target.value as any })}
+                    className="h-7 w-full rounded border border-border/70 bg-background px-1.5 text-xs font-semibold text-foreground"
+                  >
+                    <option value="MERCADERIA">Mercadería (NIC 2)</option>
+                    <option value="ACTIVO_FIJO">Activo Fijo (NIC 16)</option>
+                  </select>
                 </div>
               </div>
 

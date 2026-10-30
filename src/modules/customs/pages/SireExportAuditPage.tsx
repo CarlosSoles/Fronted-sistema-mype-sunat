@@ -7,13 +7,14 @@ import {
 } from '../components';
 import { useSireAnnex8_4 } from '../hooks/useSireAnnex8_4';
 import { useAuth } from '@/hooks/useAuth';
-import { RefreshCw, ShieldCheck, Scale, FileCheck2 } from 'lucide-react';
+import { RefreshCw, ShieldCheck, Scale, FileCheck2, Check } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
 
 export default function SireExportAuditPage() {
   const { user } = useAuth();
   const [year, setYear] = useState('2026');
   const [month, setMonth] = useState('10');
+  const [refreshState, setRefreshState] = useState<'idle' | 'updating' | 'updated'>('idle');
 
   const period = `${year}${month}`;
   const ruc = user?.companyRuc || '20601012341';
@@ -24,6 +25,23 @@ export default function SireExportAuditPage() {
     refetch,
     downloadSireTxt,
   } = useSireAnnex8_4(period);
+
+  const handleRefresh = async () => {
+    if (refreshState !== 'idle') return;
+    setRefreshState('updating');
+    try {
+      await Promise.all([
+        refetch(),
+        new Promise((resolve) => setTimeout(resolve, 500)),
+      ]);
+      setRefreshState('updated');
+      setTimeout(() => {
+        setRefreshState('idle');
+      }, 1500);
+    } catch {
+      setRefreshState('idle');
+    }
+  };
 
   const totalTaxableBase = records.reduce((acc, r) => acc + (r.taxable_base_pen || 0), 0);
   const totalIgvIpm = records.reduce((acc, r) => acc + (r.igv_ipm_pen || 0), 0);
@@ -38,18 +56,35 @@ export default function SireExportAuditPage() {
       <CustomsSubNav />
 
       <PageHeader
-        title="Auditoría Fiscal y Exportación SIRE (RCE Anexo 8.4)"
-        description="Propuesta oficial de Comprobantes Tipo 50 (DAM) y conciliación previa para el Registro de Compras Electrónico."
+        title="Registro de Compras de Importación — SIRE"
+        description="Auditoría fiscal y exportación oficial del RCE Anexo 8.4 para Comprobantes Tipo 50 (DAM)."
       >
         <div className="flex items-center gap-2">
           <Button
             size="sm"
             variant="outline"
-            onClick={() => refetch()}
-            className="text-xs gap-1.5 h-8"
+            onClick={handleRefresh}
+            disabled={refreshState === 'updating'}
+            className="text-xs gap-1.5 h-8 min-w-[105px] justify-center transition-all"
           >
-            <RefreshCw className="h-3.5 w-3.5" />
-            Actualizar
+            {refreshState === 'updating' && (
+              <>
+                <RefreshCw className="h-3.5 w-3.5 animate-spin text-primary" />
+                Actualizando...
+              </>
+            )}
+            {refreshState === 'updated' && (
+              <>
+                <Check className="h-3.5 w-3.5 text-emerald-500" />
+                <span className="text-emerald-500 font-medium">Actualizado</span>
+              </>
+            )}
+            {refreshState === 'idle' && (
+              <>
+                <RefreshCw className="h-3.5 w-3.5" />
+                Actualizar
+              </>
+            )}
           </Button>
 
           <ExportSireButton onExport={handleExportTxt} isLoading={isLoading} />

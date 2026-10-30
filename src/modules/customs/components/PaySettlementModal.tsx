@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AUTHORIZED_BANKS } from '../services/catalogsApi';
 import { type CustomsSettlementRecord, type PaySettlementPayload } from '../types';
+import { formatCurrency } from '@/lib/formatters';
 
 interface PaySettlementModalProps {
   settlement: CustomsSettlementRecord | null;
@@ -17,6 +18,13 @@ interface PaySettlementModalProps {
   onClose: () => void;
   onSubmit: (settlementId: string, payload: PaySettlementPayload) => Promise<unknown>;
 }
+
+const getCuotaLabel = (type: string) => {
+  if (type.includes('0010')) return 'Cuota 0010 — Tributos e IGV/IPM';
+  if (type.includes('0026')) return 'Cuota 0026 — Percepción del IGV';
+  if (type.includes('0027')) return 'Cuota 0027 — Multa Aduanera';
+  return type;
+};
 
 export const PaySettlementModal: React.FC<PaySettlementModalProps> = ({
   settlement,
@@ -58,18 +66,22 @@ export const PaySettlementModal: React.FC<PaySettlementModalProps> = ({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-3 py-2 text-xs">
-          <div className="p-2.5 rounded-lg border border-border/40 bg-muted/20 font-mono text-xs">
-            <div className="flex justify-between">
+          <div className="p-2.5 rounded-lg border border-border/40 bg-muted/20 text-xs">
+            <div className="flex justify-between items-center">
               <span className="text-muted-foreground">Cuota:</span>
-              <span className="font-bold text-foreground">{settlement.settlement_type}</span>
+              <span className="font-bold text-foreground text-xs">
+                {getCuotaLabel(settlement.settlement_type)}
+              </span>
             </div>
-            <div className="flex justify-between mt-1">
+            <div className="flex justify-between items-center mt-1.5">
               <span className="text-muted-foreground">Monto Exigible:</span>
-              <span className="font-bold text-primary">S/ {Number(settlement.amount_pen ?? 0).toFixed(2)}</span>
+              <span className="font-bold text-primary font-mono text-sm">
+                {formatCurrency(settlement.amount_pen ?? 0, 'PEN')}
+              </span>
             </div>
-            <div className="flex justify-between mt-1">
+            <div className="flex justify-between items-center mt-1.5">
               <span className="text-muted-foreground">Código CDA:</span>
-              <span className="font-bold text-foreground">
+              <span className="font-bold text-foreground font-mono">
                 {settlement.cda_number || settlement.settlement_number}
               </span>
             </div>

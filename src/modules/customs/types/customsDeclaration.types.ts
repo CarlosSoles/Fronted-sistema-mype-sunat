@@ -23,6 +23,7 @@ export interface CustomsItemDetail {
   hs_code: string; // SPN de 10 dígitos numéricos
   commercial_description: string;
   goods_state?: 'NUEVO' | 'USADO';
+  destination_type?: 'MERCADERIA' | 'ACTIVO_FIJO';
   tpi_code?: string; // Código de TLC (ej. 800 China)
   physical_quantity: number;
   physical_unit: string; // NIU, KGM
@@ -96,6 +97,7 @@ export interface RegisterDuaWizardItemPayload {
   hs_code: string;
   commercial_description: string;
   goods_state?: 'NUEVO' | 'USADO';
+  destination_type?: 'MERCADERIA' | 'ACTIVO_FIJO';
   tpi_code?: string;
   physical_quantity: number;
   physical_unit: string;

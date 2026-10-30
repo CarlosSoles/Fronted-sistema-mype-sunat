@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { customsShipmentsApi } from '../services/customsShipmentsApi';
+import { customsShipmentsApi, getStoredCustomsShipments } from '../services/customsShipmentsApi';
 import {
   type CreateShipmentPayload,
   type CustomsShipmentSummary,
@@ -12,6 +12,8 @@ export const useShipments = (filters?: ShipmentFilters) => {
   const shipmentsQuery = useQuery<CustomsShipmentSummary[]>({
     queryKey: ['customs-shipments', filters],
     queryFn: () => customsShipmentsApi.getShipments(filters),
+    initialData: () => getStoredCustomsShipments(),
+    staleTime: 1000 * 60 * 5,
   });
 
   const createShipmentMutation = useMutation<
