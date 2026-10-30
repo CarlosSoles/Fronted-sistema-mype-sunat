@@ -6,7 +6,7 @@ import {
   PaySettlementModal,
 } from '../components';
 import { useCustomsSettlements } from '../hooks/useCustomsSettlements';
-import { CreditCard, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { CreditCard, RefreshCw, AlertCircle, CheckCircle2, Check } from 'lucide-react';
 import { type CustomsSettlementRecord } from '../types';
 import { formatCurrency } from '@/lib/formatters';
 
@@ -14,6 +14,7 @@ export default function CustomsLiquidationPage() {
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [selectedSettlement, setSelectedSettlement] = useState<CustomsSettlementRecord | null>(null);
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
+  const [refreshState, setRefreshState] = useState<'idle' | 'updating' | 'updated'>('idle');
 
   const {
     settlements,
@@ -21,6 +22,23 @@ export default function CustomsLiquidationPage() {
     refetch,
     paySettlement,
   } = useCustomsSettlements();
+
+  const handleRefresh = async () => {
+    if (refreshState !== 'idle') return;
+    setRefreshState('updating');
+    try {
+      await Promise.all([
+        refetch(),
+        new Promise((resolve) => setTimeout(resolve, 500)),
+      ]);
+      setRefreshState('updated');
+      setTimeout(() => {
+        setRefreshState('idle');
+      }, 1500);
+    } catch {
+      setRefreshState('idle');
+    }
+  };
 
   const filteredSettlements = settlements.filter((s) => {
     if (filterStatus === 'ALL') return true;
@@ -45,17 +63,34 @@ export default function CustomsLiquidationPage() {
       <CustomsSubNav />
 
       <PageHeader
-        title="Mesa de Cobranza y Liquidación Tributaria Aduanera"
-        description="Gestión de órdenes de cobranza SUNAT (Cuota 0010 y 0026) con Código de Documento Aduanero (CDA)."
+        title="Tributos y Pagos Aduaneros"
+        description="Gestión de liquidaciones de cobranza SUNAT (CDA oficial 18D), derechos arancelarios y pagos bancarios."
       >
         <Button
           size="sm"
           variant="outline"
-          onClick={() => refetch()}
-          className="text-xs gap-1.5 h-8"
+          onClick={handleRefresh}
+          disabled={refreshState === 'updating'}
+          className="text-xs gap-1.5 h-8 min-w-[170px] justify-center transition-all"
         >
-          <RefreshCw className="h-3.5 w-3.5" />
-          Actualizar Liquidaciones
+          {refreshState === 'updating' && (
+            <>
+              <RefreshCw className="h-3.5 w-3.5 animate-spin text-primary" />
+              Actualizando liquidaciones...
+            </>
+          )}
+          {refreshState === 'updated' && (
+            <>
+              <Check className="h-3.5 w-3.5 text-emerald-500" />
+              <span className="text-emerald-500 font-medium">Liquidaciones al día</span>
+            </>
+          )}
+          {refreshState === 'idle' && (
+            <>
+              <RefreshCw className="h-3.5 w-3.5" />
+              Actualizar Liquidaciones
+            </>
+          )}
         </Button>
       </PageHeader>
 
@@ -69,7 +104,7 @@ export default function CustomsLiquidationPage() {
             <div>
               <p className="text-[11px] text-muted-foreground uppercase font-semibold">Exigible SUNAT Pendiente</p>
               <p className="text-base font-bold font-mono text-amber-700 dark:text-amber-300">
-                {formatCurrency(totalPendingPen || 38240, 'PEN')}
+                {formatCurrency(totalPendingPen, 'PEN')}
               </p>
             </div>
           </Card>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -6,12 +6,17 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { shipmentSchema, type ShipmentFormData } from '../validators';
-import { CUSTOMS_OFFICES } from '../services/catalogsApi';
+import { CUSTOMS_OFFICES, getStoredCountries, getStoredSuppliers, type CountryItem } from '../services/catalogsApi';
+import { SupplierSelector } from './SupplierSelector';
+import { CountrySelector } from './CountrySelector';
+import { type ForeignSupplierSummary } from '../types';
+import { FolderPlus, Globe, Ship } from 'lucide-react';
 
 interface NewShipmentModalProps {
   isOpen: boolean;
@@ -19,13 +24,6 @@ interface NewShipmentModalProps {
   onSubmit: (data: ShipmentFormData) => Promise<unknown>;
 }
 
-/**
- * Genera el número de expediente inicial.
- *
- * `Math.random()` es impuro: llamarlo dentro de `defaultValues` lo ejecuta en
- * cada render y cambia el valor mientras el usuario escribe. Se encapsula para
- * que el hook lo invoque una sola vez al montar (y el linter lo vea).
- */
 const numeroExpedienteInicial = (): string =>
   `EXP-2026-${Math.floor(10000 + Math.random() * 90000)}`;
 
@@ -34,97 +32,187 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
   onClose,
   onSubmit,
 }) => {
+  const [suppliers, setSuppliers] = useState<ForeignSupplierSummary[]>(getStoredSuppliers());
+  const [countries, setCountries] = useState<CountryItem[]>(getStoredCountries());
+
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
     reset,
   } = useForm<ShipmentFormData>({
     resolver: zodResolver(shipmentSchema),
     defaultValues: {
       shipment_number: numeroExpedienteInicial(),
-      supplier_id: 'a0000000-0000-0000-0000-000000000001',
+      supplier_id: suppliers[0]?.id || 'a0000000-0000-0000-0000-000000000001',
+      order_reference: '',
       incoterm: 'FOB',
       currency_code: 'USD',
       transport_mode: 'MARITIMO',
       origin_country_code: 'CN',
       destination_customs: '118',
+      etd_date: '',
+      eta_date: '',
     },
   });
 
+  const selectedSupplierId = watch('supplier_id');
+
+  useEffect(() => {
+    const supplier = suppliers.find((s) => s.id === selectedSupplierId);
+    if (supplier?.country_code) setValue('origin_country_code', supplier.country_code);
+  }, [selectedSupplierId, suppliers, setValue]);
+
   const handleFormSubmit = async (data: ShipmentFormData) => {
     await onSubmit(data);
-    reset();
+    reset({ ...data, shipment_number: numeroExpedienteInicial() });
     onClose();
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-base font-bold">Aperturar Expediente de Importación</DialogTitle>
+      <DialogContent className="sm:max-w-2xl max-w-[95vw] p-6 text-xs max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="pb-3 border-b border-border">
+          <DialogTitle className="flex items-center gap-2 text-base font-bold text-primary">
+            <FolderPlus className="h-5 w-5" />
+            Aperturar Expediente de Importación Comercial
+          </DialogTitle>
+          <DialogDescription className="text-xs text-muted-foreground">
+            Registro formal del embarque para control logístico, tributario (DAM) y costeo NIC 2.
+          </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-3 py-2 text-xs">
-          <div>
-            <label className="font-medium text-foreground block mb-1">Número de Expediente</label>
-            <Input {...register('shipment_number')} placeholder="EXP-2026-00042" className="h-8 text-xs font-mono" />
-            {errors.shipment_number && (
-              <p className="text-[11px] text-red-500 mt-0.5">{errors.shipment_number.message}</p>
-            )}
+        <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4 py-2">
+          {/* Bloque 1: Datos Comerciales */}
+          <div className="bg-muted/20 p-4 rounded-xl border border-border space-y-3">
+            <div className="flex items-center gap-2 pb-1 border-b border-border/50">
+              <Globe className="h-4 w-4 text-primary" />
+              <h4 className="font-bold text-foreground uppercase tracking-wide text-[11px]">
+                1. Datos Comerciales de Compra
+              </h4>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="font-medium text-foreground block mb-1">N° Expediente *</label>
+                <Input {...register('shipment_number')} className="h-8 text-xs font-mono font-semibold" />
+                {errors.shipment_number && (
+                  <p className="text-[11px] text-red-500 mt-0.5">{errors.shipment_number.message}</p>
+                )}
+              </div>
+
+              <SupplierSelector
+                suppliers={suppliers}
+                onSuppliersChange={setSuppliers}
+                selectedSupplierId={selectedSupplierId}
+                onSelectSupplier={(id) => setValue('supplier_id', id, { shouldValidate: true })}
+                countryCode={watch('origin_country_code')}
+                errorMessage={errors.supplier_id?.message}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="font-medium text-foreground block mb-1">Incoterm (ICC 2020)</label>
+                <select
+                  {...register('incoterm')}
+                  className="w-full h-8 px-2 text-xs rounded-md border border-input bg-background font-medium"
+                >
+                  <option value="FOB">FOB — Free on Board</option>
+                  <option value="CIF">CIF — Cost, Insurance & Freight</option>
+                  <option value="CFR">CFR — Cost and Freight</option>
+                  <option value="EXW">EXW — Ex Works</option>
+                  <option value="FCA">FCA — Free Carrier</option>
+                  <option value="DAP">DAP — Delivered at Place</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="font-medium text-foreground block mb-1">Moneda</label>
+                <select
+                  {...register('currency_code')}
+                  className="w-full h-8 px-2 text-xs rounded-md border border-input bg-background font-medium"
+                >
+                  <option value="USD">USD ($) — Dólar</option>
+                  <option value="EUR">EUR (€) — Euro</option>
+                  <option value="CNY">CNY (¥) — Yuan</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="font-medium text-foreground block mb-1">Referencia Comercial / O.C.</label>
+                <Input {...register('order_reference')} placeholder="PO-2026-88: 100 Laptops" className="h-8 text-xs" />
+              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="font-medium text-foreground block mb-1">Incoterm (ICC 2020)</label>
-              <select {...register('incoterm')} className="w-full h-8 px-2 text-xs rounded-md border border-input bg-background">
-                <option value="FOB">FOB - Free on Board</option>
-                <option value="CIF">CIF - Cost, Insurance & Freight</option>
-                <option value="CFR">CFR - Cost and Freight</option>
-                <option value="EXW">EXW - Ex Works</option>
-              </select>
+          {/* Bloque 2: Logística y Aduana */}
+          <div className="bg-muted/20 p-4 rounded-xl border border-border space-y-3">
+            <div className="flex items-center gap-2 pb-1 border-b border-border/50">
+              <Ship className="h-4 w-4 text-primary" />
+              <h4 className="font-bold text-foreground uppercase tracking-wide text-[11px]">
+                2. Logística y Despacho Aduanero
+              </h4>
             </div>
-            <div>
-              <label className="font-medium text-foreground block mb-1">Vía de Transporte</label>
-              <select {...register('transport_mode')} className="w-full h-8 px-2 text-xs rounded-md border border-input bg-background">
-                <option value="MARITIMO">Marítimo</option>
-                <option value="AEREO">Aéreo</option>
-                <option value="TERRESTRE">Terrestre</option>
-              </select>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="font-medium text-foreground block mb-1">Vía de Transporte</label>
+                <select
+                  {...register('transport_mode')}
+                  className="w-full h-8 px-2 text-xs rounded-md border border-input bg-background font-medium"
+                >
+                  <option value="MARITIMO">Marítimo (Buque)</option>
+                  <option value="AEREO">Aéreo (Vuelo)</option>
+                  <option value="TERRESTRE">Terrestre</option>
+                  <option value="FLUVIAL">Fluvial</option>
+                </select>
+              </div>
+
+              <CountrySelector
+                countries={countries}
+                onCountriesChange={setCountries}
+                selectedCountryCode={watch('origin_country_code')}
+                onSelectCountry={(code) => setValue('origin_country_code', code, { shouldValidate: true })}
+                errorMessage={errors.origin_country_code?.message}
+              />
+
+              <div>
+                <label className="font-medium text-foreground block mb-1">Aduana de Ingreso</label>
+                <select
+                  {...register('destination_customs')}
+                  className="w-full h-8 px-2 text-xs rounded-md border border-input bg-background font-medium"
+                >
+                  {CUSTOMS_OFFICES.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.code} — {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <div>
+                <label className="font-medium text-foreground block mb-1">Fecha Salida (ETD)</label>
+                <Input type="date" {...register('etd_date')} className="h-8 text-xs font-mono" />
+              </div>
+
+              <div>
+                <label className="font-medium text-foreground block mb-1">Fecha Arribo (ETA)</label>
+                <Input type="date" {...register('eta_date')} className="h-8 text-xs font-mono" />
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="font-medium text-foreground block mb-1">País Origen (ISO)</label>
-              <Input {...register('origin_country_code')} placeholder="CN" maxLength={2} className="h-8 text-xs uppercase" />
-              {errors.origin_country_code && (
-                <p className="text-[11px] text-red-500 mt-0.5">{errors.origin_country_code.message}</p>
-              )}
-            </div>
-            <div>
-              <label className="font-medium text-foreground block mb-1">Aduana de Ingreso</label>
-              <select {...register('destination_customs')} className="w-full h-8 px-2 text-xs rounded-md border border-input bg-background">
-                {CUSTOMS_OFFICES.map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.code} - {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="font-medium text-foreground block mb-1">Fecha Estimada Arribo (ETA)</label>
-            <Input type="date" {...register('eta_date')} className="h-8 text-xs" />
-          </div>
-
-          <DialogFooter className="pt-2">
-            <Button type="button" variant="outline" size="sm" onClick={onClose}>
+          <DialogFooter className="pt-3 border-t border-border flex justify-end gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={onClose} className="h-8 text-xs">
               Cancelar
             </Button>
-            <Button type="submit" size="sm" disabled={isSubmitting}>
-              {isSubmitting ? 'Guardando...' : 'Crear Expediente'}
+            <Button type="submit" size="sm" disabled={isSubmitting} className="h-8 text-xs font-semibold px-4">
+              {isSubmitting ? 'Aperturando Expediente...' : 'Crear Expediente'}
             </Button>
           </DialogFooter>
         </form>

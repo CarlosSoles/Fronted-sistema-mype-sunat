@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import {
   Activity,
   BookOpen,
+  Boxes,
   Calculator,
   CheckSquare,
   ChevronDown,
@@ -57,19 +58,32 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
-    title: 'Aduanas DUA & Kardex',
+    title: 'Importaciones',
     path: '/customs',
     icon: Ship,
     developer: 'Carlos Ahumada',
     allowedRoles: ['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
     subItems: [
-      { title: 'Panel General', path: '/customs/dashboard', icon: LayoutDashboard },
-      { title: 'Expedientes & Tracking', path: '/customs/shipments', icon: FolderGit2 },
-      { title: 'Asistente DAM (DUA)', path: '/customs/declarations/new', icon: FilePlus },
-      { title: 'Mesa Cobranza CDA', path: '/customs/settlements', icon: CreditCard },
-      { title: 'Landed Cost (NIC 2)', path: '/customs/landed-cost', icon: Calculator },
-      { title: 'Kardex PLE 13.1', path: '/customs/inventory/kardex', icon: BookOpen },
-      { title: 'Auditoría SIRE 8.4', path: '/customs/reports/fiscal-sire', icon: FileCheck2 },
+      { title: 'Panel general', path: '/customs/dashboard', icon: LayoutDashboard },
+      { title: 'Expedientes y embarques', path: '/customs/shipments', icon: FolderGit2 },
+      { title: 'DAM y valoración', path: '/customs/declarations', icon: FilePlus },
+      { title: 'Tributos y pagos aduaneros', path: '/customs/settlements', icon: CreditCard },
+      { title: 'Recepción, diferencias y costo', path: '/customs/landed-cost', icon: Calculator },
+
+      { title: 'Registro de compras de importación — SIRE', path: '/customs/sire-purchases', icon: FileCheck2 },
+    ],
+  },
+  {
+    title: 'Inventario y Kardex',
+    path: '/inventory',
+    icon: Boxes,
+    developer: 'Carlos Ahumada',
+    allowedRoles: ['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
+    subItems: [
+      { title: 'Existencias', path: '/inventory/stocks', icon: LayoutDashboard },
+      { title: 'Movimientos', path: '/inventory/movements', icon: GitCompareArrows },
+      { title: 'Kardex por producto', path: '/inventory/kardex', icon: BookOpen },
+      { title: 'Libros PLE 12.1 y 13.1', path: '/inventory/books', icon: FileCheck2 },
     ],
   },
   {

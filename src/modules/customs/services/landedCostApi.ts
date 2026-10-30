@@ -1,7 +1,9 @@
 import { apiClient } from '@/lib/axios';
 import {
   type AddLocalExpensePayload,
+  type AdjustLateImportCostPayload,
   type ApplyKardexPayload,
+  type ApproveLandedCostPayload,
   type CalculateLandedCostPayload,
   type LandedCostSheetRecord,
   type LocalExpenseInvoiceRecord,
@@ -45,15 +47,42 @@ export const landedCostApi = {
   },
 
   /**
-   * Asienta formalmente la entrada valorizada al inventario permanente (Tipo 50 DUA)
-   * y transiciona el expediente al estado CERRADO.
+   * Aprueba formalmente la Hoja de Liquidación de Costos por parte del contador,
+   * emitiendo el evento asíncrono para valorización en el módulo de Inventario.
+   */
+  approveLandedCost: async (
+    payload: ApproveLandedCostPayload
+  ): Promise<any> => {
+    const response = await apiClient.post(
+      '/customs/landed-cost/approve',
+      payload
+    );
+    return response.data;
+  },
+
+  /**
+   * Registra un gasto extemporáneo posterior al levante (demurrage, sobreestadía).
+   */
+  adjustLateCost: async (
+    payload: AdjustLateImportCostPayload
+  ): Promise<any> => {
+    const response = await apiClient.post(
+      '/customs/landed-cost/late-cost',
+      payload
+    );
+    return response.data;
+  },
+
+  /**
+   * @deprecated Usar approveLandedCost en el nuevo flujo desacoplado.
+   * Asienta formalmente la entrada valorizada al inventario permanente.
    */
   applyKardex: async (
     payload: ApplyKardexPayload
   ): Promise<{ message: string; movements_count: number }> => {
     const response = await apiClient.post<{ message: string; movements_count: number }>(
-      '/customs/landed-cost/apply-kardex',
-      payload
+      '/customs/landed-cost/approve',
+      { shipmentId: payload.shipment_id }
     );
     return response.data;
   },

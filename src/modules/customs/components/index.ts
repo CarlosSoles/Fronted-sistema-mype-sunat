@@ -3,6 +3,8 @@ export * from './ComplianceTrafficLight';
 export * from './ShipmentKanban';
 export * from './ShipmentsDataTable';
 export * from './NewShipmentModal';
+export * from './SupplierSelector';
+export * from './CountrySelector';
 export * from './ShipmentHeaderCard';
 export * from './ChecklistSunat';
 export * from './VuceDocumentList';
@@ -20,11 +22,15 @@ export * from './LocalExpensesTable';
 export * from './AddLocalExpenseModal';
 export * from './ProrationSimulator';
 export * from './LandedCostComparisonTable';
+export * from './GoodsReceiptModal';
 export * from './KardexFilters';
 export * from './KardexLedgerTable';
 export * from './SireAuditTable';
 export * from './ExportSireButton';
 export * from './CustomsSubNav';
+export * from './DamFormatsViewerModal';
+export * from './GoodsReceiptTabContent';
+export * from './QuickTariffCalculatorModal';
 
 // Legacy exports preservados para compatibilidad
 export * from './CustomsKpiCards';

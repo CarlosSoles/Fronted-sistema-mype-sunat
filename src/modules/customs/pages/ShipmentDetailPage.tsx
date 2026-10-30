@@ -9,10 +9,11 @@ import {
   AddDocumentModal,
   CustomsTimelineWidget,
   AddEventModal,
+  GoodsReceiptModal,
 } from '../components';
 import { useShipmentDetail } from '../hooks/useShipmentDetail';
 import { useRolePermissions } from '@/hooks/useRolePermissions';
-import { ArrowLeft, FileText, Calculator, RefreshCw } from 'lucide-react';
+import { ArrowLeft, FileText, Calculator, RefreshCw, PackageCheck } from 'lucide-react';
 
 export default function ShipmentDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -21,6 +22,7 @@ export default function ShipmentDetailPage() {
 
   const [isDocModalOpen, setIsDocModalOpen] = useState(false);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
 
   const {
     shipment,
@@ -41,6 +43,16 @@ export default function ShipmentDetailPage() {
       </Page>
     );
   }
+
+  const primaryDeclaration = shipment.declarations?.[0] as any;
+  const itemsForReceipt = ((primaryDeclaration?.items || primaryDeclaration?.series || []) as any[]).map((it: any) => ({
+    id: it.id,
+    productCode: it.product_code || it.hs_code || 'PROD',
+    commercialDescription: it.commercial_description || 'Mercancía importada',
+    quantity: Number(it.physical_quantity || it.quantity || 1),
+    unitCode: it.physical_unit || it.unit_code || 'NIU',
+    destinationType: it.destination_type || 'MERCADERIA',
+  }));
 
   return (
     <Page>
@@ -68,6 +80,15 @@ export default function ShipmentDetailPage() {
               >
                 <FileText className="h-3.5 w-3.5 text-primary" />
                 Registrar DAM
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setIsReceiptModalOpen(true)}
+                className="text-xs gap-1.5 h-8"
+              >
+                <PackageCheck className="h-3.5 w-3.5 text-blue-500" />
+                Recepción Rampa
               </Button>
               <Button
                 size="sm"
@@ -133,6 +154,15 @@ export default function ShipmentDetailPage() {
           await addEvent(event);
           setIsEventModalOpen(false);
         }}
+      />
+
+      <GoodsReceiptModal
+        isOpen={isReceiptModalOpen}
+        onClose={() => setIsReceiptModalOpen(false)}
+        declarationId={primaryDeclaration?.id || shipment.id}
+        shipmentId={shipment.id}
+        initialItems={itemsForReceipt}
+        onSuccess={() => refetch()}
       />
     </Page>
   );

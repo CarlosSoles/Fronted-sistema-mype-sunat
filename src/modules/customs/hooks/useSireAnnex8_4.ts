@@ -1,11 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
-import { kardexApi } from '../services/kardexApi';
+import { kardexApi, getDemoSireAnnex8_4 } from '../services/kardexApi';
 import { type SireAnnex8_4Record } from '../types';
 
 export const useSireAnnex8_4 = (period?: string) => {
   const sireQuery = useQuery<SireAnnex8_4Record[]>({
     queryKey: ['customs-sire-annex-8-4', period],
     queryFn: () => kardexApi.getSireAnnex8_4(period),
+    initialData: () => getDemoSireAnnex8_4(period),
+    staleTime: 1000 * 60 * 5,
   });
 
   const downloadSireTxt = (ruc: string, year: string, month: string) => {

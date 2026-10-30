@@ -13,6 +13,8 @@ export type ShipmentStatus =
   | 'CERRADO'
   | 'CANCELADO';
 
+import { type CustomsDeclarationRecord } from './customsDeclaration.types';
+
 export type TransportMode = 'MARITIMO' | 'AEREO' | 'TERRESTRE' | 'FLUVIAL';
 
 export type IncotermCode =
@@ -120,7 +122,7 @@ export interface CustomsShipmentDetail extends CustomsShipmentSummary {
   order_reference?: string;
   documents: CustomsDocumentRecord[];
   events: CustomsEventRecord[];
-  declarations?: unknown[];
+  declarations?: CustomsDeclarationRecord[];
   local_expenses?: unknown[];
 }
 

@@ -1,5 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { customsDeclarationsApi } from '../services/customsDeclarationsApi';
+import {
+  customsDeclarationsApi,
+  getStoredSettlements,
+} from '../services/customsDeclarationsApi';
 import {
   type CustomsSettlementRecord,
   type PaySettlementPayload,
@@ -11,12 +14,19 @@ export const useCustomsSettlements = (declarationId?: string) => {
   const pendingSettlementsQuery = useQuery<CustomsSettlementRecord[]>({
     queryKey: ['customs-settlements', 'pending'],
     queryFn: customsDeclarationsApi.getPendingSettlements,
+    initialData: () => getStoredSettlements(),
+    staleTime: 1000 * 60 * 5,
     enabled: !declarationId,
   });
 
   const declarationSettlementsQuery = useQuery<CustomsSettlementRecord[]>({
     queryKey: ['customs-settlements', 'declaration', declarationId],
     queryFn: () => customsDeclarationsApi.getSettlementsByDeclaration(declarationId!),
+    initialData: () =>
+      declarationId
+        ? getStoredSettlements().filter((s) => s.declaration_id === declarationId)
+        : [],
+    staleTime: 1000 * 60 * 5,
     enabled: Boolean(declarationId),
   });
 
