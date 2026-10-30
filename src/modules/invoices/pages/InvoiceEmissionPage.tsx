@@ -16,7 +16,7 @@ import {
   TableRow,
   Badge,
 } from '@/components/ui';
-import { Plus, Trash2, Send, CheckCircle2, FileText, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, Send, CheckCircle2, FileText } from 'lucide-react';
 
 interface InvoiceItem {
   id: string;
