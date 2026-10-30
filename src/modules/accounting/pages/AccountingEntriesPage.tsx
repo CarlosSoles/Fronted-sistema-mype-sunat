@@ -70,15 +70,30 @@ export default function AccountingEntriesPage() {
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
-          const mappedEntries: Entry[] = data.map((item: any, index: number) => ({
-            id: String(item.id || Date.now() + index),
-            numeroAsiento: `001-202610-00${item.entryNumber || item.entry_number || index + 1}`,
-            fechaContable: item.entryDate || item.entry_date || new Date().toISOString().split('T')[0],
-            glosa: item.glosa || item.concept || 'Asiento Contable',
-            totalDebe: Number(item.totalDebit || item.total_debit || item.totalDebe || 0),
-            totalHaber: Number(item.totalCredit || item.total_credit || item.totalHaber || 0),
-            estaCuadrado: true,
-          }));
+          const mappedEntries: Entry[] = data.map((item: any, index: number) => {
+            // Extraer líneas de detalles si vienen pobladas en el backend
+            const lines = item.lines || item.accounting_lines || [];
+
+            // Calcular suma de Debe
+            const sumDebe = lines.length > 0
+              ? lines.reduce((acc: number, l: any) => acc + Number(l.debitAmount || l.debit || 0), 0)
+              : Number(item.totalDebit || item.total_debit || item.totalDebe || 0);
+
+            // Calcular suma de Haber
+            const sumHaber = lines.length > 0
+              ? lines.reduce((acc: number, l: any) => acc + Number(l.creditAmount || l.credit || 0), 0)
+              : Number(item.totalCredit || item.total_credit || item.totalHaber || 0);
+
+            return {
+              id: String(item.id || Date.now() + index),
+              numeroAsiento: item.numeroAsiento || `001-202610-00${item.entryNumber || item.entry_number || index + 1}`,
+              fechaContable: item.entryDate || item.entry_date || item.fechaContable || new Date().toISOString().split('T')[0],
+              glosa: item.glosa || item.concept || 'Asiento Contable',
+              totalDebe: sumDebe,
+              totalHaber: sumHaber,
+              estaCuadrado: true,
+            };
+          });
 
           setEntries(mappedEntries);
           localStorage.setItem(STORAGE_KEY, JSON.stringify(mappedEntries));
@@ -239,7 +254,6 @@ export default function AccountingEntriesPage() {
         title="Libro Diario (PCGE)"
         description="Auditoría de asientos contables del periodo fiscal activo y validación de partida doble"
       >
-        {/* ACCESO DIRECTO A EMISIÓN DE COMPROBANTES (TA-24) */}
         <Button variant="default" size="sm" onClick={() => navigate('/invoices/emision')}>
           <FilePlus aria-hidden="true" className="w-4 h-4 mr-1" />
           Emitir Comprobante
