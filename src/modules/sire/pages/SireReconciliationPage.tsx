@@ -3,6 +3,7 @@ import { Alert, AlertDescription, AlertTitle, Button, Page, PageHeader } from '@
 import { LoaderCircle } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { SireComprobantesTable } from '../components/SireComprobantesTable';
+import { SireHealthDashboard } from '../components/SireHealthDashboard';
 import { SireMetricsCards } from '../components/SireMetricsCards';
 import { SirePeriodFilter } from '../components/SirePeriodFilter';
 import { SireVouchersTable } from '../components/SireVouchersTable';
@@ -67,6 +68,7 @@ export default function SireReconciliationPage() {
         title="Conciliación fiscal SIRE"
         description="Compara los comprobantes del ERP con la información fiscal de SUNAT."
       />
+      <SireHealthDashboard />
       <form onSubmit={handleSubmit} className="space-y-6">
         <label className="block max-w-xs space-y-1.5 text-sm font-medium">
           Libro a conciliar

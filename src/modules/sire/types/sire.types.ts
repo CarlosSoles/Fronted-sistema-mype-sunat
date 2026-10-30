@@ -90,6 +90,45 @@ export interface SireHistoryResponse {
   items: SireHistoryItem[];
 }
 
+export interface SireDashboardMetrics {
+  state: 'CLOSED' | 'OPEN' | 'HALF_OPEN';
+  recentFailedCalls: number;
+  failureRate: number;
+  slowCallRate: number;
+  bufferedInvoicesCount: number;
+  totalCalls: number;
+  successfulCalls: number;
+  failedCalls: number;
+  totalRetries: number;
+  lastStateChange: string;
+  mttd: number | null;
+  mttr: number | null;
+  mtbf: number | null;
+}
+
+export type SireDashboardGranularity = 'minute' | 'hour' | 'day';
+
+export interface SireDashboardHistoryPoint {
+  timestamp: string;
+  retries: number;
+  availabilityPercent: number | null;
+}
+
+export interface SireDashboardHistoryResponse {
+  points: SireDashboardHistoryPoint[];
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+}
+
+export interface SireDashboardHistoryRequest {
+  start: string;
+  end: string;
+  granularity: SireDashboardGranularity;
+  limit: number;
+  offset: number;
+}
+
 export interface CloseSirePeriodResponse {
   period: string;
   bookType: SireBookType;
