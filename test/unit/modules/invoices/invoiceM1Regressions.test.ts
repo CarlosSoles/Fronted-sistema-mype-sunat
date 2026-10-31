@@ -180,8 +180,20 @@ describe('BA-03 · la Nota hereda el documento afectado', () => {
     const nota = borradorAComprobante({
       ...borradorInicial('07', '2026-10-16'),
       clienteDoc: FACTURA_RUC,
-      base: 2500,
-      detraccionPct: 0.12,
+      // TA-64: el detalle pasó a ser una grilla; la base única ya no existe.
+      items: [
+        {
+          clave: 'n-1',
+          codigo: 'SRV-001',
+          descripcion: 'Servicio de confección',
+          unidad: 'NIU',
+          cantidad: 1,
+          valorUnitario: 2500,
+          afectacion: 'GRAVADA',
+          icbper: 0,
+        },
+      ],
+      codigoDetraccion: '012',
       agenteRetencion: true,
       documentoAfectado: 'F001-0043',
     });

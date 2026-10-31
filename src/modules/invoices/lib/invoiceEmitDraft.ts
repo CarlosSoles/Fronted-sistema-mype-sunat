@@ -14,9 +14,10 @@
  *  - Las Notas al crédito recuperan la fecha de emisión del documento afectado
  *    (Catálogo 09, motivo 13), como manda la RS 193-2020/SUNAT.
  */
-import type { LineaComprobante, AfectacionIgv } from './invoiceTaxes';
+import type { LineaComprobante } from './invoiceTaxes';
 import type {
   ComprobanteDemo,
+  ItemDemo,
   TipoComprobante,
   TipoOperacion,
 } from '../data/invoiceDemoTypes';
@@ -26,6 +27,16 @@ import {
   serieParaNota,
   type TipoEmisible,
 } from './invoiceEmitValidation';
+import {
+  calcularItem,
+  totalizarItems,
+  type ItemBorrador,
+} from './invoiceItems';
+import {
+  buscarDetraccion,
+  repartirEnCuotas,
+  type CuotaBorrador,
+} from './invoiceDetraccion';
 
 /** Estado editable del formulario de emisión. */
 export interface BorradorEmision {
@@ -35,12 +46,23 @@ export interface BorradorEmision {
   clienteDoc: string;
   clienteTipoDoc: '1' | '6';
   clienteRazonSocial: string;
-  descripcion: string;
-  base: number;
-  afectacion: AfectacionIgv;
+  /**
+   * Detalle del comprobante (TA-64).
+   *
+   * Sustituye a los antiguos `descripcion` + `base` + `afectacion`, que solo
+   * permitían una línea. La primera línea hereda esos valores iniciales para no
+   * romper el flujo de quien escribía directo en el primer campo.
+   */
+  items: readonly ItemBorrador[];
   formaPago: 'Contado' | 'Credito';
+  /**
+   * Cronograma editable (TA-64). Si está vacío se reparte el neto
+   * automáticamente en `numeroCuotas` partes.
+   */
+  cuotas: readonly CuotaBorrador[];
   numeroCuotas: number;
-  detraccionPct: number;
+  /** Código del Catálogo 54; vacío = la operación no está sujeta a SPOT. */
+  codigoDetraccion: string;
   agenteRetencion: boolean;
   bolsas: number;
   documentoAfectado: string;
@@ -50,6 +72,15 @@ export interface BorradorEmision {
   motivoDescripcion: string;
   fecha: string;
 }
+
+/** Contador para generar claves estables de línea sin depender de Date.now. */
+let contadorClaves = 0;
+
+/** Clave estable para una línea nueva. */
+export const nuevaClave = (): string => {
+  contadorClaves += 1;
+  return `item-${contadorClaves}`;
+};
 
 /** Estado de una serie para calcular el siguiente correlativo. */
 interface EstadoSerie {
@@ -68,12 +99,22 @@ export const borradorInicial = (
   clienteDoc: '',
   clienteTipoDoc: '6',
   clienteRazonSocial: '',
-  descripcion: 'Servicio de confección',
-  base: 100,
-  afectacion: 'GRAVADA',
+  items: [
+    {
+      clave: nuevaClave(),
+      codigo: 'SRV-001',
+      descripcion: 'Servicio de confección',
+      unidad: 'NIU',
+      cantidad: 1,
+      valorUnitario: 100,
+      afectacion: 'GRAVADA',
+      icbper: 0,
+    },
+  ],
   formaPago: 'Contado',
+  cuotas: [],
   numeroCuotas: 2,
-  detraccionPct: 0,
+  codigoDetraccion: '',
   agenteRetencion: false,
   bolsas: 0,
   documentoAfectado: '',
@@ -106,12 +147,24 @@ export const siguienteCorrelativo = (
   return Math.max(...deLaSerie) + 1;
 };
 
-/** Convierte el borrador a las líneas que consume el motor tributario. */
+/**
+ * Convierte el borrador a las líneas que consume el motor tributario.
+ *
+ * TA-64: antes devolvía UNA línea con el campo `base` del formulario. Ahora
+ * devuelve todas las líneas de la grilla, ya con su afectación y con las
+ * gratuitas en cero (regla 3278).
+ */
 export const borradorALiquidar = (
   b: BorradorEmision,
-): readonly LineaComprobante[] => [
-  { base: Number.isFinite(b.base) ? b.base : 0, afectacion: b.afectacion },
-];
+): readonly LineaComprobante[] =>
+  b.items.map((item) => {
+    const total = calcularItem(item);
+    return { base: total.base, afectacion: item.afectacion };
+  });
+
+/** Totales de la grilla del borrador (base, IGV, ICBPER y total). */
+export const totalesDelBorrador = (b: BorradorEmision) =>
+  totalizarItems(b.items);
 
 /** Indica si el tipo de comprobante es una Nota de Crédito o de Débito. */
 export const esTipoNota = (tipo: string): boolean =>
@@ -122,12 +175,35 @@ export const esTipoNota = (tipo: string): boolean =>
  *
  * El resultado entra como `EN_COLA`: la cola Outbox lo despacha y el CDR llega
  * después (ver `registrarRespuestaCdr` en `./invoiceOutbox`).
+ *
+ * TA-64: el comprobante se arma con las LÍNEAS de la grilla, no con una base
+ * única. La `base` y la `afectacion` que recibe `construir` son solo el
+ * agregado; los importes reales salen de `items`.
  */
 export const borradorAComprobante = (
   b: BorradorEmision,
 ): ComprobanteDemo => {
   const esNota = esTipoNota(b.tipo);
+  const totales = totalizarItems(b.items);
   const numeroCuotas = b.formaPago === 'Credito' ? b.numeroCuotas : 0;
+
+  // La afectación del comprobante es la de su primera línea onerosa: es lo que
+  // se usa para decidir si lleva IGV en el resumen.
+  const primeraOnerosa =
+    b.items.find((i) => i.afectacion !== 'GRATUITA') ?? b.items[0];
+
+  const items: readonly ItemDemo[] = b.items.map((item) => ({
+    codigo: item.codigo.trim() || 'ITM',
+    descripcion: item.descripcion.trim() || 'ÍTEM SIN DESCRIPCIÓN',
+    unidad: item.unidad,
+    cantidad: item.cantidad,
+    valorUnitario: item.valorUnitario,
+    afectacion: item.afectacion,
+  }));
+
+  const detraccion = b.codigoDetraccion
+    ? buscarDetraccion(b.codigoDetraccion)
+    : undefined;
 
   return construir({
     tipo: b.tipo as TipoComprobante,
@@ -137,30 +213,25 @@ export const borradorAComprobante = (
     tipoDocCliente: b.clienteDoc.length === 11 ? '6' : '1',
     razonSocial: b.clienteRazonSocial || 'CLIENTE SIN RAZÓN SOCIAL',
     fecha: b.fecha,
-    base: b.base,
-    afectacion: b.afectacion,
+    base: totales.base,
+    afectacion: primeraOnerosa?.afectacion ?? 'GRAVADA',
     // Solo las Facturas generan detracción SPOT o retención del IGV; una Nota
     // las hereda del documento afectado, no las crea.
-    detraccionPct: !esNota && b.detraccionPct > 0 ? b.detraccionPct : undefined,
+    detraccionPct: !esNota ? detraccion?.porcentaje : undefined,
     agenteRetencion: !esNota && b.agenteRetencion,
     estado: 'EN_COLA',
-    tipoOperacion: esNota ? b.tipoDocumentoAfectado : undefined,
+    tipoOperacion: esNota
+      ? b.tipoDocumentoAfectado
+      : detraccion
+        ? '1001'
+        : undefined,
     formaPago: b.formaPago,
     numeroCuotas,
     documentoAfectado: esNota ? b.documentoAfectado : undefined,
     motivoNota: esNota
       ? { codigo: b.motivoCodigo, descripcion: b.motivoDescripcion }
       : undefined,
-    items: [
-      {
-        codigo: 'SRV-001',
-        descripcion: b.descripcion,
-        unidad: 'NIU',
-        cantidad: 1,
-        valorUnitario: b.base,
-        afectacion: b.afectacion,
-      },
-    ],
+    items,
   });
 };
 
@@ -211,8 +282,32 @@ export const vincularDocumentoAfectado = (
         afectado?.formaPago === 'Credito'
           ? Math.max(1, afectado.cuotas.length)
           : b.numeroCuotas,
+      cuotas:
+        afectado?.formaPago === 'Credito'
+          ? afectado.cuotas.map((c) => ({
+              monto: c.monto,
+              vencimiento: c.vencimiento,
+            }))
+          : [],
       fecha: afectado?.fechaEmision ?? b.fecha,
     },
     afectado,
   };
 };
+
+/** Cambia la forma de pago y reinicia el cronograma cuando pasa a contado. */
+export const cambiarFormaPago = (
+  b: BorradorEmision,
+  formaPago: BorradorEmision['formaPago'],
+  netoPendiente: number,
+): BorradorEmision => ({
+  ...b,
+  formaPago,
+  cuotas:
+    formaPago === 'Credito'
+      ? repartirEnCuotas(netoPendiente, b.numeroCuotas, b.fecha).map((c) => ({
+          monto: c.monto,
+          vencimiento: c.vencimiento,
+        }))
+      : [],
+});
