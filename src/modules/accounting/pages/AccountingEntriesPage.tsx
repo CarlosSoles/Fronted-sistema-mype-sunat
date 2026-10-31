@@ -130,6 +130,8 @@ export default function AccountingEntriesPage() {
     if (confirm('¿Deseas limpiar todos los asientos contables de la vista?')) {
       setEntries([]);
       localStorage.removeItem(STORAGE_KEY);
+      // Clave de la versión anterior: se limpia para no resucitar asientos viejos.
+      localStorage.removeItem('accounting_entries');
     }
   };
 
