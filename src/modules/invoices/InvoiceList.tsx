@@ -11,10 +11,10 @@
  * El aviso de la consola fiscal deja constancia de que la emisión real contra
  * el backend está planificada para el Sprint 2.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Page, PageHeader, Tabs, TabsContent } from '@/components/ui';
-import { COMPROBANTES_DEMO } from './data/invoiceDemoData';
 import type { ComprobanteDemo } from './data/invoiceDemoTypes';
 import { InvoiceKpiCards } from './components/InvoiceKpiCards';
 import { InvoiceDemoNotice } from './components/InvoiceDemoNotice';
@@ -36,13 +36,11 @@ import { InvoiceEmitModal } from './components/InvoiceEmitModal';
 import type { TipoEmision } from './components/InvoiceEmitMenu';
 import { TIPO_POR_OPCION } from './lib/invoiceEmitTipos';
 import { calcularResumenFiscal } from './lib/invoiceMetrics';
+import { aComprobanteDemo } from './lib/invoiceApiMapper';
+import { invoicesApi } from './services/invoicesApi';
 import { aplicarFiltros, porApartado } from './lib/invoiceFilters';
 import { descargarPdfComprobante } from './lib/invoiceExportPdf';
 import { exportarReporteSireCsv } from './lib/invoiceExportSire';
-import {
-  DESPACHO_SIMULADO_MS,
-  registrarRespuestaCdr,
-} from './lib/invoiceOutbox';
 
 const FILTROS_INICIALES: InvoiceFiltros = {
   busqueda: '',
@@ -84,10 +82,27 @@ export const InvoiceList = () => {
   const { pathname } = useLocation();
   const activeTab = tabDesdeRuta(pathname);
   const [filtros, setFiltros] = useState<InvoiceFiltros>(FILTROS_INICIALES);
-  const [comprobantes, setComprobantes] =
-    useState<readonly ComprobanteDemo[]>(COMPROBANTES_DEMO);
+  /** Comprobantes emitidos en esta sesión: se suman al listado del backend. */
+  const [extras, setExtras] = useState<readonly ComprobanteDemo[]>([]);
   const [modalEmision, setModalEmision] = useState<TipoEmision | null>(null);
   const [visor, setVisor] = useState<VisorState | null>(null);
+
+  const {
+    data: pagina,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
+    queryKey: ['invoices', 1],
+    queryFn: () => invoicesApi.getInvoices(1),
+    staleTime: 1000 * 60 * 3,
+  });
+
+  /** Listado real del tenant + lo emitido localmente en esta visita. */
+  const comprobantes = useMemo<readonly ComprobanteDemo[]>(
+    () => [...extras, ...(pagina?.data.map(aComprobanteDemo) ?? [])],
+    [extras, pagina],
+  );
 
   const conteo = useMemo(() => contarPorTab(comprobantes), [comprobantes]);
 
@@ -102,43 +117,29 @@ export const InvoiceList = () => {
     [visibles],
   );
 
-  const hayEnCola = comprobantes.some((c) => c.estado === 'EN_COLA');
-
-  /**
-   * Despacho simulado de la cola: cada comprobante en cola recibe su CDR a
-   * los pocos segundos, como lo haría el worker Outbox contra el billService.
-   */
-  useEffect(() => {
-    if (!hayEnCola) return;
-
-    const temporizador = window.setTimeout(() => {
-      setComprobantes((previos) =>
-        previos.map((c) => registrarRespuestaCdr(c)),
-      );
-    }, DESPACHO_SIMULADO_MS);
-
-    return () => window.clearTimeout(temporizador);
-  }, [hayEnCola]);
-
   const agregarComprobante = useCallback((nuevo: ComprobanteDemo) => {
-    setComprobantes((previos) => [nuevo, ...previos]);
+    setExtras((previos) => [nuevo, ...previos]);
     setModalEmision(null);
     navigate(RUTA_POR_TAB.comprobantes);
     setFiltros({ ...FILTROS_INICIALES });
   }, [navigate]);
 
-  /** Reproduce el ciclo del worker cuando el usuario pulsa "Refrescar". */
+  /** Vuelve a consultar el listado cuando el usuario pulsa "Actualizar". */
   const refrescarCola = useCallback(() => {
-    setComprobantes((previos) =>
-      previos.map((c) => registrarRespuestaCdr(c)),
-    );
-  }, []);
+    void refetch();
+  }, [refetch]);
 
   /** Grilla de comprobantes con los visores XML/CDR y la descarga PDF. */
   const grilla = (mensajeVacio?: string) => (
     <InvoiceTable
       comprobantes={visibles}
-      mensajeVacio={mensajeVacio}
+      mensajeVacio={
+        isLoading
+          ? 'Cargando comprobantes…'
+          : isError
+            ? 'No se pudieron cargar los comprobantes del backend.'
+            : mensajeVacio
+      }
       onVerXml={(c) => setVisor({ comprobante: c, modo: 'xml' })}
       onVerCdr={(c) => setVisor({ comprobante: c, modo: 'cdr' })}
       onDescargarPdf={descargarPdfComprobante}

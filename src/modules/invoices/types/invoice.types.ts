@@ -38,3 +38,36 @@ export interface CreateInvoiceDto {
   moneda: 'PEN' | 'USD';
   items: Omit<InvoiceItem, 'id' | 'subtotal' | 'igv' | 'total'>[];
 }
+
+/** Fila del listado tal como la devuelve el backend (TA-29, snake_case). */
+export interface InvoiceListado {
+  id: string;
+  tipo_comprobante: string;
+  serie: string;
+  correlativo: number;
+  /** Serie y correlativo ya formateados por el backend: F001-00000007. */
+  numero: string;
+  fecha_emision: string;
+  estado: string;
+  monto_total: number;
+  moneda: string;
+  cliente_documento: string | null;
+  cliente_nombre: string | null;
+  cdr_codigo: string | null;
+  /** Montos reales del comprobante; el backend los agrega en TA-29. */
+  base_imponible?: number;
+  total_igv?: number;
+  exonerada?: number;
+  inafecta?: number;
+  documento_afectado?: string | null;
+  hash_cpe?: string | null;
+}
+
+/** Página de comprobantes que devuelve `GET /invoices`. */
+export interface PaginaComprobantes {
+  data: InvoiceListado[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}

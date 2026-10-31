@@ -1,9 +1,13 @@
 import { apiClient } from '@/lib/axios';
-import { type CreateInvoiceDto, type Invoice } from '../types/invoice.types';
+import {
+  type CreateInvoiceDto,
+  type Invoice,
+  type PaginaComprobantes,
+} from '../types/invoice.types';
 
 export const invoicesApi = {
-  getInvoices: async (page = 1): Promise<{ data: Invoice[]; total: number }> => {
-    const response = await apiClient.get<{ data: Invoice[]; total: number }>('/invoices', {
+  getInvoices: async (page = 1): Promise<PaginaComprobantes> => {
+    const response = await apiClient.get<PaginaComprobantes>('/invoices', {
       params: { page },
     });
     return response.data;
