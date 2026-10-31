@@ -17,6 +17,7 @@ import {
   Badge,
 } from '@/components/ui';
 import { Plus, Trash2, Send, CheckCircle2, FileText } from 'lucide-react';
+import { apiClient } from '@/lib/axios';
 
 interface InvoiceItem {
   id: string;
@@ -111,26 +112,15 @@ export default function InvoiceEmissionPage() {
     };
 
     try {
-      const res = await fetch('http://localhost:3000/api/v1/invoices', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
-        },
-        body: JSON.stringify(payload),
-      });
+      const { data: respuesta } = await apiClient.post('/invoices', payload);
+      const data = respuesta ?? {};
 
-      if (res.ok || res.status === 202 || res.status === 201) {
-        const data = await res.json().catch(() => ({}));
-        setResponseStatus({
-          success: true,
-          invoiceId: data.id || data.invoiceId || `INV-${Date.now().toString().slice(-6)}`,
-          message: 'Comprobante recibido y procesado en la cola de emisión SUNAT.',
-          cdrStatus: 'ACEPTADO - Constancia de Recepción (CDR) validada.',
-        });
-      } else {
-        throw new Error('Error al conectar con el servidor.');
-      }
+      setResponseStatus({
+        success: true,
+        invoiceId: data.id || data.invoiceId || `INV-${Date.now().toString().slice(-6)}`,
+        message: 'Comprobante recibido y procesado en la cola de emisión SUNAT.',
+        cdrStatus: 'ACEPTADO - Constancia de Recepción (CDR) validada.',
+      });
     } catch {
       // Sandbox / Modo Local Demo
       setResponseStatus({

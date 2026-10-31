@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button, Card, Page, PageHeader } from '@/components/ui';
 import { Download, FileCheck2, Loader2 } from 'lucide-react';
-import axios from 'axios';
+import { apiClient } from '@/lib/axios';
 
 export default function AccountingPlePage() {
   const [isDownloadingDiario, setIsDownloadingDiario] = useState(false);
@@ -14,7 +14,7 @@ export default function AccountingPlePage() {
 
     try {
       // Petición al endpoint real de NestJS
-      const response = await axios.post('http://localhost:3000/api/v1/accounting/ple/export', {
+      const response = await apiClient.post('/accounting/ple/export', {
         companyId: '5eaccb4e-a6ec-4f23-9909-85fe7fc9e879',
         companyRuc: '20601012341',
         year: 2026,
