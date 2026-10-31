@@ -1,9 +1,13 @@
 import { useState } from 'react';
 import { Button, Card, Page, PageHeader } from '@/components/ui';
 import { Download, FileCheck2, Loader2 } from 'lucide-react';
+import { useAuthStore } from '@/stores/authStore';
 import { apiClient } from '@/lib/axios';
 
 export default function AccountingPlePage() {
+  const { activeCompany, user } = useAuthStore();
+  const companyId = activeCompany?.tenantId ?? user?.companyId ?? '';
+  const companyRuc = activeCompany?.ruc ?? user?.companyRuc ?? '';
   const [isDownloadingDiario, setIsDownloadingDiario] = useState(false);
   const [isDownloadingMayor, setIsDownloadingMayor] = useState(false);
 
@@ -15,8 +19,8 @@ export default function AccountingPlePage() {
     try {
       // Petición al endpoint real de NestJS
       const response = await apiClient.post('/accounting/ple/export', {
-        companyId: '5eaccb4e-a6ec-4f23-9909-85fe7fc9e879',
-        companyRuc: '20601012341',
+        companyId,
+        companyRuc,
         year: 2026,
         month: 10,
         bookCode: bookCode, // Pasa '5.1' o '6.1' dinámicamente

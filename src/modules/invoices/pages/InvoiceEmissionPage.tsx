@@ -64,7 +64,11 @@ export default function InvoiceEmissionPage() {
     setItems(items.filter((item) => item.id !== id));
   };
 
-  const handleItemChange = (id: string, field: keyof InvoiceItem, value: any) => {
+  const handleItemChange = (
+    id: string,
+    field: keyof InvoiceItem,
+    value: string | number,
+  ) => {
     setItems((prev) =>
       prev.map((item) => {
         if (item.id === id) {

@@ -20,6 +20,7 @@ import {
 import { formatCurrency, formatDateToPeru } from '@/lib/formatters';
 import { BookOpen, CheckCircle2, Download, FilePlus, PlusCircle, RefreshCw, Trash2, X } from 'lucide-react';
 import { useRolePermissions } from '@/hooks/useRolePermissions';
+import { useAuthStore } from '@/stores/authStore';
 
 interface Entry {
   id: string;
@@ -31,12 +32,43 @@ interface Entry {
   estaCuadrado: boolean;
 }
 
-const ACTIVE_COMPANY_ID = '5eaccb4e-a6ec-4f23-9909-85fe7fc9e879';
+/** Línea de asiento tal como la devuelve el backend. */
+interface LineaAsientoBackend {
+  debitAmount?: number | string;
+  debit?: number | string;
+  creditAmount?: number | string;
+  credit?: number | string;
+}
+
+/** Asiento del backend: acepta camelCase y snake_case (contrato heredado). */
+interface AsientoBackend {
+  id?: string;
+  numeroAsiento?: string;
+  entryNumber?: number;
+  entry_number?: number;
+  entryDate?: string;
+  entry_date?: string;
+  fechaContable?: string;
+  glosa?: string;
+  concept?: string;
+  totalDebit?: number | string;
+  total_debit?: number | string;
+  totalDebe?: number | string;
+  totalCredit?: number | string;
+  total_credit?: number | string;
+  totalHaber?: number | string;
+  lines?: LineaAsientoBackend[];
+  accounting_lines?: LineaAsientoBackend[];
+}
+
 const STORAGE_KEY = 'accounting_entries_demo_v2';
 
 export default function AccountingEntriesPage() {
   const navigate = useNavigate();
   const { canCreateAccountingEntry, isAuditor } = useRolePermissions();
+  const { activeCompany, user } = useAuthStore();
+  const companyId = activeCompany?.tenantId ?? user?.companyId ?? '';
+  const companyRuc = activeCompany?.ruc ?? user?.companyRuc ?? '';
   const [isExporting, setIsExporting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -62,21 +94,21 @@ export default function AccountingEntriesPage() {
   const fetchEntriesFromApi = async () => {
     setIsRefreshing(true);
     try {
-      const { data } = await apiClient.get('/accounting/entries');
+      const { data } = await apiClient.get<AsientoBackend[]>('/accounting/entries');
 
       if (Array.isArray(data) && data.length > 0) {
-        const mappedEntries: Entry[] = data.map((item: any, index: number) => {
+        const mappedEntries: Entry[] = data.map((item: AsientoBackend, index: number) => {
           // Extraer líneas de detalles si vienen pobladas en el backend
           const lines = item.lines || item.accounting_lines || [];
 
           // Calcular suma de Debe
           const sumDebe = lines.length > 0
-            ? lines.reduce((acc: number, l: any) => acc + Number(l.debitAmount || l.debit || 0), 0)
+            ? lines.reduce((acc: number, l: LineaAsientoBackend) => acc + Number(l.debitAmount || l.debit || 0), 0)
             : Number(item.totalDebit || item.total_debit || item.totalDebe || 0);
 
           // Calcular suma de Haber
           const sumHaber = lines.length > 0
-            ? lines.reduce((acc: number, l: any) => acc + Number(l.creditAmount || l.credit || 0), 0)
+            ? lines.reduce((acc: number, l: LineaAsientoBackend) => acc + Number(l.creditAmount || l.credit || 0), 0)
             : Number(item.totalCredit || item.total_credit || item.totalHaber || 0);
 
           return {
@@ -159,7 +191,6 @@ export default function AccountingEntriesPage() {
 
     try {
       await apiClient.post('/accounting/entries', {
-        companyId: ACTIVE_COMPANY_ID,
         period: '2026-10',
         entryNumber: Number(nextNumber),
         entryDate: fechaActual,
@@ -194,7 +225,8 @@ export default function AccountingEntriesPage() {
       const { data } = await apiClient.post(
         '/accounting/ple/export',
         {
-          companyRuc: '20601012341',
+          companyId,
+          companyRuc,
           year: 2026,
           month: 10,
           bookCode: '050100',
