@@ -1,6 +1,6 @@
 import { apiClient } from '@/lib/axios';
 import {
-  type CreateInvoiceDto,
+  type CreateInvoicePayload,
   type Invoice,
   type PaginaComprobantes,
 } from '../types/invoice.types';
@@ -18,8 +18,14 @@ export const invoicesApi = {
     return response.data;
   },
 
-  createInvoice: async (dto: CreateInvoiceDto): Promise<Invoice> => {
-    const response = await apiClient.post<Invoice>('/invoices', dto);
+  createInvoice: async (
+    payload: CreateInvoicePayload,
+  ): Promise<{ id: string; estado: string; message?: string }> => {
+    const response = await apiClient.post<{
+      id: string;
+      estado: string;
+      message?: string;
+    }>('/invoices', payload);
     return response.data;
   },
 

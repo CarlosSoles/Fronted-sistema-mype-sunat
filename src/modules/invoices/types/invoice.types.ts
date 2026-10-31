@@ -71,3 +71,15 @@ export interface PaginaComprobantes {
   page_size: number;
   total_pages: number;
 }
+
+/** Payload de alta del comprobante (POST /invoices). */
+export interface CreateInvoicePayload {
+  ruc_emisor: string;
+  serie: string;
+  correlativo: number;
+  tipo_comprobante: string;
+  monto_total: number;
+  fecha_emision: string;
+  /** Contrato del generador UBL del backend (`InvoicePayload`). */
+  payload_ubl: Record<string, unknown>;
+}

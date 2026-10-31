@@ -14,7 +14,15 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Page, PageHeader, Tabs, TabsContent } from '@/components/ui';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Page,
+  PageHeader,
+  Tabs,
+  TabsContent,
+} from '@/components/ui';
 import type { ComprobanteDemo } from './data/invoiceDemoTypes';
 import { InvoiceKpiCards } from './components/InvoiceKpiCards';
 import { InvoiceDemoNotice } from './components/InvoiceDemoNotice';
@@ -36,8 +44,9 @@ import { InvoiceEmitModal } from './components/InvoiceEmitModal';
 import type { TipoEmision } from './components/InvoiceEmitMenu';
 import { TIPO_POR_OPCION } from './lib/invoiceEmitTipos';
 import { calcularResumenFiscal } from './lib/invoiceMetrics';
-import { aComprobanteDemo } from './lib/invoiceApiMapper';
+import { aComprobanteDemo, aPayloadCreacion } from './lib/invoiceApiMapper';
 import { invoicesApi } from './services/invoicesApi';
+import { useAuthStore } from '@/stores/authStore';
 import { aplicarFiltros, porApartado } from './lib/invoiceFilters';
 import { descargarPdfComprobante } from './lib/invoiceExportPdf';
 import { exportarReporteSireCsv } from './lib/invoiceExportSire';
@@ -82,10 +91,10 @@ export const InvoiceList = () => {
   const { pathname } = useLocation();
   const activeTab = tabDesdeRuta(pathname);
   const [filtros, setFiltros] = useState<InvoiceFiltros>(FILTROS_INICIALES);
-  /** Comprobantes emitidos en esta sesión: se suman al listado del backend. */
-  const [extras, setExtras] = useState<readonly ComprobanteDemo[]>([]);
   const [modalEmision, setModalEmision] = useState<TipoEmision | null>(null);
   const [visor, setVisor] = useState<VisorState | null>(null);
+  const [errorEmision, setErrorEmision] = useState<string | null>(null);
+  const { activeCompany } = useAuthStore();
 
   const {
     data: pagina,
@@ -98,10 +107,10 @@ export const InvoiceList = () => {
     staleTime: 1000 * 60 * 3,
   });
 
-  /** Listado real del tenant + lo emitido localmente en esta visita. */
+  /** Listado real del tenant; se refresca tras cada emisión. */
   const comprobantes = useMemo<readonly ComprobanteDemo[]>(
-    () => [...extras, ...(pagina?.data.map(aComprobanteDemo) ?? [])],
-    [extras, pagina],
+    () => pagina?.data.map(aComprobanteDemo) ?? [],
+    [pagina],
   );
 
   const conteo = useMemo(() => contarPorTab(comprobantes), [comprobantes]);
@@ -117,12 +126,32 @@ export const InvoiceList = () => {
     [visibles],
   );
 
-  const agregarComprobante = useCallback((nuevo: ComprobanteDemo) => {
-    setExtras((previos) => [nuevo, ...previos]);
-    setModalEmision(null);
-    navigate(RUTA_POR_TAB.comprobantes);
-    setFiltros({ ...FILTROS_INICIALES });
-  }, [navigate]);
+  /**
+   * Alta real del comprobante: se persiste en el backend y se refresca la
+   * grilla. Si falla, se avisa en pantalla en vez de fingir que se emitió.
+   */
+  const agregarComprobante = useCallback(
+    async (nuevo: ComprobanteDemo) => {
+      setModalEmision(null);
+      try {
+        setErrorEmision(null);
+        await invoicesApi.createInvoice(
+          aPayloadCreacion(nuevo, {
+            ruc: activeCompany?.ruc ?? '',
+            razonSocial: activeCompany?.razonSocial ?? '',
+          }),
+        );
+        await refetch();
+        navigate(RUTA_POR_TAB.comprobantes);
+        setFiltros({ ...FILTROS_INICIALES });
+      } catch {
+        setErrorEmision(
+          'No se pudo registrar el comprobante en el backend. Revisa la conexión y los datos del emisor.',
+        );
+      }
+    },
+    [activeCompany, navigate, refetch],
+  );
 
   /** Vuelve a consultar el listado cuando el usuario pulsa "Actualizar". */
   const refrescarCola = useCallback(() => {
@@ -156,6 +185,13 @@ export const InvoiceList = () => {
         title="Facturación Electrónica UBL 2.1"
         description="Emisión, consulta y seguimiento de comprobantes electrónicos sincronizados con SUNAT"
       />
+
+      {errorEmision && (
+        <Alert variant="destructive">
+          <AlertTitle>No se pudo emitir</AlertTitle>
+          <AlertDescription>{errorEmision}</AlertDescription>
+        </Alert>
+      )}
 
       <InvoiceDemoNotice />
 

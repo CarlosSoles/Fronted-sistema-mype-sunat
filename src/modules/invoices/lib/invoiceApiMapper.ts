@@ -8,7 +8,7 @@
  */
 import type { EstadoCdrDemo, ComprobanteDemo, TipoComprobante } from '../data/invoiceDemoSchema';
 import { descripcionCdr } from '../data/invoiceDemoHelpers';
-import type { InvoiceListado } from '../types/invoice.types';
+import type { CreateInvoicePayload, InvoiceListado } from '../types/invoice.types';
 
 /** Redondeo a dos decimales, igual que el resto del módulo. */
 const round2 = (valor: number): number => Math.round(valor * 100) / 100;
@@ -81,5 +81,81 @@ export function aComprobanteDemo(item: InvoiceListado): ComprobanteDemo {
       : 'Sin CDR: el comprobante aún no tiene respuesta de SUNAT',
     hashCpe: item.hash_cpe ?? '',
     items: [],
+  };
+}
+
+/** Datos del emisor que viajan al comprobante (salen de la sesión). */
+export interface EmisorDatos {
+  ruc: string;
+  razonSocial: string;
+}
+
+/**
+ * Convierte el comprobante de la grilla en el payload de alta del backend.
+ *
+ * El contrato `payload_ubl` es el que consume el generador UBL 2.1
+ * (`InvoicePayload`), no una copia libre: si cambia el generador, este mapeo
+ * debe cambiar con él.
+ */
+export function aPayloadCreacion(
+  comprobante: ComprobanteDemo,
+  emisor: EmisorDatos,
+): CreateInvoicePayload {
+  const lineas = comprobante.items.map((item, index) => {
+    const neto = round2(item.valorUnitario * item.cantidad);
+    const igvLinea = round2(neto * 0.18);
+
+    return {
+      id: index + 1,
+      descripcion: item.descripcion,
+      codigo: item.codigo || undefined,
+      unidad: item.unidad,
+      cantidad: item.cantidad,
+      valorUnitario: item.valorUnitario,
+      precioUnitario: round2(item.valorUnitario * 1.18),
+      afectacion: '10',
+      totalLinea: round2(neto + igvLinea),
+      igvLinea,
+    };
+  });
+
+  const total = round2(comprobante.baseImponible + comprobante.igv);
+
+  return {
+    ruc_emisor: emisor.ruc,
+    serie: comprobante.serie,
+    correlativo: comprobante.correlativo,
+    tipo_comprobante: comprobante.tipo,
+    monto_total: total,
+    fecha_emision: comprobante.fechaEmision,
+    payload_ubl: {
+      rucEmisor: emisor.ruc,
+      razonSocialEmisor: emisor.razonSocial,
+      tipoComprobante: comprobante.tipo,
+      serie: comprobante.serie,
+      numero: comprobante.correlativo,
+      fechaEmision: comprobante.fechaEmision,
+      tipoMoneda: comprobante.moneda,
+      tipoOperacion: comprobante.tipoOperacion,
+      formaPago: comprobante.formaPago,
+      cliente: {
+        tipoDocumento: comprobante.clienteTipoDoc,
+        numeroDocumento: comprobante.clienteRuc,
+        razonSocial: comprobante.clienteRazonSocial,
+      },
+      lineas,
+      montoGravado: comprobante.baseImponible,
+      montoIgv: comprobante.igv,
+      montoTotal: total,
+      ...(comprobante.documentoAfectado
+        ? { documentoAfectado: comprobante.documentoAfectado }
+        : {}),
+      ...(comprobante.detraccion > 0
+        ? { montoDetraccion: comprobante.detraccion }
+        : {}),
+      ...(comprobante.retencion > 0
+        ? { montoRetencion: comprobante.retencion }
+        : {}),
+    },
   };
 }
