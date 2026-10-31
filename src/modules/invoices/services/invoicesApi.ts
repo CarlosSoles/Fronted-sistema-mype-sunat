@@ -29,8 +29,15 @@ export const invoicesApi = {
     return response.data;
   },
 
-  retryCdr: async (id: string): Promise<Invoice> => {
-    const response = await apiClient.post<Invoice>(`/invoices/${id}/retry-cdr`);
+  retryCdr: async (
+    id: string,
+  ): Promise<{ id: string; estado: string; encolado: boolean; mensaje: string }> => {
+    const response = await apiClient.post<{
+      id: string;
+      estado: string;
+      encolado: boolean;
+      mensaje: string;
+    }>(`/invoices/${id}/retry-cdr`);
     return response.data;
   },
 };

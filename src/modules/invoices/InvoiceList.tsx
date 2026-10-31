@@ -94,6 +94,7 @@ export const InvoiceList = () => {
   const [modalEmision, setModalEmision] = useState<TipoEmision | null>(null);
   const [visor, setVisor] = useState<VisorState | null>(null);
   const [errorEmision, setErrorEmision] = useState<string | null>(null);
+  const [avisoCdr, setAvisoCdr] = useState<string | null>(null);
   const { activeCompany } = useAuthStore();
 
   const {
@@ -153,6 +154,20 @@ export const InvoiceList = () => {
     [activeCompany, navigate, refetch],
   );
 
+  /** Reencola un comprobante en error para que el worker vuelva a pedir su CDR. */
+  const reintentarCdr = useCallback(
+    async (comprobante: ComprobanteDemo) => {
+      try {
+        const resultado = await invoicesApi.retryCdr(comprobante.id);
+        setAvisoCdr(resultado.mensaje);
+        if (resultado.encolado) await refetch();
+      } catch {
+        setAvisoCdr('No se pudo reencolar el comprobante en la cola.');
+      }
+    },
+    [refetch],
+  );
+
   /** Vuelve a consultar el listado cuando el usuario pulsa "Actualizar". */
   const refrescarCola = useCallback(() => {
     void refetch();
@@ -172,6 +187,7 @@ export const InvoiceList = () => {
       onVerXml={(c) => setVisor({ comprobante: c, modo: 'xml' })}
       onVerCdr={(c) => setVisor({ comprobante: c, modo: 'cdr' })}
       onDescargarPdf={descargarPdfComprobante}
+      onReintentarCdr={reintentarCdr}
     />
   );
 
@@ -190,6 +206,13 @@ export const InvoiceList = () => {
         <Alert variant="destructive">
           <AlertTitle>No se pudo emitir</AlertTitle>
           <AlertDescription>{errorEmision}</AlertDescription>
+        </Alert>
+      )}
+
+      {avisoCdr && (
+        <Alert variant="info">
+          <AlertTitle>Reintento de CDR</AlertTitle>
+          <AlertDescription>{avisoCdr}</AlertDescription>
         </Alert>
       )}
 
