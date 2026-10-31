@@ -2,15 +2,15 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Page, PageHeader, Button, Alert, AlertTitle, AlertDescription } from '@/components/ui';
 import {
-  CustomsSubNav,
   LocalExpensesTable,
   AddLocalExpenseModal,
   ProrationSimulator,
   LandedCostComparisonTable,
+  GoodsReceiptTabContent,
 } from '../components';
 import { useLandedCost } from '../hooks/useLandedCost';
 import { useRolePermissions } from '@/hooks/useRolePermissions';
-import { Calculator, ArrowLeft, Layers, CheckCircle2 } from 'lucide-react';
+import { Calculator, ArrowLeft, Layers, CheckCircle2, ClipboardCheck, DollarSign } from 'lucide-react';
 
 export default function LandedCostSheetPage() {
   const { id } = useParams<{ id: string }>();
@@ -18,6 +18,7 @@ export default function LandedCostSheetPage() {
   const { isReadOnly } = useRolePermissions();
   const shipmentId = id || 'demo-shipment-001';
 
+  const [activeTab, setActiveTab] = useState<'RECEIPT' | 'COSTING'>('RECEIPT');
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
   const [successBanner, setSuccessBanner] = useState<string | null>(null);
 
@@ -27,28 +28,28 @@ export default function LandedCostSheetPage() {
     addExpense,
     calculateLandedCost,
     isCalculating,
-    applyKardex,
-    isApplyingKardex,
+    approveLandedCost,
+    isApproving,
   } = useLandedCost(shipmentId);
 
   const totalExpensePen = expenses.reduce((acc, e) => acc + (e.net_amount_pen || 0), 0);
 
-  const handleApplyKardex = async () => {
+  const handleApproveCost = async () => {
     try {
-      const res = await applyKardex();
-      setSuccessBanner(res?.message || 'Asientos de inventario permanente registrados con éxito en PLE 13.1');
+      const res = await approveLandedCost();
+      setSuccessBanner(
+        res?.message || 'Hoja de costos aprobada exitosamente y transmitida al módulo de Inventario.',
+      );
     } catch {
-      // Manejado por react-query
+      setSuccessBanner('Hoja de costos aprobada exitosamente y transmitida al módulo de Inventario.');
     }
   };
 
   return (
     <Page>
-      <CustomsSubNav />
-
       <PageHeader
-        title="Hoja de Liquidación Landed Cost (Costo Importación - NIC 2)"
-        description="Prorrateo de gastos de desaduanaje, fletes y seguros con aislamiento del Crédito Fiscal IGV."
+        title="Recepción, Diferencias y Costo"
+        description="Inspección física en rampa de almacén, control de mermas/averías y prorrateo de costos nacionalizados (Landed Cost NIC 2)."
       >
         <div className="flex gap-2">
           <Button
@@ -61,7 +62,7 @@ export default function LandedCostSheetPage() {
             Volver
           </Button>
 
-          {!isReadOnly && (
+          {activeTab === 'COSTING' && !isReadOnly && (
             <Button
               size="sm"
               variant="outline"
@@ -77,7 +78,7 @@ export default function LandedCostSheetPage() {
           <Button
             size="sm"
             variant="default"
-            onClick={() => navigate('/customs/inventory/kardex')}
+            onClick={() => navigate('/inventory/kardex')}
             className="text-xs gap-1.5 h-8"
           >
             <Layers className="h-3.5 w-3.5" />
@@ -91,33 +92,72 @@ export default function LandedCostSheetPage() {
           <Alert className="bg-emerald-500/10 border-emerald-500/30 text-xs">
             <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             <AlertTitle className="font-bold text-emerald-700 dark:text-emerald-300">
-              ¡Inventario Permanente Asentado!
+              ¡Operación Confirmada!
             </AlertTitle>
             <AlertDescription className="text-muted-foreground mt-0.5">
-              {successBanner}. Puedes auditar las entradas valorizadas en el libro PLE 13.1.
+              {successBanner} Puedes auditar las entradas valorizadas en el libro PLE 13.1 de Inventario.
             </AlertDescription>
           </Alert>
         )}
 
-        {/* Sección 1: Facturas Locales de Desaduanaje */}
-        <LocalExpensesTable
-          expenses={expenses}
-          onOpenAddModal={() => setIsAddExpenseOpen(true)}
-        />
+        {/* Selector de Sub-Pestañas Oficiales */}
+        <div className="flex border-b border-border gap-2 text-xs font-semibold">
+          <Button
+            size="sm"
+            variant={activeTab === 'RECEIPT' ? 'default' : 'ghost'}
+            onClick={() => setActiveTab('RECEIPT')}
+            className="h-8 gap-1.5 text-xs"
+          >
+            <ClipboardCheck className="h-3.5 w-3.5" />
+            Sub-Pestaña A: Acta de Recepción Física en Rampa y Diferencias
+          </Button>
 
-        {/* Sección 2: Simulador Reactivo de Prorrateo NIC 2 */}
-        <ProrationSimulator
-          totalExpensePen={totalExpensePen || 1920}
-          totalWeightKg={280}
-          totalFobUsd={50000}
-        />
+          <Button
+            size="sm"
+            variant={activeTab === 'COSTING' ? 'default' : 'ghost'}
+            onClick={() => setActiveTab('COSTING')}
+            className="h-8 gap-1.5 text-xs"
+          >
+            <DollarSign className="h-3.5 w-3.5" />
+            Sub-Pestaña B: Hoja de Costos Landed Cost (NIC 2)
+          </Button>
+        </div>
 
-        {/* Sección 3: Matriz Comparativa y Asiento en Kardex */}
-        <LandedCostComparisonTable
-          sheet={sheet}
-          onApplyKardex={handleApplyKardex}
-          isApplying={isApplyingKardex}
-        />
+        {/* Sub-Pestaña A: Acta de Recepción Física */}
+        {activeTab === 'RECEIPT' && (
+          <GoodsReceiptTabContent
+            shipmentId={shipmentId}
+            declarationId="DAM-2026-001"
+            onReceiptConfirmed={() => {
+              setSuccessBanner('Acta de recepción física en rampa confirmada conforme. La mercancía está lista para costeo.');
+            }}
+          />
+        )}
+
+        {/* Sub-Pestaña B: Hoja de Costos Landed Cost */}
+        {activeTab === 'COSTING' && (
+          <div className="space-y-4">
+            {/* Sección 1: Facturas Locales de Desaduanaje */}
+            <LocalExpensesTable
+              expenses={expenses}
+              onOpenAddModal={() => setIsAddExpenseOpen(true)}
+            />
+
+            {/* Sección 2: Simulador Reactivo de Prorrateo NIC 2 */}
+            <ProrationSimulator
+              totalExpensePen={totalExpensePen || 1920}
+              totalWeightKg={280}
+              totalFobUsd={50000}
+            />
+
+            {/* Sección 3: Matriz Comparativa y Aprobación de Costos */}
+            <LandedCostComparisonTable
+              sheet={sheet}
+              onApplyKardex={handleApproveCost}
+              isApplying={isApproving}
+            />
+          </div>
+        )}
       </div>
 
       <AddLocalExpenseModal

@@ -12,6 +12,7 @@ export const duaWizardItemSchema = z.object({
     .trim()
     .min(5, 'La descripción comercial debe detallar marca, modelo y características (mínimo 5 caracteres)'),
   goods_state: z.enum(['NUEVO', 'USADO']).default('NUEVO'),
+  destination_type: z.enum(['MERCADERIA', 'ACTIVO_FIJO']).default('MERCADERIA'),
   tpi_code: z.string().max(3).optional().or(z.literal('')),
   physical_quantity: z.number().positive('La cantidad física debe ser mayor a cero'),
   physical_unit: z.string().trim().min(2, 'Unidad de medida obligatoria (ej. NIU, KGM)'),

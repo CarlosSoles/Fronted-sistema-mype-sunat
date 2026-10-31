@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import {
   Activity,
   BookOpen,
+  Boxes,
   Calculator,
   CheckSquare,
   ChevronDown,
@@ -57,19 +58,32 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
-    title: 'Aduanas DUA & Kardex',
+    title: 'Importaciones',
     path: '/customs',
     icon: Ship,
     developer: 'Carlos Ahumada',
     allowedRoles: ['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
     subItems: [
-      { title: 'Panel General', path: '/customs/dashboard', icon: LayoutDashboard },
-      { title: 'Expedientes & Tracking', path: '/customs/shipments', icon: FolderGit2 },
-      { title: 'Asistente DAM (DUA)', path: '/customs/declarations/new', icon: FilePlus },
-      { title: 'Mesa Cobranza CDA', path: '/customs/settlements', icon: CreditCard },
-      { title: 'Landed Cost (NIC 2)', path: '/customs/landed-cost', icon: Calculator },
-      { title: 'Kardex PLE 13.1', path: '/customs/inventory/kardex', icon: BookOpen },
-      { title: 'Auditoría SIRE 8.4', path: '/customs/reports/fiscal-sire', icon: FileCheck2 },
+      { title: 'Panel general', path: '/customs/dashboard', icon: LayoutDashboard },
+      { title: 'Expedientes y embarques', path: '/customs/shipments', icon: FolderGit2 },
+      { title: 'DAM y valoración', path: '/customs/declarations', icon: FilePlus },
+      { title: 'Tributos y pagos aduaneros', path: '/customs/settlements', icon: CreditCard },
+      { title: 'Recepción, diferencias y costo', path: '/customs/landed-cost', icon: Calculator },
+
+      { title: 'Registro de compras de importación — SIRE', path: '/customs/sire-purchases', icon: FileCheck2 },
+    ],
+  },
+  {
+    title: 'Inventario y Kardex',
+    path: '/inventory',
+    icon: Boxes,
+    developer: 'Carlos Ahumada',
+    allowedRoles: ['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
+    subItems: [
+      { title: 'Existencias', path: '/inventory/stocks', icon: LayoutDashboard },
+      { title: 'Movimientos', path: '/inventory/movements', icon: GitCompareArrows },
+      { title: 'Kardex por producto', path: '/inventory/kardex', icon: BookOpen },
+      { title: 'Libros PLE 12.1 y 13.1', path: '/inventory/books', icon: FileCheck2 },
     ],
   },
   {
@@ -91,6 +105,11 @@ const NAV_ITEMS: NavItem[] = [
     icon: BookOpen,
     developer: 'Michael Velásquez',
     allowedRoles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
+    subItems: [
+      { title: 'Libro Diario (PCGE)', path: '/accounting', icon: FileText },
+      { title: 'Plan de Cuentas (PCGE)', path: '/accounting/plan-cuentas', icon: BookOpen },
+      { title: 'Libros Electrónicos (PLE/SIRE)', path: '/accounting/ple', icon: FileCheck2 },
+    ],
   },
   {
     title: 'Resiliencia SUNAT',
@@ -109,13 +128,12 @@ export const Sidebar = () => {
   const navigate = useNavigate();
   const currentRole = user?.role;
 
-  // Control reactivo de expansión de submódulos
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({
     '/customs': true,
     '/sire': true,
+    '/accounting': true,
   });
 
-  // Auto-expandir cuando la ruta actual pertenezca al módulo
   useEffect(() => {
     NAV_ITEMS.forEach((item) => {
       if (
@@ -130,7 +148,6 @@ export const Sidebar = () => {
   const toggleExpand = (item: NavItem) => {
     setExpandedItems((prev) => {
       const willExpand = !prev[item.path];
-      // Si se expande y estamos fuera del módulo, navegar a su primera sección
       if (
         willExpand &&
         location.pathname !== item.path &&
@@ -142,7 +159,6 @@ export const Sidebar = () => {
     });
   };
 
-  // Filtrado reactivo según la Matriz RBAC
   const visibleNavItems = NAV_ITEMS.filter((item) => {
     if (!currentRole || currentRole === 'ADMIN') return true;
     return item.allowedRoles.includes(currentRole);
@@ -158,7 +174,6 @@ export const Sidebar = () => {
       )}
       aria-label="Navegación principal"
     >
-      {/* Logotipo del Sistema */}
       <div className="h-14 border-b flex items-center px-4 gap-2 font-bold text-sm tracking-tight overflow-hidden">
         <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground shrink-0 shadow-sm">
           <Sparkles className="h-4 w-4" />
@@ -170,7 +185,6 @@ export const Sidebar = () => {
         )}
       </div>
 
-      {/* Lista de Módulos Verticales autorizados */}
       <nav className="flex-1 p-2 space-y-1.5 overflow-y-auto">
         {visibleNavItems.map((item) => {
           const isModuleActive =
@@ -180,7 +194,6 @@ export const Sidebar = () => {
           return (
             <div key={item.path} className="space-y-1">
               {item.subItems ? (
-                /* Botón unificado para módulos con desglose */
                 <button
                   type="button"
                   onClick={() => toggleExpand(item)}
@@ -188,7 +201,7 @@ export const Sidebar = () => {
                   className={cn(
                     'w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all group text-left',
                     isModuleActive
-                      ? 'bg-muted text-foreground font-semibold shadow-xs'
+                      ? 'bg-muted/50 text-foreground font-semibold'
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                   )}
                 >
@@ -228,9 +241,9 @@ export const Sidebar = () => {
                   )}
                 </button>
               ) : (
-                /* Enlace directo para módulos sin subapartados */
                 <NavLink
                   to={item.path}
+                  end={true}
                   title={isSidebarCollapsed ? `${item.title} (${item.developer})` : undefined}
                   className={({ isActive }) =>
                     cn(
@@ -259,13 +272,13 @@ export const Sidebar = () => {
                 </NavLink>
               )}
 
-              {/* Subapartados Desglosados integrados elegantemente */}
               {!isSidebarCollapsed && item.subItems && isExpanded && (
                 <div className="pl-3 ml-3 border-l-2 border-border/80 space-y-0.5 py-0.5">
                   {item.subItems.map((sub) => (
                     <NavLink
                       key={sub.path}
                       to={sub.path}
+                      end={true}
                       className={({ isActive }) =>
                         cn(
                           'flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all',
@@ -286,7 +299,6 @@ export const Sidebar = () => {
         })}
       </nav>
 
-      {/* Pie de la barra lateral con Rol Activo */}
       {!isSidebarCollapsed && (
         <div className="p-3 border-t text-[11px] text-muted-foreground bg-muted/30">
           <p className="font-semibold text-foreground/80">SYNC-SUNAT v1.0.0</p>

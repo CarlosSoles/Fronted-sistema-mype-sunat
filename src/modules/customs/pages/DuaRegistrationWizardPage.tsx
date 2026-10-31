@@ -91,8 +91,8 @@ export default function DuaRegistrationWizardPage() {
       <CustomsSubNav />
 
       <PageHeader
-        title="Asistente de Numeración DAM (Declaración Aduanera)"
-        description="Flujo normativo en 4 pasos con validación de SPN 10 dígitos, seguro supletorio TPPS y cálculo de tributos."
+        title="DAM y Valoración Aduanera"
+        description="Declaración Aduanera de Mercancías (Formatos A, B y C), series arancelarias y cálculo anticipado de tributos."
       >
         <div className="flex gap-2">
           <Button

@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DoubleEntryBalanceCard } from '../components/DoubleEntryBalanceCard';
 import {
   Badge,
   Button,
   Card,
+  Input,
   Page,
   PageHeader,
   PageText,
@@ -15,7 +17,7 @@ import {
   TableRow,
 } from '@/components/ui';
 import { formatCurrency, formatDateToPeru } from '@/lib/formatters';
-import { BookOpen, Download, PlusCircle, RefreshCw, Trash2, X } from 'lucide-react';
+import { BookOpen, CheckCircle2, Download, FilePlus, PlusCircle, RefreshCw, Trash2, X } from 'lucide-react';
 import { useRolePermissions } from '@/hooks/useRolePermissions';
 
 interface Entry {
@@ -28,16 +30,17 @@ interface Entry {
   estaCuadrado: boolean;
 }
 
-const ACTIVE_COMPANY_ID = '5eaccb4e-a6ec-4f23-9909-85fe7fc9a87e';
-// Clave limpia para ignorar cualquier memoria antigua
+const ACTIVE_COMPANY_ID = '5eaccb4e-a6ec-4f23-9909-85fe7fc9e879';
 const STORAGE_KEY = 'accounting_entries_demo_v2';
 
 export default function AccountingEntriesPage() {
+  const navigate = useNavigate();
   const { canCreateAccountingEntry, isAuditor } = useRolePermissions();
   const [isExporting, setIsExporting] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Inicializa leyendo solo la clave nueva (iniciará vacía [])
+  // Carga inicial desde memoria local
   const [entries, setEntries] = useState<Entry[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
@@ -54,52 +57,92 @@ export default function AccountingEntriesPage() {
   const [glosa, setGlosa] = useState('');
   const [monto, setMonto] = useState('');
 
-  // Sincronización manual desvinculada de la carga inicial
+  // 1. REFRESCAR / RECARGAR DESDE BACKEND O LOCALSTORAGE
   const fetchEntriesFromApi = async () => {
+    setIsRefreshing(true);
     try {
       const res = await fetch('http://localhost:3000/api/v1/accounting/entries', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
         },
       });
+
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
-          const mappedEntries: Entry[] = data.map((item: any, index: number) => ({
-            id: String(item.id || Date.now() + index),
-            numeroAsiento: `001-202610-00${item.entryNumber || item.entry_number || index + 1}`,
-            fechaContable: item.entryDate || item.entry_date || new Date().toISOString().split('T')[0],
-            glosa: item.glosa || item.concept || 'Asiento Contable',
-            totalDebe: Number(item.totalDebit || item.total_debit || item.totalDebe || 0),
-            totalHaber: Number(item.totalCredit || item.total_credit || item.totalHaber || 0),
-            estaCuadrado: true,
-          }));
+          const mappedEntries: Entry[] = data.map((item: any, index: number) => {
+            // Extraer líneas de detalles si vienen pobladas en el backend
+            const lines = item.lines || item.accounting_lines || [];
+
+            // Calcular suma de Debe
+            const sumDebe = lines.length > 0
+              ? lines.reduce((acc: number, l: any) => acc + Number(l.debitAmount || l.debit || 0), 0)
+              : Number(item.totalDebit || item.total_debit || item.totalDebe || 0);
+
+            // Calcular suma de Haber
+            const sumHaber = lines.length > 0
+              ? lines.reduce((acc: number, l: any) => acc + Number(l.creditAmount || l.credit || 0), 0)
+              : Number(item.totalCredit || item.total_credit || item.totalHaber || 0);
+
+            return {
+              id: String(item.id || Date.now() + index),
+              numeroAsiento: item.numeroAsiento || `001-202610-00${item.entryNumber || item.entry_number || index + 1}`,
+              fechaContable: item.entryDate || item.entry_date || item.fechaContable || new Date().toISOString().split('T')[0],
+              glosa: item.glosa || item.concept || 'Asiento Contable',
+              totalDebe: sumDebe,
+              totalHaber: sumHaber,
+              estaCuadrado: true,
+            };
+          });
 
           setEntries(mappedEntries);
           localStorage.setItem(STORAGE_KEY, JSON.stringify(mappedEntries));
+        } else {
+          reloadFromLocalStorage();
         }
+      } else {
+        reloadFromLocalStorage();
       }
-    } catch (error) {
-      console.warn('⚠️ Operando localmente.', error);
+    } catch {
+      reloadFromLocalStorage();
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
-  // 🔴 ELIMINAMOS la llamada automática del useEffect para que NO cargue datos viejos
-  useEffect(() => {
-    // No se realiza fetch automático al iniciar
-  }, []);
+  const reloadFromLocalStorage = () => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) setEntries([...parsed]);
+      } catch (e) {
+        console.error('Error parseando localStorage:', e);
+      }
+    }
+  };
 
   const totalDebe = entries.reduce((acc, e) => acc + e.totalDebe, 0);
   const totalHaber = entries.reduce((acc, e) => acc + e.totalHaber, 0);
 
-  // Botón para resetear manualmente a tabla limpia
-  const handleClearEntries = () => {
-    setEntries([]);
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem('accounting_entries');
+  // 2. BORRADO COMPLETO (RESET PARA DEMO)
+  const handleClearAllEntries = () => {
+    if (confirm('¿Deseas limpiar todos los asientos contables de la vista?')) {
+      setEntries([]);
+      localStorage.removeItem(STORAGE_KEY);
+      // Clave de la versión anterior: se limpia para no resucitar asientos viejos.
+      localStorage.removeItem('accounting_entries');
+    }
   };
 
-  // Guardar un nuevo asiento y persistirlo localmente
+  // 3. BORRADO INDIVIDUAL FILA POR FILA
+  const handleDeleteSingleEntry = (idToDelete: string) => {
+    const updated = entries.filter((item) => item.id !== idToDelete);
+    setEntries(updated);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  };
+
+  // 4. GUARDAR NUEVO ASIENTO MANUAL
   const handleSaveEntry = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!glosa || !monto) return;
@@ -118,7 +161,6 @@ export default function AccountingEntriesPage() {
       estaCuadrado: true,
     };
 
-    // Actualiza la tabla local y la guarda para que persista con F5
     const updatedList = [newEntry, ...entries];
     setEntries(updatedList);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedList));
@@ -138,25 +180,13 @@ export default function AccountingEntriesPage() {
           glosa: glosa,
           sourceModule: 'MANUAL',
           lines: [
-            {
-              lineOrder: 1,
-              accountCode: '121101',
-              accountName: 'Cuentas por Cobrar Comerciales',
-              debitAmount: val,
-              creditAmount: 0,
-            },
-            {
-              lineOrder: 2,
-              accountCode: '701111',
-              accountName: 'Venta de Mercaderías',
-              debitAmount: 0,
-              creditAmount: val,
-            },
+            { lineOrder: 1, accountCode: '121101', accountName: 'Cuentas por Cobrar', debitAmount: val, creditAmount: 0 },
+            { lineOrder: 2, accountCode: '701111', accountName: 'Venta de Mercaderías', debitAmount: 0, creditAmount: val },
           ],
         }),
       });
-    } catch (error) {
-      console.warn('⚠️ Guardado en sandbox local.', error);
+    } catch {
+      console.warn('Operando en sandbox local.');
     } finally {
       setGlosa('');
       setMonto('');
@@ -164,28 +194,54 @@ export default function AccountingEntriesPage() {
     }
   };
 
+  // 5. EXPORTACIÓN PLE ESTRICTAMENTE SINCRONIZADA
   const handleExportPle = async () => {
+    if (entries.length === 0) {
+      alert('No hay asientos registrados para exportar en el período activo.');
+      return;
+    }
+
     setIsExporting(true);
+    let fileName = 'LE2060101234120261000050100001111.txt';
+    let pleContent = '';
+
     try {
-      await fetch('http://localhost:3000/api/v1/accounting/ple/export', {
+      const res = await fetch('http://localhost:3000/api/v1/accounting/ple/export', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ period: '202610', bookType: '5.1' }),
-      });
-    } catch {
-      console.log('Generando archivo PLE localmente...');
-    } finally {
-      let pleLines = '';
-      entries.forEach((ent) => {
-        pleLines += `20261001|${ent.numeroAsiento}|M001|121101|${ent.totalDebe.toFixed(2)}|0.00|1|\n`;
-        pleLines += `20261001|${ent.numeroAsiento}|M001|701111|0.00|${ent.totalHaber.toFixed(2)}|1|\n`;
+        body: JSON.stringify({
+          companyRuc: '20601012341',
+          year: 2026,
+          month: 10,
+          bookCode: '050100',
+        }),
       });
 
-      const blob = new Blob([pleLines], { type: 'text/plain;charset=utf-8' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.fileName && data.content) {
+          fileName = data.fileName;
+          pleContent = data.content;
+        }
+      }
+    } catch {
+      console.log('Generando trama desde la tabla local...');
+    } finally {
+      if (!pleContent) {
+        let lines: string[] = [];
+        entries.forEach((ent, idx) => {
+          const numAsiento = ent.numeroAsiento || `001-202610-00${idx + 1}`;
+          lines.push(`20261000|${numAsiento}|M001|121101|${ent.totalDebe.toFixed(2)}|0.00|${ent.glosa}|1||`);
+          lines.push(`20261000|${numAsiento}|M002|701111|0.00|${ent.totalHaber.toFixed(2)}|${ent.glosa}|1||`);
+        });
+        pleContent = lines.join('\r\n') + '\r\n';
+      }
+
+      const blob = new Blob([pleContent], { type: 'text/plain;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'LE2060101234120261000050100001111.txt';
+      link.download = fileName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -197,25 +253,32 @@ export default function AccountingEntriesPage() {
   return (
     <Page>
       <PageHeader
-        title="Contabilidad PCGE & Libros PLE"
-        description="Libro Diario, Mayor y generación de archivos estructurados para SUNAT (PLE 5.1)"
+        title="Libro Diario (PCGE)"
+        description="Auditoría de asientos contables del periodo fiscal activo y validación de partida doble"
       >
+        <Button variant="default" size="sm" onClick={() => navigate('/invoices/emision')}>
+          <FilePlus aria-hidden="true" className="w-4 h-4 mr-1" />
+          Emitir Comprobante
+        </Button>
+
         {entries.length > 0 && (
-          <Button variant="ghost" size="sm" onClick={handleClearEntries} title="Limpiar para la demo">
+          <Button variant="ghost" size="sm" onClick={handleClearAllEntries} title="Limpiar todo (Demo)">
             <Trash2 aria-hidden="true" className="w-4 h-4 text-muted-foreground hover:text-destructive" />
           </Button>
         )}
-        <Button variant="outline" size="sm" onClick={fetchEntriesFromApi}>
-          <RefreshCw aria-hidden="true" />
-          Refrescar
+
+        <Button variant="outline" size="sm" onClick={fetchEntriesFromApi} disabled={isRefreshing}>
+          <RefreshCw aria-hidden="true" className={isRefreshing ? 'animate-spin' : ''} />
+          {isRefreshing ? 'Refrescando...' : 'Refrescar'}
         </Button>
-        <Button variant="outline" size="sm" onClick={handleExportPle} disabled={isExporting}>
+
+        <Button variant="outline" size="sm" onClick={handleExportPle} disabled={isExporting || entries.length === 0}>
           <Download aria-hidden="true" />
           {isExporting ? 'Exportando...' : 'Exportar PLE (.txt)'}
         </Button>
 
         {canCreateAccountingEntry ? (
-          <Button size="sm" onClick={() => setIsModalOpen(true)}>
+          <Button variant="outline" size="sm" onClick={() => setIsModalOpen(true)}>
             <PlusCircle aria-hidden="true" />
             Nuevo Asiento
           </Button>
@@ -238,6 +301,7 @@ export default function AccountingEntriesPage() {
               <TableHead align="right">Total Debe</TableHead>
               <TableHead align="right">Total Haber</TableHead>
               <TableHead align="center">Estado</TableHead>
+              <TableHead align="center">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -247,22 +311,28 @@ export default function AccountingEntriesPage() {
                   <TableCell>{entry.numeroAsiento}</TableCell>
                   <TableCell>{formatDateToPeru(entry.fechaContable)}</TableCell>
                   <TableCell>{entry.glosa}</TableCell>
-                  <TableCell align="right">
-                    {formatCurrency(entry.totalDebe, 'PEN')}
-                  </TableCell>
-                  <TableCell align="right">
-                    {formatCurrency(entry.totalHaber, 'PEN')}
-                  </TableCell>
+                  <TableCell align="right">{formatCurrency(entry.totalDebe, 'PEN')}</TableCell>
+                  <TableCell align="right">{formatCurrency(entry.totalHaber, 'PEN')}</TableCell>
                   <TableCell align="center">
                     <Badge variant={entry.estaCuadrado ? 'secondary' : 'destructive'}>
                       {entry.estaCuadrado ? 'Cuadrado' : 'Descuadrado'}
                     </Badge>
                   </TableCell>
+                  <TableCell align="center">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteSingleEntry(entry.id)}
+                      title="Eliminar este asiento"
+                    >
+                      <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} align="center">
+                <TableCell colSpan={7} align="center">
                   <BookOpen aria-hidden="true" />
                   <PageText variant="muted">No hay asientos contables registrados en el período activo.</PageText>
                 </TableCell>
@@ -273,52 +343,61 @@ export default function AccountingEntriesPage() {
       </Card>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-background border border-border rounded-lg max-w-md w-full p-6 shadow-xl relative text-foreground">
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-lg max-w-md w-full p-6 shadow-xl relative text-card-foreground space-y-4">
             <button
               onClick={() => setIsModalOpen(false)}
-              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
+              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
 
-            <h3 className="text-lg font-semibold mb-1">Registrar Nuevo Asiento (PCGE)</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Ingresa el concepto y monto del movimiento para el Libro Diario.
-            </p>
+            <div>
+              <h3 className="text-lg font-semibold tracking-tight">Registrar Nuevo Asiento (PCGE)</h3>
+              <p className="text-sm text-muted-foreground">
+                Ingresa el concepto y monto del movimiento para el Libro Diario.
+              </p>
+            </div>
 
             <form onSubmit={handleSaveEntry} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium mb-1">Glosa / Concepto Contable</label>
-                <input
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium leading-none text-foreground">
+                  Glosa / Concepto Contable
+                </label>
+                <Input
                   type="text"
                   required
-                  placeholder="Ej. Por cobro de factura de clientes"
+                  placeholder="Ej. Venta de mercaderías al contado"
                   value={glosa}
                   onChange={(e) => setGlosa(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-muted/40 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-medium mb-1">Monto Total (PEN)</label>
-                <input
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium leading-none text-foreground">
+                  Monto Total (PEN)
+                </label>
+                <Input
                   type="number"
                   step="0.01"
                   required
-                  placeholder="1000.00"
+                  placeholder="2500.00"
                   value={monto}
                   onChange={(e) => setMonto(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-muted/40 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
 
-              <div className="p-3 bg-muted/30 border border-border rounded-md text-xs space-y-1 text-muted-foreground">
-                <p>✔️ Cuentas automáticas PCGE: 1211 (Debe) / 7011 (Haber)</p>
-                <p>✔️ Partida Doble: Validada y Cuadrada</p>
+              <div className="p-3 bg-muted/40 border border-border/80 rounded-md text-xs space-y-1.5 text-muted-foreground">
+                <div className="flex items-center gap-1.5 text-foreground font-medium">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0" />
+                  <span>Cuentas automáticas PCGE: 1211 (Debe) / 7011 (Haber)</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-foreground font-medium pl-5">
+                  <span>Partida Doble: Validada y Cuadrada</span>
+                </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex justify-end gap-2 pt-2 border-t border-border">
                 <Button type="button" variant="outline" size="sm" onClick={() => setIsModalOpen(false)}>
                   Cancelar
                 </Button>

@@ -23,13 +23,13 @@ export const ShipmentKanban: React.FC<ShipmentKanbanProps> = ({
   onSelectShipment,
 }) => {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3 overflow-x-auto pb-2">
+    <div className="flex gap-3 overflow-x-auto pb-4 min-w-full">
       {COLUMNS.map((col) => {
         const items = shipments.filter((s) => s.status === col.id);
         return (
           <div
             key={col.id}
-            className="flex flex-col bg-muted/30 rounded-lg p-2.5 border border-border/50 min-h-[320px]"
+            className="flex-1 min-w-[170px] max-w-[240px] flex flex-col bg-muted/30 rounded-lg p-2.5 border border-border/50 min-h-[380px]"
           >
             <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-border/40">
               <span className="text-xs font-semibold text-foreground truncate">{col.label}</span>
@@ -45,23 +45,23 @@ export const ShipmentKanban: React.FC<ShipmentKanbanProps> = ({
                   onClick={() => onSelectShipment(shipment.id)}
                   className="cursor-pointer hover:border-primary/60 transition-all border-border/60 shadow-2xs hover:shadow-xs p-2.5 bg-card"
                 >
-                  <CardContent className="p-0 space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-foreground">
+                  <CardContent className="p-0 space-y-2">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-[11px] font-bold font-mono text-foreground truncate">
                         {shipment.shipment_number}
                       </span>
-                      <Badge variant="outline" className="text-[10px] px-1 py-0">
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono shrink-0">
                         {shipment.incoterm}
                       </Badge>
                     </div>
 
-                    <p className="text-[11px] text-muted-foreground truncate">
+                    <p className="text-[11px] text-muted-foreground truncate" title={shipment.supplier_name}>
                       {shipment.supplier_name || 'Proveedor del exterior'}
                     </p>
 
-                    <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1 border-t border-border/40">
-                      <span>Aduana {shipment.destination_customs}</span>
-                      <span className="font-medium text-foreground">
+                    <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1.5 border-t border-border/40">
+                      <span className="truncate">Aduana {shipment.destination_customs.split(' ')[0]}</span>
+                      <span className="font-semibold text-primary shrink-0 uppercase text-[9px]">
                         {shipment.transport_mode}
                       </span>
                     </div>

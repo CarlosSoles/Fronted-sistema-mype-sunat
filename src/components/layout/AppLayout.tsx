@@ -8,7 +8,7 @@ import { OfflineIndicator } from '@/components/feedback/OfflineIndicator';
 import { useUiStore } from '@/stores/uiStore';
 
 export const AppLayout = () => {
-  const { pathname } = useLocation();
+  const location = useLocation();
   const setSidebarCollapsed = useUiStore((state) => state.setSidebarCollapsed);
 
   useEffect(() => {
@@ -19,7 +19,7 @@ export const AppLayout = () => {
     closeMobileSidebar();
     window.addEventListener('resize', closeMobileSidebar);
     return () => window.removeEventListener('resize', closeMobileSidebar);
-  }, [pathname, setSidebarCollapsed]);
+  }, [location.pathname, setSidebarCollapsed]);
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground antialiased selection:bg-primary/20">
@@ -34,7 +34,7 @@ export const AppLayout = () => {
         <div className="flex-1 flex flex-col overflow-y-auto">
           <Navbar />
           <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
-            <ErrorBoundaryGlobal>
+            <ErrorBoundaryGlobal key={location.pathname}>
               <Outlet />
             </ErrorBoundaryGlobal>
           </main>

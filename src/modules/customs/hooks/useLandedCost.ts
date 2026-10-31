@@ -41,6 +41,24 @@ export const useLandedCost = (shipmentId: string) => {
     },
   });
 
+  const approveMutation = useMutation<any, Error, string | undefined>({
+    mutationFn: (notes?: string) =>
+      landedCostApi.approveLandedCost({ shipmentId, notes }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['landed-cost-sheet', shipmentId] });
+      queryClient.invalidateQueries({ queryKey: ['customs-shipment', shipmentId] });
+    },
+  });
+
+  const adjustLateCostMutation = useMutation<any, Error, any>({
+    mutationFn: (payload: any) =>
+      landedCostApi.adjustLateCost({ ...payload, shipmentId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['landed-cost-expenses', shipmentId] });
+      queryClient.invalidateQueries({ queryKey: ['landed-cost-sheet', shipmentId] });
+    },
+  });
+
   const applyKardexMutation = useMutation<
     { message: string; movements_count: number },
     Error,
@@ -50,7 +68,6 @@ export const useLandedCost = (shipmentId: string) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['landed-cost-sheet', shipmentId] });
       queryClient.invalidateQueries({ queryKey: ['customs-shipment', shipmentId] });
-      queryClient.invalidateQueries({ queryKey: ['customs-kardex'] });
     },
   });
 
@@ -64,6 +81,10 @@ export const useLandedCost = (shipmentId: string) => {
     isAddingExpense: addExpenseMutation.isPending,
     calculateLandedCost: calculateMutation.mutateAsync,
     isCalculating: calculateMutation.isPending,
+    approveLandedCost: approveMutation.mutateAsync,
+    isApproving: approveMutation.isPending,
+    adjustLateCost: adjustLateCostMutation.mutateAsync,
+    isAdjusting: adjustLateCostMutation.isPending,
     applyKardex: applyKardexMutation.mutateAsync,
     isApplyingKardex: applyKardexMutation.isPending,
   };

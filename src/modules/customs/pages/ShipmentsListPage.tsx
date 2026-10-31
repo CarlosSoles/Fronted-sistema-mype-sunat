@@ -9,7 +9,7 @@ import {
 } from '../components';
 import { useShipments } from '../hooks/useShipments';
 import { useRolePermissions } from '@/hooks/useRolePermissions';
-import { PlusCircle, LayoutGrid, Table as TableIcon, RefreshCw } from 'lucide-react';
+import { PlusCircle, LayoutGrid, Table as TableIcon, RefreshCw, Check } from 'lucide-react';
 
 export default function ShipmentsListPage() {
   const navigate = useNavigate();
@@ -17,6 +17,7 @@ export default function ShipmentsListPage() {
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [refreshState, setRefreshState] = useState<'idle' | 'updating' | 'updated'>('idle');
 
   const {
     shipments,
@@ -25,11 +26,32 @@ export default function ShipmentsListPage() {
     createShipment,
   } = useShipments();
 
-  const filteredShipments = shipments.filter(
-    (s) =>
-      s.shipment_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (s.supplier_name || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleRefresh = async () => {
+    if (refreshState !== 'idle') return;
+    setRefreshState('updating');
+    try {
+      await Promise.all([
+        refetch(),
+        new Promise((resolve) => setTimeout(resolve, 500)),
+      ]);
+      setRefreshState('updated');
+      setTimeout(() => {
+        setRefreshState('idle');
+      }, 1500);
+    } catch {
+      setRefreshState('idle');
+    }
+  };
+
+  const filteredShipments = shipments.filter((s) => {
+    const term = (searchTerm || '').trim().toLowerCase();
+    if (!term) return true;
+    const shipmentNum = String(s.shipment_number || (s as any).shipmentNumber || '').toLowerCase();
+    const supplierName = String(
+      s.supplier_name || (s as any).supplier?.business_name || ''
+    ).toLowerCase();
+    return shipmentNum.includes(term) || supplierName.includes(term);
+  });
 
   const handleSelectShipment = (id: string) => {
     navigate(`/customs/shipments/${id}`);
@@ -40,18 +62,35 @@ export default function ShipmentsListPage() {
       <CustomsSubNav />
 
       <PageHeader
-        title="Bandeja de Expedientes de Importación"
-        description="Supervisión de embarques internacionales, tracking aduanero y control documental."
+        title="Expedientes y Embarques"
+        description="Supervisión de expedientes de importación, embarques internacionales, tracking aduanero y control documental."
       >
         <div className="flex items-center gap-2">
           <Button
             size="sm"
             variant="outline"
-            onClick={() => refetch()}
-            className="h-8 text-xs gap-1"
+            onClick={handleRefresh}
+            disabled={refreshState === 'updating'}
+            className="h-8 text-xs gap-1.5 min-w-[108px] justify-center transition-all"
           >
-            <RefreshCw className="h-3.5 w-3.5" />
-            Actualizar
+            {refreshState === 'updating' && (
+              <>
+                <RefreshCw className="h-3.5 w-3.5 animate-spin text-primary" />
+                Actualizando...
+              </>
+            )}
+            {refreshState === 'updated' && (
+              <>
+                <Check className="h-3.5 w-3.5 text-emerald-500" />
+                <span className="text-emerald-500 font-medium">Actualizado</span>
+              </>
+            )}
+            {refreshState === 'idle' && (
+              <>
+                <RefreshCw className="h-3.5 w-3.5" />
+                Actualizar
+              </>
+            )}
           </Button>
 
           <div className="flex border rounded-md p-0.5 bg-muted/40">

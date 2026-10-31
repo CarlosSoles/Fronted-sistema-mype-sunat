@@ -5,7 +5,14 @@
 
 export type ProrationMethod = 'VALOR_FOB' | 'PESO_BRUTO' | 'UNIDADES' | 'VALOR_CIF';
 
-export type LandedCostStatus = 'PROVISIONAL' | 'DEFINITIVO' | 'A_RECALCULAR';
+export type LandedCostStatus =
+  | 'BORRADOR'
+  | 'EN_REVISION'
+  | 'APROBADO'
+  | 'A_AJUSTAR'
+  | 'PROVISIONAL'
+  | 'DEFINITIVO'
+  | 'A_RECALCULAR';
 
 export interface LocalExpenseInvoiceRecord {
   id: string;
@@ -49,6 +56,7 @@ export interface LandedCostSeriesBreakdown {
   allocated_local_expenses_pen: number;
   total_landed_cost_pen: number;
   final_landed_cost_unit_pen: number;
+  destination_type?: 'MERCADERIA' | 'ACTIVO_FIJO';
 }
 
 export interface LandedCostSheetRecord {
@@ -67,6 +75,28 @@ export interface LandedCostSheetRecord {
 
 export interface CalculateLandedCostPayload {
   shipment_id: string;
+}
+
+export interface ApproveLandedCostPayload {
+  shipmentId: string;
+  declarationId?: string;
+  approvedByAccountant?: boolean;
+  notes?: string;
+}
+
+export interface AdjustLateImportCostPayload {
+  shipmentId: string;
+  supplierRuc: string;
+  supplierName: string;
+  expenseConcept: string;
+  invoiceSerialNumber: string;
+  issueDate: string;
+  netAmountPen: number;
+  igvAmountPen: number;
+  totalAmountPen: number;
+  isCapitalizable?: boolean;
+  prorationMethod?: ProrationMethod;
+  adjustmentJustification?: string;
 }
 
 export interface ApplyKardexPayload {

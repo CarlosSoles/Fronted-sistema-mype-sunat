@@ -55,7 +55,7 @@ export const LandedCostComparisonTable: React.FC<LandedCostComparisonTableProps>
           disabled={isApplying}
         >
           <CheckCircle2 className="h-3.5 w-3.5" />
-          {isApplying ? 'Asentando en Kardex...' : 'Aprobar y Asentar en Kardex'}
+          {isApplying ? 'Aprobando y Transmitiendo...' : 'Aprobar Costeo y Transmitir a Inventario'}
         </Button>
       </div>
 

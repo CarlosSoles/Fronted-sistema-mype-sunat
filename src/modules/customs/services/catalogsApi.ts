@@ -46,6 +46,93 @@ export const AUTHORIZED_BANKS: BankItem[] = [
   { code: '018', name: 'Banco de la Nación' },
 ];
 
+export interface CountryItem {
+  code: string;
+  name: string;
+  flag: string;
+}
+
+/** Catálogo oficial de países de origen SUNAT (Tabla 04 / Paises.txt) */
+export const COUNTRIES: CountryItem[] = [
+  { code: 'CN', name: 'China', flag: '🇨🇳' },
+  { code: 'US', name: 'Estados Unidos', flag: '🇺🇸' },
+  { code: 'DE', name: 'Alemania', flag: '🇩🇪' },
+  { code: 'JP', name: 'Japón', flag: '🇯🇵' },
+  { code: 'KR', name: 'Corea del Sur', flag: '🇰🇷' },
+  { code: 'BR', name: 'Brasil', flag: '🇧🇷' },
+  { code: 'ES', name: 'España', flag: '🇪🇸' },
+  { code: 'IT', name: 'Italia', flag: '🇮🇹' },
+  { code: 'IN', name: 'India', flag: '🇮🇳' },
+  { code: 'MX', name: 'México', flag: '🇲🇽' },
+  { code: 'CL', name: 'Chile', flag: '🇨🇱' },
+  { code: 'CO', name: 'Colombia', flag: '🇨🇴' },
+  { code: 'TW', name: 'Taiwán', flag: '🇹🇼' },
+  { code: 'VN', name: 'Vietnam', flag: '🇻🇳' },
+  { code: 'GB', name: 'Reino Unido', flag: '🇬🇧' },
+  { code: 'CA', name: 'Canadá', flag: '🇨🇦' },
+];
+
+export const getStoredCountries = (): CountryItem[] => {
+  try {
+    const raw = typeof window !== 'undefined' ? localStorage.getItem('customs_countries_cache') : null;
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {
+    // fallback seguro
+  }
+  return COUNTRIES;
+};
+
+export const saveStoredCountry = (country: CountryItem): CountryItem[] => {
+  const current = getStoredCountries();
+  const upperCode = country.code.toUpperCase().trim();
+  const normalized = { ...country, code: upperCode };
+  const updated = [normalized, ...current.filter((c) => c.code !== upperCode)];
+  try {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('customs_countries_cache', JSON.stringify(updated));
+    }
+  } catch {
+    // ignorar fallo de almacenamiento local
+  }
+  return updated;
+};
+
+export const FOREIGN_SUPPLIERS: ForeignSupplierSummary[] = [
+  { id: 'a0000000-0000-0000-0000-000000000001', business_name: 'Shenzhen Tech Ltd. (China)', country_code: 'CN', tax_id: '91440300MA5' },
+  { id: 'a0000000-0000-0000-0000-000000000002', business_name: 'Global Componentes Inc. (EE.UU.)', country_code: 'US', tax_id: 'US-98745612' },
+  { id: 'a0000000-0000-0000-0000-000000000003', business_name: 'Hamburg Logistics GmbH (Alemania)', country_code: 'DE', tax_id: 'DE-849201' },
+  { id: 'a0000000-0000-0000-0000-000000000004', business_name: 'Tokyo Electric Co. (Japón)', country_code: 'JP', tax_id: 'JP-11223344' },
+];
+
+export const getStoredSuppliers = (): ForeignSupplierSummary[] => {
+  try {
+    const raw = typeof window !== 'undefined' ? localStorage.getItem('customs_foreign_suppliers') : null;
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {
+    // fallback seguro
+  }
+  return FOREIGN_SUPPLIERS;
+};
+
+export const saveStoredSupplier = (supplier: ForeignSupplierSummary): ForeignSupplierSummary[] => {
+  const current = getStoredSuppliers();
+  const updated = [supplier, ...current.filter((s) => s.id !== supplier.id)];
+  try {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('customs_foreign_suppliers', JSON.stringify(updated));
+    }
+  } catch {
+    // ignorar fallo de cuota localstorage
+  }
+  return updated;
+};
+
 export const VUCE_ENTITIES: VuceEntityItem[] = [
   { code: '08', name: 'MTC', sector: 'Telecomunicaciones e internamiento de equipos Wi-Fi' },
   { code: '03', name: 'DIGEMID', sector: 'Medicamentos, cosméticos y dispositivos médicos' },
@@ -96,13 +183,9 @@ export const catalogsApi = {
   getForeignSuppliers: async (): Promise<ForeignSupplierSummary[]> => {
     try {
       const response = await apiClient.get<ForeignSupplierSummary[]>('/customs/catalogs/suppliers');
-      return Array.isArray(response.data) ? response.data : [];
+      return Array.isArray(response.data) && response.data.length > 0 ? response.data : getStoredSuppliers();
     } catch {
-      return [
-        { id: 's1', business_name: 'Shenzhen Tech Ltd.', country_code: 'CN', tax_id: '91440300MA5' },
-        { id: 's2', business_name: 'Global Componentes Inc.', country_code: 'US', tax_id: 'US-98745612' },
-        { id: 's3', business_name: 'Hamburg Logistics GmbH', country_code: 'DE', tax_id: 'DE-849201' },
-      ];
+      return getStoredSuppliers();
     }
   },
 };

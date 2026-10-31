@@ -19,12 +19,11 @@ export const DeclarationsTable = ({
   searchQuery,
 }: Props) => {
   const filtered = declarations.filter((d) => {
-    const q = searchQuery.toLowerCase().trim();
+    const q = (searchQuery || '').trim().toLowerCase();
     if (!q) return true;
-    return (
-      d.dua_number.toLowerCase().includes(q) ||
-      d.customs_agency_code.toLowerCase().includes(q)
-    );
+    const duaNumber = String(d.dua_number || (d as any).duaNumber || '').toLowerCase();
+    const agencyCode = String(d.customs_agency_code || (d as any).customsAgencyCode || '').toLowerCase();
+    return duaNumber.includes(q) || agencyCode.includes(q);
   });
 
   if (isLoading) {
