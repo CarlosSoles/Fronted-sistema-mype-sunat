@@ -1,0 +1,260 @@
+/**
+ * Ítems del detalle de un comprobante: modelo, cálculos y validación (TA-64).
+ *
+ * El formulario de emisión pasó de UN monto base a una grilla de líneas. Este
+ * módulo es TypeScript puro —sin React ni red— para poder probar las reglas
+ * sin montar el componente:
+ *
+ *  - **Catálogo 03**: la unidad de medida de cada línea debe pertenecer al
+ *    catálogo de SUNAT. Enviar `UND` o `UNIDAD` en lugar de `NIU` produce un
+ *    rechazo del XML.
+ *  - **Catálogo 07**: cada línea declara su propia afectación, así que la
+ *    liquidación por afectación sale de la grilla y no de un campo único.
+ *  - **ICBPER**: la bolsa plástica es una línea más, con precio unitario 0 y
+ *    su propio importe (regla 3306 de la hoja oficial).
+ *  - **Gratuitas**: una línea gratuita no cobra, así que se excluye del total
+ *    aunque tenga valor referencial (regla 3278).
+ */
+import {
+  ICBPER_POR_UNIDAD,
+  calcularLinea,
+  round2,
+  type AfectacionIgv,
+  type LineaComprobante,
+} from './invoiceTaxes';
+
+/** Unidad de medida del Catálogo 03 que se ofrece en la grilla. */
+export interface UnidadMedida {
+  codigo: string;
+  descripcion: string;
+}
+
+/**
+ * Subconjunto del Catálogo 03 para una ferretería.
+ *
+ * No se listan las ~90 unidades del catálogo completo porque el formulario se
+ * usa con guantes: se ofrecen las que aplican al rubro y el resto entra por la
+ * API. NIU es la unidad por defecto y la única válida para servicios.
+ */
+export const UNIDADES_MEDIDA: readonly UnidadMedida[] = [
+  { codigo: 'NIU', descripcion: 'Unidad (bienes y servicios)' },
+  { codigo: 'BG', descripcion: 'Bolsa' },
+  { codigo: 'BX', descripcion: 'Caja' },
+  { codigo: 'DZN', descripcion: 'Docena' },
+  { codigo: 'CEN', descripcion: 'Ciento' },
+  { codigo: 'MIL', descripcion: 'Millar' },
+  { codigo: 'KGM', descripcion: 'Kilogramo' },
+  { codigo: 'MTR', descripcion: 'Metro' },
+  { codigo: 'TNE', descripcion: 'Tonelada' },
+  { codigo: 'LTR', descripcion: 'Litro' },
+] as const;
+
+/** ¿La unidad pertenece al Catálogo 03 que admite la grilla? */
+export const unidadValida = (codigo: string): boolean =>
+  UNIDADES_MEDIDA.some((u) => u.codigo === codigo.trim().toUpperCase());
+
+/** Línea editable de la grilla de detalle. */
+export interface ItemBorrador {
+  /** Clave estable para React; no viaja al XML. */
+  clave: string;
+  codigo: string;
+  descripcion: string;
+  unidad: string;
+  cantidad: number;
+  valorUnitario: number;
+  afectacion: AfectacionIgv;
+  /** Importe del ICBPER de la línea; > 0 la marca como bolsa plástica. */
+  icbper: number;
+}
+
+/** Importes derivados de una línea. */
+export interface TotalesItem {
+  /** Valor de venta sin IGV; cero si la línea es gratuita. */
+  base: number;
+  igv: number;
+  icbper: number;
+  /** Importe que el cliente paga por la línea. */
+  total: number;
+}
+
+/**
+ * Calcula los importes de una línea.
+ *
+ * Las cantidades y los valores no finitos se tratan como cero en lugar de
+ * propagar `NaN`: un `NaN` dentro de un `<cbc:Amount>` rompe el XML entero y el
+ * usuario no sabría qué línea lo causó.
+ */
+export const calcularItem = (item: ItemBorrador): TotalesItem => {
+  const cantidad = Number.isFinite(item.cantidad) ? Math.max(0, item.cantidad) : 0;
+  const valor = Number.isFinite(item.valorUnitario)
+    ? Math.max(0, item.valorUnitario)
+    : 0;
+
+  const linea = calcularLinea({
+    base: round2(cantidad * valor),
+    afectacion: item.afectacion,
+  });
+
+  // Regla 3278: la gratuita se declara en cero aunque tenga valor referencial.
+  const esGratuita = item.afectacion === 'GRATUITA';
+  const base = esGratuita ? 0 : linea.base;
+  const igv = esGratuita ? 0 : linea.igv;
+  const icbper = Number.isFinite(item.icbper) ? Math.max(0, item.icbper) : 0;
+
+  return { base, igv, icbper, total: round2(base + igv + icbper) };
+};
+
+/** Total de una grilla de líneas. */
+export interface TotalesGrilla {
+  base: number;
+  igv: number;
+  icbper: number;
+  total: number;
+  /** Cuántas líneas trae el comprobante (incluidas gratuitas). */
+  lineas: number;
+}
+
+/** Suma los importes de todas las líneas de la grilla. */
+export const totalizarItems = (
+  items: readonly ItemBorrador[],
+): TotalesGrilla => {
+  const acumulado = items.reduce(
+    (acc, item) => {
+      const t = calcularItem(item);
+      return {
+        base: acc.base + t.base,
+        igv: acc.igv + t.igv,
+        icbper: acc.icbper + t.icbper,
+      };
+    },
+    { base: 0, igv: 0, icbper: 0 },
+  );
+
+  const base = round2(acumulado.base);
+  const igv = round2(acumulado.igv);
+  const icbper = round2(acumulado.icbper);
+
+  return {
+    base,
+    igv,
+    icbper,
+    total: round2(base + igv + icbper),
+    lineas: items.length,
+  };
+};
+
+/** Convierte las líneas de la grilla al contrato del motor tributario. */
+export const itemsALiquidar = (
+  items: readonly ItemBorrador[],
+): readonly LineaComprobante[] =>
+  items.map((item) => {
+    const total = calcularItem(item);
+    return {
+      base: total.base,
+      afectacion: item.afectacion,
+    };
+  });
+
+/** Motivo por el que una línea todavía no puede emitirse. */
+export interface ErrorItem {
+  /** Índice 0-based dentro de la grilla. */
+  indice: number;
+  motivos: readonly string[];
+}
+
+/**
+ * Valida la grilla completa y devuelve los errores por línea.
+ *
+ * Se devuelven TODOS los errores y no el primero: con diez líneas, corregir de
+ * una en una obliga a diez intentos de emisión.
+ */
+export const validarItems = (
+  items: readonly ItemBorrador[],
+): readonly ErrorItem[] => {
+  if (items.length === 0) {
+    return [{ indice: -1, motivos: ['El comprobante necesita al menos un ítem.'] }];
+  }
+
+  const errores: ErrorItem[] = [];
+
+  items.forEach((item, indice) => {
+    const motivos: string[] = [];
+
+    if (!item.descripcion.trim()) {
+      motivos.push('La descripción es obligatoria.');
+    }
+    if (!unidadValida(item.unidad)) {
+      motivos.push(
+        `La unidad '${item.unidad}' no pertenece al Catálogo 03 ` +
+          `(se aceptan ${UNIDADES_MEDIDA.map((u) => u.codigo).join(', ')}).`,
+      );
+    }
+    if (!Number.isFinite(item.cantidad) || item.cantidad <= 0) {
+      motivos.push('La cantidad debe ser mayor que cero.');
+    }
+    if (!Number.isFinite(item.valorUnitario) || item.valorUnitario < 0) {
+      motivos.push('El valor unitario no puede ser negativo.');
+    }
+    // Una línea gratuita con valor cero no informa nada; una onerosa en cero
+    // pasa, porque puede ser un bien de cortesía declarado como exonerado.
+    if (
+      item.afectacion === 'GRATUITA' &&
+      (!Number.isFinite(item.valorUnitario) || item.valorUnitario <= 0) &&
+      item.icbper === 0
+    ) {
+      motivos.push('Una línea gratuita debe declarar su valor referencial.');
+    }
+
+    if (motivos.length > 0) errores.push({ indice, motivos });
+  });
+
+  return errores;
+};
+
+/** Nueva línea vacía con la unidad y la afectación por defecto. */
+export const itemVacio = (clave: string): ItemBorrador => ({
+  clave,
+  codigo: '',
+  descripcion: '',
+  unidad: 'NIU',
+  cantidad: 1,
+  valorUnitario: 0,
+  afectacion: 'GRAVADA',
+  icbper: 0,
+});
+
+/** Línea de bolsa plástica con su precio unitario y su ICBPER. */
+export const itemBolsa = (
+  clave: string,
+  cantidad: number,
+  valorUnitario = 0.05,
+): ItemBorrador => ({
+  clave,
+  codigo: 'ICBPER',
+  descripcion: 'Bolsa plástica (ICBPER)',
+  unidad: 'NIU',
+  cantidad,
+  valorUnitario,
+  afectacion: 'GRAVADA',
+  icbper: round2(cantidad * ICBPER_POR_UNIDAD),
+});
+
+/** Reemplaza una línea por índice sin mutar el arreglo original. */
+export const actualizarItem = (
+  items: readonly ItemBorrador[],
+  indice: number,
+  parcial: Partial<ItemBorrador>,
+): readonly ItemBorrador[] =>
+  items.map((item, i) => (i === indice ? { ...item, ...parcial } : item));
+
+/** Elimina una línea por índice. */
+export const eliminarItem = (
+  items: readonly ItemBorrador[],
+  indice: number,
+): readonly ItemBorrador[] => items.filter((_, i) => i !== indice);
+
+/** Añade una línea al final. */
+export const agregarItem = (
+  items: readonly ItemBorrador[],
+  item: ItemBorrador,
+): readonly ItemBorrador[] => [...items, item];

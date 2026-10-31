@@ -1,9 +1,15 @@
 /**
- * Campos tributarios del formulario de emisión (M1).
+ * Campos tributarios del formulario de emisión (TA-64).
  *
- * Agrupa afectación IGV, forma de pago, cuotas, detracción, ICBPER y la
- * retención del agente. Se separa de `InvoiceEmitCampos.tsx` para respetar el
- * límite de líneas.
+ * Agrupa la detracción SPOT del Catálogo 54 y el ICBPER. La afectación IGV ya
+ * NO es un campo global: cada línea de la grilla declara la suya. La forma de
+ * pago y el cronograma los edita `iCreditInstallmentsEditor` y los botones de
+ * forma de pago viven aquí.
+ *
+ * TA-64 corrige además un defecto real: la detracción se elegía como un
+ * PORCENTAJE suelto (4 %, 10 %, 12 %). SUNAT no acepta un porcentaje, pide un
+ * código del Catálogo 54; con un porcentaje sin código el XML no se podía
+ * armar, y con esos mismos porcentajes no se distinguía flete de servicios.
  */
 import {
   PageField,
@@ -14,93 +20,64 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui';
-import { DETRACCIONES } from '../lib/invoiceEmitValidation';
+import {
+  CODIGOS_DETRACCION,
+  esDetraccionDadaDeBaja,
+  montoDetraccionPara,
+} from '../lib/invoiceDetraccion';
 import type { BorradorEmision } from '../lib/invoiceEmitDraft';
 
 interface InvoiceEmitCamposTributariosProps {
   borrador: BorradorEmision;
   actualizar: (parcial: Partial<BorradorEmision>) => void;
+  /** Total del comprobante, para estimar la detracción y avisar del umbral. */
+  total: number;
 }
 
-/** Campos tributarios: afectación, pago, cuotas, detracción e ICBPER. */
+/** Campos tributarios: detracción SPOT e ICBPER. */
 export const InvoiceEmitCamposTributarios = ({
   borrador: b,
   actualizar,
+  total,
 }: InvoiceEmitCamposTributariosProps) => {
+  const montoDetraccion = montoDetraccionPara(total, b.codigoDetraccion);
+  const dadaDeBaja = b.codigoDetraccion
+    ? esDetraccionDadaDeBaja(b.codigoDetraccion)
+    : false;
+
   return (
     <>
-      <PageField label="Afectación IGV (Catálogo 07)" htmlFor="afect">
+      <PageField label="Código de detracción (Catálogo 54)" htmlFor="detrac">
         <Select
-          value={b.afectacion}
+          value={b.codigoDetraccion || '00'}
           onValueChange={(v) =>
-            actualizar({ afectacion: v as BorradorEmision['afectacion'] })
+            actualizar({ codigoDetraccion: v === '00' ? '' : v })
           }
-        >
-          <SelectTrigger id="afect">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="GRAVADA">Gravada - 18%</SelectItem>
-            <SelectItem value="EXONERADA">Exonerada</SelectItem>
-            <SelectItem value="INAFECTA">Inafecta</SelectItem>
-            <SelectItem value="GRATUITA">Gratuita</SelectItem>
-          </SelectContent>
-        </Select>
-      </PageField>
-
-      <PageField label="Forma de pago" htmlFor="forma-pago">
-        <Select
-          value={b.formaPago}
-          onValueChange={(v) =>
-            actualizar({ formaPago: v as BorradorEmision['formaPago'] })
-          }
-        >
-          <SelectTrigger id="forma-pago">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="Contado">Contado</SelectItem>
-            <SelectItem value="Credito">Crédito</SelectItem>
-          </SelectContent>
-        </Select>
-      </PageField>
-
-      {b.formaPago === 'Credito' && (
-        <PageField label="Número de cuotas" htmlFor="cuotas">
-          <Select
-            value={String(b.numeroCuotas)}
-            onValueChange={(v) => actualizar({ numeroCuotas: Number(v) })}
-          >
-            <SelectTrigger id="cuotas">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {[1, 2, 3].map((n) => (
-                <SelectItem key={n} value={String(n)}>
-                  {n} cuota{n > 1 ? 's' : ''}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </PageField>
-      )}
-
-      <PageField label="Detracción SPOT (Catálogo 54)" htmlFor="detrac">
-        <Select
-          value={String(b.detraccionPct)}
-          onValueChange={(v) => actualizar({ detraccionPct: Number(v) })}
         >
           <SelectTrigger id="detrac">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {DETRACCIONES.map((p) => (
-              <SelectItem key={p} value={String(p)}>
-                {p === 0 ? 'Sin detracción' : `${p * 100}%`}
+            <SelectItem value="00">Sin detracción SPOT</SelectItem>
+            {CODIGOS_DETRACCION.map((d) => (
+              <SelectItem key={d.codigo} value={d.codigo}>
+                {d.codigo} - {d.descripcion} ({d.porcentaje * 100}%)
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+        {b.codigoDetraccion && (
+          <PageText variant="caption">
+            {montoDetraccion > 0
+              ? `Detracción estimada: S/ ${montoDetraccion.toFixed(2)}`
+              : 'El total no supera S/ 700.00, así que no se aplica detracción.'}
+          </PageText>
+        )}
+        {dadaDeBaja && (
+          <PageText variant="error">
+            Ese código fue dado de baja por SUNAT: elija uno vigente.
+          </PageText>
+        )}
       </PageField>
 
       <PageField label="Bolsas plásticas ICBPER" htmlFor="bolsas">
@@ -112,7 +89,10 @@ export const InvoiceEmitCamposTributarios = ({
           value={b.bolsas}
           onChange={(e) => actualizar({ bolsas: Number(e.target.value) || 0 })}
         />
-        <PageText variant="caption">S/ 0.50 por bolsa</PageText>
+        <PageText variant="caption">
+          S/ 0.50 por bolsa. Añádalas con «+ Bolsa plástica» para que viajen como
+          línea propia (regla 3306).
+        </PageText>
       </PageField>
     </>
   );
