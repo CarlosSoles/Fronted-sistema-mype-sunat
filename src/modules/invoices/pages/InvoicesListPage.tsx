@@ -1,8 +1,16 @@
 import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useInvoicesList } from '../hooks/useInvoicesList';
 import { useInvoiceMetrics } from '../hooks/useInvoiceMetrics';
 import { InvoiceMetricsSummaryBar } from '../components/InvoiceMetricsSummaryBar';
 import { METRICAS_VACIAS } from '../lib/invoiceMetricsPeriodo';
+import {
+  apartadoDesdeRuta,
+  DESCRIPCION_POR_APARTADO,
+  esListadoPorTipo,
+  TIPOS_POR_APARTADO,
+  TITULO_POR_APARTADO,
+} from '../lib/invoiceApartados';
 import {
   Alert,
   AlertDescription,
@@ -62,7 +70,25 @@ const FILTROS_TIPO = [
   { value: '08', label: 'Nota de débito' },
 ] as const;
 
+/**
+ * Opciones del filtro de tipo para el apartado actual.
+ *
+ * En "Facturas y Boletas" no tiene sentido ofrecer "Nota de crédito": elegirla
+ * devolvería una lista vacía y el usuario leería que no hay comprobantes.
+ */
+const opcionesTipoDe = (tiposDelApartado: readonly string[]) =>
+  tiposDelApartado.length === 0
+    ? FILTROS_TIPO
+    : FILTROS_TIPO.filter((o) => o.value === 'todos' || tiposDelApartado.includes(o.value));
+
 export default function InvoicesListPage() {
+  // TA-59: la URL decide qué apartado se muestra. Sin esto, las cuatro rutas
+  // del menú (facturas, notas, bajas, monitor) renderizaban el mismo listado
+  // con la misma consulta y navegar solo cambiaba el resaltado del sidebar.
+  const { pathname } = useLocation();
+  const apartado = apartadoDesdeRuta(pathname);
+  const tiposDelApartado = TIPOS_POR_APARTADO[apartado];
+
   // TA-59: la paginación y los filtros son estado real y se envían al backend,
   // que ya los soportaba; antes la pantalla los ignoraba y solo paginaba en
   // cliente sobre la primera página.
@@ -73,7 +99,16 @@ export default function InvoicesListPage() {
 
   const filtros: FiltrosInvoices = {
     estado: estado === 'todos' ? undefined : estado,
-    tipo: tipo === 'todos' ? undefined : tipo,
+    // El apartado impone sus tipos; el filtro manual solo puede afinar dentro
+    // de ese conjunto. En "comprobantes" con un tipo elegido se manda ese tipo;
+    // en "notas" sin elección se piden 07 y 08, pero el backend acepta un solo
+    // valor por petición, así que se pide el primero y se afina en cliente.
+    tipo:
+      tipo !== 'todos'
+        ? tipo
+        : esListadoPorTipo(apartado)
+          ? tiposDelApartado[0]
+          : undefined,
   };
 
   const { data, isLoading, refetch, isRefetching } = useInvoicesList(
@@ -88,19 +123,28 @@ export default function InvoicesListPage() {
   // La búsqueda por texto sigue siendo local: el backend no expone un parámetro
   // de texto libre y añadirlo obligaría a un LIKE sin índice sobre dos columnas.
   // Es la búsqueda sobre la página visible, no sobre toda la empresa.
-  const filteredInvoices = (data?.data ?? []).filter((inv) =>
-    `${inv.serie}-${inv.numero} ${inv.clienteRazonSocial} ${inv.clienteRuc}`
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase())
-  );
+  const filteredInvoices = (data?.data ?? [])
+    // El apartado acota los tipos. El backend filtra por UN tipo por petición,
+    // así que el resto del conjunto se descarta aquí.
+    .filter(
+      (inv) =>
+        !esListadoPorTipo(apartado) ||
+        tipo !== 'todos' ||
+        tiposDelApartado.includes(inv.tipoComprobante),
+    )
+    .filter((inv) =>
+      `${inv.serie}-${inv.numero} ${inv.clienteRazonSocial} ${inv.clienteRuc}`
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase())
+    );
 
   const totalPages = data?.totalPages ?? 1;
 
   return (
     <Page>
       <PageHeader
-        title="Facturación Electrónica UBL 2.1"
-        description="Emisión, consulta y seguimiento de comprobantes electrónicos sincronizados con SUNAT"
+        title={TITULO_POR_APARTADO[apartado]}
+        description={DESCRIPCION_POR_APARTADO[apartado]}
       >
         <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isRefetching}>
           <RefreshCw aria-hidden="true" />
@@ -176,7 +220,7 @@ export default function InvoicesListPage() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {FILTROS_TIPO.map((o) => (
+            {opcionesTipoDe(tiposDelApartado).map((o) => (
               <SelectItem key={o.value} value={o.value}>
                 {o.label}
               </SelectItem>
