@@ -119,7 +119,19 @@ const aComoComprobanteDemo = (
   const fuente = detalle ?? inv;
 
   return {
-    id: inv.numero,
+    /**
+     * `id` va el UUID DE LA BASE, no el número del comprobante.
+     *
+     * El modal lo usa para pedir `GET /invoices/:id/{xml,pdf,cdr}`. Con el
+     * número (`F001-00000032`) esas rutas resuelven a un comprobante que no
+     * existe y el backend responde 404: el botón "Descargar XML" fallaba en
+     * todas las facturas. Se detectó en el navegador el 31-10 capturando la
+     * petición real.
+     *
+     * El número legible se arma con `serie` + `correlativo`, que el modal ya
+     * recibe por separado.
+     */
+    id: inv.id,
     tipo: (inv.tipoComprobante ?? '01') as ComprobanteDemo['tipo'],
     serie: inv.serie,
     correlativo: Number(inv.numero.split('-')[1] ?? 0),
