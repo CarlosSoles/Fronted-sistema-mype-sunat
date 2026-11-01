@@ -13,6 +13,11 @@ import {
   normalizarMetricas,
   type MetricasFacturacion,
 } from '../lib/invoiceMetricsPeriodo';
+import {
+  normalizarAlertas,
+  type AlertasOperativas,
+} from '../lib/invoiceAlertas';
+import type { ClienteBuscado } from '../lib/invoiceSearch';
 
 /** Filtros que acepta el listado (el backend ya los soporta). */
 export interface FiltrosInvoices {
@@ -96,5 +101,44 @@ export const invoicesApi = {
       { params },
     );
     return normalizarMetricas(response.data, periodo);
+  },
+
+  /**
+   * Buscador de clientes (TA-61).
+   *
+   * Devuelve la cartera que la empresa ya usó en sus comprobantes. Sin `q`
+   * trae la lista completa, que es lo que necesita el desplegable al abrirse;
+   * con `q` filtra por documento o razón social en el servidor.
+   */
+  buscarClientes: async (q?: string): Promise<ClienteBuscado[]> => {
+    const params: Record<string, string> = {};
+    if (q && q.trim() !== '') params.q = q.trim();
+
+    const response = await apiClient.get<
+      Array<{
+        tipoDocumento?: string;
+        numeroDocumento?: string;
+        razonSocial?: string;
+      }>
+    >('/invoices/customers/lookup', { params });
+
+    return (response.data ?? []).map((c) => ({
+      tipoDocumento: (c.tipoDocumento ?? '6').trim(),
+      numeroDocumento: (c.numeroDocumento ?? '').trim(),
+      razonSocial: (c.razonSocial ?? '').trim(),
+    }));
+  },
+
+  /**
+   * Alertas operativas (TA-69): certificado por vencer y comprobantes en la DLQ.
+   *
+   * Se pide aparte de las métricas porque la DLQ consulta pg-boss y no debe
+   * retrasar el pintado de las cifras del periodo.
+   */
+  getAlertas: async (): Promise<AlertasOperativas> => {
+    const response = await apiClient.get<Partial<AlertasOperativas>>(
+      '/invoices/alertas',
+    );
+    return normalizarAlertas(response.data);
   },
 };
