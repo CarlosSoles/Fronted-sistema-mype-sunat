@@ -44,6 +44,8 @@ export interface ComprobanteDetalleBackend extends ComprobanteBackend {
   ruc_emisor: string;
   base_imponible: number;
   total_igv: number;
+  /** SHA-256 del XML firmado que se envió a SUNAT. */
+  hash_xml?: string | null;
   cdr: {
     codigo: string | null;
     descripcion: string | null;
@@ -152,6 +154,8 @@ export const aInvoiceDetalle = (fila: ComprobanteDetalleBackend): Invoice => {
     subtotal: numero(fila.base_imponible),
     cdrMensaje: fila.cdr?.descripcion ?? undefined,
     cdrCodigo: fila.cdr?.codigo ?? base.cdrCodigo,
+    // SHA-256 del XML firmado que se envió; permite verificar la descarga.
+    hashCpe: fila.hash_xml ?? undefined,
   };
 };
 

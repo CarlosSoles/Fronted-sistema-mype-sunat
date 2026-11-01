@@ -32,6 +32,14 @@ export interface Invoice {
   cdrStatus: CdrStatus;
   cdrCodigo?: string;
   cdrMensaje?: string;
+  /**
+   * SHA-256 del XML firmado que se envió a SUNAT.
+   *
+   * Lo devuelve el endpoint de detalle. Permite comprobar que el archivo
+   * descargado es exactamente el que viajó; si falta, la pantalla lo dice en
+   * lugar de mostrar un valor inventado.
+   */
+  hashCpe?: string;
   items?: InvoiceItem[];
   /**
    * Tipo del Catálogo 01 (01 Factura, 03 Boleta, 07 NC, 08 ND).

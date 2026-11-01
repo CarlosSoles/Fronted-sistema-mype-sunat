@@ -152,8 +152,8 @@ const aComoComprobanteDemo = (
       (fuente.cdrCodigo
         ? `Código ${fuente.cdrCodigo} reportado por SUNAT`
         : 'Sin respuesta de SUNAT todavía'),
-    // El hash del XML no lo expone la API del front; el modal lo dirá.
-    hashCpe: '',
+    // SHA-256 del XML firmado; lo expone el endpoint de detalle.
+    hashCpe: (fuente.hashCpe || inv.hashCpe) ?? '',
     moneda: inv.moneda,
     detraccion: 0,
     retencion: 0,
