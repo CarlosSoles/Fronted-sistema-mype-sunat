@@ -24,9 +24,8 @@ import { Download, FileCode2 } from 'lucide-react';
 import type { ComprobanteDemo } from '../data/invoiceDemoTypes';
 import { generarTramaQrSunat } from '../lib/invoiceCreditAndRules';
 import { generarXmlUbl21Comprobante } from '../lib/invoiceExportXml';
-import { descargarPdfComprobante } from '../lib/invoiceExportPdf';
-import { descargarXmlComprobante } from '../lib/invoiceExportXml';
 import { RUC_EMISOR } from '../lib/invoiceExportConstants';
+import { descargarDesdeBackend, type FormatoDescarga } from '../lib/invoiceDescarga';
 import { InvoiceStatusBadge } from './InvoiceStatusBadge';
 import { InvoiceAuditTrail } from './InvoiceAuditTrail';
 
@@ -44,10 +43,32 @@ export const InvoiceCdrModal = ({
   onCerrar,
 }: InvoiceCdrModalProps) => {
   const [modo, setModo] = useState<'cdr' | 'xml'>(modoInicial);
+  const [descargando, setDescargando] = useState<FormatoDescarga | null>(null);
+  const [errorDescarga, setErrorDescarga] = useState<string | null>(null);
 
   if (!comprobante) return null;
 
   const c = comprobante;
+
+  /**
+   * Pide el documento al backend y lo guarda.
+   *
+   * Si el backend responde 404 se muestra el motivo (un comprobante PENDIENTE
+   * todavía no tiene CDR) en lugar de bajar un archivo vacío o inventado.
+   */
+  const descargar = async (formato: FormatoDescarga) => {
+    setDescargando(formato);
+    setErrorDescarga(null);
+    try {
+      await descargarDesdeBackend(c.id, formato);
+    } catch (error: unknown) {
+      const mensaje =
+        error instanceof Error ? error.message : 'No se pudo descargar';
+      setErrorDescarga(mensaje);
+    } finally {
+      setDescargando(null);
+    }
+  };
   const numeroSerie = `${c.serie}-${String(c.correlativo).padStart(4, '0')}`;
   const trama = generarTramaQrSunat({
     rucEmisor: RUC_EMISOR,
@@ -121,22 +142,45 @@ export const InvoiceCdrModal = ({
           </TabsContent>
         </Tabs>
 
+        {errorDescarga && (
+          <PageText variant="caption" className="text-destructive">
+            No se pudo descargar: {errorDescarga}
+          </PageText>
+        )}
+
         <DialogFooter>
+          {/*
+            Se descarga el documento DEL BACKEND, no una reconstrucción local.
+            Antes se llamaba a `descargarXmlComprobante(c)`, que armaba el XML en
+            el navegador: un archivo con el nombre del comprobante que no era el
+            que SUNAT aceptó.
+          */}
           <Button
             variant="outline"
             size="sm"
-            onClick={() => descargarXmlComprobante(c)}
+            disabled={descargando !== null}
+            onClick={() => descargar('xml')}
           >
             <FileCode2 aria-hidden="true" />
-            Descargar XML Oficial
+            {descargando === 'xml' ? 'Descargando…' : 'Descargar XML Oficial'}
           </Button>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => descargarPdfComprobante(c)}
+            disabled={descargando !== null}
+            onClick={() => descargar('pdf')}
           >
             <Download aria-hidden="true" />
-            Descargar PDF Homologado
+            {descargando === 'pdf' ? 'Descargando…' : 'Descargar PDF Homologado'}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={descargando !== null}
+            onClick={() => descargar('cdr')}
+          >
+            <Download aria-hidden="true" />
+            {descargando === 'cdr' ? 'Descargando…' : 'Descargar CDR'}
           </Button>
           <Button size="sm" onClick={onCerrar}>
             Cerrar

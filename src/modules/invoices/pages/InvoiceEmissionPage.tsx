@@ -3,31 +3,49 @@
  *
  * QUÉ SE CORRIGIÓ AQUÍ Y POR QUÉ
  *
- * La versión anterior de esta página tenía tres defectos que el docente señaló
- * en la revisión del 31-10:
+ * Revisión del docente (31-10):
  *
  * 1. **Inventaba el CDR.** Si el `fetch` fallaba, el `catch` pintaba un verde
- *    "ACEPTADO - CDR SUNAT Simulado". Eso es exactamente lo que no se puede
- *    hacer: una constancia de recepción la emite SUNAT o no existe. Ahora, si la
- *    petición falla, se muestra el error y el comprobante NO queda aceptado.
+ *    "ACEPTADO - CDR SUNAT Simulado". Una constancia de recepción la emite SUNAT
+ *    o no existe. Ahora, si la petición falla, se muestra el error y el
+ *    comprobante NO queda aceptado.
  *
- * 2. **Un ítem por comprobante.** El docente fue tajante: "no vas a colocar una
- *    factura por producto". Ahora se usa la grilla de varias líneas, con la
- *    afectación de IGV y la detracción de cada línea por separado.
+ * 2. **Un ítem por comprobante.** "No vas a colocar una factura por producto".
+ *    La grilla admite varias líneas, cada una con su afectación de IGV y su
+ *    detracción.
  *
- * 3. **El total era base × 1.18 sobre todo.** Eso ignora exoneradas, inafectas y
- *    gratuitas, y detrae el 4 % del cemento solo porque en la misma factura hay
- *    un flete. Ahora se liquida línea por línea con el motor de impuestos.
+ * 3. **El cliente "que no lo escriba, que lo busque".** El campo usa el buscador
+ *    de la cartera y permite registrar uno nuevo cuando no existe.
  *
- * Y lo que el docente pidió textualmente: el cliente "que no lo escriba, que lo
- * busque". El campo usa el buscador de la cartera (TA-61) y permite registrar
- * uno nuevo cuando no existe.
+ * 4. **"Supone que esos productos los tienes en tu inventario, ¿por qué tendría
+ *    que escribirlos?"** El buscador de productos trae SKU, descripción y
+ *    precio del almacén.
+ *
+ * 5. **"La cantidad tiene que ser validada dependiendo de lo que tienes."** El
+ *    stock se conoce al elegir el producto y la grilla avisa cuando se pide más
+ *    de lo disponible; el backend lo vuelve a validar antes de reservar el
+ *    correlativo.
+ *
+ * COMPROBADO CONTRA EL SERVIDOR REAL
+ *
+ * Hasta hoy esta pantalla mandaba el formulario a `POST /invoices`, que exige el
+ * contrato fiscal completo (`payload_ubl`, `correlativo`...). El backend
+ * respondía 400 `property clienteRuc should not exist` a TODAS las emisiones:
+ * la pantalla nunca pudo emitir nada. Ahora usa `POST /invoices/emitir`, que
+ * acepta la forma del formulario y devuelve el número real.
+ *
+ * LO QUE ESTA PANTALLA NO DICE
+ *
+ * El número que se muestra es el que asignó la serie, y el estado es PENDIENTE.
+ * El CDR se consulta en la bandeja. No se muestra "ACEPTADO" en ningún caso
+ * aquí, porque SUNAT no ha respondido todavía.
  */
 import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   AlertDescription,
   AlertTitle,
+  Badge,
   Button,
   Card,
   CardContent,
@@ -38,7 +56,6 @@ import {
   PageHeader,
   PageText,
 } from '@/components/ui';
-import { Badge } from '@/components/ui';
 import { FileText, Send, Plus } from 'lucide-react';
 import { CustomerLookupField } from '../components/CustomerLookupField';
 import { InvoiceItemsGrid } from '../components/InvoiceItemsGrid';
@@ -55,19 +72,21 @@ import {
 import { calcularRetencion } from '../lib/invoiceRetentions';
 import { invoicesApi } from '../services/invoicesApi';
 import { cargarProductosAlmacen } from '../services/inventoryProductsApi';
+import { revisarGrilla, primeraLineaConError } from '../lib/invoiceStockLinea';
 import type { ProductoBuscado } from '../lib/invoiceSearch';
-import type { Moneda } from '../types/invoice.types';
+import type { ResultadoEmisionBackend } from '../types/invoiceEmision.types';
 
 /** Series válidas por tipo (Catálogo del SEE). */
 const SERIES: Record<'01' | '03', string> = { '01': 'F001', '03': 'B001' };
+
+/** Afectación del Catálogo 07 que usa la grilla como valor por defecto. */
+const AFECTACION_DEFAULT = '10';
 
 export default function InvoiceEmissionPage() {
   const [tipo, setTipo] = useState<'01' | '03'>('01');
   const [clienteDoc, setClienteDoc] = useState('');
   const [clienteRazonSocial, setClienteRazonSocial] = useState('');
-  const [items, setItems] = useState<readonly ItemBorrador[]>([
-    itemVacio('1'),
-  ]);
+  const [items, setItems] = useState<readonly ItemBorrador[]>([itemVacio('1')]);
   const [agenteRetencion, setAgenteRetencion] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [productos, setProductos] = useState<readonly ProductoBuscado[]>([]);
@@ -75,11 +94,12 @@ export default function InvoiceEmissionPage() {
     ok: boolean;
     mensaje: string;
     numero?: string;
+    avisos?: readonly string[];
   } | null>(null);
 
-  // Productos del almacén para el buscador (lo que pidió el docente: "eso de
-  // ahí tendría que buscarlo"). Se carga una vez; si falla, la lista queda
-  // vacía y la grilla sigue admitiendo líneas escritas a mano.
+  // Productos del almacén para el buscador: el docente fue explícito en que el
+  // producto sale del inventario, no del teclado. Si la carga falla, la lista
+  // queda vacía y la grilla sigue admitiendo líneas escritas a mano.
   useEffect(() => {
     let vivo = true;
     cargarProductosAlmacen().then((lista) => {
@@ -90,17 +110,16 @@ export default function InvoiceEmissionPage() {
     };
   }, []);
 
-  // Liquidación real línea por línea. No hay un 18 % sobre el total: cada línea
-  // aporta según su afectación, y las gratuitas no cobran.
+  // Liquidación real línea por línea: cada línea aporta según su afectación y
+  // las gratuitas no cobran. No hay un 18 % sobre el total.
   const totales = useMemo(() => totalizarItems(items), [items]);
 
   /**
    * Desglose por afectación del Catálogo 07.
    *
-   * `TotalesGrilla` solo trae base, IGV y total porque nació para el pie de la
-   * grilla. La pantalla necesita ver CUÁNTO de la venta es gravada, exonerada e
-   * inafecta —SUNAT las pide por separado en el XML— así que se agregan aquí a
-   * partir de las líneas ya calculadas, sin tocar el modelo.
+   * `TotalesGrilla` solo trae base, IGV y total; la pantalla necesita ver cuánto
+   * de la venta es gravada, exonerada e inafecta —SUNAT las pide separadas en el
+   * XML— así que se agregan aquí sin tocar el modelo.
    */
   const porAfectacion = useMemo(() => {
     const acumulado = { GRAVADA: 0, EXONERADA: 0, INAFECTA: 0, GRATUITA: 0 };
@@ -112,9 +131,7 @@ export default function InvoiceEmissionPage() {
 
   const importeTotal = totales.total;
 
-  // Detracción por LÍNEA: si el flete está sujeto y el cemento no, solo se
-  // detrae la parte del flete. El umbral de S/ 700 se evalúa sobre el total del
-  // comprobante, que es como lo pide SUNAT.
+  // Detracción por LÍNEA: "los productos son con detracción, no la factura".
   const detraccion = useMemo(
     () =>
       calcularDetraccionPorLineas(
@@ -177,9 +194,8 @@ export default function InvoiceEmissionPage() {
 
     setResultado(null);
 
-    // Validaciones locales que evitan un viaje al backend con datos que SUNAT
-    // rechazaría. El backend las repite: esto es para que el usuario vea el
-    // problema en el mismo formulario.
+    // Validaciones locales para que el usuario vea el problema en el mismo
+    // formulario. El backend las repite: esto no sustituye su validación.
     if (!clienteDoc.trim()) {
       setResultado({
         ok: false,
@@ -203,31 +219,58 @@ export default function InvoiceEmissionPage() {
       return;
     }
 
+    // El docente: "la cantidad tiene que ser validada dependiendo de lo que
+    // tienes". Se detiene ANTES de llamar al backend: el backend también lo
+    // rechaza, pero avisar aquí evita que el usuario espere una respuesta para
+    // enterarse de algo que la pantalla ya sabe.
+    const revision = revisarGrilla(items, productos);
+    const primerError = primeraLineaConError(revision);
+    if (primerError) {
+      setResultado({
+        ok: false,
+        mensaje: `Línea ${primerError.indice + 1}: ${primerError.mensaje}`,
+      });
+      return;
+    }
+
     setEnviando(true);
     try {
-      const creado = await invoicesApi.createInvoice({
+      // Se manda lo que el usuario escribió; el backend liquida los impuestos,
+      // valida el stock contra el almacén y reserva el correlativo. El número
+      // de la respuesta es el real.
+      const r: ResultadoEmisionBackend = await invoicesApi.emitirComprobante({
+        tipo_comprobante: tipo,
         serie: SERIES[tipo],
-        clienteRuc: clienteDoc,
-        clienteRazonSocial,
-        moneda: 'PEN' as Moneda,
+        customer_identity_type: tipo === '01' ? '6' : '1',
+        customer_identity_number: clienteDoc.replace(/\D/g, ''),
+        customer_legal_name: clienteRazonSocial.trim(),
+        agente_retencion: agenteRetencion,
+        forma_pago: 'Contado',
         items: items.map((i) => ({
-          descripcion: i.descripcion,
+          descripcion: i.descripcion.trim(),
+          codigo: i.codigo?.trim() || undefined,
+          unidad: i.unidad,
           cantidad: i.cantidad,
-          precioUnitario: i.valorUnitario,
+          valorUnitario: i.valorUnitario,
+          afectacion: AFECTACION_DEFAULT,
         })),
       });
 
       setResultado({
         ok: true,
-        numero: creado.numero,
+        numero: r.numero,
         mensaje:
-          'Comprobante registrado y encolado para su envío a SUNAT. El estado ' +
-          'real del CDR se consulta en la bandeja: aquí todavía no hay respuesta ' +
-          'de SUNAT.',
+          `Registrado por S/ ${r.monto_total.toFixed(2)} con ${r.lineas.length} ` +
+          'línea(s). Queda PENDIENTE de envío: el CDR se consulta en la bandeja. ' +
+          'Aquí todavía no hay respuesta de SUNAT.',
+        avisos: r.avisos,
       });
+
+      // La grilla se limpia para no reenviar la misma venta por doble clic.
+      setItems([itemVacio('1')]);
     } catch (error: unknown) {
-      // NO se inventa un CDR. Si el backend no responde, el comprobante no se
-      // emitió, y eso es lo que se dice.
+      // NO se inventa un CDR ni un número. Si el backend rechaza, se dice por
+      // qué: el mensaje del backend explica qué falta (stock, RUC, correlativo).
       const mensaje =
         error instanceof Error ? error.message : 'Error desconocido';
       setResultado({
@@ -243,7 +286,7 @@ export default function InvoiceEmissionPage() {
     <Page>
       <PageHeader
         title="Emisión de Comprobantes Electrónicos"
-        description="Facturas (F001) y boletas (B001) con detalle de varias líneas y validación de SUNAT"
+        description="Facturas (F001) y boletas (B001) con detalle de varias líneas, stock validado y liquidación real"
       />
 
       <form onSubmit={emitir} className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -300,9 +343,9 @@ export default function InvoiceEmissionPage() {
               </div>
 
               {/*
-                El docente fue explícito: el cliente "que no lo escriba, que lo
-                busque". Este campo busca en la cartera de la empresa y rellena
-                documento y razón social.
+                El docente: el cliente "que no lo escriba, que lo busque". Este
+                campo busca en la cartera de la empresa y rellena documento y
+                razón social.
               */}
               <CustomerLookupField
                 documento={clienteDoc}
@@ -312,9 +355,7 @@ export default function InvoiceEmissionPage() {
                     ? 'RUC del cliente'
                     : 'DNI / documento del comprador'
                 }
-                placeholderDocumento={
-                  tipo === '01' ? '20100070970' : '70123456'
-                }
+                placeholderDocumento={tipo === '01' ? '20100070970' : '70123456'}
                 onElegir={(cliente) => {
                   setClienteDoc(cliente.numeroDocumento);
                   setClienteRazonSocial(cliente.razonSocial);
@@ -387,7 +428,7 @@ export default function InvoiceEmissionPage() {
               className="min-w-[200px]"
             >
               <Send className="mr-2 h-4 w-4" />
-              {enviando ? 'Enviando…' : 'Emitir comprobante'}
+              {enviando ? 'Emitiendo…' : 'Emitir comprobante'}
             </Button>
           </div>
         </div>
@@ -429,18 +470,20 @@ export default function InvoiceEmissionPage() {
 
               {/*
                 El docente: "los productos son con detracción, no la factura".
-                Por eso se muestra QUÉ línea la genera y cuánto, no un porcentaje
+                Por eso se muestra qué línea la genera y cuánto, no un porcentaje
                 suelto sobre el total.
               */}
               {detraccion.aplica ? (
                 <div className="space-y-1 border-t border-border pt-2 text-xs">
                   <div className="flex justify-between text-muted-foreground">
-                    <span>Detracción (Cat. 54 {detraccion.codigos.join(', ')})</span>
+                    <span>
+                      Detracción (Cat. 54 {detraccion.codigos.join(', ')})
+                    </span>
                     <span>S/ {detraccion.monto.toFixed(2)}</span>
                   </div>
                   <PageText variant="caption">
-                    Se deposita en el Banco de la Nación. Solo sobre la base de las
-                    líneas sujetas (S/ {detraccion.baseSujeta.toFixed(2)}).
+                    Se deposita en el Banco de la Nación. Solo sobre la base de
+                    las líneas sujetas (S/ {detraccion.baseSujeta.toFixed(2)}).
                   </PageText>
                 </div>
               ) : (
@@ -479,6 +522,13 @@ export default function InvoiceEmissionPage() {
                   </Badge>
                 )}
                 {resultado.mensaje}
+                {resultado.avisos && resultado.avisos.length > 0 && (
+                  <ul className="mt-2 list-disc pl-4 text-xs">
+                    {resultado.avisos.map((aviso) => (
+                      <li key={aviso}>{aviso}</li>
+                    ))}
+                  </ul>
+                )}
               </AlertDescription>
             </Alert>
           )}

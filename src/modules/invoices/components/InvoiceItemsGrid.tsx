@@ -16,6 +16,7 @@ import {
   type ItemBorrador,
 } from '../lib/invoiceItems';
 import { CODIGOS_DETRACCION } from '../lib/invoiceDetraccion';
+import { revisarGrilla } from '../lib/invoiceStockLinea';
 import type { ProductoBuscado } from '../lib/invoiceSearch';
 import type { AfectacionIgv } from '../lib/invoiceTaxes';
 
@@ -57,6 +58,16 @@ export const InvoiceItemsGrid = ({
   productos = [],
   onAgregarConProducto,
 }: InvoiceItemsGridProps) => {
+  /**
+   * Revisión contra el stock del almacén.
+   *
+   * El docente lo pidió con estas palabras: "la cantidad tiene que ser validada
+   * dependiendo de lo que tienes". Se calcula aquí y no en la página para que el
+   * aviso aparezca junto a la línea que lo causa, no en un bloque al final de
+   * una grilla de diez filas.
+   */
+  const revision = revisarGrilla(items, productos);
+
   return (
     <div className="space-y-2 sm:col-span-2">
       <div className="flex items-center justify-between">
@@ -105,8 +116,15 @@ export const InvoiceItemsGrid = ({
           <tbody>
             {items.map((item, i) => {
               const totales = calcularItem(item);
+              const revisionLinea = revision.lineas[i];
+              const conError = revisionLinea?.gravedad === 'error';
               return (
-                <tr key={item.clave} className="border-t align-middle">
+                <tr
+                  key={item.clave}
+                  className={`border-t align-middle ${
+                    conError ? 'bg-destructive/5' : ''
+                  }`}
+                >
                   <td className="px-1 py-1">
                     <input
                       aria-label={`Código de la línea ${i + 1}`}
@@ -126,6 +144,19 @@ export const InvoiceItemsGrid = ({
                       }
                       placeholder="Cemento Portland tipo I"
                     />
+                    {/* El aviso va bajo la línea que lo provoca, no como una
+                        lista al pie: en diez filas nadie sabe qué corregir. */}
+                    {revisionLinea && revisionLinea.gravedad !== 'ok' && (
+                      <p
+                        className={`mt-1 text-[10px] leading-tight ${
+                          conError
+                            ? 'font-medium text-destructive'
+                            : 'text-amber-600 dark:text-amber-400'
+                        }`}
+                      >
+                        {revisionLinea.mensaje}
+                      </p>
+                    )}
                   </td>
                   <td className="px-1 py-1">
                     <select
@@ -238,7 +269,7 @@ export const InvoiceItemsGrid = ({
         </table>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Button type="button" variant="outline" size="sm" onClick={onAgregar}>
           + Añadir ítem
         </Button>
@@ -246,6 +277,24 @@ export const InvoiceItemsGrid = ({
           + Bolsa plástica (ICBPER)
         </Button>
       </div>
+
+      {/* Resumen de la validación contra el almacén: dice cuántas líneas se
+          comprobaron de verdad, para no dar a entender que un producto que no
+          está en el inventario también fue validado. */}
+      {revision.errores > 0 && (
+        <p className="text-[11px] font-medium text-destructive">
+          {revision.errores === 1
+            ? 'Hay 1 línea que supera el stock disponible.'
+            : `Hay ${revision.errores} líneas que superan el stock disponible.`}{' '}
+          No se puede emitir así: el almacén tiene que respaldar la cantidad.
+        </p>
+      )}
+      {revision.errores === 0 && revision.validadas > 0 && (
+        <p className="text-[11px] text-muted-foreground">
+          Stock comprobado en {revision.validadas}{' '}
+          {revision.validadas === 1 ? 'línea' : 'líneas'} del almacén.
+        </p>
+      )}
     </div>
   );
 };

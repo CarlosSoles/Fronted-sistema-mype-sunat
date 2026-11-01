@@ -42,7 +42,10 @@ import {
   TableRow,
 } from '@/components/ui';
 import { formatCurrency, formatDateToPeru } from '@/lib/formatters';
-import { FilePlus, RefreshCw, Info } from 'lucide-react';
+import { FilePlus, RefreshCw, Info, FileSearch } from 'lucide-react';
+import { InvoiceCdrModal } from '../components/InvoiceCdrModal';
+import type { Invoice } from '../types/invoice.types';
+import type { ComprobanteDemo } from '../data/invoiceDemoTypes';
 
 import { useRolePermissions } from '@/hooks/useRolePermissions';
 import type { FiltrosInvoices } from '../services/invoicesApi';
@@ -81,6 +84,56 @@ const opcionesTipoDe = (tiposDelApartado: readonly string[]) =>
     ? FILTROS_TIPO
     : FILTROS_TIPO.filter((o) => o.value === 'todos' || tiposDelApartado.includes(o.value));
 
+/** Estado del CDR del front al modelo del modal. */
+const mapEstadoCdr = (
+  status: Invoice['cdrStatus'],
+): ComprobanteDemo['estado'] => {
+  switch (status) {
+    case 'ACEPTADO_SUNAT':
+      return 'ACEPTADO';
+    case 'RECHAZADO_SUNAT':
+    case 'FALLO_CRITICO':
+      return 'RECHAZADO';
+    default:
+      // EN_COLA_OUTBOX: el comprobante todavía no tiene respuesta de SUNAT.
+      return 'EN_COLA';
+  }
+};
+
+/**
+ * Adapta la fila de la bandeja al tipo que espera el modal de auditoría.
+ *
+ * `Invoice` (lo que devuelve la API) y `ComprobanteDemo` (el modelo del modal)
+ * describen lo mismo con nombres distintos. Se traduce aquí en lugar de cambiar
+ * cualquiera de los dos: el modal también lo usa el flujo de demostración.
+ */
+const aComoComprobanteDemo = (inv: Invoice): ComprobanteDemo => ({
+  id: inv.numero,
+  tipo: (inv.tipoComprobante ?? '01') as ComprobanteDemo['tipo'],
+  serie: inv.serie,
+  correlativo: Number(inv.numero.split('-')[1] ?? 0),
+  fechaEmision: inv.fechaEmision,
+  clienteRuc: inv.clienteRuc,
+  clienteTipoDoc: inv.clienteRuc.length === 11 ? '6' : '1',
+  clienteRazonSocial: inv.clienteRazonSocial,
+  baseImponible: inv.subtotal,
+  igv: inv.igv,
+  totalNeto: inv.total,
+  estado: mapEstadoCdr(inv.cdrStatus),
+  cdrCodigo: inv.cdrCodigo,
+  cdrDescripcion: inv.cdrCodigo
+    ? `Código ${inv.cdrCodigo} reportado por SUNAT`
+    : 'Sin respuesta de SUNAT todavía',
+  hashCpe: '',
+  moneda: inv.moneda,
+  detraccion: 0,
+  retencion: 0,
+  tipoOperacion: '0101',
+  formaPago: 'Contado',
+  cuotas: [],
+  items: [],
+});
+
 export default function InvoicesListPage() {
   // TA-59: la URL decide qué apartado se muestra. Sin esto, las cuatro rutas
   // del menú (facturas, notas, bajas, monitor) renderizaban el mismo listado
@@ -96,6 +149,13 @@ export default function InvoicesListPage() {
   const [estado, setEstado] = useState('todos');
   const [tipo, setTipo] = useState('todos');
   const [searchTerm, setSearchTerm] = useState('');
+  /**
+   * Comprobante abierto en el modal de auditoría.
+   *
+   * `InvoiceCdrModal` existía pero ninguna pantalla lo importaba: el CDR, el XML
+   * y el PDF no eran alcanzables desde la interfaz.
+   */
+  const [auditoria, setAuditoria] = useState<Invoice | null>(null);
 
   const filtros: FiltrosInvoices = {
     estado: estado === 'todos' ? undefined : estado,
@@ -237,13 +297,14 @@ export default function InvoicesListPage() {
               <TableHead>Cliente</TableHead>
               <TableHead>Fecha Emisión</TableHead>
               <TableHead align="right">Total</TableHead>
-              <TableHead align="center">Estado CDR</TableHead>
+              <TableHead>Estado CDR</TableHead>
+              <TableHead align="right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} align="center">
+                <TableCell colSpan={6} align="center">
                   Cargando comprobantes...
                 </TableCell>
               </TableRow>
@@ -274,11 +335,29 @@ export default function InvoicesListPage() {
                       </Badge>
                     )}
                   </TableCell>
+                  {/*
+                    Acciones por fila.
+                    `InvoiceCdrModal` existía pero NINGUNA pantalla lo abría, así
+                    que el CDR, el XML y el PDF no eran alcanzables desde la
+                    interfaz. Se detectó recorriendo la bandeja en el navegador el
+                    31-10: las filas no tenían ningún botón.
+                  */}
+                  <TableCell align="right">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      aria-label={`Ver CDR de ${inv.numero}`}
+                      onClick={() => setAuditoria(inv)}
+                    >
+                      <FileSearch className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+                      Ver CDR
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={5} align="center">
+                <TableCell colSpan={6} align="center">
                   No se encontraron comprobantes registrados en este periodo.
                 </TableCell>
               </TableRow>
@@ -286,6 +365,15 @@ export default function InvoicesListPage() {
           </TableBody>
         </Table>
       </Card>
+
+      {/* Modal de auditoría: CDR, XML y PDF del comprobante elegido. */}
+      {auditoria && (
+        <InvoiceCdrModal
+          comprobante={aComoComprobanteDemo(auditoria)}
+          modoInicial="cdr"
+          onCerrar={() => setAuditoria(null)}
+        />
+      )}
 
       <Pagination>
         <PaginationContent>

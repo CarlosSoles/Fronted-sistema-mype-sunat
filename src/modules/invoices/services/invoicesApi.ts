@@ -19,6 +19,10 @@ import {
 } from '../lib/invoiceAlertas';
 import type { ClienteBuscado } from '../lib/invoiceSearch';
 import type { VistaPreviaResumen } from '../lib/invoiceResumenes';
+import type {
+  EmitirComprobantePayload,
+  ResultadoEmisionBackend,
+} from '../types/invoiceEmision.types';
 
 /** Filtros que acepta el listado (el backend ya los soporta). */
 export interface FiltrosInvoices {
@@ -78,11 +82,74 @@ export const invoicesApi = {
     return aInvoice(response.data);
   },
 
+  /**
+   * Emisión desde la pantalla: lo que llena el usuario.
+   *
+   * POR QUÉ NO SE USA `createInvoice`
+   *
+   * `POST /invoices` exige el contrato fiscal completo (`ruc_emisor`,
+   * `tipo_comprobante`, `correlativo`, `payload_ubl`). El formulario no tiene
+   * nada de eso: el usuario escribe el cliente y las líneas. Enviarlo ahí hacía
+   * que el `whitelistValidation` del backend respondiera 400 a todas las
+   * emisiones —comprobado contra el servidor real el 31-10—, así que la
+   * pantalla nunca pudo emitir.
+   *
+   * `POST /invoices/emitir` acepta la forma del formulario y deja que el
+   * backend liquide los impuestos, valide el stock y reserve el correlativo.
+   * El número que devuelve es el real, no uno inventado.
+   */
+  emitirComprobante: async (
+    dto: EmitirComprobantePayload,
+  ): Promise<ResultadoEmisionBackend> => {
+    const response = await apiClient.post<ResultadoEmisionBackend>(
+      '/invoices/emitir',
+      dto,
+    );
+    return response.data;
+  },
+
   retryCdr: async (id: string): Promise<Invoice> => {
     const response = await apiClient.post<ComprobanteBackend>(
       `/invoices/${id}/retry-cdr`,
     );
     return aInvoice(response.data);
+  },
+
+  /**
+   * Descarga el XML, el PDF o el CDR QUE PRODUJO EL BACKEND.
+   *
+   * POR QUÉ NO SE GENERA EN EL NAVEGADOR
+   *
+   * El modal de auditoría llamaba a `generarXmlUbl21Comprobante(c)` y
+   * `descargarPdfComprobante(c)`, que reconstruían el documento en el cliente a
+   * partir de los datos de la grilla. Ese XML NO es el que se envió a SUNAT: el
+   * que vale es el que generó y firmó el backend. Entregarle al usuario una
+   * reconstrucción con el mismo nombre es peor que no darle nada, porque parece
+   * el documento fiscal y no lo es.
+   *
+   * El backend ya tenía `GET /invoices/:id/{xml,pdf,cdr}` funcionando (probado
+   * contra comprobantes ACEPTADOS). Aquí se consumen de verdad.
+   *
+   * Si el backend responde 404 (el comprobante aún no tiene CDR, o no existe),
+   * se propaga el error para que la pantalla lo diga en lugar de descargar un
+   * archivo vacío.
+   */
+  descargarDocumento: async (
+    id: string,
+    formato: 'xml' | 'pdf' | 'cdr',
+  ): Promise<{ blob: Blob; nombre: string }> => {
+    const response = await apiClient.get(`/invoices/${id}/${formato}`, {
+      responseType: 'blob',
+    });
+
+    // El nombre real viaja en Content-Disposition; si falta, se arma uno.
+    const disposicion = String(response.headers['content-disposition'] ?? '');
+    const coincidencia = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposicion);
+    const nombre = coincidencia
+      ? decodeURIComponent(coincidencia[1])
+      : `comprobante.${formato === 'cdr' ? 'cdr.xml' : formato}`;
+
+    return { blob: response.data as Blob, nombre };
   },
 
   /**

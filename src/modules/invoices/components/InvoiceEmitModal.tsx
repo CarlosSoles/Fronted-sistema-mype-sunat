@@ -57,6 +57,7 @@ import {
 import { InvoiceEmitCampos } from './InvoiceEmitCampos';
 import { InvoiceEmitResumen } from './InvoiceEmitResumen';
 import { CreditInstallmentsEditor } from './CreditInstallmentsEditor';
+import { problemasDeNota } from '../lib/invoiceNotaOrigen';
 
 interface InvoiceEmitModalProps {
   tipoInicial: TipoEmisible;
@@ -135,18 +136,13 @@ const motivosPendientes = (
   }
 
   if (esNota) {
-    if (!b.documentoAfectado.trim()) {
-      motivos.push('Indica el documento afectado (ej. F001-0042).');
-    } else if (
-      !existentes.some(
-        (c) =>
-          c.estado !== 'RECHAZADO' &&
-          c.id.toUpperCase() === b.documentoAfectado.trim().toUpperCase(),
-      )
-    ) {
-      motivos.push(
-        'El documento afectado no existe o está rechazado en esta serie.',
-      );
+    // El docente: "es sobre el documento que ya está, no empiezas haciendo una
+    // nota de crédito". Antes solo se comprobaba que el texto existiera y que
+    // no estuviera rechazado; ahora se revisan además el tipo del documento
+    // (no una nota sobre otra nota), el anulado, que sea del MISMO cliente y
+    // que la nota no devuelva más de lo que costó la venta.
+    for (const problema of problemasDeNota(b, existentes, importeTotal)) {
+      motivos.push(problema.mensaje);
     }
   }
 
