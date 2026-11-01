@@ -13,7 +13,11 @@ const RegisterPage = React.lazy(() => import('@/modules/auth/pages/RegisterPage'
 const ProfilePage = React.lazy(() => import('@/modules/auth/pages/ProfilePage'));
 const SecurityPage = React.lazy(() => import('@/modules/auth/pages/SecurityPage'));
 
-const InvoicesListPage = React.lazy(() => import('@/modules/invoices/InvoiceList'));
+// TA-59: la bandeja oficial es pages/InvoicesListPage, que consume el backend
+// real (GET /invoices) y muestra la barra de métricas. Antes apuntaba a
+// InvoiceList, que trabajaba con COMPROBANTES_DEMO: la pantalla ruteada
+// mostraba datos inventados mientras la real quedaba sin usar.
+const InvoicesListPage = React.lazy(() => import('@/modules/invoices/pages/InvoicesListPage'));
 const InvoiceEmissionPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceEmissionPage'));
 // TA-61: pestaña de configuración de FE. Se carga aparte porque casi nadie la
 // abre a diario y no debe pesar en la primera carga del módulo.
