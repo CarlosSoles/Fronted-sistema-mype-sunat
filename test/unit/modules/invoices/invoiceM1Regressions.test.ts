@@ -25,7 +25,7 @@ import {
   serieParaNota,
 } from '@/modules/invoices/lib/invoiceEmitValidation';
 import { calcularResumenFiscal } from '@/modules/invoices/lib/invoiceMetrics';
-import { fechaLocalIso } from '@/modules/invoices/InvoiceList';
+import { fechaLocalIso } from '@/modules/invoices/lib/invoiceFecha';
 import { formatDateToPeru } from '@/lib/formatters';
 import {
   despacharColaOutbox,
