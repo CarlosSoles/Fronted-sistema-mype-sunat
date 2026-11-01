@@ -300,3 +300,30 @@ describe('TA-59 · alta de comprobante', () => {
     expect(dto.moneda).toBe('USD');
   });
 });
+
+describe('fecha de emisión como día calendario', () => {
+  /**
+   * El backend serializa `fecha_emision` con `toISOString()`, así que una venta
+   * del 1 de noviembre en Lima llega como `2026-11-01T00:00:00.000Z`. Si esa
+   * cadena llega con hora hasta `formatDateToPeru`, cae en `new Date(...)` y al
+   * formatearla en UTC-5 retrocede al 31/10: la bandeja mostraba un día menos
+   * que la trama QR del mismo comprobante.
+   */
+  it('no retrocede un día con la fecha que manda el backend', () => {
+    const convertida = aInvoice(fila({ fecha_emision: '2026-11-01T00:00:00.000Z' }));
+
+    expect(convertida.fechaEmision).toBe('2026-11-01');
+  });
+
+  it('se queda con el primer día del mes, que es el caso que fallaba', () => {
+    const convertida = aInvoice(fila({ fecha_emision: '2026-12-01T00:00:00.000Z' }));
+
+    expect(convertida.fechaEmision).toBe('2026-12-01');
+  });
+
+  it('acepta ya la forma corta sin tocarla', () => {
+    const convertida = aInvoice(fila({ fecha_emision: '2026-11-01' }));
+
+    expect(convertida.fechaEmision).toBe('2026-11-01');
+  });
+});

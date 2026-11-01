@@ -112,6 +112,28 @@ const numero = (valor: unknown): number => {
 };
 
 /**
+ * Normaliza la fecha de emisión a un día calendario `YYYY-MM-DD`.
+ *
+ * QUÉ PASABA
+ *
+ * El backend serializa `fecha_emision` con `toISOString()`, así que una venta
+ * del 1 de noviembre en Lima llega como `2026-11-01T00:00:00.000Z`. El front la
+ * pasaba tal cual a `formatDateToPeru`, que solo reconoce el formato corto: una
+ * cadena con hora cae en `new Date(...)` y, al formatearla en Lima (UTC-5),
+ * retrocede al día anterior. La bandeja mostraba 31/10 para un comprobante del
+ * 01/11, y no coincidía con la trama QR del mismo documento.
+ *
+ * Se recorta a la parte de la fecha SIN reconstruir el instante: el campo es un
+ * día de calendario fiscal, no un momento del tiempo.
+ */
+const aDiaCalendario = (valor: string | null | undefined): string => {
+  const texto = (valor ?? '').trim();
+  const conHora = /^(\d{4}-\d{2}-\d{2})[T ]/.exec(texto);
+  if (conHora) return conHora[1];
+  return texto;
+};
+
+/**
  * Convierte una fila del backend al modelo del frontend.
  *
  * El IGV no viene en el listado; se deriva del total y la base, que es la única
@@ -129,7 +151,7 @@ export const aInvoice = (fila: ComprobanteBackend): Invoice => {
     numero: fila.numero,
     clienteRuc: fila.cliente_documento ?? '',
     clienteRazonSocial: fila.cliente_nombre ?? 'CLIENTE SIN NOMBRE',
-    fechaEmision: fila.fecha_emision,
+    fechaEmision: aDiaCalendario(fila.fecha_emision),
     moneda: aMoneda(fila.moneda),
     subtotal: Math.round((total - igv) * 100) / 100,
     igv,
