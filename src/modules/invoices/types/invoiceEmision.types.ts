@@ -60,6 +60,13 @@ export interface EmitirComprobantePayload {
   fecha_emision?: string;
   agente_retencion?: boolean;
   forma_pago?: 'Contado' | 'Credito';
+  /**
+   * Cronograma de la venta al crédito (HU-10). Obligatorio cuando
+   * `forma_pago` es 'Credito': el backend exige al menos una cuota y comprueba
+   * que sumen el neto pendiente (regla 3319) y que cada vencimiento sea
+   * posterior a la emisión (regla 3267).
+   */
+  cuotas?: readonly { monto: number; vencimiento: string }[];
   items: readonly LineaEmisionPayload[];
   /** Notas (07/08): comprobante que se modifica. Obligatorio en notas. */
   documento_afectado?: string;

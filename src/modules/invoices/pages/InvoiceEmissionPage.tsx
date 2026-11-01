@@ -59,6 +59,7 @@ import {
 import { FileText, Send, Plus } from 'lucide-react';
 import { CustomerLookupField } from '../components/CustomerLookupField';
 import { InvoiceItemsGrid } from '../components/InvoiceItemsGrid';
+import { CreditInstallmentsEditor } from '../components/CreditInstallmentsEditor';
 import {
   calcularItem,
   totalizarItems,
@@ -69,6 +70,11 @@ import {
   calcularDetraccionPorLineas,
   repartirPago,
 } from '../lib/invoiceDetraccionLinea';
+import {
+  repartirEnCuotas,
+  validarCronograma,
+  type CuotaBorrador,
+} from '../lib/invoiceDetraccion';
 import { calcularRetencion } from '../lib/invoiceRetentions';
 import { invoicesApi } from '../services/invoicesApi';
 import { cargarProductosAlmacen } from '../services/inventoryProductsApi';
@@ -88,6 +94,12 @@ export default function InvoiceEmissionPage() {
   const [clienteRazonSocial, setClienteRazonSocial] = useState('');
   const [items, setItems] = useState<readonly ItemBorrador[]>([itemVacio('1')]);
   const [agenteRetencion, setAgenteRetencion] = useState(false);
+  // Forma de pago y cronograma (HU-10). Antes la pantalla mandaba siempre
+  // 'Contado'; el selector vivía solo en el modal de la bandeja. Las funciones
+  // que reparten las cuotas ya existían y estaban probadas en
+  // `invoiceEmitDraft`, así que aquí solo se guarda el estado.
+  const [formaPago, setFormaPago] = useState<'Contado' | 'Credito'>('Contado');
+  const [cuotas, setCuotas] = useState<readonly CuotaBorrador[]>([]);
   const [enviando, setEnviando] = useState(false);
   const [productos, setProductos] = useState<readonly ProductoBuscado[]>([]);
   const [resultado, setResultado] = useState<{
@@ -153,6 +165,27 @@ export default function InvoiceEmissionPage() {
   const reparto = useMemo(
     () => repartirPago(importeTotal, detraccion.monto, retencion),
     [importeTotal, detraccion.monto, retencion],
+  );
+
+  /**
+   * Neto que se reparte en cuotas: el pago directo, es decir el importe total
+   * menos la detracción (que va al Banco de la Nación) y menos la retención
+   * (que retiene el cliente). Las cuotas deben sumar exactamente esto por la
+   * regla 3319, sin tolerancia.
+   */
+  const netoPendiente = useMemo(
+    () => Math.round(Math.max(0, reparto.pagoDirecto) * 100) / 100,
+    [reparto.pagoDirecto],
+  );
+
+  /**
+   * Fecha de emisión en Lima, fijada al abrir la pantalla: es la base de los
+   * vencimientos de las cuotas (regla 3267) y debe ser estable entre renders.
+   * Se calcula en el inicializador del `useState` y no en el cuerpo, porque la
+   * regla `react-hooks/purity` prohíbe `Date.now()` durante el render.
+   */
+  const [fechaEmision] = useState(() =>
+    new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString().slice(0, 10),
   );
 
   const agregarItem = () => {
@@ -233,6 +266,23 @@ export default function InvoiceEmissionPage() {
       return;
     }
 
+    // Una venta al crédito sin cronograma válido no se manda: el backend la
+    // rechazaría y el usuario habría esperado una vuelta completa. La regla
+    // 3319 exige que las cuotas sumen el neto pendiente sin tolerancia.
+    if (formaPago === 'Credito') {
+      const revision = validarCronograma(cuotas, netoPendiente, fechaEmision);
+      if (!revision.cuadra || revision.errores.length > 0) {
+        setResultado({
+          ok: false,
+          mensaje:
+            revision.errores[0] ??
+            `El cronograma no cuadra: las cuotas suman ${revision.suma.toFixed(2)} ` +
+              `y el neto pendiente es ${revision.netoPendiente.toFixed(2)}.`,
+        });
+        return;
+      }
+    }
+
     setEnviando(true);
     try {
       // Se manda lo que el usuario escribió; el backend liquida los impuestos,
@@ -245,7 +295,11 @@ export default function InvoiceEmissionPage() {
         customer_identity_number: clienteDoc.replace(/\D/g, ''),
         customer_legal_name: clienteRazonSocial.trim(),
         agente_retencion: agenteRetencion,
-        forma_pago: 'Contado',
+        forma_pago: formaPago,
+        cuotas:
+          formaPago === 'Credito'
+            ? cuotas.map((c) => ({ monto: c.monto, vencimiento: c.vencimiento }))
+            : undefined,
         items: items.map((i) => ({
           descripcion: i.descripcion.trim(),
           codigo: i.codigo?.trim() || undefined,
@@ -341,6 +395,48 @@ export default function InvoiceEmissionPage() {
                   </label>
                 </div>
               </div>
+
+              {/*
+                HU-10: forma de pago. Antes esta pantalla mandaba siempre
+                'Contado' y el selector solo existía en el modal de la bandeja,
+                así que una venta al crédito no se podía emitir desde aquí.
+                Al pasar a Crédito se reparte el neto pendiente en una cuota
+                por defecto, que el usuario puede editar abajo.
+              */}
+              <div className="space-y-1.5">
+                <span className="text-xs font-medium text-foreground">
+                  Forma de pago
+                </span>
+                <div className="flex gap-2">
+                  {(['Contado', 'Credito'] as const).map((forma) => (
+                    <Button
+                      key={forma}
+                      type="button"
+                      size="sm"
+                      variant={formaPago === forma ? 'default' : 'outline'}
+                      onClick={() => {
+                        setFormaPago(forma);
+                        setCuotas(
+                          forma === 'Credito'
+                            ? repartirEnCuotas(netoPendiente, 1, fechaEmision)
+                            : [],
+                        );
+                      }}
+                    >
+                      {forma === 'Credito' ? 'Crédito' : 'Contado'}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {formaPago === 'Credito' && (
+                <CreditInstallmentsEditor
+                  cuotas={cuotas}
+                  netoPendiente={netoPendiente}
+                  fechaEmision={fechaEmision}
+                  onCambiar={setCuotas}
+                />
+              )}
 
               {/*
                 El docente: el cliente "que no lo escriba, que lo busque". Este
