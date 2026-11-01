@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DoubleEntryBalanceCard } from '../components/DoubleEntryBalanceCard';
 import {
@@ -159,6 +159,29 @@ export default function AccountingEntriesPage() {
       }
     }
   };
+
+  /**
+   * Carga los asientos del backend AL ENTRAR a la pantalla.
+   *
+   * Antes no había `useEffect`: la página solo leía `localStorage` y se quedaba
+   * vacía hasta que el usuario pulsaba "Refrescar". Para el docente eso se ve
+   * como un Libro Diario sin asientos aunque el sistema los tenga —y los tiene,
+   * porque cada comprobante aceptado genera el suyo—.
+   *
+   * Se difiere a un microtask porque `fetchEntriesFromApi` hace `setState` de
+   * inmediato y la regla `react-hooks/set-state-in-effect` lo prohíbe.
+   */
+  useEffect(() => {
+    let vivo = true;
+    void Promise.resolve().then(() => {
+      if (vivo) void fetchEntriesFromApi();
+    });
+    return () => {
+      vivo = false;
+    };
+    // Sólo al montar: el refresco manual sigue disponible en el botón.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const totalDebe = entries.reduce((acc, e) => acc + e.totalDebe, 0);
   const totalHaber = entries.reduce((acc, e) => acc + e.totalHaber, 0);
@@ -376,28 +399,75 @@ export default function AccountingEntriesPage() {
           <TableBody>
             {entries.length > 0 ? (
               entries.map((entry) => (
-                <TableRow key={entry.id}>
-                  <TableCell>{entry.numeroAsiento}</TableCell>
-                  <TableCell>{formatDateToPeru(entry.fechaContable)}</TableCell>
-                  <TableCell>{entry.glosa}</TableCell>
-                  <TableCell align="right">{formatCurrency(entry.totalDebe, 'PEN')}</TableCell>
-                  <TableCell align="right">{formatCurrency(entry.totalHaber, 'PEN')}</TableCell>
-                  <TableCell align="center">
-                    <Badge variant={entry.estaCuadrado ? 'secondary' : 'destructive'}>
-                      {entry.estaCuadrado ? 'Cuadrado' : 'Descuadrado'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell align="center">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteSingleEntry(entry.id)}
-                      title="Eliminar este asiento"
-                    >
-                      <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
+                <Fragment key={entry.id}>
+                  <TableRow>
+                    <TableCell>{entry.numeroAsiento}</TableCell>
+                    <TableCell>{formatDateToPeru(entry.fechaContable)}</TableCell>
+                    <TableCell>{entry.glosa}</TableCell>
+                    <TableCell align="right">{formatCurrency(entry.totalDebe, 'PEN')}</TableCell>
+                    <TableCell align="right">{formatCurrency(entry.totalHaber, 'PEN')}</TableCell>
+                    <TableCell align="center">
+                      <Badge variant={entry.estaCuadrado ? 'secondary' : 'destructive'}>
+                        {entry.estaCuadrado ? 'Cuadrado' : 'Descuadrado'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteSingleEntry(entry.id)}
+                        title="Eliminar este asiento"
+                      >
+                        <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+
+                  {/*
+                    Desglose del asiento por cuenta y subdivisionaria.
+
+                    El docente lo pidió con estas palabras: "tienes la glosa,
+                    tienes el monto, pero no tienes lo esencial: te falta el
+                    asiento... ahí debería aparecer las cuentas". La tabla
+                    mostraba solo el total de cada asiento, así que no se veía a
+                    qué cuenta se había ido el cargo ni de dónde salía el abono.
+
+                    Cada línea se pinta como subfila del asiento para que el
+                    número y la glosa queden visualmente pegados a sus cuentas.
+                  */}
+                  {entry.lines && entry.lines.length > 0 && (
+                    <TableRow>
+                      <TableCell />
+                      <TableCell />
+                      <TableCell>
+                        <table className="w-full text-xs">
+                          <tbody>
+                            {[...entry.lines]
+                              .sort((a, b) => a.lineOrder - b.lineOrder)
+                              .map((l) => (
+                                <tr key={`${entry.id}-${l.lineOrder}`}>
+                                  <td className="w-20 py-0.5 pr-2 font-mono text-muted-foreground">
+                                    {l.accountCode}
+                                  </td>
+                                  <td className="py-0.5 pr-2">{l.accountName}</td>
+                                  <td className="w-24 py-0.5 pr-2 text-right font-mono">
+                                    {l.debitAmount > 0 ? formatCurrency(l.debitAmount, 'PEN') : ''}
+                                  </td>
+                                  <td className="w-24 py-0.5 text-right font-mono">
+                                    {l.creditAmount > 0 ? formatCurrency(l.creditAmount, 'PEN') : ''}
+                                  </td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      </TableCell>
+                      <TableCell align="right" />
+                      <TableCell align="right" />
+                      <TableCell align="center" />
+                      <TableCell align="center" />
+                    </TableRow>
+                  )}
+                </Fragment>
               ))
             ) : (
               <TableRow>

@@ -3,6 +3,33 @@ import { Button, Card, Page, PageHeader } from '@/components/ui';
 import { Download, FileCheck2, Loader2 } from 'lucide-react';
 import axios from 'axios';
 
+const ACTIVE_COMPANY_ID = '5eaccb4e-a6ec-4f23-9909-85fe7fc9e879';
+/** RUC del emisor de la compañía de demostración. */
+const ACTIVE_COMPANY_RUC = '20601234567';
+
+/**
+ * Periodo fiscal en Lima (UTC-5), el mismo criterio que `AccountingEntriesPage`.
+ *
+ * Estaba fijo en 2026-10, así que la pantalla exportaba los asientos de octubre
+ * aunque la empresa ya estuviera facturando en noviembre: el archivo bajaba
+ * vacío o con el mes equivocado.
+ */
+const periodoActual = (): { anio: number; mes: number } => {
+  const lima = new Date(Date.now() - 5 * 60 * 60 * 1000);
+  return { anio: lima.getUTCFullYear(), mes: lima.getUTCMonth() + 1 };
+};
+
+/**
+ * Nombre que SUNAT espera para la trama: `LE` + RUC + AAAAMM + código de libro
+ * + correlativo. Se muestra en el botón para que el usuario sepa exactamente
+ * qué archivo va a bajar, y se recalcula con el periodo en curso.
+ */
+const nombreTrama = (bookCode: '5.1' | '6.1'): string => {
+  const { anio, mes } = periodoActual();
+  const codigoLibro = bookCode === '5.1' ? '050100' : '060100';
+  return `LE${ACTIVE_COMPANY_RUC}${anio}${String(mes).padStart(2, '0')}00${codigoLibro}001111.txt`;
+};
+
 export default function AccountingPlePage() {
   const [isDownloadingDiario, setIsDownloadingDiario] = useState(false);
   const [isDownloadingMayor, setIsDownloadingMayor] = useState(false);
@@ -11,14 +38,15 @@ export default function AccountingPlePage() {
   const handleExportPle = async (bookCode: '5.1' | '6.1') => {
     const setLoader = bookCode === '5.1' ? setIsDownloadingDiario : setIsDownloadingMayor;
     setLoader(true);
+    const { anio, mes } = periodoActual();
 
     try {
       // Petición al endpoint real de NestJS
       const response = await axios.post('http://localhost:3000/api/v1/accounting/ple/export', {
-        companyId: '5eaccb4e-a6ec-4f23-9909-85fe7fc9e879',
-        companyRuc: '20601012341',
-        year: 2026,
-        month: 10,
+        companyId: ACTIVE_COMPANY_ID,
+        companyRuc: ACTIVE_COMPANY_RUC,
+        year: anio,
+        month: mes,
         bookCode: bookCode, // Pasa '5.1' o '6.1' dinámicamente
       });
 
@@ -72,7 +100,7 @@ export default function AccountingPlePage() {
             ) : (
               <Download className="w-4 h-4 mr-2" />
             )}
-            {isDownloadingDiario ? 'Generando Trama...' : 'Descargar LE2060101234120261000050100.txt'}
+            {isDownloadingDiario ? 'Generando Trama...' : `Descargar ${nombreTrama('5.1')}`}
           </Button>
         </Card>
 
@@ -97,7 +125,7 @@ export default function AccountingPlePage() {
             ) : (
               <Download className="w-4 h-4 mr-2" />
             )}
-            {isDownloadingMayor ? 'Generando Trama...' : 'Descargar LE2060101234120261000060100.txt'}
+            {isDownloadingMayor ? 'Generando Trama...' : `Descargar ${nombreTrama('6.1')}`}
           </Button>
         </Card>
       </div>

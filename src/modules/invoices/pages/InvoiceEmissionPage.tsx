@@ -66,6 +66,8 @@ import {
   itemVacio,
   type ItemBorrador,
 } from '../lib/invoiceItems';
+import type { AfectacionIgv } from '../lib/invoiceTaxes';
+import type { AfectacionGrilla } from '../types/invoiceEmision.types';
 import {
   calcularDetraccionPorLineas,
   repartirPago,
@@ -85,8 +87,25 @@ import type { ResultadoEmisionBackend } from '../types/invoiceEmision.types';
 /** Series válidas por tipo (Catálogo del SEE). */
 const SERIES: Record<'01' | '03', string> = { '01': 'F001', '03': 'B001' };
 
-/** Afectación del Catálogo 07 que usa la grilla como valor por defecto. */
-const AFECTACION_DEFAULT = '10';
+/**
+ * Traducción de la afectación de la grilla al código del Catálogo 07.
+ *
+ * La grilla trabaja con nombres legibles ('GRAVADA', 'EXONERADA'...) porque los
+ * usa para calcular la liquidación línea a línea; el XML necesita el código
+ * numérico. Sin este paso, elegir "Exonerada" en pantalla emitía un comprobante
+ * gravado.
+ *
+ *   GRAVADA   → 10  Gravado - Operación Onerosa
+ *   EXONERADA → 20  Exonerado - Operación Onerosa (9997)
+ *   INAFECTA  → 30  Inafecto - Operación Onerosa (9998)
+ *   GRATUITA  → 11  Gravado - Retiro por premio a otros de bienes (9996)
+ */
+const CODIGO_AFECTACION: Record<AfectacionIgv, AfectacionGrilla> = {
+  GRAVADA: '10',
+  EXONERADA: '20',
+  INAFECTA: '30',
+  GRATUITA: '11',
+};
 
 export default function InvoiceEmissionPage() {
   const [tipo, setTipo] = useState<'01' | '03'>('01');
@@ -203,23 +222,44 @@ export default function InvoiceEmissionPage() {
     setItems((prev) => prev.filter((_, i) => i !== indice));
   };
 
+  /**
+   * Coloca el producto elegido en la grilla.
+   *
+   * SI HAY UNA LÍNEA VACÍA SE RELLENA, no se añade otra.
+   *
+   * La grilla nace con una fila vacía. Antes esta función siempre hacía
+   * `[...prev, {nuevo}]`, así que al elegir el primer producto quedaba la fila
+   * vacía arriba y la nueva abajo: el usuario que después cambiaba la
+   * afectación, la cantidad o el precio de "la fila 1" estaba editando la fila
+   * vacía, y el comprobante salía con la línea de abajo sin esos cambios.
+   * Al emitir, la fila vacía además bloqueaba con "la línea 1 no tiene
+   * descripción".
+   */
   const agregarConProducto = (producto: {
     sku: string;
     descripcion: string;
     unidad?: string;
     valorUnitario: number;
   }) => {
-    setItems((prev) => [
-      ...prev,
-      {
-        ...itemVacio(String(Date.now())),
-        codigo: producto.sku,
-        descripcion: producto.descripcion,
-        unidad: producto.unidad ?? 'NIU',
-        valorUnitario: producto.valorUnitario,
-        cantidad: 1,
-      },
-    ]);
+    const relleno = {
+      codigo: producto.sku,
+      descripcion: producto.descripcion,
+      unidad: producto.unidad ?? 'NIU',
+      valorUnitario: producto.valorUnitario,
+      cantidad: 1,
+    };
+
+    setItems((prev) => {
+      const vacia = prev.findIndex(
+        (i) => !i.descripcion.trim() && !i.codigo.trim(),
+      );
+      if (vacia >= 0) {
+        return prev.map((item, i) =>
+          i === vacia ? { ...item, ...relleno } : item,
+        );
+      }
+      return [...prev, { ...itemVacio(String(Date.now())), ...relleno }];
+    });
   };
 
   const emitir = async (evento: React.FormEvent) => {
@@ -306,7 +346,15 @@ export default function InvoiceEmissionPage() {
           unidad: i.unidad,
           cantidad: i.cantidad,
           valorUnitario: i.valorUnitario,
-          afectacion: AFECTACION_DEFAULT,
+          // La afectación es POR LÍNEA, no del comprobante: una factura de
+          // ferretería puede llevar un ítem gravado y otro exonerado. Antes se
+          // mandaba siempre `AFECTACION_DEFAULT` ('10' gravado), así que elegir
+          // "Exonerada" en la grilla no llegaba nunca al XML.
+          afectacion: CODIGO_AFECTACION[i.afectacion],
+          // Igual con la detracción: "eso lo manda el producto, no la factura".
+          codigoDetraccion: i.codigoDetraccion || undefined,
+          // El ICBPER solo viaja cuando la línea es una bolsa plástica.
+          icbper: i.icbper > 0 ? i.icbper : undefined,
         })),
       });
 
