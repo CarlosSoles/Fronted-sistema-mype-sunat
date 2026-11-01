@@ -46,6 +46,7 @@ import { FilePlus, RefreshCw, Info, FileSearch } from 'lucide-react';
 import { InvoiceCdrModal } from '../components/InvoiceCdrModal';
 import type { Invoice } from '../types/invoice.types';
 import type { ComprobanteDemo } from '../data/invoiceDemoTypes';
+import { invoicesApi } from '../services/invoicesApi';
 
 import { useRolePermissions } from '@/hooks/useRolePermissions';
 import type { FiltrosInvoices } from '../services/invoicesApi';
@@ -106,33 +107,50 @@ const mapEstadoCdr = (
  * `Invoice` (lo que devuelve la API) y `ComprobanteDemo` (el modelo del modal)
  * describen lo mismo con nombres distintos. Se traduce aquí en lugar de cambiar
  * cualquiera de los dos: el modal también lo usa el flujo de demostración.
+ *
+ * `detalle` son los datos del ENDPOINT DE DETALLE, que trae el CDR completo. El
+ * listado no los incluye: por eso el modal mostraba "Código PENDIENTE" en
+ * comprobantes ya ACEPTADOS, contradiciendo el badge de la propia fila.
  */
-const aComoComprobanteDemo = (inv: Invoice): ComprobanteDemo => ({
-  id: inv.numero,
-  tipo: (inv.tipoComprobante ?? '01') as ComprobanteDemo['tipo'],
-  serie: inv.serie,
-  correlativo: Number(inv.numero.split('-')[1] ?? 0),
-  fechaEmision: inv.fechaEmision,
-  clienteRuc: inv.clienteRuc,
-  clienteTipoDoc: inv.clienteRuc.length === 11 ? '6' : '1',
-  clienteRazonSocial: inv.clienteRazonSocial,
-  baseImponible: inv.subtotal,
-  igv: inv.igv,
-  totalNeto: inv.total,
-  estado: mapEstadoCdr(inv.cdrStatus),
-  cdrCodigo: inv.cdrCodigo,
-  cdrDescripcion: inv.cdrCodigo
-    ? `Código ${inv.cdrCodigo} reportado por SUNAT`
-    : 'Sin respuesta de SUNAT todavía',
-  hashCpe: '',
-  moneda: inv.moneda,
-  detraccion: 0,
-  retencion: 0,
-  tipoOperacion: '0101',
-  formaPago: 'Contado',
-  cuotas: [],
-  items: [],
-});
+const aComoComprobanteDemo = (
+  inv: Invoice,
+  detalle?: Invoice | null,
+): ComprobanteDemo => {
+  const fuente = detalle ?? inv;
+
+  return {
+    id: inv.numero,
+    tipo: (inv.tipoComprobante ?? '01') as ComprobanteDemo['tipo'],
+    serie: inv.serie,
+    correlativo: Number(inv.numero.split('-')[1] ?? 0),
+    fechaEmision: inv.fechaEmision,
+    clienteRuc: fuente.clienteRuc || inv.clienteRuc,
+    clienteTipoDoc:
+      (fuente.clienteRuc || inv.clienteRuc).length === 11 ? '6' : '1',
+    clienteRazonSocial: fuente.clienteRazonSocial || inv.clienteRazonSocial,
+    baseImponible: fuente.subtotal,
+    igv: fuente.igv,
+    totalNeto: fuente.total,
+    estado: mapEstadoCdr(fuente.cdrStatus),
+    cdrCodigo: fuente.cdrCodigo ?? inv.cdrCodigo,
+    // `cdrMensaje` es la descripción que devuelve el backend; el modelo del
+    // modal la llama `cdrDescripcion`.
+    cdrDescripcion:
+      (fuente.cdrMensaje || inv.cdrMensaje) ??
+      (fuente.cdrCodigo
+        ? `Código ${fuente.cdrCodigo} reportado por SUNAT`
+        : 'Sin respuesta de SUNAT todavía'),
+    // El hash del XML no lo expone la API del front; el modal lo dirá.
+    hashCpe: '',
+    moneda: inv.moneda,
+    detraccion: 0,
+    retencion: 0,
+    tipoOperacion: '0101',
+    formaPago: 'Contado',
+    cuotas: [],
+    items: [],
+  };
+};
 
 export default function InvoicesListPage() {
   // TA-59: la URL decide qué apartado se muestra. Sin esto, las cuatro rutas
@@ -156,6 +174,29 @@ export default function InvoicesListPage() {
    * y el PDF no eran alcanzables desde la interfaz.
    */
   const [auditoria, setAuditoria] = useState<Invoice | null>(null);
+  /** Detalle del comprobante abierto; trae el CDR que el listado no incluye. */
+  const [detalleCdr, setDetalleCdr] = useState<Invoice | null>(null);
+
+  /**
+   * Abre el modal pidiendo el DETALLE del comprobante.
+   *
+   * El listado devuelve `cdr_codigo: null` aunque el comprobante esté ACEPTADO,
+   * así que el modal mostraba "Código PENDIENTE — Sin respuesta de SUNAT
+   * todavía" en una factura aceptada: se contradecía con el badge de la fila.
+   * El endpoint de detalle sí trae el CDR.
+   */
+  const abrirAuditoria = (inv: Invoice) => {
+    setAuditoria(inv);
+    setDetalleCdr(null);
+    invoicesApi
+      .getInvoiceById(inv.id)
+      .then((detalle) => setDetalleCdr(detalle))
+      .catch(() => {
+        // Si el detalle falla, el modal se abre con lo que trae la fila y no
+        // se inventa el CDR: el componente muestra "sin respuesta".
+        setDetalleCdr(null);
+      });
+  };
 
   const filtros: FiltrosInvoices = {
     estado: estado === 'todos' ? undefined : estado,
@@ -347,7 +388,7 @@ export default function InvoicesListPage() {
                       variant="outline"
                       size="sm"
                       aria-label={`Ver CDR de ${inv.numero}`}
-                      onClick={() => setAuditoria(inv)}
+                      onClick={() => abrirAuditoria(inv)}
                     >
                       <FileSearch className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
                       Ver CDR
@@ -369,9 +410,12 @@ export default function InvoicesListPage() {
       {/* Modal de auditoría: CDR, XML y PDF del comprobante elegido. */}
       {auditoria && (
         <InvoiceCdrModal
-          comprobante={aComoComprobanteDemo(auditoria)}
+          comprobante={aComoComprobanteDemo(auditoria, detalleCdr)}
           modoInicial="cdr"
-          onCerrar={() => setAuditoria(null)}
+          onCerrar={() => {
+            setAuditoria(null);
+            setDetalleCdr(null);
+          }}
         />
       )}
 

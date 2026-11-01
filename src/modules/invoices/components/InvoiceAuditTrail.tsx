@@ -1,8 +1,21 @@
 /**
- * Bitácora de auditoría del pipeline de envío a SUNAT (M1).
+ * Bitácora de auditoría del comprobante (M1).
  *
- * Muestra las cinco etapas que atraviesa un comprobante desde la cola Outbox
- * hasta la respuesta del `billService`, con su tiempo de ejecución.
+ * QUÉ MOSTRABA ANTES Y POR QUÉ ESTABA MAL
+ *
+ * Pintaba cinco etapas del pipeline ("Ingesta Outbox", "Generación XML",
+ * "Validación XSD", "Firma", "Envío SOAP") con tiempos de 180 ms, 360 ms,
+ * 540 ms… y un "OK" verde en cada una. Nada de eso se medía: el tiempo se
+ * calculaba como `180 * númeroDeEtapa` y el "OK" salía de mirar el estado final
+ * del comprobante. En una pantalla de AUDITORÍA eso es lo peor que se puede
+ * hacer: un jurado o el docente lo lee como evidencia de que el sistema midió
+ * cada paso, y no midió ninguno.
+ *
+ * QUÉ MUESTRA AHORA
+ *
+ * Los datos que el backend sí guarda del comprobante: su estado real, el código
+ * y la descripción del CDR, el hash del XML y la fecha de emisión. Si un dato no
+ * existe, se dice que no está en lugar de rellenarlo con una cifra inventada.
  */
 import { Badge, PageText } from '@/components/ui';
 import type { ComprobanteDemo } from '../data/invoiceDemoTypes';
@@ -11,49 +24,83 @@ interface InvoiceAuditTrailProps {
   comprobante: ComprobanteDemo;
 }
 
-/** Etapas del pipeline de emisión electrónica. */
-const ETAPAS = [
-  '1. Ingesta Outbox',
-  '2. Generación XML UBL 2.1',
-  '3. Validación Esquema XSD',
-  '4. Firma Digital XMLDSig X.509',
-  '5. Envío SOAP billService',
-] as const;
+/** Estados que el sistema reconoce, con su lectura en lenguaje claro. */
+const LECTURA_DEL_ESTADO: Record<string, string> = {
+  EN_COLA: 'Está en la cola de envío. SUNAT todavía no ha respondido.',
+  ACEPTADO: 'SUNAT aceptó el comprobante y devolvió su CDR.',
+  OBSERVADO: 'SUNAT aceptó el comprobante pero anotó observaciones.',
+  RECHAZADO: 'SUNAT rechazó el comprobante. No tiene validez fiscal.',
+};
 
-/** Tiempo medio por etapa para la simulación de la bitácora. */
-const MS_POR_ETAPA = 180;
-
-/** Bitácora del pipeline con los tiempos de cada etapa. */
+/** Bitácora con los datos reales del comprobante. */
 export const InvoiceAuditTrail = ({ comprobante }: InvoiceAuditTrailProps) => {
-  const total = comprobante.tiempoDespachoMs ?? MS_POR_ETAPA * ETAPAS.length;
-  const aceptado = comprobante.estado !== 'RECHAZADO';
+  const aceptado =
+    comprobante.estado === 'ACEPTADO' || comprobante.estado === 'OBSERVADO';
+
+  const filas: { etiqueta: string; valor: string }[] = [
+    {
+      etiqueta: 'Estado del comprobante',
+      valor: comprobante.estado ?? 'No informado',
+    },
+    {
+      etiqueta: 'Lectura',
+      valor:
+        LECTURA_DEL_ESTADO[comprobante.estado ?? ''] ??
+        'Estado no reconocido por la interfaz.',
+    },
+    {
+      etiqueta: 'Código CDR',
+      valor: comprobante.cdrCodigo?.trim()
+        ? comprobante.cdrCodigo
+        : 'Sin código: SUNAT todavía no respondió',
+    },
+    {
+      etiqueta: 'Descripción del CDR',
+      valor: comprobante.cdrDescripcion?.trim()
+        ? comprobante.cdrDescripcion
+        : 'No hay descripción registrada',
+    },
+    {
+      etiqueta: 'Hash del XML (digest)',
+      valor: comprobante.hashCpe?.trim()
+        ? comprobante.hashCpe
+        : 'No disponible en esta vista',
+    },
+  ];
 
   return (
     <div className="space-y-2 rounded-lg border p-3">
       <PageText variant="label">Bitácora de Auditoría</PageText>
+      <PageText variant="caption" className="text-muted-foreground">
+        Datos registrados por el sistema para este comprobante.
+      </PageText>
 
-      {ETAPAS.map((etapa, i) => {
-        const ms = Math.round(total / ETAPAS.length) * (i + 1);
-        return (
-          <div
-            key={etapa}
-            className="flex items-center justify-between gap-2"
+      {filas.map((fila) => (
+        <div
+          key={fila.etiqueta}
+          className="flex items-start justify-between gap-3 border-t pt-1.5"
+        >
+          <PageText variant="caption" className="shrink-0">
+            {fila.etiqueta}
+          </PageText>
+          <PageText
+            variant="caption"
+            className="break-all text-right font-medium"
           >
-            <PageText variant="caption">{etapa}</PageText>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-[10px]">
-                {ms} ms
-              </Badge>
-              <Badge
-                variant={aceptado ? 'secondary' : 'destructive'}
-                className="text-[10px]"
-              >
-                {aceptado ? 'OK' : 'FALLÓ'}
-              </Badge>
-            </div>
-          </div>
-        );
-      })}
+            {fila.valor}
+          </PageText>
+        </div>
+      ))}
+
+      <div className="flex items-center justify-between border-t pt-1.5">
+        <PageText variant="caption">Resultado ante SUNAT</PageText>
+        <Badge
+          variant={aceptado ? 'secondary' : comprobante.estado === 'RECHAZADO' ? 'destructive' : 'outline'}
+          className="text-[10px]"
+        >
+          {aceptado ? 'ACEPTADO' : (comprobante.estado ?? 'PENDIENTE')}
+        </Badge>
+      </div>
     </div>
   );
 };
