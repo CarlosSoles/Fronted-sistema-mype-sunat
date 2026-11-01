@@ -33,12 +33,59 @@ const sesionDemo = usuarioDemoDisponible()
   : null;
 
 if (sesionDemo) {
-  window.localStorage.setItem('sync-sunat-auth', construirSesionDemo());
+  /**
+   * ¿Ya hay una sesión REAL guardada?
+   *
+   * Esto es lo que faltaba y rompía todo: se escribía la sesión demo en
+   * `localStorage` en CADA carga, sin mirar si el usuario había entrado con su
+   * cuenta. El efecto era que, tras iniciar sesión de verdad y recargar (o
+   * simplemente navegar a otra ruta, que recarga la página), su token se
+   * sustituía por el `demo-token`. La app seguía funcionando con la identidad
+   * equivocada y el usuario parecía "deslogueado".
+   *
+   * Se distingue por el token: el de la demo es literalmente 'demo-token'; uno
+   * real es un JWT. Si hay un JWT, la demo NO se toca.
+   */
+  const guardada = (() => {
+    try {
+      const crudo = window.localStorage.getItem('sync-sunat-auth');
+      if (!crudo) return null;
+      return JSON.parse(crudo) as {
+        state?: { token?: string; isAuthenticated?: boolean };
+      };
+    } catch {
+      return null;
+    }
+  })();
+
+  const haySesionReal =
+    Boolean(guardada?.state?.isAuthenticated) &&
+    Boolean(guardada?.state?.token) &&
+    guardada?.state?.token !== 'demo-token';
+
+  if (!haySesionReal) {
+    window.localStorage.setItem('sync-sunat-auth', construirSesionDemo());
+  }
 
   const aplicarSesionDemo = () => {
-    // Solo se impone si el store quedó sin sesión: una sesión real iniciada
-    // con el backend no debe ser reemplazada por la demo.
+    // Se impone la demo SOLO si no hay sesión real, ni en el store ni en el
+    // almacenamiento. Mirar únicamente `isAuthenticated` del store no bastaba:
+    // al recargar ese valor todavía es `false` porque `persist` no ha
+    // hidratado, y la demo pisaba la sesión del usuario.
     if (useAuthStore.getState().isAuthenticated) return;
+
+    if (haySesionReal) {
+      // Hay un JWT guardado: se restaura ESA sesión, no la demo.
+      const usuarioGuardado = (
+        guardada!.state as { user?: typeof sesionDemo.user }
+      ).user;
+      useAuthStore.setState({
+        token: guardada!.state!.token,
+        user: usuarioGuardado ?? null,
+        isAuthenticated: true,
+      });
+      return;
+    }
 
     useAuthStore.setState({
       token: sesionDemo.token,

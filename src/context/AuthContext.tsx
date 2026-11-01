@@ -73,14 +73,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         }
       } catch {
-        // Si no hay cookie válida o expiró, se limpia la sesión local.
+        // Si no hay cookie válida o expiró, se intenta primero RECUPERAR la
+        // sesión que el store ya tiene en memoria o en `localStorage`.
         //
-        // El token se lee del store EN ESTE MOMENTO y no de `storeToken`: esa
-        // variable es la captura del primer render, cuando `persist` todavía no
-        // había hidratado y valía `null`. Con la captura, este `logout()`
-        // cerraba la sesión que acababa de restaurarse desde el almacenamiento,
-        // y la app redirigía a /login teniendo una sesión válida guardada.
-        if (isMounted && !useAuthStore.getState().token) {
+        // Antes se hacía `logout()` directamente cuando el store no tenía token
+        // en ese instante. El problema: al recargar la página, `persist` de
+        // zustand todavía no ha hidratado cuando este `catch` se ejecuta, así
+        // que el store estaba vacío y se borraba una sesión que en realidad
+        // existía guardada. El resultado era entrar con el botón y salir a
+        // /login en la siguiente recarga.
+        const enStore = useAuthStore.getState();
+        if (isMounted && enStore.token) {
+          setAccessToken(enStore.token);
+          if (enStore.user) setUser(enStore.user as AuthUser);
+        } else if (isMounted) {
+          // De verdad no hay sesión: se limpia.
           useAuthStore.getState().logout();
         }
       } finally {
@@ -171,3 +178,15 @@ export const useAuthContext = (): AuthContextType => {
   }
   return context;
 };
+
+/**
+ * Igual que `useAuthContext` pero devuelve `undefined` si no hay proveedor.
+ *
+ * Lo usa `ProtectedRoute`: en la aplicación siempre hay `AuthProvider`, pero en
+ * una prueba de navegación se monta el guardián solo para comprobar que redirige
+ * y montar medio árbol de la aplicación obligaría a simular red, token y
+ * refresco para verificar una redirección.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export const useAuthContextOptional = (): AuthContextType | undefined =>
+  useContext(AuthContext);
