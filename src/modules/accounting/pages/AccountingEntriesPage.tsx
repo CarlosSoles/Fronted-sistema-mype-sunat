@@ -40,6 +40,19 @@ interface Entry {
   lines?: EntryLine[];
 }
 
+/**
+ * Base de la API.
+ *
+ * Se toma `VITE_API_URL` (que ya usa `axios.ts`) en lugar de escribir
+ * `http://localhost:3000` a mano: con la URL fija, cualquier acceso que no sea
+ * desde esta misma máquina —un túnel, otra PC, el despliegue en Vercel— mandaba
+ * las peticiones al `localhost` del VISITANTE y la pantalla quedaba vacía.
+ *
+ * El `.env` local puede dejar `/api/v1` para que Vite haga de proxy (ver
+ * `vite.config.ts`); así el túnel sólo necesita exponer el puerto del front.
+ */
+const API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
+
 const ACTIVE_COMPANY_ID = '5eaccb4e-a6ec-4f23-9909-85fe7fc9e879';
 const STORAGE_KEY = 'accounting_entries_demo_v2';
 
@@ -87,7 +100,7 @@ export default function AccountingEntriesPage() {
     setIsRefreshing(true);
     try {
       const res = await fetch(
-        `http://localhost:3000/api/v1/accounting/entries?companyId=${ACTIVE_COMPANY_ID}&period=${periodoActual().clave}`,
+        `${API_BASE}/accounting/entries?companyId=${ACTIVE_COMPANY_ID}&period=${periodoActual().clave}`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
@@ -234,7 +247,7 @@ export default function AccountingEntriesPage() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedList));
 
     try {
-      await fetch('http://localhost:3000/api/v1/accounting/entries', {
+      await fetch(`${API_BASE}/accounting/entries`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -275,7 +288,7 @@ export default function AccountingEntriesPage() {
     let pleContent = '';
 
     try {
-      const res = await fetch('http://localhost:3000/api/v1/accounting/ple/export', {
+      const res = await fetch(`${API_BASE}/accounting/ple/export`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

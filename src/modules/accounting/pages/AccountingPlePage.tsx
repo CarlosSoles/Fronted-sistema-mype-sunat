@@ -8,6 +8,15 @@ const ACTIVE_COMPANY_ID = '5eaccb4e-a6ec-4f23-9909-85fe7fc9e879';
 const ACTIVE_COMPANY_RUC = '20601234567';
 
 /**
+ * Base de la API, igual que en el resto de la app.
+ *
+ * Estaba fijo en `http://localhost:3000`, así que la pantalla sólo funcionaba
+ * desde esta misma máquina: por un túnel o desde el despliegue, la petición se
+ * iba al `localhost` del visitante.
+ */
+const API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
+
+/**
  * Periodo fiscal en Lima (UTC-5), el mismo criterio que `AccountingEntriesPage`.
  *
  * Estaba fijo en 2026-10, así que la pantalla exportaba los asientos de octubre
@@ -42,7 +51,7 @@ export default function AccountingPlePage() {
 
     try {
       // Petición al endpoint real de NestJS
-      const response = await axios.post('http://localhost:3000/api/v1/accounting/ple/export', {
+      const response = await axios.post(`${API_BASE}/accounting/ple/export`, {
         companyId: ACTIVE_COMPANY_ID,
         companyRuc: ACTIVE_COMPANY_RUC,
         year: anio,
