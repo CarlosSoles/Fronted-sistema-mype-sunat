@@ -25,6 +25,7 @@ import type { BorradorEmision } from '../lib/invoiceEmitDraft';
 import type { ComprobanteDemo } from '../data/invoiceDemoTypes';
 import type { ProductoBuscado } from '../lib/invoiceSearch';
 import { CampoSelect, CampoTexto } from './InvoiceEmitCamposBase';
+import { CustomerLookupField } from './CustomerLookupField';
 import { InvoiceEmitCamposTributarios } from './InvoiceEmitCamposTributarios';
 import { InvoiceItemsGrid } from './InvoiceItemsGrid';
 
@@ -94,19 +95,24 @@ export const InvoiceEmitCampos = ({
         disabled={esNota && Boolean(b.documentoAfectado.trim())}
       />
 
-      <CampoTexto
-        id="doc-cliente"
-        label={
+      <CustomerLookupField
+        documento={b.clienteDoc}
+        razonSocial={b.clienteRazonSocial}
+        labelDocumento={
           b.tipo === '03' ? 'DNI del cliente' : 'RUC / DNI del cliente'
         }
-        value={b.clienteDoc}
-        onChange={(v) => actualizar({ clienteDoc: v.replace(/\D/g, '') })}
-        placeholder={b.tipo === '03' ? '45678912' : '20100070970'}
-        error={
+        placeholderDocumento={b.tipo === '03' ? '45678912' : '20100070970'}
+        errorDocumento={
           b.clienteDoc.length > 0 &&
           !documentoValidoParaTipo(b.tipo, b.clienteDoc)
             ? mensajeErrorDocumento(b.tipo)
             : undefined
+        }
+        onElegir={(cliente) =>
+          actualizar({
+            clienteDoc: cliente.numeroDocumento,
+            clienteRazonSocial: cliente.razonSocial,
+          })
         }
       />
 
