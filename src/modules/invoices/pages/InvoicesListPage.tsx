@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useInvoicesList } from '../hooks/useInvoicesList';
 import { useInvoiceMetrics } from '../hooks/useInvoiceMetrics';
@@ -44,6 +44,8 @@ import {
 import { formatCurrency, formatDateToPeru } from '@/lib/formatters';
 import { FilePlus, RefreshCw, Info, FileSearch } from 'lucide-react';
 import { InvoiceCdrModal } from '../components/InvoiceCdrModal';
+import { InvoiceEmitModal } from '../components/InvoiceEmitModal';
+import type { TipoEmisible } from '../lib/invoiceEmitValidation';
 import type { Invoice } from '../types/invoice.types';
 import type { ComprobanteDemo } from '../data/invoiceDemoTypes';
 import { invoicesApi } from '../services/invoicesApi';
@@ -190,6 +192,36 @@ export default function InvoicesListPage() {
   const [detalleCdr, setDetalleCdr] = useState<Invoice | null>(null);
 
   /**
+   * Tipo del comprobante que se está emitiendo, o `null` si el modal está cerrado.
+   *
+   * EL BOTÓN "Nueva Factura" QUEDÓ MUERTO AL CAMBIAR DE PANTALLA. Este botón solo
+   * se dibujaba: abrir `InvoiceEmitModal` era cosa de la pantalla anterior
+   * (`InvoiceList.tsx`), que se retiró al enrutar `/invoices/facturas` a esta.
+   * El modal nunca se borró —quedó sin que nadie lo importara—, así que lo que
+   * faltaba era volver a conectarlo aquí.
+   */
+  const [emitiendo, setEmitiendo] = useState<TipoEmisible | null>(null);
+
+  /** Tras emitir se recarga la bandeja para ver el comprobante recién creado. */
+  const cerrarEmision = useCallback(() => setEmitiendo(null), []);
+
+  /**
+   * Fecha de hoy en Lima (UTC-5), calculada AL ABRIR el modal y no en el render.
+   *
+   * `Date.now()` es impuro: llamarlo durante el render lo rechaza la regla
+   * react-hooks y además daría una fecha distinta si el componente re-renderiza
+   * cerca de medianoche. Se congela al pulsar el botón.
+   */
+  const [fechaBorrador, setFechaBorrador] = useState('');
+
+  const abrirEmision = useCallback((tipo: TipoEmisible) => {
+    setFechaBorrador(
+      new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString().slice(0, 10),
+    );
+    setEmitiendo(tipo);
+  }, []);
+
+  /**
    * Abre el modal pidiendo el DETALLE del comprobante.
    *
    * El listado devuelve `cdr_codigo: null` aunque el comprobante esté ACEPTADO,
@@ -264,7 +296,7 @@ export default function InvoicesListPage() {
           Actualizar
         </Button>
         {canEmitInvoices ? (
-          <Button size="sm">
+          <Button size="sm" onClick={() => abrirEmision('01')}>
             <FilePlus aria-hidden="true" />
             Nueva Factura
           </Button>
@@ -418,6 +450,22 @@ export default function InvoicesListPage() {
           </TableBody>
         </Table>
       </Card>
+
+      {/* Modal de emisión: el botón "Nueva Factura" lo abre. */}
+      {emitiendo && (
+        <InvoiceEmitModal
+          tipoInicial={emitiendo}
+          fecha={fechaBorrador}
+          existentes={(data?.data ?? []) as unknown as readonly ComprobanteDemo[]}
+          onEmitir={() => {
+            cerrarEmision();
+            // La emisión real la hace el backend; se recarga la bandeja para
+            // ver el comprobante y su estado, en vez de pintarlo en el cliente.
+            void refetch();
+          }}
+          onCerrar={cerrarEmision}
+        />
+      )}
 
       {/* Modal de auditoría: CDR, XML y PDF del comprobante elegido. */}
       {auditoria && (

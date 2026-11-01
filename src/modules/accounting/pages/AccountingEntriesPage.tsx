@@ -20,6 +20,14 @@ import { formatCurrency, formatDateToPeru } from '@/lib/formatters';
 import { BookOpen, CheckCircle2, Download, FilePlus, PlusCircle, RefreshCw, Trash2, X } from 'lucide-react';
 import { useRolePermissions } from '@/hooks/useRolePermissions';
 
+interface EntryLine {
+  lineOrder: number;
+  accountCode: string;
+  accountName: string;
+  debitAmount: number;
+  creditAmount: number;
+}
+
 interface Entry {
   id: string;
   numeroAsiento: string;
@@ -28,6 +36,8 @@ interface Entry {
   totalDebe: number;
   totalHaber: number;
   estaCuadrado: boolean;
+  /** Líneas reales del asiento. Vacío si la fuente no trae detalle. */
+  lines?: EntryLine[];
 }
 
 const ACTIVE_COMPANY_ID = '5eaccb4e-a6ec-4f23-9909-85fe7fc9e879';
@@ -92,6 +102,16 @@ export default function AccountingEntriesPage() {
               totalDebe: sumDebe,
               totalHaber: sumHaber,
               estaCuadrado: true,
+              // Se conservan las líneas tal como las registró el backend
+              // (cuenta, nombre y montos). La trama PLE necesita estas cuentas,
+              // no un par fijo elegido en el cliente.
+              lines: lines.map((l: any, order: number) => ({
+                lineOrder: Number(l.lineOrder ?? l.line_order ?? order + 1),
+                accountCode: String(l.accountCode ?? l.account_code ?? ''),
+                accountName: String(l.accountName ?? l.account_name ?? ''),
+                debitAmount: Number(l.debitAmount ?? l.debit_amount ?? 0),
+                creditAmount: Number(l.creditAmount ?? l.credit_amount ?? 0),
+              })),
             };
           });
 
@@ -159,6 +179,10 @@ export default function AccountingEntriesPage() {
       totalDebe: val,
       totalHaber: val,
       estaCuadrado: true,
+      lines: [
+        { lineOrder: 1, accountCode: '121101', accountName: 'Cuentas por Cobrar', debitAmount: val, creditAmount: 0 },
+        { lineOrder: 2, accountCode: '701111', accountName: 'Venta de Mercaderías', debitAmount: 0, creditAmount: val },
+      ],
     };
 
     const updatedList = [newEntry, ...entries];
@@ -228,26 +252,48 @@ export default function AccountingEntriesPage() {
       console.log('Generando trama desde la tabla local...');
     } finally {
       if (!pleContent) {
-        let lines: string[] = [];
+        // Sin respuesta del backend se arma la trama con las líneas REALES del
+        // asiento. Si algún asiento no trae detalle se omite y se avisa: antes se
+        // escribían dos líneas fijas (121101 / 701111) para cada uno, lo que
+        // producía una trama PLE con cuentas distintas a las registradas.
+        const sinDetalle: string[] = [];
+        const lines: string[] = [];
+
         entries.forEach((ent, idx) => {
           const numAsiento = ent.numeroAsiento || `001-202610-00${idx + 1}`;
-          lines.push(`20261000|${numAsiento}|M001|121101|${ent.totalDebe.toFixed(2)}|0.00|${ent.glosa}|1||`);
-          lines.push(`20261000|${numAsiento}|M002|701111|0.00|${ent.totalHaber.toFixed(2)}|${ent.glosa}|1||`);
+          if (!ent.lines || ent.lines.length === 0) {
+            sinDetalle.push(numAsiento);
+            return;
+          }
+          for (const l of [...ent.lines].sort((a, b) => a.lineOrder - b.lineOrder)) {
+            lines.push(
+              `20261000|${numAsiento}|${l.accountCode}|${l.accountCode}|${l.debitAmount.toFixed(2)}|${l.creditAmount.toFixed(2)}|${ent.glosa}|${l.lineOrder}|${ent.fechaContable}|`,
+            );
+          }
         });
-        pleContent = lines.join('\r\n') + '\r\n';
+
+        if (sinDetalle.length > 0) {
+          alert(
+            `No se pudo descargar la trama del servidor y ${sinDetalle.length} asiento(s) no tienen el detalle de cuentas cargado (${sinDetalle.join(', ')}). ` +
+              'Esos asientos se omiten para no inventar cuentas: pulsa "Refrescar" y vuelve a exportar.',
+          );
+        }
+        pleContent = lines.length > 0 ? lines.join('\r\n') + '\r\n' : '';
       }
 
-      const blob = new Blob([pleContent], { type: 'text/plain;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      setIsExporting(false);
+      if (pleContent) {
+        const blob = new Blob([pleContent], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
     }
+    setIsExporting(false);
   };
 
   return (

@@ -52,6 +52,11 @@ const NAV_ITEMS: NavItem[] = [
     allowedRoles: ['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT'],
     subItems: [
       { title: 'Facturas y Boletas', path: '/invoices/facturas', icon: FileText },
+      // La pantalla de emisión existía y funcionaba desde el Sprint 1, pero
+      // ninguna entrada del menú llevaba a ella: solo se llegaba por URL o
+      // desde el botón de asientos contables. El docente juzga lo que ve en el
+      // menú, así que si no está aquí, para él el módulo no sabe emitir.
+      { title: 'Emitir Comprobante', path: '/invoices/emision', icon: FilePlus },
       { title: 'Notas de Crédito y Débito', path: '/invoices/notas', icon: FileMinus2 },
       { title: 'Bajas y Resúmenes Diarios', path: '/invoices/bajas', icon: FileX2 },
       { title: 'Monitor Outbox y CDR', path: '/invoices/monitor', icon: Activity },
