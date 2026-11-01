@@ -43,6 +43,21 @@ interface Entry {
 const ACTIVE_COMPANY_ID = '5eaccb4e-a6ec-4f23-9909-85fe7fc9e879';
 const STORAGE_KEY = 'accounting_entries_demo_v2';
 
+/**
+ * Periodo fiscal que se muestra y se exporta, en Lima (UTC-5).
+ *
+ * Antes estaba fijo en 2026-10 en tres sitios: la lectura de asientos, el alta
+ * de un asiento manual y la exportación PLE. Las ventas del módulo de
+ * facturación se asientan en el mes en que ocurren, así que en noviembre la
+ * pantalla decía "no hay asientos" aunque hubiera doce. Se toma el mes en curso.
+ */
+const periodoActual = (): { anio: number; mes: number; clave: string } => {
+  const lima = new Date(Date.now() - 5 * 60 * 60 * 1000);
+  const anio = lima.getUTCFullYear();
+  const mes = lima.getUTCMonth() + 1;
+  return { anio, mes, clave: `${anio}-${String(mes).padStart(2, '0')}` };
+};
+
 export default function AccountingEntriesPage() {
   const navigate = useNavigate();
   const { canCreateAccountingEntry, isAuditor } = useRolePermissions();
@@ -71,11 +86,14 @@ export default function AccountingEntriesPage() {
   const fetchEntriesFromApi = async () => {
     setIsRefreshing(true);
     try {
-      const res = await fetch('http://localhost:3000/api/v1/accounting/entries', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+      const res = await fetch(
+        `http://localhost:3000/api/v1/accounting/entries?companyId=${ACTIVE_COMPANY_ID}&period=${periodoActual().clave}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+          },
         },
-      });
+      );
 
       if (res.ok) {
         const data = await res.json();
@@ -168,12 +186,15 @@ export default function AccountingEntriesPage() {
     if (!glosa || !monto) return;
 
     const val = parseFloat(monto);
-    const fechaActual = new Date().toISOString().split('T')[0];
+    const fechaActual = new Date(Date.now() - 5 * 60 * 60 * 1000)
+      .toISOString()
+      .split('T')[0];
     const nextNumber = entries.length + 1;
+    const periodo = periodoActual();
 
     const newEntry: Entry = {
       id: String(Date.now()),
-      numeroAsiento: `001-202610-00${nextNumber}`,
+      numeroAsiento: `001-${periodo.anio}${String(periodo.mes).padStart(2, '0')}-00${nextNumber}`,
       fechaContable: fechaActual,
       glosa: glosa,
       totalDebe: val,
@@ -198,7 +219,7 @@ export default function AccountingEntriesPage() {
         },
         body: JSON.stringify({
           companyId: ACTIVE_COMPANY_ID,
-          period: '2026-10',
+          period: periodo.clave,
           entryNumber: Number(nextNumber),
           entryDate: fechaActual,
           glosa: glosa,
@@ -226,7 +247,8 @@ export default function AccountingEntriesPage() {
     }
 
     setIsExporting(true);
-    let fileName = 'LE2060101234120261000050100001111.txt';
+    const periodo = periodoActual();
+    let fileName = `LE20601012341${periodo.anio}${String(periodo.mes).padStart(2, '0')}00050100001111.txt`;
     let pleContent = '';
 
     try {
@@ -234,9 +256,10 @@ export default function AccountingEntriesPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          companyId: ACTIVE_COMPANY_ID,
           companyRuc: '20601012341',
-          year: 2026,
-          month: 10,
+          year: periodo.anio,
+          month: periodo.mes,
           bookCode: '050100',
         }),
       });
@@ -267,7 +290,7 @@ export default function AccountingEntriesPage() {
           }
           for (const l of [...ent.lines].sort((a, b) => a.lineOrder - b.lineOrder)) {
             lines.push(
-              `20261000|${numAsiento}|${l.accountCode}|${l.accountCode}|${l.debitAmount.toFixed(2)}|${l.creditAmount.toFixed(2)}|${ent.glosa}|${l.lineOrder}|${ent.fechaContable}|`,
+              `${periodo.anio}${String(periodo.mes).padStart(2, '0')}00|${numAsiento}|${l.accountCode}|${l.accountCode}|${l.debitAmount.toFixed(2)}|${l.creditAmount.toFixed(2)}|${ent.glosa}|${l.lineOrder}|${ent.fechaContable}|`,
             );
           }
         });
