@@ -98,8 +98,8 @@ export default function InvoiceBajasPage() {
   return (
     <Page>
       <PageHeader
-        title="Bajas y Resúmenes Diarios"
-        description="Comunicaciones de baja (RA) y resúmenes diarios de boletas (RC) que se envían agrupados a SUNAT"
+        title="Anulación de comprobantes y Resúmenes Diarios"
+        description="Baja (RA) = anula una factura ya aceptada. Resumen diario (RC) = agrupa las boletas del día. No es baja de mercadería ni de inventario."
       >
         <Button
           variant="outline"
@@ -133,7 +133,7 @@ export default function InvoiceBajasPage() {
             aria-selected={pestana === 'baja'}
             onClick={() => setPestana('baja')}
           >
-            Comunicación de baja (RA)
+            Anulación de comprobante (RA)
           </Button>
         </div>
 
@@ -157,7 +157,7 @@ export default function InvoiceBajasPage() {
       <PageText variant="caption">
         {pestana === 'resumen'
           ? 'El resumen diario agrupa las boletas (03) y sus notas del día. SUNAT devuelve un TICKET y el CDR se consulta después.'
-          : 'La comunicación de baja anula facturas (01) y sus notas ya aceptadas. Una BOLETA no se anula aquí: se resta en un resumen posterior (regla 2308).'}
+          : 'Aquí se ANULA un comprobante ante SUNAT: la factura (01) ya aceptada deja de tener efecto. No es una baja de mercadería ni un ajuste de inventario — para eso se usa el Kardex del módulo de inventario. Una BOLETA tampoco se anula aquí: se resta en un resumen posterior (regla 2308).'}
       </PageText>
 
       {error && (
