@@ -3,7 +3,11 @@
  *
  * Se extraen de `InvoiceEmitModal.tsx` para mantener ambos archivos por debajo
  * del límite de líneas. Los primitivos de campo viven en
- * `InvoiceEmitCamposBase` y los tributarios en `InvoiceEmitCamposTributarios`.
+ * `InvoiceEmitCamposBase`, los tributarios en `InvoiceEmitCamposTributarios` y
+ * la grilla de detalle en `InvoiceItemsGrid` (TA-64).
+ *
+ * TA-64 quita los campos únicos «Descripción del ítem» y «Monto base
+ * imponible»: el detalle ahora es una grilla de varias líneas.
  */
 import {
   SERIES_POR_TIPO,
@@ -19,14 +23,26 @@ import {
 } from '../lib/invoiceEmitDraft';
 import type { BorradorEmision } from '../lib/invoiceEmitDraft';
 import type { ComprobanteDemo } from '../data/invoiceDemoTypes';
+import type { ProductoBuscado } from '../lib/invoiceSearch';
 import { CampoSelect, CampoTexto } from './InvoiceEmitCamposBase';
 import { InvoiceEmitCamposTributarios } from './InvoiceEmitCamposTributarios';
+import { InvoiceItemsGrid } from './InvoiceItemsGrid';
 
 interface InvoiceEmitCamposProps {
   borrador: BorradorEmision;
   actualizar: (parcial: Partial<BorradorEmision>) => void;
   /** Comprobantes ya emitidos: se usan para vincular las notas. */
   existentes: readonly ComprobanteDemo[];
+  /** Total del comprobante calculado, para estimar la detracción. */
+  total: number;
+  onItemCambiado: (indice: number, parcial: Partial<BorradorEmision['items'][number]>) => void;
+  onItemEliminado: (indice: number) => void;
+  onItemAgregado: () => void;
+  onBolsaAgregada: () => void;
+  /** TA-61: productos del almacén para el buscador de la grilla. */
+  productos?: readonly ProductoBuscado[];
+  /** TA-61: agrega una línea con los datos del producto elegido. */
+  onItemDesdeProducto?: (producto: ProductoBuscado) => void;
 }
 
 const OPCIONES_TIPO = [
@@ -36,11 +52,18 @@ const OPCIONES_TIPO = [
   { value: '08' as const, label: '08 - Nota de Débito' },
 ];
 
-/** Campos de identificación del comprobante y del cliente. */
+/** Campos de identificación del comprobante, del cliente y del detalle. */
 export const InvoiceEmitCampos = ({
   borrador: b,
   actualizar,
   existentes,
+  total,
+  onItemCambiado,
+  onItemEliminado,
+  onItemAgregado,
+  onBolsaAgregada,
+  productos,
+  onItemDesdeProducto,
 }: InvoiceEmitCamposProps) => {
   const esNota = esTipoNota(b.tipo);
   const motivos = b.tipo === '08' ? MOTIVOS_ND : MOTIVOS_NC;
@@ -95,22 +118,21 @@ export const InvoiceEmitCampos = ({
         placeholder="CORPORACIÓN TEXTIL DEL NORTE S.A.C."
       />
 
-      <CampoTexto
-        id="desc-item"
-        label="Descripción del ítem"
-        value={b.descripcion}
-        onChange={(v) => actualizar({ descripcion: v })}
+      <InvoiceItemsGrid
+        items={b.items}
+        onCambiar={onItemCambiado}
+        onEliminar={onItemEliminado}
+        onAgregar={onItemAgregado}
+        onAgregarBolsa={onBolsaAgregada}
+        productos={productos}
+        onAgregarConProducto={onItemDesdeProducto}
       />
 
-      <CampoTexto
-        id="base-item"
-        label="Monto base imponible"
-        type="number"
-        value={b.base}
-        onChange={(v) => actualizar({ base: Number(v) })}
+      <InvoiceEmitCamposTributarios
+        borrador={b}
+        actualizar={actualizar}
+        total={total}
       />
-
-      <InvoiceEmitCamposTributarios borrador={b} actualizar={actualizar} />
 
       {esNota && (
         <>
