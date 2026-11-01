@@ -18,6 +18,7 @@ import {
   type AlertasOperativas,
 } from '../lib/invoiceAlertas';
 import type { ClienteBuscado } from '../lib/invoiceSearch';
+import type { VistaPreviaResumen } from '../lib/invoiceResumenes';
 
 /** Filtros que acepta el listado (el backend ya los soporta). */
 export interface FiltrosInvoices {
@@ -140,5 +141,32 @@ export const invoicesApi = {
       '/invoices/alertas',
     );
     return normalizarAlertas(response.data);
+  },
+  /**
+   * Vista previa del resumen diario de boletas (RC) — TA-67.
+   *
+   * El apartado "Bajas y Resúmenes Diarios" mostraba la misma grilla de
+   * comprobantes que "Facturas y Boletas". Un resumen no es un comprobante
+   * suelto: es un envío agregado con su identificador RC-AAAAMMDD-NNN.
+   */
+  getVistaResumen: async (fecha?: string, correlativo = 1): Promise<VistaPreviaResumen> => {
+    const params: Record<string, string> = { correlativo: String(correlativo) };
+    if (fecha) params.fecha = fecha;
+    const response = await apiClient.get<VistaPreviaResumen>(
+      '/invoices/resumenes/diario',
+      { params },
+    );
+    return response.data;
+  },
+
+  /** Vista previa de la comunicación de baja (RA) — TA-67. */
+  getVistaBaja: async (fecha?: string, correlativo = 1): Promise<VistaPreviaResumen> => {
+    const params: Record<string, string> = { correlativo: String(correlativo) };
+    if (fecha) params.fecha = fecha;
+    const response = await apiClient.get<VistaPreviaResumen>(
+      '/invoices/resumenes/baja',
+      { params },
+    );
+    return response.data;
   },
 };

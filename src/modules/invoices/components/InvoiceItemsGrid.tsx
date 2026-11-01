@@ -15,6 +15,7 @@ import {
   calcularItem,
   type ItemBorrador,
 } from '../lib/invoiceItems';
+import { CODIGOS_DETRACCION } from '../lib/invoiceDetraccion';
 import type { ProductoBuscado } from '../lib/invoiceSearch';
 import type { AfectacionIgv } from '../lib/invoiceTaxes';
 
@@ -96,6 +97,7 @@ export const InvoiceItemsGrid = ({
               <th className="px-2 py-1 text-right">V. unit.</th>
               <th className="px-2 py-1 text-right">ICBPER</th>
               <th className="px-2 py-1 text-left">Afect.</th>
+              <th className="px-2 py-1 text-left">Detrac.</th>
               <th className="px-2 py-1 text-right">Total</th>
               <th className="px-2 py-1" />
             </tr>
@@ -192,6 +194,25 @@ export const InvoiceItemsGrid = ({
                       {OPCIONES_AFECTACION.map((o) => (
                         <option key={o.value} value={o.value}>
                           {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="px-1 py-1">
+                    <select
+                      aria-label={`Detracción de la línea ${i + 1}`}
+                      className={CLASE_CELDA}
+                      value={item.codigoDetraccion ?? ''}
+                      onChange={(e) =>
+                        onCambiar(i, {
+                          codigoDetraccion: e.target.value || undefined,
+                        })
+                      }
+                    >
+                      <option value="">No sujeta</option>
+                      {CODIGOS_DETRACCION.map((d) => (
+                        <option key={d.codigo} value={d.codigo}>
+                          {d.codigo} - {d.porcentaje * 100}%
                         </option>
                       ))}
                     </select>

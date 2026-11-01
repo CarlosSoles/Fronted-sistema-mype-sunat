@@ -22,6 +22,8 @@ const InvoiceEmissionPage = React.lazy(() => import('@/modules/invoices/pages/In
 // TA-61: pestaña de configuración de FE. Se carga aparte porque casi nadie la
 // abre a diario y no debe pesar en la primera carga del módulo.
 const InvoiceSettingsPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceSettingsPage'));
+const InvoiceBajasPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceBajasPage'));
+const InvoiceMonitorPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceMonitorPage'));
 const ResilienceDashboardPage = React.lazy(() => import('@/modules/resilience/pages/ResilienceDashboardPage'));
 const CustomsDashboardPage = React.lazy(() => import('@/modules/customs/pages/CustomsDashboardPage'));
 const ShipmentsListPage = React.lazy(() => import('@/modules/customs/pages/ShipmentsListPage'));
@@ -117,7 +119,7 @@ export const AppRoutes = () => {
                 <RoleProtectedRoute
                   allowedRoles={['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT']}
                 >
-                  <InvoicesListPage />
+                  <InvoiceBajasPage />
                 </RoleProtectedRoute>
               }
             />
@@ -127,7 +129,7 @@ export const AppRoutes = () => {
                 <RoleProtectedRoute
                   allowedRoles={['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT']}
                 >
-                  <InvoicesListPage />
+                  <InvoiceMonitorPage />
                 </RoleProtectedRoute>
               }
             />

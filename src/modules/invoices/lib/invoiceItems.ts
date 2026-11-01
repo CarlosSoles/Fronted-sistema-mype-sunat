@@ -65,6 +65,15 @@ export interface ItemBorrador {
   afectacion: AfectacionIgv;
   /** Importe del ICBPER de la línea; > 0 la marca como bolsa plástica. */
   icbper: number;
+  /**
+   * Código del Catálogo 54 si el BIEN o SERVICIO de esta línea está sujeto a
+   * detracción.
+   *
+   * Vive en la línea y no en la cabecera porque —como dijo el docente— "esto lo
+   * manda el producto, no la factura". Una factura de ferretería con un flete
+   * dentro debe detraer solo el flete.
+   */
+  codigoDetraccion?: string;
 }
 
 /** Importes derivados de una línea. */
