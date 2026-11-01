@@ -9,6 +9,10 @@ import {
   type ComprobanteDetalleBackend,
   type PaginaBackend,
 } from '../lib/invoiceMapper';
+import {
+  normalizarMetricas,
+  type MetricasFacturacion,
+} from '../lib/invoiceMetricsPeriodo';
 
 /** Filtros que acepta el listado (el backend ya los soporta). */
 export interface FiltrosInvoices {
@@ -73,5 +77,24 @@ export const invoicesApi = {
       `/invoices/${id}/retry-cdr`,
     );
     return aInvoice(response.data);
+  },
+
+  /**
+   * Métricas del periodo (TA-69).
+   *
+   * Suma en el servidor sobre toda la empresa, no sobre la página visible: es
+   * la única forma de que la cifra de "facturado del periodo" no cambie al
+   * pasar de página. El periodo va como `YYYY-MM`; sin él el backend usa el
+   * actual.
+   */
+  getMetrics: async (periodo?: string): Promise<MetricasFacturacion> => {
+    const params: Record<string, string> = {};
+    if (periodo && periodo.trim() !== '') params.periodo = periodo.trim();
+
+    const response = await apiClient.get<Partial<MetricasFacturacion>>(
+      '/invoices/metrics',
+      { params },
+    );
+    return normalizarMetricas(response.data, periodo);
   },
 };

@@ -40,11 +40,14 @@ import type { BorradorEmision } from '../lib/invoiceEmitDraft';
 import {
   actualizarItem,
   agregarItem,
-  eliminarItem,  itemBolsa,
+  eliminarItem,
+  itemBolsa,
+  itemDesdeProducto,
   itemVacio,
   validarItems,
   type ItemBorrador,
 } from '../lib/invoiceItems';
+import type { ProductoBuscado } from '../lib/invoiceSearch';
 import {
   buscarDetraccion,
   esDetraccionDadaDeBaja,
@@ -60,6 +63,13 @@ interface InvoiceEmitModalProps {
   fecha: string;
   /** Comprobantes ya emitidos: de aquí salen el correlativo y las notas. */
   existentes: readonly ComprobanteDemo[];
+  /**
+   * TA-61: productos del almacén para el buscador de la grilla.
+   *
+   * Llega como prop y no se consulta aquí para que el modal siga siendo
+   * montable en una prueba sin backend; quien lo abre decide de dónde salen.
+   */
+  productos?: readonly ProductoBuscado[];
   onEmitir: (comprobante: ComprobanteDemo) => void;
   onCerrar: () => void;
 }
@@ -148,6 +158,7 @@ export const InvoiceEmitModal = ({
   tipoInicial,
   fecha,
   existentes,
+  productos = [],
   onEmitir,
   onCerrar,
 }: InvoiceEmitModalProps) => {
@@ -197,6 +208,21 @@ export const InvoiceEmitModal = ({
       items: agregarItem(previo.items, itemVacio(nuevaClave())),
     }));
 
+  /**
+   * Agrega una línea con los datos del producto elegido en el buscador (TA-61).
+   *
+   * El valor unitario del catálogo se trata como el precio CON IGV incluido
+   * cuando el producto lo trae así: es como se rotula en una ferretería
+   * ("cemento S/ 32.90"). Si el producto no trae precio, la línea se crea igual
+   * con 0 y el usuario lo completa, en lugar de no hacer nada y dejarle la
+   * duda de si el clic funcionó.
+   */
+  const itemDeProducto = (producto: ProductoBuscado) =>
+    setB((previo) => ({
+      ...previo,
+      items: agregarItem(previo.items, itemDesdeProducto(producto, nuevaClave())),
+    }));
+
   const nuevaBolsa = () =>
     setB((previo) => {
       const cantidad = previo.bolsas > 0 ? previo.bolsas : 1;
@@ -231,6 +257,8 @@ export const InvoiceEmitModal = ({
           onItemEliminado={quitarItem}
           onItemAgregado={nuevoItem}
           onBolsaAgregada={nuevaBolsa}
+          productos={productos}
+          onItemDesdeProducto={itemDeProducto}
         />
 
         <div className="flex flex-wrap items-center gap-2">

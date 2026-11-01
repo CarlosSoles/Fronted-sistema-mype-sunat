@@ -9,11 +9,13 @@
  * para poder probarla sin montar React.
  */
 import { Button, PageText } from '@/components/ui';
+import { InventoryProductSearchSelect } from './InventoryProductSearchSelect';
 import {
   UNIDADES_MEDIDA,
   calcularItem,
   type ItemBorrador,
 } from '../lib/invoiceItems';
+import type { ProductoBuscado } from '../lib/invoiceSearch';
 import type { AfectacionIgv } from '../lib/invoiceTaxes';
 
 const OPCIONES_AFECTACION: readonly { value: AfectacionIgv; label: string }[] = [
@@ -32,6 +34,16 @@ interface InvoiceItemsGridProps {
   onEliminar: (indice: number) => void;
   onAgregar: () => void;
   onAgregarBolsa: () => void;
+  /**
+   * TA-61: productos del almacén para el buscador.
+   *
+   * Si la lista viene vacía el buscador NO se pinta: un campo de búsqueda que
+   * nunca encuentra nada es peor que no tenerlo, porque el usuario cree que el
+   * catálogo está vacío cuando puede ser que no haya conexión con Inventarios.
+   */
+  productos?: readonly ProductoBuscado[];
+  /** TA-61: agrega una línea nueva con los datos del producto elegido. */
+  onAgregarConProducto?: (producto: ProductoBuscado) => void;
 }
 
 /** Tabla editable de líneas del comprobante. */
@@ -41,6 +53,8 @@ export const InvoiceItemsGrid = ({
   onEliminar,
   onAgregar,
   onAgregarBolsa,
+  productos = [],
+  onAgregarConProducto,
 }: InvoiceItemsGridProps) => {
   return (
     <div className="space-y-2 sm:col-span-2">
@@ -50,6 +64,26 @@ export const InvoiceItemsGrid = ({
           {items.length} {items.length === 1 ? 'línea' : 'líneas'}
         </PageText>
       </div>
+
+      {/*
+        TA-64 + TA-61: buscador de productos DENTRO de la grilla.
+
+        Las dos tareas se hicieron en ramas distintas y el buscador quedó
+        montado solo en el formulario de la emisión, mientras la grilla de
+        múltiples líneas seguía obligando a teclear el SKU a mano. Aquí se
+        conectan: al elegir un producto se arrastran su código, descripción,
+        unidad y valor unitario a una línea nueva, que es justo lo que se
+        digitaba mal.
+      */}
+      {productos.length > 0 && onAgregarConProducto ? (
+        <InventoryProductSearchSelect
+          productos={productos}
+          onElegir={(producto) => {
+            onAgregarConProducto(producto);
+          }}
+          placeholder="Buscar por SKU o descripción para agregar una línea"
+        />
+      ) : null}
 
       <div className="overflow-x-auto rounded-lg border">
         <table className="w-full text-xs">

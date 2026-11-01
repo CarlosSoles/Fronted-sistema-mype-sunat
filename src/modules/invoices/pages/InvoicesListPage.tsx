@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { useInvoicesList } from '../hooks/useInvoicesList';
+import { useInvoiceMetrics } from '../hooks/useInvoiceMetrics';
+import { InvoiceMetricsSummaryBar } from '../components/InvoiceMetricsSummaryBar';
+import { METRICAS_VACIAS } from '../lib/invoiceMetricsPeriodo';
 import {
   Alert,
   AlertDescription,
@@ -77,6 +80,9 @@ export default function InvoicesListPage() {
     page,
     filtros,
   );
+  // TA-69: la barra de resumen se alimenta del periodo completo, no de la
+  // página visible, y por eso es una consulta aparte de la grilla.
+  const { data: metricas, isLoading: cargandoMetricas } = useInvoiceMetrics();
   const { canEmitInvoices, isAuditor } = useRolePermissions();
 
   // La búsqueda por texto sigue siendo local: el backend no expone un parámetro
@@ -119,6 +125,20 @@ export default function InvoicesListPage() {
           Los comprobantes emitidos se firman digitalmente y se encolan con garantía de entrega outbox.
         </AlertDescription>
       </Alert>
+
+      {/*
+        TA-69: métricas del PERIODO, calculadas en el servidor.
+
+        Van antes de la barra de filtros porque describen el mes completo y no
+        la vista filtrada: si estuvieran después, el usuario leería el número
+        como si correspondiera al filtro que acaba de elegir. Los filtros
+        afectan a la grilla, no a estas cifras, y por eso la barra no las
+        recalcula cuando cambia un filtro.
+      */}
+      <InvoiceMetricsSummaryBar
+        metricas={metricas ?? METRICAS_VACIAS}
+        cargando={cargandoMetricas}
+      />
 
       <FilterBar>
         <FilterSearch

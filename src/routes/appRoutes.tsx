@@ -15,6 +15,9 @@ const SecurityPage = React.lazy(() => import('@/modules/auth/pages/SecurityPage'
 
 const InvoicesListPage = React.lazy(() => import('@/modules/invoices/InvoiceList'));
 const InvoiceEmissionPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceEmissionPage'));
+// TA-61: pestaña de configuración de FE. Se carga aparte porque casi nadie la
+// abre a diario y no debe pesar en la primera carga del módulo.
+const InvoiceSettingsPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceSettingsPage'));
 const ResilienceDashboardPage = React.lazy(() => import('@/modules/resilience/pages/ResilienceDashboardPage'));
 const CustomsDashboardPage = React.lazy(() => import('@/modules/customs/pages/CustomsDashboardPage'));
 const ShipmentsListPage = React.lazy(() => import('@/modules/customs/pages/ShipmentsListPage'));
@@ -121,6 +124,20 @@ export const AppRoutes = () => {
                   allowedRoles={['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT']}
                 >
                   <InvoicesListPage />
+                </RoleProtectedRoute>
+              }
+            />
+            {/*
+              TA-61: configuración de Facturación Electrónica (entorno, series y
+              checklist previo a emitir). Solo ADMIN: la pantalla muestra el
+              estado del certificado y de las credenciales SOL, que es
+              información de administración, no de operación diaria.
+            */}
+            <Route
+              path="/invoices/configuracion"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN']}>
+                  <InvoiceSettingsPage />
                 </RoleProtectedRoute>
               }
             />

@@ -223,6 +223,45 @@ export const itemVacio = (clave: string): ItemBorrador => ({
   icbper: 0,
 });
 
+/**
+ * Línea nueva a partir de un producto del catálogo (TA-61 dentro de TA-64).
+ *
+ * La unidad que trae el producto se COMPRUEBA contra el Catálogo 03: si el
+ * almacén la devuelve en otro formato ("kg", "NIU "), copiarla tal cual
+ * produciría un XML rechazado por SUNAT. Ante una unidad desconocida se cae a
+ * `NIU` y se deja la descripción intacta, porque un producto sin línea es peor
+ * que una línea con la unidad por corregir.
+ *
+ * `afectacion` se fija en GRAVADA a propósito: es la que corresponde al precio
+ * de venta que muestra el almacén. Si el producto fuera exonerado, el usuario lo
+ * cambia en la fila, y así el valor por defecto nunca declara impuesto que no
+ * corresponda.
+ */
+export const itemDesdeProducto = (
+  producto: {
+    sku: string;
+    descripcion: string;
+    unidad: string;
+    valorUnitario: number;
+  },
+  clave: string,
+): ItemBorrador => {
+  const unidad = producto.unidad.trim().toUpperCase();
+  const valida = UNIDADES_MEDIDA.some((u) => u.codigo === unidad);
+  const valor = Number(producto.valorUnitario);
+
+  return {
+    clave,
+    codigo: producto.sku,
+    descripcion: producto.descripcion,
+    unidad: valida ? unidad : 'NIU',
+    cantidad: 1,
+    valorUnitario: Number.isFinite(valor) && valor > 0 ? valor : 0,
+    afectacion: 'GRAVADA',
+    icbper: 0,
+  };
+};
+
 /** Línea de bolsa plástica con su precio unitario y su ICBPER. */
 export const itemBolsa = (
   clave: string,

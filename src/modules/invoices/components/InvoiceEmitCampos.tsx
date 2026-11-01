@@ -23,6 +23,7 @@ import {
 } from '../lib/invoiceEmitDraft';
 import type { BorradorEmision } from '../lib/invoiceEmitDraft';
 import type { ComprobanteDemo } from '../data/invoiceDemoTypes';
+import type { ProductoBuscado } from '../lib/invoiceSearch';
 import { CampoSelect, CampoTexto } from './InvoiceEmitCamposBase';
 import { InvoiceEmitCamposTributarios } from './InvoiceEmitCamposTributarios';
 import { InvoiceItemsGrid } from './InvoiceItemsGrid';
@@ -38,6 +39,10 @@ interface InvoiceEmitCamposProps {
   onItemEliminado: (indice: number) => void;
   onItemAgregado: () => void;
   onBolsaAgregada: () => void;
+  /** TA-61: productos del almacén para el buscador de la grilla. */
+  productos?: readonly ProductoBuscado[];
+  /** TA-61: agrega una línea con los datos del producto elegido. */
+  onItemDesdeProducto?: (producto: ProductoBuscado) => void;
 }
 
 const OPCIONES_TIPO = [
@@ -57,6 +62,8 @@ export const InvoiceEmitCampos = ({
   onItemEliminado,
   onItemAgregado,
   onBolsaAgregada,
+  productos,
+  onItemDesdeProducto,
 }: InvoiceEmitCamposProps) => {
   const esNota = esTipoNota(b.tipo);
   const motivos = b.tipo === '08' ? MOTIVOS_ND : MOTIVOS_NC;
@@ -117,6 +124,8 @@ export const InvoiceEmitCampos = ({
         onEliminar={onItemEliminado}
         onAgregar={onItemAgregado}
         onAgregarBolsa={onBolsaAgregada}
+        productos={productos}
+        onAgregarConProducto={onItemDesdeProducto}
       />
 
       <InvoiceEmitCamposTributarios
