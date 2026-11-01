@@ -30,6 +30,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [accessToken, setAccessToken] = useState<string | null>(storeToken);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  /**
+   * Adopta la sesión del store en cuanto llega.
+   *
+   * POR QUÉ HACE FALTA
+   *
+   * Los `useState` de arriba se inicializan con el valor del store en el PRIMER
+   * render. Cuando la sesión viene de `localStorage` —es decir, tras una
+   * recarga—, `persist` de zustand todavía no ha hidratado en ese instante, así
+   * que los dos arrancan en `null`. Nada volvía a leerlos: el `accessToken`
+   * local se quedaba en `null` para siempre y `isAuthenticated: !!accessToken`
+   * daba `false`, con lo que `ProtectedRoute` mandaba a /login teniendo una
+   * sesión válida guardada.
+   *
+   * El síntoma era engañoso: entrar con el botón de login SÍ funcionaba (ahí
+   * `login()` escribe el `useState` directamente) y recargar en una ruta
+   * protegida NO. Y como el `localStorage` sí tenía la sesión, parecía que el
+   * problema estaba en el almacenamiento y no aquí.
+   */
+  useEffect(() => {
+    if (storeToken) setAccessToken(storeToken);
+    if (storeUser) setUser(storeUser as AuthUser);
+
+    // Y si el store se vacía (logout en otra pestaña o expiración), se refleja.
+    if (!storeToken) setAccessToken((actual) => (actual && !storeToken ? null : actual));
+  }, [storeToken, storeUser]);
+
   // Restauración de sesión silenciosa (Silent Refresh on mount - F5 resilience)
   useEffect(() => {
     let isMounted = true;
@@ -47,8 +73,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         }
       } catch {
-        // Si no hay cookie válida o expiró, mantenemos el estado local limpio
-        if (isMounted && !storeToken) {
+        // Si no hay cookie válida o expiró, se limpia la sesión local.
+        //
+        // El token se lee del store EN ESTE MOMENTO y no de `storeToken`: esa
+        // variable es la captura del primer render, cuando `persist` todavía no
+        // había hidratado y valía `null`. Con la captura, este `logout()`
+        // cerraba la sesión que acababa de restaurarse desde el almacenamiento,
+        // y la app redirigía a /login teniendo una sesión válida guardada.
+        if (isMounted && !useAuthStore.getState().token) {
           useAuthStore.getState().logout();
         }
       } finally {
