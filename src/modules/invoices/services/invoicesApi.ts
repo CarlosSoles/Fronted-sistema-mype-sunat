@@ -5,10 +5,23 @@ import {
   type PaginaComprobantes,
 } from '../types/invoice.types';
 
+/** Filtros que acepta el listado del backend (TA-29). */
+export interface ListadoParams {
+  estado?: string;
+  tipo?: string;
+  serie?: string;
+  desde?: string;
+  hasta?: string;
+  page_size?: number;
+}
+
 export const invoicesApi = {
-  getInvoices: async (page = 1): Promise<PaginaComprobantes> => {
+  getInvoices: async (
+    page = 1,
+    filtros: ListadoParams = {},
+  ): Promise<PaginaComprobantes> => {
     const response = await apiClient.get<PaginaComprobantes>('/invoices', {
-      params: { page },
+      params: { page, ...filtros },
     });
     return response.data;
   },

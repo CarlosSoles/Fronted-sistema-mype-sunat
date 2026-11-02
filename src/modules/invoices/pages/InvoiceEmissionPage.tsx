@@ -10,7 +10,7 @@
  * `InvoiceEmitModal`; el siguiente paso es reutilizarla aquí.
  */
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Badge,
   Button,
@@ -29,9 +29,10 @@ import {
   TableRow,
 } from '@/components/ui';
 import { Plus, Trash2, Send, CheckCircle2, FileText } from 'lucide-react';
-import { apiClient } from '@/lib/axios';
 import { useAuthStore } from '@/stores/authStore';
+import { extractApiErrorMessage } from '@/lib/apiErrors';
 import { invoicesApi } from '../services/invoicesApi';
+import { siguienteCorrelativo } from '../lib/invoiceCorrelativo';
 import { aPayloadCreacion } from '../lib/invoiceApiMapper';
 import { construir, type ItemDemo } from '../data/invoiceDemoTypes';
 import { round2 } from '../lib/invoiceTaxes';
@@ -58,6 +59,7 @@ const totalLinea = (item: InvoiceItem): number =>
 
 export default function InvoiceEmissionPage() {
   const { activeCompany } = useAuthStore();
+  const queryClient = useQueryClient();
   const [docType, setDocType] = useState<'01' | '03'>('01');
   const [customerDoc, setCustomerDoc] = useState('');
   const [customerName, setCustomerName] = useState('');
@@ -80,18 +82,14 @@ export default function InvoiceEmissionPage() {
 
   const { data: pagina } = useQuery({
     queryKey: ['invoices-emision', serie],
-    queryFn: () => invoicesApi.getInvoices(1),
+    queryFn: () => invoicesApi.getInvoices(1, { serie, page_size: 100 }),
     staleTime: 30_000,
   });
 
-  const correlativo = useMemo(() => {
-    const numeros = (pagina?.data ?? [])
-      .filter((c) => c.serie === serie)
-      .map((c) => Number(c.numero.split('-').pop() ?? 0))
-      .filter((n) => Number.isFinite(n) && n > 0);
-
-    return numeros.length > 0 ? Math.max(...numeros) + 1 : 1;
-  }, [pagina, serie]);
+  const correlativo = useMemo(
+    () => siguienteCorrelativo(pagina?.data ?? [], serie),
+    [pagina, serie],
+  );
 
   const base = round2(items.reduce((acc, item) => acc + totalLinea(item), 0));
   const igv = round2(base * 0.18);
@@ -173,23 +171,27 @@ export default function InvoiceEmissionPage() {
 
     setIsSubmitting(true);
     try {
-      const { data } = await apiClient.post<{ id?: string }>(
-        '/invoices',
-        payload,
-      );
+      const data = await invoicesApi.createInvoice(payload);
       setResponseStatus({
         invoiceId: data.id ?? `${serie}-${correlativo}`,
         message:
           'Comprobante registrado en el outbox. El CDR llegará cuando el worker lo procese.',
       });
+      // El correlativo y la grilla deben reflejar el comprobante recién creado:
+      // sin esto, dos emisiones seguidas piden el mismo número.
+      await queryClient.refetchQueries({ queryKey: ['invoices-emision', serie] });
+      void queryClient.invalidateQueries({ queryKey: ['invoices'] });
       setItems([
         { id: String(Date.now()), description: '', quantity: 1, unitPrice: 0 },
       ]);
       setCustomerDoc('');
       setCustomerName('');
-    } catch {
+    } catch (err) {
       setError(
-        'No se pudo registrar el comprobante. Revisa los datos, la conexión y la empresa activa.',
+        extractApiErrorMessage(
+          err,
+          'No se pudo registrar el comprobante. Revisa los datos, la conexión y la empresa activa.',
+        ),
       );
     } finally {
       setIsSubmitting(false);
@@ -287,7 +289,7 @@ export default function InvoiceEmissionPage() {
                     <TableHead className="w-32 text-right">
                       P. Unit (PEN)
                     </TableHead>
-                    <TableHead className="w-32 text-right">Total</TableHead>
+                    <TableHead className="w-32 text-right">Subtotal (sin IGV)</TableHead>
                     <TableHead className="w-12 text-center"></TableHead>
                   </TableRow>
                 </TableHeader>
