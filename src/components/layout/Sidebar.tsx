@@ -52,6 +52,7 @@ const NAV_ITEMS: NavItem[] = [
     allowedRoles: ['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT'],
     subItems: [
       { title: 'Facturas y Boletas', path: '/invoices/facturas', icon: FileText },
+      { title: 'Emisión de Comprobantes', path: '/invoices/emision', icon: FilePlus },
       { title: 'Notas de Crédito y Débito', path: '/invoices/notas', icon: FileMinus2 },
       { title: 'Bajas y Resúmenes Diarios', path: '/invoices/bajas', icon: FileX2 },
       { title: 'Monitor Outbox y CDR', path: '/invoices/monitor', icon: Activity },

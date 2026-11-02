@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiClient } from '@/lib/axios';
 import { DoubleEntryBalanceCard } from '../components/DoubleEntryBalanceCard';
 import {
   Badge,
@@ -19,6 +20,7 @@ import {
 import { formatCurrency, formatDateToPeru } from '@/lib/formatters';
 import { BookOpen, CheckCircle2, Download, FilePlus, PlusCircle, RefreshCw, Trash2, X } from 'lucide-react';
 import { useRolePermissions } from '@/hooks/useRolePermissions';
+import { useAuthStore } from '@/stores/authStore';
 
 interface Entry {
   id: string;
@@ -30,12 +32,43 @@ interface Entry {
   estaCuadrado: boolean;
 }
 
-const ACTIVE_COMPANY_ID = '5eaccb4e-a6ec-4f23-9909-85fe7fc9e879';
+/** Línea de asiento tal como la devuelve el backend. */
+interface LineaAsientoBackend {
+  debitAmount?: number | string;
+  debit?: number | string;
+  creditAmount?: number | string;
+  credit?: number | string;
+}
+
+/** Asiento del backend: acepta camelCase y snake_case (contrato heredado). */
+interface AsientoBackend {
+  id?: string;
+  numeroAsiento?: string;
+  entryNumber?: number;
+  entry_number?: number;
+  entryDate?: string;
+  entry_date?: string;
+  fechaContable?: string;
+  glosa?: string;
+  concept?: string;
+  totalDebit?: number | string;
+  total_debit?: number | string;
+  totalDebe?: number | string;
+  totalCredit?: number | string;
+  total_credit?: number | string;
+  totalHaber?: number | string;
+  lines?: LineaAsientoBackend[];
+  accounting_lines?: LineaAsientoBackend[];
+}
+
 const STORAGE_KEY = 'accounting_entries_demo_v2';
 
 export default function AccountingEntriesPage() {
   const navigate = useNavigate();
   const { canCreateAccountingEntry, isAuditor } = useRolePermissions();
+  const { activeCompany, user } = useAuthStore();
+  const companyId = activeCompany?.tenantId ?? user?.companyId ?? '';
+  const companyRuc = activeCompany?.ruc ?? user?.companyRuc ?? '';
   const [isExporting, setIsExporting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -61,45 +94,36 @@ export default function AccountingEntriesPage() {
   const fetchEntriesFromApi = async () => {
     setIsRefreshing(true);
     try {
-      const res = await fetch('http://localhost:3000/api/v1/accounting/entries', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
-        },
-      });
+      const { data } = await apiClient.get<AsientoBackend[]>('/accounting/entries');
 
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          const mappedEntries: Entry[] = data.map((item: any, index: number) => {
-            // Extraer líneas de detalles si vienen pobladas en el backend
-            const lines = item.lines || item.accounting_lines || [];
+      if (Array.isArray(data) && data.length > 0) {
+        const mappedEntries: Entry[] = data.map((item: AsientoBackend, index: number) => {
+          // Extraer líneas de detalles si vienen pobladas en el backend
+          const lines = item.lines || item.accounting_lines || [];
 
-            // Calcular suma de Debe
-            const sumDebe = lines.length > 0
-              ? lines.reduce((acc: number, l: any) => acc + Number(l.debitAmount || l.debit || 0), 0)
-              : Number(item.totalDebit || item.total_debit || item.totalDebe || 0);
+          // Calcular suma de Debe
+          const sumDebe = lines.length > 0
+            ? lines.reduce((acc: number, l: LineaAsientoBackend) => acc + Number(l.debitAmount || l.debit || 0), 0)
+            : Number(item.totalDebit || item.total_debit || item.totalDebe || 0);
 
-            // Calcular suma de Haber
-            const sumHaber = lines.length > 0
-              ? lines.reduce((acc: number, l: any) => acc + Number(l.creditAmount || l.credit || 0), 0)
-              : Number(item.totalCredit || item.total_credit || item.totalHaber || 0);
+          // Calcular suma de Haber
+          const sumHaber = lines.length > 0
+            ? lines.reduce((acc: number, l: LineaAsientoBackend) => acc + Number(l.creditAmount || l.credit || 0), 0)
+            : Number(item.totalCredit || item.total_credit || item.totalHaber || 0);
 
-            return {
-              id: String(item.id || Date.now() + index),
-              numeroAsiento: item.numeroAsiento || `001-202610-00${item.entryNumber || item.entry_number || index + 1}`,
-              fechaContable: item.entryDate || item.entry_date || item.fechaContable || new Date().toISOString().split('T')[0],
-              glosa: item.glosa || item.concept || 'Asiento Contable',
-              totalDebe: sumDebe,
-              totalHaber: sumHaber,
-              estaCuadrado: true,
-            };
-          });
+          return {
+            id: String(item.id || Date.now() + index),
+            numeroAsiento: item.numeroAsiento || `001-202610-00${item.entryNumber || item.entry_number || index + 1}`,
+            fechaContable: item.entryDate || item.entry_date || item.fechaContable || new Date().toISOString().split('T')[0],
+            glosa: item.glosa || item.concept || 'Asiento Contable',
+            totalDebe: sumDebe,
+            totalHaber: sumHaber,
+            estaCuadrado: true,
+          };
+        });
 
-          setEntries(mappedEntries);
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(mappedEntries));
-        } else {
-          reloadFromLocalStorage();
-        }
+        setEntries(mappedEntries);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(mappedEntries));
       } else {
         reloadFromLocalStorage();
       }
@@ -166,24 +190,16 @@ export default function AccountingEntriesPage() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedList));
 
     try {
-      await fetch('http://localhost:3000/api/v1/accounting/entries', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
-        },
-        body: JSON.stringify({
-          companyId: ACTIVE_COMPANY_ID,
-          period: '2026-10',
-          entryNumber: Number(nextNumber),
-          entryDate: fechaActual,
-          glosa: glosa,
-          sourceModule: 'MANUAL',
-          lines: [
-            { lineOrder: 1, accountCode: '121101', accountName: 'Cuentas por Cobrar', debitAmount: val, creditAmount: 0 },
-            { lineOrder: 2, accountCode: '701111', accountName: 'Venta de Mercaderías', debitAmount: 0, creditAmount: val },
-          ],
-        }),
+      await apiClient.post('/accounting/entries', {
+        period: '2026-10',
+        entryNumber: Number(nextNumber),
+        entryDate: fechaActual,
+        glosa: glosa,
+        sourceModule: 'MANUAL',
+        lines: [
+          { lineOrder: 1, accountCode: '121101', accountName: 'Cuentas por Cobrar', debitAmount: val, creditAmount: 0 },
+          { lineOrder: 2, accountCode: '701111', accountName: 'Venta de Mercaderías', debitAmount: 0, creditAmount: val },
+        ],
       });
     } catch {
       console.warn('Operando en sandbox local.');
@@ -206,29 +222,27 @@ export default function AccountingEntriesPage() {
     let pleContent = '';
 
     try {
-      const res = await fetch('http://localhost:3000/api/v1/accounting/ple/export', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          companyRuc: '20601012341',
+      const { data } = await apiClient.post(
+        '/accounting/ple/export',
+        {
+          companyId,
+          companyRuc,
           year: 2026,
           month: 10,
           bookCode: '050100',
-        }),
-      });
+        },
+        { timeout: 60000 },
+      );
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data.fileName && data.content) {
-          fileName = data.fileName;
-          pleContent = data.content;
-        }
+      if (data.fileName && data.content) {
+        fileName = data.fileName;
+        pleContent = data.content;
       }
     } catch {
       console.log('Generando trama desde la tabla local...');
     } finally {
       if (!pleContent) {
-        let lines: string[] = [];
+        const lines: string[] = [];
         entries.forEach((ent, idx) => {
           const numAsiento = ent.numeroAsiento || `001-202610-00${idx + 1}`;
           lines.push(`20261000|${numAsiento}|M001|121101|${ent.totalDebe.toFixed(2)}|0.00|${ent.glosa}|1||`);

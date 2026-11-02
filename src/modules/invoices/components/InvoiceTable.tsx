@@ -23,6 +23,7 @@ interface InvoiceTableProps {
   onVerXml: (c: ComprobanteDemo) => void;
   onVerCdr: (c: ComprobanteDemo) => void;
   onDescargarPdf: (c: ComprobanteDemo) => void;
+  onReintentarCdr: (c: ComprobanteDemo) => void;
 }
 
 const COLUMNAS = [
@@ -55,6 +56,7 @@ export const InvoiceTable = ({
   onVerXml,
   onVerCdr,
   onDescargarPdf,
+  onReintentarCdr,
 }: InvoiceTableProps) => {
   return (
     <Card flush>
@@ -80,6 +82,7 @@ export const InvoiceTable = ({
                 onVerXml={onVerXml}
                 onVerCdr={onVerCdr}
                 onDescargarPdf={onDescargarPdf}
+                onReintentarCdr={onReintentarCdr}
               />
             ))
           ) : (
