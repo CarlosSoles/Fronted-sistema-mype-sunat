@@ -16,6 +16,8 @@ const isNumber = (value: unknown): value is number =>
 
 const isNullableNumber = (value: unknown): value is number | null => value === null || isNumber(value);
 
+const apiUrl = ENV.VITE_API_URL.replace(/\/+$/, '');
+
 const isHistoryPoint = (value: unknown): value is SireDashboardHistoryPoint =>
   isRecord(value) &&
   typeof value.timestamp === 'string' &&
@@ -83,7 +85,7 @@ const request = async (path: string): Promise<unknown> => {
 
   let response: Response;
   try {
-    response = await fetch(`${ENV.VITE_API_URL}${path}`, {
+    response = await fetch(`${apiUrl}${path}`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -108,6 +110,9 @@ const request = async (path: string): Promise<unknown> => {
   }
 
   if (!response.ok) {
+    if (response.status === 404 && import.meta.env.DEV) {
+      console.warn(`[SIRE dashboard] Endpoint no disponible: ${apiUrl}${path}`);
+    }
     const detail =
       typeof body === 'object' && body !== null && 'message' in body && typeof body.message === 'string'
         ? ` ${body.message}`

@@ -9,6 +9,12 @@ import type {
   ReconcileResponse,
   SireHistoryResponse,
   TipoComprobante,
+  SireAcceptRequest,
+  SirePreliminaryRequest,
+  SireRecordActionRequest,
+  SireReplacementRequest,
+  SireWorkflowRequest,
+  SireWorkflowResponse,
 } from '../types/sire.types';
 
 export class SireApiError extends Error {
@@ -86,10 +92,38 @@ const getSireStatusMessage = (status: number, detail?: string): string => {
     404: 'No se encontró la conciliación del periodo y libro indicados.',
     409: 'El periodo ya está cerrado y no admite cambios.',
     500: 'Ocurrió un error en el servidor al procesar la operación SIRE.',
+    503: 'Módulo en modo mantenimiento. Contacte a sistemas.',
   };
+
   const message = messages[status] ?? 'No se pudo completar la operación SIRE.';
   return detail ? `${message} ${detail}` : message;
 };
+
+const workflowQuery = ({ ruc, period, bookType }: SireWorkflowRequest) =>
+  new URLSearchParams({ ruc, period, bookType }).toString();
+
+const workflowRequest = async <T>(path: string, init: RequestInit): Promise<T> => {
+  const token = useAuthStore.getState().token;
+  if (!token) throw new SireApiError('Tu sesión venció o no es válida. Inicia sesión nuevamente.', 401);
+  try {
+    const response = await fetch(`${ENV.VITE_API_URL}${path}`, {
+      ...init,
+      headers: { ...authenticatedHeaders(token, Boolean(init.body)), ...init.headers },
+    });
+    return await readResponse<T>(response, getSireStatusMessage);
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new SireApiError('No fue posible conectar con el servidor. Verifica tu conexión e inténtalo nuevamente.', null);
+    }
+    throw error;
+  }
+};
+
+const actionBody = ({ proposalId, carSunat, reason }: SireRecordActionRequest) => ({
+  proposalId,
+  carSunat,
+  reason,
+});
 
 interface BackendReconciliation {
   period: string;
@@ -179,6 +213,70 @@ const readResponse = async <T>(response: Response, message: (status: number, det
 };
 
 export const sireApi = {
+  async getProposal(payload: SireWorkflowRequest) {
+    return workflowRequest<SireWorkflowResponse>(`/sire/propuesta?${workflowQuery(payload)}`, { method: 'GET' });
+  },
+
+  async exclude(payload: SireRecordActionRequest) {
+    return workflowRequest<SireWorkflowResponse>(`/sire/excluir?${workflowQuery(payload)}`, {
+      method: 'POST',
+      body: JSON.stringify(actionBody(payload)),
+    });
+  },
+
+  async restore(payload: SireRecordActionRequest) {
+    return workflowRequest<SireWorkflowResponse>(`/sire/restaurar?${workflowQuery(payload)}`, {
+      method: 'POST',
+      body: JSON.stringify(actionBody(payload)),
+    });
+  },
+
+  async acceptProposal(payload: SireAcceptRequest) {
+    return workflowRequest<SireWorkflowResponse>('/sire/aceptar', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async getPreliminary(payload: SireWorkflowRequest) {
+    return workflowRequest<SireWorkflowResponse>(`/sire/preliminar?${workflowQuery(payload)}`, { method: 'GET' });
+  },
+
+  async registerPreliminary(payload: SirePreliminaryRequest) {
+    return workflowRequest<SireWorkflowResponse>('/sire/preliminar', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async removePreliminaryRecord(payload: SireRecordActionRequest) {
+    return workflowRequest<SireWorkflowResponse>(`/sire/preliminar/comprobante?${workflowQuery(payload)}`, {
+      method: 'DELETE',
+      body: JSON.stringify(actionBody(payload)),
+    });
+  },
+
+  async replaceProposal(payload: SireReplacementRequest) {
+    const formData = new FormData();
+    formData.append('file', payload.file);
+    formData.append('ruc', payload.ruc);
+    formData.append('period', payload.period);
+    formData.append('bookType', payload.bookType);
+    return workflowRequest<SireWorkflowResponse>('/sire/reemplazo', { method: 'POST', body: formData });
+  },
+
+  async getGenerated(payload: SireWorkflowRequest) {
+    return workflowRequest<SireWorkflowResponse>(`/sire/generado?${workflowQuery(payload)}`, { method: 'GET' });
+  },
+
+  async getStatus(payload: SireWorkflowRequest & { ticket?: string }) {
+    const query = new URLSearchParams({
+      ...payload,
+      ...(payload.ticket ? { ticket: payload.ticket } : {}),
+    });
+    return workflowRequest<SireWorkflowResponse>(`/sire/status?${query.toString()}`, { method: 'GET' });
+  },
+
   async importProposal(payload: ImportSireProposalRequest, file: File): Promise<ImportSireProposalResponse> {
     const token = useAuthStore.getState().token;
     if (!token) {

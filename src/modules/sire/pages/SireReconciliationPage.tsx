@@ -7,6 +7,7 @@ import { SireHealthDashboard } from '../components/SireHealthDashboard';
 import { SireMetricsCards } from '../components/SireMetricsCards';
 import { SirePeriodFilter } from '../components/SirePeriodFilter';
 import { SireVouchersTable } from '../components/SireVouchersTable';
+import { SireWorkflowPanel } from '../components/SireWorkflowPanel';
 import { useSireReconciliation } from '../hooks/useSireReconciliation';
 import type { ComprobanteDraft, SireBookType } from '../types/sire.types';
 import { getPeriodFeedback, getRucFeedback } from '../validators/sireSchema';
@@ -69,6 +70,7 @@ export default function SireReconciliationPage() {
         description="Compara los comprobantes del ERP con la información fiscal de SUNAT."
       />
       <SireHealthDashboard />
+      <SireWorkflowPanel initialRuc={ruc} />
       <form onSubmit={handleSubmit} className="space-y-6">
         <label className="block max-w-xs space-y-1.5 text-sm font-medium">
           Libro a conciliar

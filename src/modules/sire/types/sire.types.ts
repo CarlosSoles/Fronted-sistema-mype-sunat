@@ -8,6 +8,66 @@ export type ReconcileScenario =
 export type DuplicateSource = 'LOCAL' | 'SIRE' | 'AMBOS';
 export type TipoComprobante = '01' | '03' | '07' | '08';
 export type SireBookType = 'RVIE_VENTAS' | 'RCE_COMPRAS';
+export type SireWorkflowState =
+  | 'PROPUESTA'
+  | 'PROCESANDO_REEMPLAZO'
+  | 'PROCESANDO_PRELIMINAR'
+  | 'CON_PRELIMINAR'
+  | 'PROCESANDO_GENERACION'
+  | 'GENERADO'
+  | 'ERROR';
+export type SireTicketStatus = 'PENDIENTE' | 'TERMINADO' | 'ERROR';
+export type SireRecordOrigin = 'SUNAT' | 'USUARIO';
+
+export interface SireWorkflowRecord {
+  proposalId: string;
+  carSunat: string;
+  emitterRuc: string;
+  documentType: TipoComprobante;
+  series: string;
+  correlative: string;
+  issueDate: string;
+  taxableBase: number;
+  igvAmount: number;
+  totalAmount: number;
+  origin: SireRecordOrigin;
+  status: string;
+}
+
+export interface SireWorkflowResponse {
+  ruc?: string;
+  period: string;
+  bookType: SireBookType;
+  state: SireWorkflowState;
+  ticket: string | null;
+  status?: SireTicketStatus;
+  records?: SireWorkflowRecord[];
+  error: { code: string; message: string; details?: string } | null;
+}
+
+export interface SireWorkflowRequest {
+  ruc: string;
+  period: string;
+  bookType: SireBookType;
+}
+
+export interface SireRecordActionRequest extends SireWorkflowRequest {
+  carSunat: string;
+  proposalId: string;
+  reason: string;
+}
+
+export interface SireAcceptRequest extends SireWorkflowRequest {
+  confirmed: true;
+}
+
+export interface SirePreliminaryRequest extends SireWorkflowRequest {
+  records: SireWorkflowRecord[];
+}
+
+export interface SireReplacementRequest extends SireWorkflowRequest {
+  file: File;
+}
 
 export interface ImportSireProposalRequest {
   period: string;
