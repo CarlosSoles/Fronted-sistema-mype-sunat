@@ -1,11 +1,18 @@
+import { useState } from 'react';
 import { Alert, AlertDescription, AlertTitle, Button } from '@/components/ui';
 import { RefreshCw } from 'lucide-react';
 import { useSireDashboardMetrics } from '../hooks/useSireDashboard';
 import { SireHealthHistoryPanel } from './SireHealthHistoryPanel';
 import { SireHealthMetricsPanel } from './SireHealthMetricsPanel';
+import { SireApiError } from '../services/sireApi';
 
 export function SireHealthDashboard() {
   const { data, error, isPending, isError, isRefetching, refetch } = useSireDashboardMetrics();
+  const [historyNotFound, setHistoryNotFound] = useState(false);
+  const metricsNotFound = error instanceof SireApiError && error.status === 404;
+
+  if (metricsNotFound || historyNotFound) return null;
+
   return (
     <section aria-label="Dashboard de conexión SIRE" className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -31,7 +38,7 @@ export function SireHealthDashboard() {
       )}
       {!data && isPending && <p role="status">Cargando métricas SIRE…</p>}
       <SireHealthMetricsPanel metrics={data} />
-      <SireHealthHistoryPanel />
+      <SireHealthHistoryPanel onNotFound={() => setHistoryNotFound(true)} />
     </section>
   );
 }

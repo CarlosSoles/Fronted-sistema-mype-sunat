@@ -12,7 +12,7 @@ describe('SireWorkflowPanel', () => {
     expect(screen.getByText('Borrador')).toBeInTheDocument();
     expect(screen.getByLabelText('RUC de la propuesta')).toHaveValue('20123456789');
     expect(screen.getByRole('tab', { name: 'Propuesta' })).toBeInTheDocument();
-    expect(screen.getByText('No hay propuesta consultada para este RUC y periodo.')).toBeInTheDocument();
+    expect(screen.getByText('Consulta la propuesta para cargar comprobantes.')).toBeInTheDocument();
     expect(screen.getByText(/No hay tickets pendientes\./)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Aceptar Propuesta Completa' })).toBeDisabled();
   });

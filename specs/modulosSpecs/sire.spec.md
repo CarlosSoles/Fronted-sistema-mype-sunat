@@ -19,6 +19,15 @@ el backend confirme sus URL, payloads, respuestas, autenticación, códigos HTTP
 oficiales de SUNAT. La interfaz no envía solicitudes ficticias ni presenta datos
 simulados como reales.
 
+La Fase 1 añade un cliente provisional para `/sire/propuesta`, `/sire/excluir`,
+`/sire/restaurar`, `/sire/aceptar`, `/sire/preliminar`, `/sire/reemplazo`,
+`/sire/generado` y `/sire/status`. Todos reciben `ruc`, `period` y `bookType`;
+las respuestas usan `state`, `ticket`, `status`, `records` y `error` según el DTO
+provisional. Un `503` se presenta como “Módulo en modo mantenimiento. Contacte a sistemas.”
+El polling consulta cada tres segundos y termina en `CON_PRELIMINAR`, `GENERADO` o `ERROR`.
+El adaptador `createSireMockApi` solo sirve para pruebas y no se activa mediante variables
+de entorno ni sustituye el gateway oficial de SUNAT.
+
 ## Importación de propuestas
 
 `POST /api/v1/sire/import` requiere `multipart/form-data` con los campos `file` (`.txt`, máximo 5 MiB), `period` (`YYYYMM`) y `bookType` (`RVIE_VENTAS` o `RCE_COMPRAS`). El backend autentica al usuario y determina la empresa desde su JWT.

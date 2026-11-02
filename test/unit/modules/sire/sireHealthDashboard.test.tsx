@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SireHealthDashboard } from '@/modules/sire/components/SireHealthDashboard';
 import { sireDashboardApi } from '@/modules/sire/services/sireDashboardApi';
+import { SireApiError } from '@/modules/sire/services/sireApi';
 
 afterEach(() => {
   cleanup();
@@ -55,6 +56,35 @@ describe('SireHealthDashboard', () => {
     expect(await screen.findByText('No se pudo cargar el estado de conexión')).toBeInTheDocument();
     expect(screen.getByText(/La conciliación sigue disponible/)).toBeInTheDocument();
     expect(screen.getByText('NO DISPONIBLE')).toBeInTheDocument();
+    queryClient.clear();
+  });
+
+  it('hides the complete panel when metrics are not implemented yet', async () => {
+    vi.spyOn(sireDashboardApi, 'getMetrics').mockRejectedValue(new SireApiError('Not found', 404));
+    vi.spyOn(sireDashboardApi, 'getHistory').mockResolvedValue(emptyHistory);
+    const queryClient = renderDashboard();
+    await waitFor(() => {
+      expect(screen.queryByRole('region', { name: 'Dashboard de conexión SIRE' })).not.toBeInTheDocument();
+    });
+    queryClient.clear();
+  });
+
+  it('hides the complete panel when history is not implemented yet', async () => {
+    vi.spyOn(sireDashboardApi, 'getMetrics').mockResolvedValue(metrics);
+    vi.spyOn(sireDashboardApi, 'getHistory').mockRejectedValue(new SireApiError('Not found', 404));
+    const queryClient = renderDashboard();
+    await waitFor(() => {
+      expect(screen.queryByRole('region', { name: 'Dashboard de conexión SIRE' })).not.toBeInTheDocument();
+    });
+    queryClient.clear();
+  });
+
+  it('keeps the panel visible for server errors other than 404', async () => {
+    vi.spyOn(sireDashboardApi, 'getMetrics').mockRejectedValue(new SireApiError('Server error', 500));
+    vi.spyOn(sireDashboardApi, 'getHistory').mockResolvedValue(emptyHistory);
+    const queryClient = renderDashboard();
+    expect(await screen.findByRole('region', { name: 'Dashboard de conexión SIRE' })).toBeInTheDocument();
+    expect(await screen.findByText('No se pudo cargar el estado de conexión')).toBeInTheDocument();
     queryClient.clear();
   });
 
