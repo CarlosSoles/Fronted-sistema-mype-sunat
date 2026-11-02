@@ -86,4 +86,19 @@ describe('sireDashboardApi', () => {
       message: expect.stringContaining('Servicio no disponible'),
     });
   });
+
+  it('warns in development when the dashboard endpoint returns 404', async () => {
+    useAuthStore.setState({ token: 'session-token' });
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: vi.fn().mockResolvedValue({ message: 'Cannot GET' }),
+    }));
+
+    await expect(sireDashboardApi.getMetrics()).rejects.toMatchObject({ status: 404 });
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('/sire/dashboard/metrics'),
+    );
+  });
 });

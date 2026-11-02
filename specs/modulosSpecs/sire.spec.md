@@ -6,6 +6,28 @@ La pantalla permite enviar comprobantes locales al endpoint de conciliación y m
 
 La importación de propuestas TXT está habilitada usando el formato interno provisional de nueve columnas descrito abajo. Este formato no es el layout oficial SUNAT y la pantalla debe advertirlo antes de cargar archivos. La generación de archivos planos RVIE/RCE de reemplazo sigue sin estar disponible.
 
+## Flujo de propuesta, preliminar y generado
+
+La pantalla de conciliación incluye la interfaz para seleccionar RUC, periodo y libro,
+y las pestañas Propuesta, Excluidos, Preliminar y Generado. También incluye el monitor
+visual de tickets y el estado inicial `Borrador`.
+
+Las operaciones de consulta de propuesta, exclusión/restauración, aceptación completa,
+consulta y registro de preliminar, eliminación de filas de origen `USUARIO`, reemplazo
+TXT, consulta de registros generados y polling de tickets están bloqueadas hasta que
+el backend confirme sus URL, payloads, respuestas, autenticación, códigos HTTP y estados
+oficiales de SUNAT. La interfaz no envía solicitudes ficticias ni presenta datos
+simulados como reales.
+
+La Fase 1 añade un cliente provisional para `/sire/propuesta`, `/sire/excluir`,
+`/sire/restaurar`, `/sire/aceptar`, `/sire/preliminar`, `/sire/reemplazo`,
+`/sire/generado` y `/sire/status`. Todos reciben `ruc`, `period` y `bookType`;
+las respuestas usan `state`, `ticket`, `status`, `records` y `error` según el DTO
+provisional. Un `503` se presenta como “Módulo en modo mantenimiento. Contacte a sistemas.”
+El polling consulta cada tres segundos y termina en `CON_PRELIMINAR`, `GENERADO` o `ERROR`.
+El adaptador `createSireMockApi` solo sirve para pruebas y no se activa mediante variables
+de entorno ni sustituye el gateway oficial de SUNAT.
+
 ## Importación de propuestas
 
 `POST /api/v1/sire/import` requiere `multipart/form-data` con los campos `file` (`.txt`, máximo 5 MiB), `period` (`YYYYMM`) y `bookType` (`RVIE_VENTAS` o `RCE_COMPRAS`). El backend autentica al usuario y determina la empresa desde su JWT.

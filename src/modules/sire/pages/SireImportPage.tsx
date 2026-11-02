@@ -80,7 +80,7 @@ export default function SireImportPage() {
         <AlertTitle>Formato provisional de pruebas</AlertTitle>
         <AlertDescription>
           La importación usa un formato interno provisional de 9 columnas y no el layout oficial SUNAT. No uses este
-          flujo para cargar archivos oficiales.
+          flujo para cargar archivos oficiales. Formato sujeto a cambios según resolución oficial de SUNAT.
         </AlertDescription>
       </Alert>
       <Card>

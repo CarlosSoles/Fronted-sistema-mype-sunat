@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, AlertDescription, AlertTitle, Button } from '@/components/ui';
 import { useSireDashboardHistory } from '../hooks/useSireDashboard';
 import type { SireDashboardGranularity, SireDashboardHistoryRequest } from '../types/sire.types';
@@ -15,13 +15,19 @@ const getDefaultRange = () => {
   };
 };
 
-export function SireHealthHistoryPanel() {
+export function SireHealthHistoryPanel({ onNotFound }: { onNotFound?: () => void } = {}) {
   const [range] = useState(getDefaultRange);
   const [granularity, setGranularity] = useState<SireDashboardGranularity>('hour');
   const [offset, setOffset] = useState(0);
   const [limit, setLimit] = useState(HISTORY_LIMIT);
   const request: SireDashboardHistoryRequest = { ...range, granularity, limit, offset };
   const { data, error, isPending, isError, refetch } = useSireDashboardHistory(request);
+
+  useEffect(() => {
+    if (isError && typeof error === 'object' && error !== null && 'status' in error && error.status === 404) {
+      onNotFound?.();
+    }
+  }, [error, isError, onNotFound]);
 
   const changeGranularity = (value: string) => {
     if (value === 'minute' || value === 'hour' || value === 'day') {
