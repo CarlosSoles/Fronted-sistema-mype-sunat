@@ -41,21 +41,25 @@ import {
 } from '@/components/ui';
 import { RefreshCw } from 'lucide-react';
 import { invoicesApi } from '../services/invoicesApi';
+import { hoyEnLima } from '../lib/invoiceFecha';
 import {
   ETIQUETA_TIPO,
   resumirVista,
   type VistaPreviaResumen,
 } from '../lib/invoiceResumenes';
 
-/** Fecha de hoy en Lima (UTC-5), en formato YYYY-MM-DD. */
-const hoyLima = (): string =>
-  new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+/*
+ * Aquí vivía `hoyLima()`, una copia local del cálculo de «hoy en Lima» con el
+ * desfase escrito a mano. Se retiró: la fuente única es `hoyEnLima()` en
+ * `../lib/invoiceFecha`, para que las pantallas del módulo no puedan
+ * desincronizarse entre sí.
+ */
 
 type Pestana = 'resumen' | 'baja';
 
 export default function InvoiceBajasPage() {
   const [pestana, setPestana] = useState<Pestana>('resumen');
-  const [fecha, setFecha] = useState(hoyLima());
+  const [fecha, setFecha] = useState(hoyEnLima());
   const [vista, setVista] = useState<VistaPreviaResumen | null>(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);

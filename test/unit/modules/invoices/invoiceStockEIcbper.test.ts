@@ -13,8 +13,7 @@ import {
   itemBolsa,
   itemVacio,
   sincronizarIcbper,
-} from '@/modules/invoices/lib/invoiceItems';
-import { revisarGrilla } from '@/modules/invoices/lib/invoiceStockLinea';
+} from '@/modules/invoices/lib/invoiceItems';import { revisarGrilla } from '@/modules/invoices/lib/invoiceStockLinea';
 
 describe('stock · la validación necesita el catálogo', () => {
   const producto = {
@@ -62,6 +61,28 @@ describe('stock · la validación necesita el catálogo', () => {
 
     // 6 + 6 = 12 > 10: el límite no se esquiva repartiendo la cantidad.
     expect(revision.bloquea).toBe(true);
+  });
+
+  it('la bolsa plástica NO genera aviso de stock', () => {
+    // El ICBPER no es un producto del almacén: su importe sale de la cantidad.
+    // Avisar "no está en el inventario" era cierto e inútil, y tapaba los
+    // avisos que sí importan.
+    const revision = revisarGrilla([itemBolsa('b', 2)], [producto]);
+
+    expect(revision.avisos).toBe(0);
+    expect(revision.errores).toBe(0);
+    expect(revision.lineas[0].mensaje).toBe('');
+  });
+
+  it('un código desconocido que NO es bolsa sigue avisando', () => {
+    // El silencio es solo para el ICBPER; un SKU inventado sí debe avisar.
+    const revision = revisarGrilla(
+      [{ ...itemVacio('k'), codigo: 'NO-EXISTE', cantidad: 1 }],
+      [producto],
+    );
+
+    expect(revision.avisos).toBe(1);
+    expect(revision.lineas[0].mensaje).toContain('NO-EXISTE');
   });
 });
 

@@ -73,3 +73,21 @@ export const diasEntreFechas = (
  * el formulario no lo ofrece.
  */
 export const DIAS_MAXIMOS_ATRASO = 7;
+
+/**
+ * Período contable en curso en Lima: año, mes (1-12) y la clave `YYYY-MM`.
+ *
+ * Lo usaba el módulo de contabilidad calculándolo con su propio `-5h`. Un
+ * período y una fecha no son lo mismo (el período es un mes, la fecha es un
+ * día), así que se expone aparte en vez de recortar `hoyEnLima()`.
+ */
+export const periodoActualLima = (): {
+  anio: number;
+  mes: number;
+  clave: string;
+} => {
+  const lima = new Date(Date.now() - DESFASE_LIMA_MS);
+  const anio = lima.getUTCFullYear();
+  const mes = lima.getUTCMonth() + 1;
+  return { anio, mes, clave: `${anio}-${String(mes).padStart(2, '0')}` };
+};

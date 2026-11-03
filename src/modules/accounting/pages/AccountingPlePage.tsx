@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button, Card, Page, PageHeader } from '@/components/ui';
 import { Download, FileCheck2, Loader2 } from 'lucide-react';
 import axios from 'axios';
+import { periodoActualLima } from '@/modules/invoices/lib/invoiceFecha';
 
 const ACTIVE_COMPANY_ID = '5eaccb4e-a6ec-4f23-9909-85fe7fc9e879';
 /** RUC del emisor de la compañía de demostración. */
@@ -24,8 +25,8 @@ const API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
  * vacío o con el mes equivocado.
  */
 const periodoActual = (): { anio: number; mes: number } => {
-  const lima = new Date(Date.now() - 5 * 60 * 60 * 1000);
-  return { anio: lima.getUTCFullYear(), mes: lima.getUTCMonth() + 1 };
+  const { anio, mes } = periodoActualLima();
+  return { anio, mes };
 };
 
 /**

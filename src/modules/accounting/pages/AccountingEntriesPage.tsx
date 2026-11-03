@@ -19,6 +19,7 @@ import {
 import { formatCurrency, formatDateToPeru } from '@/lib/formatters';
 import { BookOpen, CheckCircle2, Download, FilePlus, PlusCircle, RefreshCw, Trash2, X } from 'lucide-react';
 import { useRolePermissions } from '@/hooks/useRolePermissions';
+import { hoyEnLima, periodoActualLima } from '@/modules/invoices/lib/invoiceFecha';
 
 interface EntryLine {
   lineOrder: number;
@@ -64,12 +65,8 @@ const STORAGE_KEY = 'accounting_entries_demo_v2';
  * facturación se asientan en el mes en que ocurren, así que en noviembre la
  * pantalla decía "no hay asientos" aunque hubiera doce. Se toma el mes en curso.
  */
-const periodoActual = (): { anio: number; mes: number; clave: string } => {
-  const lima = new Date(Date.now() - 5 * 60 * 60 * 1000);
-  const anio = lima.getUTCFullYear();
-  const mes = lima.getUTCMonth() + 1;
-  return { anio, mes, clave: `${anio}-${String(mes).padStart(2, '0')}` };
-};
+const periodoActual = (): { anio: number; mes: number; clave: string } =>
+  periodoActualLima();
 
 export default function AccountingEntriesPage() {
   const navigate = useNavigate();
@@ -222,9 +219,7 @@ export default function AccountingEntriesPage() {
     if (!glosa || !monto) return;
 
     const val = parseFloat(monto);
-    const fechaActual = new Date(Date.now() - 5 * 60 * 60 * 1000)
-      .toISOString()
-      .split('T')[0];
+    const fechaActual = hoyEnLima();
     const nextNumber = entries.length + 1;
     const periodo = periodoActual();
 

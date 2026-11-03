@@ -47,6 +47,7 @@ import { FilePlus, RefreshCw, Info, FileSearch, CheckCircle2 } from 'lucide-reac
 import { InvoiceCdrModal } from '../components/InvoiceCdrModal';
 import { InvoiceEmitModal } from '../components/InvoiceEmitModal';
 import { cargarProductosAlmacen } from '../services/inventoryProductsApi';
+import { hoyEnLima } from '../lib/invoiceFecha';
 import type { ProductoBuscado } from '../lib/invoiceSearch';
 import type { TipoEmisible } from '../lib/invoiceEmitValidation';
 import type { Invoice } from '../types/invoice.types';
@@ -316,9 +317,7 @@ export default function InvoicesListPage() {
   >([]);
 
   const abrirEmision = useCallback((tipo: TipoEmisible) => {
-    setFechaBorrador(
-      new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString().slice(0, 10),
-    );
+    setFechaBorrador(hoyEnLima());
     setEmitiendo(tipo);
     cargarProductosAlmacen().then(setProductosAlmacen);
   }, []);
