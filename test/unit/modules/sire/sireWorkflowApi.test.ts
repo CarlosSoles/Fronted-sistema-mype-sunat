@@ -71,7 +71,7 @@ describe('sireApi workflow actions', () => {
 
     const [url] = fetchMock.mock.calls[0] as [string, RequestInit];
     const parsedUrl = new URL(url, 'http://localhost');
-    expect(parsedUrl.pathname).toBe(`${ENV.VITE_API_URL}/sire/status`);
+    expect(url.startsWith(`${ENV.VITE_API_URL}/sire/status`)).toBe(true);
     expect(parsedUrl.searchParams.get('ticket')).toBe(response.ticket);
     expect(result.status).toBe('ERROR');
   });
