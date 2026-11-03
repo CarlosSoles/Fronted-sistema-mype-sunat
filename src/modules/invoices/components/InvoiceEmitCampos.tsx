@@ -17,15 +17,17 @@ import {
   mensajeErrorDocumento,
 } from '../lib/invoiceEmitValidation';
 import {
+  cambiarFechaEmision,
   cambiarTipo,
   esTipoNota,
   vincularDocumentoAfectado,
 } from '../lib/invoiceEmitDraft';
 import type { BorradorEmision } from '../lib/invoiceEmitDraft';
+import { minimoDeFechaEmision, topeDeFechaEmision } from '../lib/invoiceEmitFecha';
 import { buscarAfectado } from '../lib/invoiceNotaOrigen';
 import type { ComprobanteDemo } from '../data/invoiceDemoTypes';
 import type { ProductoBuscado } from '../lib/invoiceSearch';
-import { CampoSelect, CampoTexto } from './InvoiceEmitCamposBase';
+import { CampoFecha, CampoSelect, CampoTexto } from './InvoiceEmitCamposBase';
 import { CustomerLookupField } from './CustomerLookupField';
 import { InvoiceEmitCamposTributarios } from './InvoiceEmitCamposTributarios';
 import { InvoiceItemsGrid } from './InvoiceItemsGrid';
@@ -74,6 +76,17 @@ export const InvoiceEmitCampos = ({
   // marcara error y que la serie no se vinculara nunca.
   const afectado = buscarAfectado(existentes, b.documentoAfectado);
 
+  /**
+   * ¿Una nota vinculada hereda la fecha del documento que modifica?
+   *
+   * Sí para la nota al CRÉDITO con motivo 13 (ajustes de operaciones
+   * intragrupo / diferencia de cambio), que por la RS 193-2020/SUNAT debe llevar
+   * la misma fecha que el comprobante original. En ese caso el campo no impone
+   * los topes de «no futuro» ni del plazo del resumen: la fecha no la elige el
+   * usuario, la hereda de un documento que ya existe.
+   */
+  const afectaFechaHeredada = esNota && Boolean(afectado) && b.motivoCodigo === '13';
+
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       <CampoSelect
@@ -95,6 +108,36 @@ export const InvoiceEmitCampos = ({
         }))}
         // La serie F/B de una Nota debe coincidir con el documento que afecta.
         disabled={esNota && Boolean(b.documentoAfectado.trim())}
+      />
+
+      {/*
+        D9 · Fecha de emisión.
+
+        Nace precargada con HOY en Lima y es editable, porque fechar un
+        comprobante es una decisión del negocio: la venta del viernes que se
+        registra el lunes lleva la fecha del viernes. Antes era un `useState`
+        congelado que el usuario no podía tocar.
+
+        El tope superior es hoy (no se emite a futuro) y el inferior, el plazo
+        del resumen diario (regla 2957). Si la nota está vinculada a un
+        documento afectado, la fecha la manda él: el motivo 13 (RS 193-2020)
+        exige la fecha del comprobante original, así que el campo se muestra
+        pero se explica por qué no es libre.
+      */}
+      <CampoFecha
+        id="fecha-emision"
+        label="Fecha de emisión"
+        value={b.fecha}
+        onChange={(v) => actualizar(cambiarFechaEmision(b, v))}
+        min={afectaFechaHeredada ? undefined : minimoDeFechaEmision()}
+        max={afectaFechaHeredada ? undefined : topeDeFechaEmision()}
+        ayuda={
+          afectaFechaHeredada
+            ? 'Es la fecha del comprobante afectado: la nota al crédito la hereda (motivo 13).'
+            : b.formaPago === 'Credito' && b.cuotas.length > 0
+              ? 'Al cambiarla, los vencimientos conservan su plazo respecto de la nueva fecha.'
+              : undefined
+        }
       />
 
       <CustomerLookupField

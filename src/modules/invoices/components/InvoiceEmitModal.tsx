@@ -25,6 +25,7 @@ import type { ComprobanteDemo } from '../data/invoiceDemoTypes';
 import type { ResultadoEmisionBackend } from '../types/invoiceEmision.types';
 import { invoicesApi } from '../services/invoicesApi';
 import { borradorAPayloadEmision, problemaDeCronograma } from '../lib/invoiceEmitPayload';
+import { problemaDeFechaEmision } from '../lib/invoiceEmitFecha';
 import {
   documentoValidoParaTipo,
   mensajeErrorDocumento,
@@ -100,6 +101,11 @@ const motivosPendientes = (
   const motivos: string[] = [];
 
   if (b.serie.length !== 4) motivos.push('La serie debe tener 4 caracteres.');
+
+  // D9: la fecha de emisión es editable, así que puede quedar imposible.
+  const problemaFecha = problemaDeFechaEmision(b.fecha);
+  if (problemaFecha) motivos.push(problemaFecha);
+
   if (!documentoValidoParaTipo(b.tipo, b.clienteDoc)) {
     motivos.push(mensajeErrorDocumento(b.tipo));
   }

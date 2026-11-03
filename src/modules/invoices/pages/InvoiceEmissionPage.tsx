@@ -77,6 +77,14 @@ import {
   validarCronograma,
   type CuotaBorrador,
 } from '../lib/invoiceDetraccion';
+import { cambiarFechaEmision } from '../lib/invoiceEmitDraft';
+import type { BorradorEmision } from '../lib/invoiceEmitDraft';
+import {
+  minimoDeFechaEmision,
+  problemaDeFechaEmision,
+  topeDeFechaEmision,
+} from '../lib/invoiceEmitFecha';
+import { hoyEnLima } from '../lib/invoiceFecha';
 import { calcularRetencion } from '../lib/invoiceRetentions';
 import { invoicesApi } from '../services/invoicesApi';
 import { cargarProductosAlmacen } from '../services/inventoryProductsApi';
@@ -198,14 +206,35 @@ export default function InvoiceEmissionPage() {
   );
 
   /**
-   * Fecha de emisión en Lima, fijada al abrir la pantalla: es la base de los
-   * vencimientos de las cuotas (regla 3267) y debe ser estable entre renders.
-   * Se calcula en el inicializador del `useState` y no en el cuerpo, porque la
-   * regla `react-hooks/purity` prohíbe `Date.now()` durante el render.
+   * Fecha de emisión en Lima (D9). Se precarga con HOY y es editable.
+   *
+   * Es la base de los vencimientos de las cuotas (regla 3267), así que al
+   * cambiarla hay que re-derivar el cronograma: se hace con
+   * `cambiarFechaEmision`, que conserva el plazo de cada cuota respecto de la
+   * emisión anterior. Se calcula en el inicializador del `useState` y no en el
+   * cuerpo porque la regla `react-hooks/purity` prohíbe `Date.now()` durante el
+   * render.
    */
-  const [fechaEmision] = useState(() =>
-    new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString().slice(0, 10),
-  );
+  const [fechaEmision, setFechaEmision] = useState(hoyEnLima);
+
+  /** Motivo por el que la fecha de emisión no sirve, o `null` (D9). */
+  const problemaFecha = problemaDeFechaEmision(fechaEmision);
+
+  /**
+   * Cambia la fecha y arrastra el cronograma.
+   *
+   * Se trabaja sobre un borrador mínimo en lugar de sobre el estado de la
+   * página porque esta pantalla guarda los campos en `useState` sueltos y la
+   * re-derivación de plazos vive una sola vez, en `invoiceEmitDraft`.
+   */
+  const cambiarFecha = (nueva: string) => {
+    // `cambiarFechaEmision` solo lee `fecha` y `cuotas` del borrador, así que un
+    // objeto mínimo basta: esta pantalla guarda los campos sueltos y no monta un
+    // `BorradorEmision` completo.
+    const previo = { fecha: fechaEmision, cuotas } as BorradorEmision;
+    setFechaEmision(nueva);
+    setCuotas(cambiarFechaEmision(previo, nueva).cuotas);
+  };
 
   const agregarItem = () => {
     setItems((prev) => [...prev, itemVacio(String(Date.now()))]);
@@ -269,6 +298,10 @@ export default function InvoiceEmissionPage() {
 
     // Validaciones locales para que el usuario vea el problema en el mismo
     // formulario. El backend las repite: esto no sustituye su validación.
+    if (problemaFecha) {
+      setResultado({ ok: false, mensaje: problemaFecha });
+      return;
+    }
     if (!clienteDoc.trim()) {
       setResultado({
         ok: false,
@@ -334,6 +367,10 @@ export default function InvoiceEmissionPage() {
         customer_identity_type: tipo === '01' ? '6' : '1',
         customer_identity_number: clienteDoc.replace(/\D/g, ''),
         customer_legal_name: clienteRazonSocial.trim(),
+        // D9: la fecha elegida viaja al backend. Antes no se mandaba —el campo
+        // tampoco existía— y el servidor fechaba con su propio reloj, que en UTC
+        // es el día siguiente a partir de las 19:00 de Lima.
+        fecha_emision: fechaEmision,
         agente_retencion: agenteRetencion,
         forma_pago: formaPago,
         cuotas:
@@ -430,25 +467,59 @@ export default function InvoiceEmissionPage() {
                   </select>
                 </div>
 
+                {/*
+                  D9 · Fecha de emisión editable, precargada con hoy en Lima.
+                  Antes era un `useState` congelado: la venta del viernes que se
+                  registra el lunes no se podía fechar el viernes. El tope
+                  superior es hoy y el inferior, el plazo del resumen diario
+                  (regla 2957), porque fuera de él la boleta nace sin forma de
+                  informarse.
+                */}
                 <div className="space-y-1.5">
                   <label
-                    htmlFor="agente-retencion"
+                    htmlFor="fecha-emision"
                     className="text-xs font-medium text-foreground"
                   >
-                    El cliente es Agente de Retención
+                    Fecha de emisión
                   </label>
-                  <label className="flex h-9 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm">
-                    <input
-                      id="agente-retencion"
-                      type="checkbox"
-                      checked={agenteRetencion}
-                      onChange={(e) => setAgenteRetencion(e.target.checked)}
-                    />
-                    <span className="text-xs text-muted-foreground">
-                      Retiene el 3 % del IGV
-                    </span>
-                  </label>
+                  <Input
+                    id="fecha-emision"
+                    type="date"
+                    min={minimoDeFechaEmision()}
+                    max={topeDeFechaEmision()}
+                    value={fechaEmision}
+                    onChange={(e) => cambiarFecha(e.target.value)}
+                  />
+                  {problemaFecha && (
+                    <PageText variant="error">{problemaFecha}</PageText>
+                  )}
+                  {!problemaFecha && formaPago === 'Credito' && cuotas.length > 0 && (
+                    <PageText variant="caption">
+                      Los vencimientos conservan su plazo respecto de la nueva
+                      fecha.
+                    </PageText>
+                  )}
                 </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="agente-retencion"
+                  className="text-xs font-medium text-foreground"
+                >
+                  El cliente es Agente de Retención
+                </label>
+                <label className="flex h-9 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm">
+                  <input
+                    id="agente-retencion"
+                    type="checkbox"
+                    checked={agenteRetencion}
+                    onChange={(e) => setAgenteRetencion(e.target.checked)}
+                  />
+                  <span className="text-xs text-muted-foreground">
+                    Retiene el 3 % del IGV
+                  </span>
+                </label>
               </div>
 
               {/*

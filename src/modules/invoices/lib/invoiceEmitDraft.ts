@@ -38,6 +38,7 @@ import {
   repartirEnCuotas,
   type CuotaBorrador,
 } from './invoiceDetraccion';
+import { diasEntreFechas, fechaIsoValida } from './invoiceFecha';
 
 /** Estado editable del formulario de emisión. */
 export interface BorradorEmision {
@@ -334,3 +335,52 @@ export const cambiarFormaPago = (
         }))
       : [],
 });
+
+/**
+ * Cambia la fecha de emisión y RE-DERIVA el cronograma (D9).
+ *
+ * POR QUÉ NO BASTA CON CAMBIAR EL CAMPO
+ *
+ * La fecha de emisión es la base de todos los vencimientos. Mientras el
+ * formulario la congelaba al abrirse, las cuotas nacían siempre «después de la
+ * emisión» y la regla 3267 se cumplía sola. Al volverse editable, el usuario
+ * puede mover la emisión hacia adelante y dejar los vencimientos atrás: el
+ * comprobante se ve correcto en pantalla y el backend lo rechaza al enviar.
+ *
+ * LA REGLA QUE SE APLICA AQUÍ
+ *
+ * Cada cuota conserva su PLAZO —los días que el usuario eligió respecto de su
+ * antigua emisión— y solo se mueve su fecha. Así un cronograma «a 30 y 60 días»
+ * sigue diciendo 30 y 60 días con la fecha nueva. Recalcular desde cero volvería
+ * a repartir cada 30 días y borraría en silencio un ajuste del usuario
+ * («la primera a 15 días, la segunda a 90»).
+ *
+ * OJO CON LO QUE ESTO NO PUEDE HACER: si el usuario ya no quiere esos plazos,
+ * esta función no lo adivina. Se conserva lo pactado y se avisa en pantalla;
+ * volver a repartir es una acción explícita («Repartir» en el editor de cuotas).
+ */
+export const cambiarFechaEmision = (
+  b: BorradorEmision,
+  nuevaFecha: string,
+): BorradorEmision => {
+  // Sin cronograma no hay nada que mover; y si la fecha no es válida no se
+  // toca el borrador, para no dejar las cuotas apoyadas en una fecha rota.
+  if (b.cuotas.length === 0 || !fechaIsoValida(nuevaFecha)) {
+    return { ...b, fecha: nuevaFecha };
+  }
+
+  const cuotas = b.cuotas.map((cuota) => {
+    // El plazo se mide contra la emisión ANTERIOR, que es a la que el usuario
+    // ató esa fecha cuando la eligió (a mano o por el reparto automático).
+    const plazo = diasEntreFechas(b.fecha, cuota.vencimiento);
+    // Si su vencimiento no era una fecha real no hay plazo que conservar: se
+    // deja como está y `validarCronograma` lo convertirá en un error visible.
+    if (plazo === null) return cuota;
+
+    const destino = new Date(`${nuevaFecha}T00:00:00Z`);
+    destino.setUTCDate(destino.getUTCDate() + plazo);
+    return { ...cuota, vencimiento: destino.toISOString().slice(0, 10) };
+  });
+
+  return { ...b, fecha: nuevaFecha, cuotas };
+};

@@ -58,6 +58,49 @@ export interface OpcionSelect<T extends string> {
   label: string;
 }
 
+
+/**
+ * Input de fecha (`YYYY-MM-DD`) con etiqueta, ayuda y error.
+ *
+ * `CampoTexto` no sirve para esto: aceptar `type="date"` haría que cualquiera
+ * de los campos de texto pudiera volverse un calendario sin que el `value` y el
+ * `min`/`max` tengan sentido. Se separa para que el tope de la fecha de
+ * emisión (no futura, no anterior al plazo del resumen) viva en un solo sitio.
+ */
+export const CampoFecha = ({
+  id,
+  label,
+  value,
+  onChange,
+  min,
+  max,
+  ayuda,
+  error,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (valor: string) => void;
+  min?: string;
+  max?: string;
+  ayuda?: string;
+  error?: string;
+}) => (
+  <PageField label={label} htmlFor={id}>
+    <input
+      id={id}
+      type="date"
+      min={min}
+      max={max}
+      className={CLASE_INPUT}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    />
+    {ayuda && <PageText variant="caption">{ayuda}</PageText>}
+    {error && <PageText variant="error">{error}</PageText>}
+  </PageField>
+);
+
 export interface CampoSelectProps<T extends string> {
   id: string;
   label: string;
