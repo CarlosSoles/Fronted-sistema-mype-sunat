@@ -234,6 +234,24 @@ export default function InvoicesListPage() {
   }, []);
 
   /**
+   * Tipo con el que se abre el formulario según el apartado de origen.
+   *
+   * El modal abría SIEMPRE en Factura (01), también desde Notas: quien entraba
+   * a emitir una nota tenía que cambiar el tipo a mano, y hasta entonces el
+   * formulario no mostraba ni el documento afectado ni el motivo. En Notas se
+   * abre en 07; en Comprobantes, en 01.
+   */
+  const tipoAlEmitir: TipoEmisible = apartado === 'notas' ? '07' : '01';
+
+  /*
+   * Solo hay dos valores posibles: desde Notas se emite una nota (07) y desde
+   * Comprobantes, una factura (01). La boleta no se ofrece aquí porque necesita
+   * serie propia y el apartado no la distingue.
+   */
+  const etiquetaEmision =
+    tipoAlEmitir === '07' ? 'Nueva Nota de Crédito' : 'Nueva Factura';
+
+  /**
    * Abre el modal pidiendo el DETALLE del comprobante.
    *
    * El listado devuelve `cdr_codigo: null` aunque el comprobante esté ACEPTADO,
@@ -327,9 +345,9 @@ export default function InvoicesListPage() {
           Actualizar
         </Button>
         {canEmitInvoices ? (
-          <Button size="sm" onClick={() => abrirEmision('01')}>
+          <Button size="sm" onClick={() => abrirEmision(tipoAlEmitir)}>
             <FilePlus aria-hidden="true" />
-            Nueva Factura
+            {etiquetaEmision}
           </Button>
         ) : (
           <Badge variant="outline" className="h-9 px-3 text-xs bg-muted/60 text-muted-foreground border-dashed">
