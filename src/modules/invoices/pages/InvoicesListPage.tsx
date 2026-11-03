@@ -43,7 +43,7 @@ import {
   TableRow,
 } from '@/components/ui';
 import { formatCurrency, formatDateToPeru } from '@/lib/formatters';
-import { FilePlus, RefreshCw, Info, FileSearch } from 'lucide-react';
+import { FilePlus, RefreshCw, Info, FileSearch, CheckCircle2 } from 'lucide-react';
 import { InvoiceCdrModal } from '../components/InvoiceCdrModal';
 import { InvoiceEmitModal } from '../components/InvoiceEmitModal';
 import type { TipoEmisible } from '../lib/invoiceEmitValidation';
@@ -214,6 +214,15 @@ export default function InvoicesListPage() {
    */
   const [emitiendo, setEmitiendo] = useState<TipoEmisible | null>(null);
 
+  /**
+   * Confirmación de la última emisión, con el número que asignó el backend.
+   *
+   * Sin esto, al cerrar el modal el usuario no tenía forma de saber si el
+   * comprobante se había emitido ni con qué número: la grilla se recarga pero
+   * el documento nuevo puede quedar en otra página.
+   */
+  const [ultimaEmision, setUltimaEmision] = useState<string | null>(null);
+
   /** Tras emitir se recarga la bandeja para ver el comprobante recién creado. */
   const cerrarEmision = useCallback(() => setEmitiendo(null), []);
 
@@ -296,9 +305,10 @@ export default function InvoicesListPage() {
    * Solo se pide mientras el modal está abierto: la bandeja no lo necesita y
    * pedirlo siempre sería una petición de más en cada visita.
    */
-  const { data: comprobantesEmpresa } = useComprobantesDeEmpresa(
-    emitiendo !== null,
-  );
+  const {
+    data: comprobantesEmpresa,
+    refetch: refetchComprobantesEmpresa,
+  } = useComprobantesDeEmpresa(emitiendo !== null);
   // TA-69: la barra de resumen se alimenta del periodo completo, no de la
   // página visible, y por eso es una consulta aparte de la grilla.
   const { data: metricas, isLoading: cargandoMetricas } = useInvoiceMetrics();
@@ -355,6 +365,21 @@ export default function InvoicesListPage() {
           </Badge>
         )}
       </PageHeader>
+
+      {/*
+        Confirmación de lo que el backend acaba de registrar. El número lo
+        asigna el servidor; mostrarlo evita que el usuario cierre el modal sin
+        saber si la emisión existió y con qué número.
+      */}
+      {ultimaEmision && (
+        <Alert variant="success">
+          <CheckCircle2 aria-hidden="true" />
+          <AlertTitle>Comprobante registrado</AlertTitle>
+          <AlertDescription>
+            {ultimaEmision}. Queda en cola: el CDR se consulta en la bandeja.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Alert variant="info">
         <Info aria-hidden="true" />
@@ -524,11 +549,21 @@ export default function InvoicesListPage() {
           existentes={listaDeLaEmpresa.map((inv) =>
             aComoComprobanteDemo(inv),
           )}
-          onEmitir={() => {
+          /*
+           * El modal EMITE y devuelve el resultado real del backend.
+           *
+           * Antes este callback ignoraba el argumento, cerraba el diálogo y
+           * recargaba la grilla sin haber enviado nada: el usuario creía haber
+           * emitido. Ahora se recibe el número fiscal que asignó el servidor,
+           * se muestra y se recarga la bandeja para ver el comprobante real.
+           */
+          onEmitir={(resultado) => {
+            setUltimaEmision(
+              `${resultado.numero} · S/ ${resultado.monto_total.toFixed(2)}`,
+            );
             cerrarEmision();
-            // La emisión real la hace el backend; se recarga la bandeja para
-            // ver el comprobante y su estado, en vez de pintarlo en el cliente.
             void refetch();
+            void refetchComprobantesEmpresa();
           }}
           onCerrar={cerrarEmision}
         />

@@ -22,6 +22,9 @@ import {
   PageText,
 } from '@/components/ui';
 import type { ComprobanteDemo } from '../data/invoiceDemoTypes';
+import type { ResultadoEmisionBackend } from '../types/invoiceEmision.types';
+import { invoicesApi } from '../services/invoicesApi';
+import { borradorAPayloadEmision, problemaDeCronograma } from '../lib/invoiceEmitPayload';
 import {
   documentoValidoParaTipo,
   mensajeErrorDocumento,
@@ -29,7 +32,6 @@ import {
 } from '../lib/invoiceEmitValidation';
 import {
   borradorInicial,
-  borradorAComprobante,
   cambiarFormaPago,
   esTipoNota,
   nuevaClave,
@@ -71,7 +73,12 @@ interface InvoiceEmitModalProps {
    * montable en una prueba sin backend; quien lo abre decide de dónde salen.
    */
   productos?: readonly ProductoBuscado[];
-  onEmitir: (comprobante: ComprobanteDemo) => void;
+  /**
+   * Se llama con el resultado REAL del backend: número fiscal asignado, importe
+   * liquidado y avisos. La emisión ocurre dentro del modal; el padre solo
+   * reacciona (recargar la bandeja, mostrar el número).
+   */
+  onEmitir: (resultado: ResultadoEmisionBackend) => void;
   onCerrar: () => void;
 }
 
@@ -166,6 +173,11 @@ export const InvoiceEmitModal = ({
     };
   });
 
+  /** `true` mientras la emisión viaja al backend; bloquea el doble envío. */
+  const [enviando, setEnviando] = useState(false);
+  /** Motivo por el que el backend rechazó, o por el que no se llegó a enviar. */
+  const [errorEmision, setErrorEmision] = useState<string | null>(null);
+
   const pendientes = useMemo(
     () => motivosPendientes(b, existentes),
     [b, existentes],
@@ -245,9 +257,42 @@ export const InvoiceEmitModal = ({
           ? 'Boleta'
           : 'Factura';
 
-  const confirmar = () => {
-    if (!puedeEmitir) return;
-    onEmitir(borradorAComprobante(b));
+  /**
+   * Emite contra el backend.
+   *
+   * ANTES ESTO NO EMITÍA NADA. El botón llamaba a `onEmitir`, que en
+   * `InvoicesListPage` solo cerraba el diálogo y recargaba la grilla: el usuario
+   * veía desaparecer el formulario y creía haber emitido, mientras el servidor
+   * no recibía ninguna petición. La emisión real la hacía únicamente la página
+   * `/invoices/emision`, con su propio payload escrito a mano.
+   *
+   * Ahora el payload sale de `borradorAPayloadEmision` (el mismo traductor que
+   * usa la página) y se envía de verdad.
+   */
+  const confirmar = async () => {
+    if (!puedeEmitir || enviando) return;
+
+    const problema = problemaDeCronograma(b);
+    if (problema) {
+      setErrorEmision(problema);
+      return;
+    }
+
+    setEnviando(true);
+    setErrorEmision(null);
+    try {
+      const resultado = await invoicesApi.emitirComprobante(
+        borradorAPayloadEmision(b),
+      );
+      onEmitir(resultado);
+    } catch (error: unknown) {
+      // NO se inventa un número ni un CDR: se muestra lo que dijo el backend.
+      const mensaje =
+        error instanceof Error ? error.message : 'Error desconocido';
+      setErrorEmision(`No se pudo emitir el comprobante: ${mensaje}`);
+    } finally {
+      setEnviando(false);
+    }
   };
 
   return (
@@ -325,12 +370,24 @@ export const InvoiceEmitModal = ({
           </div>
         )}
 
+        {/* El rechazo del backend se muestra aquí, no se pierde al cerrar el
+            modal: si el servidor dice que falta stock o que el RUC no cuadra,
+            el usuario tiene que poder leerlo y corregir. */}
+        {errorEmision && (
+          <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3">
+            <PageText variant="label" className="text-destructive">
+              No se emitió
+            </PageText>
+            <PageText variant="caption">{errorEmision}</PageText>
+          </div>
+        )}
+
         <DialogFooter>
-          <Button variant="outline" size="sm" onClick={onCerrar}>
+          <Button variant="outline" size="sm" onClick={onCerrar} disabled={enviando}>
             Cancelar
           </Button>
-          <Button size="sm" onClick={confirmar} disabled={!puedeEmitir}>
-            Emitir {nombreDocumento}
+          <Button size="sm" onClick={confirmar} disabled={!puedeEmitir || enviando}>
+            {enviando ? 'Emitiendo…' : `Emitir ${nombreDocumento}`}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -124,8 +124,7 @@ export const CustomerLookupField = ({
           // onElegir, porque el usuario puede estar corrigiendo a mano.
           setTextoEscribido(e.target.value.replace(/\D/g, ''));
           setAbierto(true);
-        }}
-        onKeyDown={(e) => {
+        }}        onKeyDown={(e) => {
           if (e.key === 'Escape') setAbierto(false);
         }}
       />

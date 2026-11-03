@@ -196,6 +196,34 @@ describe('validaciones del formulario de emisión', () => {
     expect(rucValido('1012345678')).toBe(false);
   });
 
+  /*
+   * LOS DOS CASOS ESPECIALES DEL MÓDULO 11, FIJADOS CON RUC REALES.
+   *
+   * `resto` va de 0 a 10, así que `11 - resto` da 1..11; los valores 10 y 11 se
+   * sustituyen por un dígito (10 → 0, 11 → 1).
+   *
+   *   20100070970 → resto 1  → verificador 10 → dígito 0
+   *   20601012341 → resto 10 → verificador 1  → dígito 1
+   *
+   * Están aquí porque el 3 nov "arreglé" estas ramas creyendo que la de 11 era
+   * imposible. No lo era: con resto 0 el dígito es 1. El cambio rompía
+   * 20100070970, que es la Ferretería Los Andes y la primera factura del
+   * sistema. Estas dos pruebas lo habrían frenado.
+   */
+  it('resuelve las dos ramas especiales del módulo 11 con RUC reales', () => {
+    // resto 1 → verificador 10 → 0
+    expect(rucValido('20100070970')).toBe(true);
+    // resto 10 → verificador 1 (el camino normal)
+    expect(rucValido('20601012341')).toBe(true);
+    // resto 6 → verificador 5
+    expect(rucValido('20131312955')).toBe(true);
+  });
+
+  it('rechaza el número con el dígito verificador alterado', () => {
+    expect(rucValido('20100070971')).toBe(false);
+    expect(rucValido('20131312956')).toBe(false);
+  });
+
   it('solo acepta DNI de ocho dígitos', () => {
     expect(dniValido('45678912')).toBe(true);
     expect(dniValido('4567891')).toBe(false);
