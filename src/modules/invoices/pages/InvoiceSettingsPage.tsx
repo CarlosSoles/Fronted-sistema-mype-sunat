@@ -15,6 +15,7 @@
  * lugar de mostrar un formulario vacío que el usuario creería que se guardó.
  */
 import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Alert,
   AlertDescription,
@@ -25,6 +26,8 @@ import {
 } from '@/components/ui';
 import { InvoiceSettingsTab } from '../components/InvoiceSettingsTab';
 import { InvoiceConfigChecklist } from '../components/InvoiceConfigChecklist';
+import { InvoiceStorageNote } from '../components/InvoiceStorageNote';
+import { invoicesApi } from '../services/invoicesApi';
 import { useInvoiceConfig } from '../hooks/useInvoiceConfig';
 import { useAuthStore } from '@/stores/authStore';
 import type { ConfiguracionFe } from '../lib/invoiceSettings';
@@ -36,6 +39,22 @@ export default function InvoiceSettingsPage() {
   const ruc = (useAuthStore((state) => state.activeCompany?.ruc) ?? '').trim();
 
   const { data, error, cargando } = useInvoiceConfig(ruc);
+
+  /**
+   * Aceptados de la empresa, para la nota de almacenamiento (D1, resto).
+   *
+   * El checklist no dice cuántos XML hay guardados y el listado tampoco expone
+   * ese dato, así que la nota NO promete una cifra que no puede sostener: usa
+   * los ACEPTADOS, que son justamente los que tienen CDR por definición (si
+   * SUNAT respondió, respondió con un CDR).
+   */
+  const { data: metricas } = useQuery({
+    queryKey: ['invoices', 'metrics', 'configuracion'],
+    queryFn: () => invoicesApi.getMetrics(),
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const aceptados = metricas?.aceptados ?? 0;
 
   const configuracion = useMemo<Partial<ConfiguracionFe>>(
     () => ({
@@ -85,6 +104,8 @@ export default function InvoiceSettingsPage() {
         forma de saber si SUNAT aceptaría sus comprobantes.
       */}
       {data && <InvoiceConfigChecklist config={data} />}
+
+      <InvoiceStorageNote aceptados={aceptados} />
 
       <InvoiceSettingsTab
         ruc={ruc}
