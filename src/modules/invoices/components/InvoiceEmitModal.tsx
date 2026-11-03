@@ -228,6 +228,23 @@ export const InvoiceEmitModal = ({
       };
     });
 
+  /**
+   * Nombre del comprobante que se va a emitir.
+   *
+   * El botón decía "Emitir comprobante" aunque el formulario estuviera en modo
+   * nota de crédito o de débito: el usuario tecleaba todo, pulsaba, y no había
+   * forma de saber qué documento iba a salir hasta verlo en la grilla. El tipo
+   * ya está elegido arriba, así que se nombra.
+   */
+  const nombreDocumento =
+    b.tipo === '07'
+      ? 'Nota de Crédito'
+      : b.tipo === '08'
+        ? 'Nota de Débito'
+        : b.tipo === '03'
+          ? 'Boleta'
+          : 'Factura';
+
   const confirmar = () => {
     if (!puedeEmitir) return;
     onEmitir(borradorAComprobante(b));
@@ -313,7 +330,7 @@ export const InvoiceEmitModal = ({
             Cancelar
           </Button>
           <Button size="sm" onClick={confirmar} disabled={!puedeEmitir}>
-            Emitir comprobante
+            Emitir {nombreDocumento}
           </Button>
         </DialogFooter>
       </DialogContent>
