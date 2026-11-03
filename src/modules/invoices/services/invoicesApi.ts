@@ -19,6 +19,7 @@ import {
 } from '../lib/invoiceAlertas';
 import type { ClienteBuscado } from '../lib/invoiceSearch';
 import type { VistaPreviaResumen } from '../lib/invoiceResumenes';
+import type { ResultadoEnvioAgregado } from '../types/invoiceEnvioAgregado.types';
 import type {
   EmitirComprobantePayload,
   ResultadoEmisionBackend,
@@ -235,6 +236,29 @@ export const invoicesApi = {
     const response = await apiClient.get<VistaPreviaResumen>(
       '/invoices/resumenes/baja',
       { params },
+    );
+    return response.data;
+  },
+
+  /**
+   * ENVÍA el resumen diario de boletas (D11).
+   *
+   * `POST /invoices/resumenes/diario/enviar` arma el XML, lo firma, lo comprime
+   * y lo ENCOLA; SUNAT responde con un TICKET y el CDR llega después, por el
+   * worker de resúmenes. Por eso la respuesta trae `jobId` y no un CDR: no hay
+   * veredicto todavía y no se puede pintar uno.
+   *
+   * `enviado: false` NO es un error de red: es una decisión del backend con el
+   * motivo (vista con errores, nada que informar, plazo de la regla 2957). Se
+   * devuelve tal cual para que la pantalla lo muestre sin inventar.
+   */
+  enviarResumenDiario: async (
+    fecha: string,
+  ): Promise<ResultadoEnvioAgregado> => {
+    const response = await apiClient.post<ResultadoEnvioAgregado>(
+      '/invoices/resumenes/diario/enviar',
+      undefined,
+      { params: { fecha } },
     );
     return response.data;
   },

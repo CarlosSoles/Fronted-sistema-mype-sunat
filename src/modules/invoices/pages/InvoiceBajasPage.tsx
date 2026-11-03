@@ -42,6 +42,7 @@ import {
 import { RefreshCw } from 'lucide-react';
 import { invoicesApi } from '../services/invoicesApi';
 import { hoyEnLima } from '../lib/invoiceFecha';
+import { EnviarResumenDiarioBoton } from '../components/EnviarResumenDiarioBoton';
 import {
   ETIQUETA_TIPO,
   resumirVista,
@@ -251,10 +252,30 @@ export default function InvoiceBajasPage() {
             </Table>
 
             {/*
-              El XML se muestra solo si existe: es lo que se enviaría. No hay
-              botón de "enviar" aquí porque el envío real pasa por la cola de
-              resúmenes, y fingirlo sería el mismo error que inventar un CDR.
+              D11: ENVÍO REAL del resumen diario.
+              Aquí decía «No hay botón de "enviar" porque el envío real pasa
+              por la cola de resúmenes, y fingirlo sería el mismo error que
+              inventar un CDR». La primera mitad era cierta; la segunda no: la
+              cola existe y el endpoint está conectado desde hace semanas. Lo
+              que faltaba era esta llamada.
+              Solo se ofrece para el RESUMEN DIARIO (boletas), que es lo que
+              pidió el docente; el flujo de baja (RA) es otro envío y no se
+              toca aquí.
             */}
+            {pestana === 'resumen' && (
+              <div className="mt-3">
+                <EnviarResumenDiarioBoton
+                  fecha={fecha}
+                  identificador={vista.envio.identificador}
+                  incluidos={conteo.incluidos}
+                  puedeEnviar={
+                    conteo.incluidos > 0 && vista.errores.length === 0
+                  }
+                  onEnviado={() => void cargar(pestana, fecha)}
+                />
+              </div>
+            )}
+
             {vista.xml && (
               <details className="mt-3">
                 <summary className="cursor-pointer text-xs text-muted-foreground">
