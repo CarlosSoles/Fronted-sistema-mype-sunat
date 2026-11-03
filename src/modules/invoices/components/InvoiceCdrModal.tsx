@@ -5,7 +5,7 @@
  * descripción, Hash y trama QR), la bitácora del pipeline de envío y, en modo
  * XML, el documento UBL 2.1 completo con scroll.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Badge,
   Button,
@@ -23,9 +23,13 @@ import {
 import { Download, FileCode2 } from 'lucide-react';
 import type { ComprobanteDemo } from '../data/invoiceDemoTypes';
 import { generarTramaQrSunat } from '../lib/invoiceCreditAndRules';
-import { generarXmlUbl21Comprobante } from '../lib/invoiceExportXml';
-import { RUC_EMISOR } from '../lib/invoiceExportConstants';
-import { descargarDesdeBackend, type FormatoDescarga } from '../lib/invoiceDescarga';
+import { identidadEmisora } from '../lib/invoiceExportConstants';
+import {
+  descargarDesdeBackend,
+  extraerDigestValue,
+  obtenerXmlDesdeBackend,
+  type FormatoDescarga,
+} from '../lib/invoiceDescarga';
 import { InvoiceStatusBadge } from './InvoiceStatusBadge';
 import { InvoiceAuditTrail } from './InvoiceAuditTrail';
 
@@ -45,6 +49,34 @@ export const InvoiceCdrModal = ({
   const [modo, setModo] = useState<'cdr' | 'xml'>(modoInicial);
   const [descargando, setDescargando] = useState<FormatoDescarga | null>(null);
   const [errorDescarga, setErrorDescarga] = useState<string | null>(null);
+  /**
+   * XML firmado que devuelve el backend.
+   *
+   * `undefined` = todavía no se pidió; `null` = se pidió y no hay archivo. La
+   * distinción evita tener que marcar "cargando" con un `setState` síncrono
+   * dentro del efecto, que dispara renders en cascada.
+   */
+  const [xmlReal, setXmlReal] = useState<string | null | undefined>(undefined);
+
+  const idComprobante = comprobante?.id ?? null;
+
+  /**
+   * Trae el XML firmado del backend.
+   *
+   * Se pide en el `useEffect` y no en el render porque es una petición de red:
+   * llamarla en el cuerpo del componente la repetiría en cada repintado. El
+   * `id` del comprobante es la dependencia real.
+   */
+  useEffect(() => {
+    if (!idComprobante) return;
+    let vigente = true;
+    void obtenerXmlDesdeBackend(idComprobante).then((xml) => {
+      if (vigente) setXmlReal(xml);
+    });
+    return () => {
+      vigente = false;
+    };
+  }, [idComprobante]);
 
   if (!comprobante) return null;
 
@@ -69,19 +101,60 @@ export const InvoiceCdrModal = ({
       setDescargando(null);
     }
   };
-  const numeroSerie = `${c.serie}-${String(c.correlativo).padStart(4, '0')}`;
-  const trama = generarTramaQrSunat({
-    rucEmisor: RUC_EMISOR,
-    tipo: c.tipo,
-    serie: c.serie,
-    correlativo: c.correlativo,
-    igv: c.igv,
-    total: c.totalNeto,
-    fecha: c.fechaEmision,
-    tipoDocCliente: c.clienteTipoDoc,
-    numDocCliente: c.clienteRuc,
-    hashCpe: c.hashCpe,
-  });
+  // El correlativo se rellena a 8 dígitos, como en el documento fiscal real.
+  // Antes se usaba padStart(4) y el título mostraba "FC01-0004" para
+  // FC01-00000004: un número que no existe en SUNAT.
+  const numeroSerie = `${c.serie}-${String(c.correlativo).padStart(8, '0')}`;
+
+  /**
+   * Etiqueta del código de respuesta.
+   *
+   * Un comprobante RECHAZADO no puede rotularse "PENDIENTE": son estados
+   * fiscales opuestos. Cuando el rechazo llega como SOAP Fault, SUNAT no
+   * devuelve CDR y `cdrCodigo` queda vacío, así que antes esta línea escribía
+   * "Código PENDIENTE" sobre una factura que SUNAT ya había tirado. Ese caso se
+   * señala con "sin código de CDR" en lugar de inventar un estado.
+   */
+  const etiquetaCodigo = (() => {
+    if (c.cdrCodigo) return `Código ${c.cdrCodigo}`;
+    // El rechazo por SOAP Fault no trae CDR, pero sí un código de error.
+    if (c.ultimoErrorCodigo) return `Código ${c.ultimoErrorCodigo}`;
+    if (c.estado === 'RECHAZADO') return 'Rechazado sin CDR';
+    if (c.estado === 'ACEPTADO' || c.estado === 'OBSERVADO') {
+      return 'Aceptado sin código';
+    }
+    return 'Sin respuesta de SUNAT';
+  })();
+
+  /**
+   * Hash del CPE tal como lo exige la trama QR: el digest BASE64 de la firma.
+   *
+   * `c.hashCpe` guarda el SHA-256 HEX del XML (útil para verificar la descarga),
+   * pero el campo 10 del QR es el digest BASE64 que produce la firma digital.
+   * Ese valor solo existe DENTRO del XML firmado, así que se lee de ahí.
+   *
+   * MIENTRAS EL XML NO HA LLEGADO `digest` ES `null`, y eso es deliberado: antes
+   * se caía a `c.hashCpe` (vacío) y la trama se pintaba terminando en `||`. El
+   * usuario veía un QR sin hash durante el segundo que tarda la petición y lo
+   * leía como que el arreglo no funcionó. Ahora se pinta un indicador hasta
+   * tenerlo, en lugar de una trama incompleta que después cambia.
+   */
+  const digest = extraerDigestValue(xmlReal ?? null);
+
+  const trama = digest
+    ? generarTramaQrSunat({
+        rucEmisor: identidadEmisora().ruc,
+        tipo: c.tipo,
+        serie: c.serie,
+        correlativo: c.correlativo,
+        igv: c.igv,
+        total: c.totalNeto,
+        fecha: c.fechaEmision,
+        tipoDocCliente: c.clienteTipoDoc,
+        numDocCliente: c.clienteRuc,
+        hashCpe: digest,
+      })
+    : null;
 
   return (
     <Dialog open onOpenChange={(abierto) => !abierto && onCerrar()}>
@@ -120,25 +193,83 @@ export const InvoiceCdrModal = ({
               </PageText>
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="text-[10px]">
-                  Código {c.cdrCodigo ?? 'PENDIENTE'}
+                  {etiquetaCodigo}
                 </Badge>
                 <PageText variant="caption">{c.cdrDescripcion}</PageText>
               </div>
               <PageText variant="caption" className="break-all">
-                digestValue: {c.hashCpe}
+                {xmlReal === undefined
+                  ? 'digestValue: calculando…'
+                  : `digestValue: ${
+                      /*
+                       * `??` NO basta: el bug que se vio por el túnel. Mientras
+                       * el XML viaja, `xmlReal` puede ser ya el texto vacío que
+                       * `obtenerXmlDesdeBackend` devuelve cuando el blob no es un
+                       * XML válido, y entonces `digest` es `''`. Con `??` la
+                       * cadena vacía pasa el filtro (no es null), así que se
+                       * pintaba este texto en la primera pintura — mientras la
+                       * trama sí se ocultaba bien. La condición tiene que ser
+                       * "hay digest no vacío", no "hay digest distinto de null".
+                       */
+                      digest && digest.trim().length > 0
+                        ? digest
+                        : 'No disponible: el comprobante aún no tiene el XML firmado'
+                    }`}
               </PageText>
-              <PageText variant="caption" className="break-all">
-                Trama QR: {trama}
-              </PageText>
+              {/*
+                La trama solo se pinta cuando el digest está disponible. Con
+                `trama === null` no hay nada válido que mostrar: se dice que se
+                está calculando, en vez de una trama que termina en `||` y que
+                luego cambia al llegar el XML.
+              */}
+              {trama ? (
+                <PageText variant="caption" className="break-all">
+                  Trama QR: {trama}
+                </PageText>
+              ) : (
+                /*
+                 * El segundo caso NO es "todavía no está firmado": es que el
+                 * backend no entregó un XML que se pueda leer (petición fallida,
+                 * blob vacío o documento sin firmar). Decirlo así evita afirmar
+                 * un estado fiscal que no se comprobó.
+                 */
+                <PageText variant="caption" className="text-muted-foreground">
+                  {xmlReal === undefined
+                    ? 'Trama QR: calculando digest del XML firmado…'
+                    : 'Trama QR: no disponible — el backend no entregó un XML firmado legible para este comprobante.'}
+                </PageText>
+              )}
             </div>
 
             <InvoiceAuditTrail comprobante={c} />
           </TabsContent>
 
           <TabsContent value="xml">
-            <pre className="max-h-72 overflow-auto rounded-lg bg-muted p-3 text-[11px] leading-relaxed">
-              {generarXmlUbl21Comprobante(c)}
-            </pre>
+            {xmlReal === undefined && (
+              <PageText variant="caption">Cargando el XML firmado…</PageText>
+            )}
+
+            {xmlReal && (
+              <>
+                <PageText variant="caption" className="mb-2">
+                  Documento que produjo el backend y se envió a SUNAT, con su
+                  firma digital.
+                </PageText>
+                <pre className="max-h-72 overflow-auto rounded-lg bg-muted p-3 text-[11px] leading-relaxed">
+                  {xmlReal}
+                </pre>
+              </>
+            )}
+
+            {/* Sin XML guardado se informa; NO se pinta una reconstrucción con
+                la forma del documento fiscal, porque se leería como el original
+                y podría tener totales distintos. */}
+            {xmlReal === null && (
+              <PageText variant="caption">
+                Este comprobante todavía no tiene el XML firmado guardado en el
+                backend. Cuando se procese podrá verse y descargarse aquí.
+              </PageText>
+            )}
           </TabsContent>
         </Tabs>
 

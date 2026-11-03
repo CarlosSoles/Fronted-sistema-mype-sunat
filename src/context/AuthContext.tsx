@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { authApi } from '@/modules/auth/services/authApi';
+import { cargarEmpresaActiva } from '@/modules/auth/lib/empresaActiva';
 import {
   type AuthUser,
   type ChangePasswordPayload,
@@ -68,9 +69,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setAccessToken(token);
           setUser(response.user);
           useAuthStore.getState().setSession(token, response.user);
-          if (response.companies && response.companies.length > 0) {
-            useAuthStore.getState().setActiveCompany(response.companies[0]);
-          }
+          // La empresa se resuelve por `/auth/profile`: ni el login ni el
+          // refresh la devuelven, y sin ella la sesión quedaba sin RUC emisor.
+          void cargarEmpresaActiva();
         }
       } catch {
         // Si no hay cookie válida o expiró, se intenta primero RECUPERAR la
@@ -112,6 +113,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     useAuthStore.getState().setSession(token, data.user);
     if (data.companies && data.companies.length > 0) {
       useAuthStore.getState().setActiveCompany(data.companies[0]);
+    } else {
+      // El login no trae `companies`; la empresa sale del perfil.
+      await cargarEmpresaActiva(true);
     }
   };
 
@@ -123,6 +127,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     useAuthStore.getState().setSession(token, data.user);
     if (data.companies && data.companies.length > 0) {
       useAuthStore.getState().setActiveCompany(data.companies[0]);
+    } else {
+      await cargarEmpresaActiva(true);
     }
   };
 
