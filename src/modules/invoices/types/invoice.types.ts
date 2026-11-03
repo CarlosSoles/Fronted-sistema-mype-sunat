@@ -1,6 +1,22 @@
+/**
+ * Estado de un comprobante frente a SUNAT, tal como lo pinta el front.
+ *
+ * POR QUÉ `SIN_CONFIRMAR` EXISTE (deuda A, cerrada el 3 nov)
+ *
+ * Antes `ERROR_RED` se colapsaba en `FALLO_CRITICO`, que la grilla rotulaba
+ * "En Cola DLQ" y el modal convertía en RECHAZADO. Las dos etiquetas eran
+ * falsas: el comprobante ni está en la DLQ por el hecho de tener un error de
+ * red, ni fue rechazado por SUNAT — nunca le llegó.
+ *
+ * `FALLO_CRITICO` se conserva por compatibilidad de datos ya guardados, pero
+ * **nada del backend lo produce**: `MAPA_ESTADOS` manda `ERROR_RED` a
+ * `SIN_CONFIRMAR`. Es el único estado que NO es un veredicto.
+ */
 export type CdrStatus =
   | 'EN_COLA_OUTBOX'
   | 'ACEPTADO_SUNAT'
+  | 'SIN_CONFIRMAR'
+  /** @deprecated nada lo produce; ver el comentario de arriba. */
   | 'FALLO_CRITICO'
   | 'RECHAZADO_SUNAT';
 

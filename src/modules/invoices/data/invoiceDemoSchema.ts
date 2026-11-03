@@ -9,8 +9,19 @@ import type { AfectacionIgv } from '../lib/invoiceCalculations';
 /** Tipo de comprobante del Catálogo 01 de SUNAT. */
 export type TipoComprobante = '01' | '03' | '07' | '08' | 'RA' | 'RC';
 
-/** Estado del CDR devuelto por SUNAT. */
-export type EstadoCdrDemo = 'ACEPTADO' | 'OBSERVADO' | 'EN_COLA' | 'RECHAZADO';
+/**
+ * Estado del comprobante tal como lo pinta la ficha.
+ *
+ * `SIN_CONFIRMAR` NO es un veredicto de SUNAT: el documento no llegó a
+ * enviarse, así que no hay ni aceptación ni rechazo. Antes ese caso se
+ * colapsaba en `RECHAZADO` y la ficha afirmaba algo falso sobre el comprobante.
+ */
+export type EstadoCdrDemo =
+  | 'ACEPTADO'
+  | 'OBSERVADO'
+  | 'EN_COLA'
+  | 'SIN_CONFIRMAR'
+  | 'RECHAZADO';
 
 /** Tipo de operación del Catálogo 51 de SUNAT. */
 export type TipoOperacion = '0101' | '1001' | '0200';

@@ -127,8 +127,20 @@ describe('TA-59 · traducción de estados', () => {
     expect(aCdrStatus('EN_COLA')).toBe('EN_COLA_OUTBOX');
   });
 
-  it('ERROR_RED se traduce a FALLO_CRITICO', () => {
-    expect(aCdrStatus('ERROR_RED')).toBe('FALLO_CRITICO');
+  it('ERROR_RED se traduce a SIN_CONFIRMAR, no a un rechazo', () => {
+    // Deuda A: antes iba a FALLO_CRITICO, que la grilla rotulaba "En Cola DLQ"
+    // y el modal convertía en RECHAZADO. Un fallo de transmisión no es un
+    // veredicto de SUNAT: el documento no llegó a enviarse.
+    expect(aCdrStatus('ERROR_RED')).toBe('SIN_CONFIRMAR');
+    expect(aCdrStatus('ERROR_RED')).not.toBe('RECHAZADO_SUNAT');
+    expect(aCdrStatus('ERROR_RED')).not.toBe('FALLO_CRITICO');
+  });
+
+  it('ningún estado del backend produce FALLO_CRITICO', () => {
+    // Se conserva en el tipo por compatibilidad, pero si algún valor volviera a
+    // apuntar ahí, volvería la etiqueta falsa sin que nadie lo note.
+    const valores = Object.values(MAPA_ESTADOS);
+    expect(valores).not.toContain('FALLO_CRITICO');
   });
 
   it('RECHAZADO se traduce a RECHAZADO_SUNAT', () => {

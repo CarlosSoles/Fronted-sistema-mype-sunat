@@ -24,7 +24,6 @@ import { Download, FileCode2 } from 'lucide-react';
 import type { ComprobanteDemo } from '../data/invoiceDemoTypes';
 import { generarTramaQrSunat } from '../lib/invoiceCreditAndRules';
 import { identidadEmisora } from '../lib/invoiceExportConstants';
-import { esErrorDeRed } from '../lib/invoiceRedError';
 import {
   descargarDesdeBackend,
   extraerDigestValue,
@@ -120,11 +119,9 @@ export const InvoiceCdrModal = ({
     if (c.cdrCodigo) return `Código ${c.cdrCodigo}`;
     // El rechazo por SOAP Fault no trae CDR, pero sí un código de error.
     if (c.ultimoErrorCodigo) return `Código ${c.ultimoErrorCodigo}`;
-    // Antes de rotular "Rechazado" hay que descartar el ERROR_RED: `estado`
-    // viene colapsado desde FALLO_CRITICO y no distingue un fallo de envío de
-    // un rechazo real. Se comprueba primero para no llamar rechazado a un
-    // documento que SUNAT nunca recibió.
-    if (esErrorDeRed(c)) return 'Sin confirmar';
+    // El fallo de envío ya tiene estado propio: no hace falta descartarlo antes
+    // que "Rechazado" porque la ficha no llega aquí con un estado colapsado.
+    if (c.estado === 'SIN_CONFIRMAR') return 'Sin confirmar';
     if (c.estado === 'RECHAZADO') return 'Rechazado sin CDR';
     if (c.estado === 'ACEPTADO' || c.estado === 'OBSERVADO') {
       return 'Aceptado sin código';
@@ -173,11 +170,7 @@ export const InvoiceCdrModal = ({
             <span>
               {numeroSerie} · {c.clienteRazonSocial}
             </span>
-            <InvoiceStatusBadge
-              estado={c.estado}
-              codigo={c.cdrCodigo}
-              comprobante={c}
-            />
+            <InvoiceStatusBadge estado={c.estado} codigo={c.cdrCodigo} />
           </DialogTitle>
           <PageText variant="caption">
             {/* `null` es DESCONOCIDO, no "Contado": los comprobantes emitidos

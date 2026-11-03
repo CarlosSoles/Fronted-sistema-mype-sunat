@@ -103,6 +103,12 @@ export interface PaginaBackend {
  * `OBSERVADO` se mapea a ACEPTADO_SUNAT y no a RECHAZADO_SUNAT a propósito: un
  * comprobante observado existe y es válido ante SUNAT; solo tiene salvedades.
  * Tratarlo como rechazo haría reenviarlo y duplicarlo.
+ *
+ * `ERROR_RED` se mapea a `SIN_CONFIRMAR` y NO a `FALLO_CRITICO`. El colapso
+ * anterior hacía que la grilla lo rotulara "En Cola DLQ" —falso: tener un error
+ * de red no implica estar en la cola de muertos— y que el modal lo tratara como
+ * RECHAZADO. Un fallo de transmisión no es un veredicto de SUNAT: el documento
+ * no le llegó, así que no hay ni rechazo ni aceptación.
  */
 export const MAPA_ESTADOS: Record<string, CdrStatus> = {
   ACEPTADO: 'ACEPTADO_SUNAT',
@@ -110,7 +116,7 @@ export const MAPA_ESTADOS: Record<string, CdrStatus> = {
   EN_COLA: 'EN_COLA_OUTBOX',
   PENDIENTE: 'EN_COLA_OUTBOX',
   ENVIADO: 'EN_COLA_OUTBOX',
-  ERROR_RED: 'FALLO_CRITICO',
+  ERROR_RED: 'SIN_CONFIRMAR',
   RECHAZADO: 'RECHAZADO_SUNAT',
   ANULADO: 'RECHAZADO_SUNAT',
 };

@@ -55,16 +55,28 @@ import { useRolePermissions } from '@/hooks/useRolePermissions';
 import type { FiltrosInvoices } from '../services/invoicesApi';
 
 const cdrStatusLabels = {
-  ACEPTADO_SUNAT: 'Aceptado', EN_COLA_OUTBOX: 'Buffer Outbox', FALLO_CRITICO: 'En Cola DLQ', RECHAZADO_SUNAT: 'Rechazado',
+  ACEPTADO_SUNAT: 'Aceptado',
+  EN_COLA_OUTBOX: 'Buffer Outbox',
+  // Ya no dice "En Cola DLQ": un error de red no pone el comprobante en la cola
+  // de muertos, y la etiqueta afirmaba algo que el sistema no comprobaba.
+  SIN_CONFIRMAR: 'Sin confirmar',
+  FALLO_CRITICO: 'Sin confirmar',
+  RECHAZADO_SUNAT: 'Rechazado',
 } as const;
 
-/** Estados que ofrece el filtro (los del enum del backend). */
+/**
+ * Estados que ofrece el filtro (los del enum del backend).
+ *
+ * "Error de red" se rotula igual que el badge para que el filtro y la fila
+ * hablen el mismo idioma: el usuario que ve "Sin confirmar" en la grilla tiene
+ * que poder filtrar por ese texto, no adivinar que aquí se llama de otra forma.
+ */
 const FILTROS_ESTADO = [
   { value: 'todos', label: 'Todos los estados' },
   { value: 'ACEPTADO', label: 'Aceptado' },
   { value: 'OBSERVADO', label: 'Observado' },
   { value: 'EN_COLA', label: 'En cola' },
-  { value: 'ERROR_RED', label: 'Error de red' },
+  { value: 'ERROR_RED', label: 'Sin confirmar' },
   { value: 'RECHAZADO', label: 'Rechazado' },
 ] as const;
 
@@ -91,22 +103,18 @@ const opcionesTipoDe = (tiposDelApartado: readonly string[]) =>
 /**
  * Estado del CDR del front al modelo del modal.
  *
- * DEUDA CONOCIDA — COLAPSO DE `ERROR_RED` (decisión del 3 nov: se cierra
- * después de la demo)
+ * DEUDA A — CERRADA el 3 nov
  *
- * `FALLO_CRITICO` se mapea a `RECHAZADO`, y ese colapso es la raíz de que la
+ * Antes `FALLO_CRITICO` se colapsaba en `RECHAZADO`, y ese colapso hacía que la
  * ficha afirmara "Rechazado" sobre un comprobante que SUNAT nunca recibió.
- * `RECHAZADO` es un veredicto del fisco; `ERROR_RED` es un fallo de envío. Hoy
- * se compensa mirando `estadoBackend` en cada sitio que rotula el estado
- * (`InvoiceStatusBadge`, `InvoiceAuditTrail`, la celda de la grilla y
- * `InvoiceCdrModal`), con el criterio único de `lib/invoiceRedError`.
+ * Durante un rato se compensó mirando `estadoBackend` en cada sitio, con el
+ * criterio único de `lib/invoiceRedError`. Ese apaño tenía un techo: cualquier
+ * pantalla nueva que usara `estado` sin pasar por `esErrorDeRed` volvía a
+ * mentir.
  *
- * Ese apaño tiene un techo: cualquier pantalla nueva que use `estado` sin
- * pasar por `esErrorDeRed` vuelve a mentir, y la grilla sigue rotulando
- * "En Cola DLQ" a un fallo de red vía `MAPA_ESTADOS`. La solución de raíz es
- * añadir `SIN_CONFIRMAR` al enum `CdrStatus` y dejar de colapsar, revisando
- * badge, filtros y conteos. No se hizo antes de la demo por superficie de
- * riesgo, no por olvido.
+ * Ya no hace falta: `MAPA_ESTADOS` manda `ERROR_RED` a `SIN_CONFIRMAR`, que es
+ * un estado propio del enum y no un veredicto. `FALLO_CRITICO` se conserva en
+ * el tipo solo por compatibilidad; nada lo produce.
  */
 const mapEstadoCdr = (
   status: Invoice['cdrStatus'],
@@ -115,8 +123,15 @@ const mapEstadoCdr = (
     case 'ACEPTADO_SUNAT':
       return 'ACEPTADO';
     case 'RECHAZADO_SUNAT':
-    case 'FALLO_CRITICO':
       return 'RECHAZADO';
+    // Fallo de transmisión: el documento no llegó a SUNAT, así que no hay
+    // veredicto. Tiene estado propio en la ficha y NO se muestra como rechazo.
+    //
+    // `FALLO_CRITICO` se mantiene porque el tipo aún lo admite, pero nada lo
+    // produce desde que `MAPA_ESTADOS` manda ERROR_RED a SIN_CONFIRMAR.
+    case 'SIN_CONFIRMAR':
+    case 'FALLO_CRITICO':
+      return 'SIN_CONFIRMAR';
     default:
       // EN_COLA_OUTBOX: el comprobante todavía no tiene respuesta de SUNAT.
       return 'EN_COLA';
@@ -527,33 +542,24 @@ export default function InvoicesListPage() {
                   </TableCell>
                   <TableCell align="center">
                     {/*
-                      Un ERROR_RED no se rotula "Rechazado": SUNAT no lo evaluó.
-                      Se mira el estado CRUDO y no `cdrStatus`, porque el mapa
-                      del front colapsa FALLO_CRITICO en RECHAZADO_SUNAT y
-                      entonces la celda contradecía al texto de la ficha. Antes
-                      además decía "En Cola DLQ", que tampoco era cierto: el
-                      comprobante puede no estar en la DLQ.
+                      Un ERROR_RED no se rotula "Rechazado" ni "En Cola DLQ":
+                      SUNAT no lo evaluó y el comprobante no está en la cola de
+                      muertos por tener un error de red.
 
-                      Ver la deuda en `lib/invoiceRedError`: la solución de raíz
-                      es un estado propio en el enum.
+                      Desde que `MAPA_ESTADOS` lo manda a `SIN_CONFIRMAR`, la
+                      etiqueta sale del propio `cdrStatus` y ya no hay que
+                      consultar `estadoBackend` aquí: el estado distingue el
+                      fallo de envío por sí mismo.
                     */}
                     <Badge
-                      variant={
-                        inv.estadoBackend === 'ERROR_RED'
-                          ? 'outline'
-                          : inv.cdrStatus === 'FALLO_CRITICO'
-                            ? 'destructive'
-                            : 'outline'
-                      }
+                      variant="outline"
                       className={
-                        inv.estadoBackend === 'ERROR_RED'
+                        inv.cdrStatus === 'SIN_CONFIRMAR'
                           ? 'border-amber-500/40 bg-amber-500/10 text-amber-700'
                           : undefined
                       }
                     >
-                      {inv.estadoBackend === 'ERROR_RED'
-                        ? 'Sin confirmar'
-                        : cdrStatusLabels[inv.cdrStatus]}
+                      {cdrStatusLabels[inv.cdrStatus]}
                       {inv.cdrCodigo ? ` (${inv.cdrCodigo})` : ''}
                     </Badge>
                     {/* TA-59: el badge OBSERVADO solo aparece si el estado crudo

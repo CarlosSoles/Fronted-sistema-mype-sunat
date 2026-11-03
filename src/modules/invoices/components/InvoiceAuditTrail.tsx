@@ -33,41 +33,44 @@ const LECTURA_DEL_ESTADO: Record<string, string> = {
   EN_COLA: 'Está en la cola de envío. SUNAT todavía no ha respondido.',
   ACEPTADO: 'SUNAT aceptó el comprobante y devolvió su CDR.',
   OBSERVADO: 'SUNAT aceptó el comprobante pero anotó observaciones.',
+  /**
+   * Fallo de transmisión. Vive en `lib/invoiceRedError` junto al criterio, para
+   * que la bitácora y el modal no puedan discrepar sobre el mismo comprobante.
+   */
+  SIN_CONFIRMAR: LECTURA_ERROR_RED_COMPARTIDA,
   RECHAZADO: 'SUNAT rechazó el comprobante. No tiene validez fiscal.',
 };
-
-/**
- * Lectura de un ERROR_RED: vive en `lib/invoiceRedError` junto al criterio, para
- * que el modal y la bitácora no puedan discrepar sobre el mismo comprobante.
- */
-const LECTURA_ERROR_RED = LECTURA_ERROR_RED_COMPARTIDA;
 
 /** Bitácora con los datos reales del comprobante. */
 export const InvoiceAuditTrail = ({ comprobante }: InvoiceAuditTrailProps) => {
   const aceptado =
     comprobante.estado === 'ACEPTADO' || comprobante.estado === 'OBSERVADO';
-  const falloDeRed = esErrorDeRed(comprobante);
+  // Desde que ERROR_RED llega como SIN_CONFIRMAR, el estado se basta a sí
+  // mismo. `esErrorDeRed` se conserva como respaldo para filas antiguas que
+  // todavía traigan el estado colapsado desde el backend.
+  const falloDeRed =
+    comprobante.estado === 'SIN_CONFIRMAR' || esErrorDeRed(comprobante);
 
   const filas: { etiqueta: string; valor: string }[] = [
     {
       etiqueta: 'Estado del comprobante',
       /*
-       * El valor crudo del backend, salvo en un fallo de red: ahí `estado` es
-       * el colapso del front (RECHAZADO) y mostrarlo contradiría a la lectura
-       * de la fila de abajo. Se rotula con el estado real del BACKEND —
-       * ERROR_RED— y no con la etiqueta de pantalla, porque este campo dice
-       * literalmente "lo que registró el sistema".
+       * El valor registrado por el sistema. En un fallo de envío es ERROR_RED,
+       * el estado real del BACKEND, y no la etiqueta de pantalla: este campo
+       * dice literalmente "lo que registró el sistema".
        */
-      valor: falloDeRed
-        ? (comprobante.estadoBackend ?? 'ERROR_RED')
-        : (comprobante.estado ?? 'No informado'),
+      valor:
+        comprobante.estado === 'SIN_CONFIRMAR'
+          ? (comprobante.estadoBackend ?? 'ERROR_RED')
+          : (comprobante.estado ?? 'No informado'),
     },
     {
       etiqueta: 'Lectura',
-      valor: falloDeRed
-        ? LECTURA_ERROR_RED
-        : (LECTURA_DEL_ESTADO[comprobante.estado ?? ''] ??
-          'Estado no reconocido por la interfaz.'),
+      // `LECTURA_DEL_ESTADO` ya incluye SIN_CONFIRMAR, así que una sola
+      // consulta cubre los cinco estados.
+      valor:
+        LECTURA_DEL_ESTADO[comprobante.estado ?? ''] ??
+        'Estado no reconocido por la interfaz.',
     },
     {
       etiqueta: 'Código CDR',
