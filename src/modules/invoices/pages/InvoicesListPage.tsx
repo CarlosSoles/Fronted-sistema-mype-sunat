@@ -88,7 +88,26 @@ const opcionesTipoDe = (tiposDelApartado: readonly string[]) =>
     ? FILTROS_TIPO
     : FILTROS_TIPO.filter((o) => o.value === 'todos' || tiposDelApartado.includes(o.value));
 
-/** Estado del CDR del front al modelo del modal. */
+/**
+ * Estado del CDR del front al modelo del modal.
+ *
+ * DEUDA CONOCIDA — COLAPSO DE `ERROR_RED` (decisión del 3 nov: se cierra
+ * después de la demo)
+ *
+ * `FALLO_CRITICO` se mapea a `RECHAZADO`, y ese colapso es la raíz de que la
+ * ficha afirmara "Rechazado" sobre un comprobante que SUNAT nunca recibió.
+ * `RECHAZADO` es un veredicto del fisco; `ERROR_RED` es un fallo de envío. Hoy
+ * se compensa mirando `estadoBackend` en cada sitio que rotula el estado
+ * (`InvoiceStatusBadge`, `InvoiceAuditTrail`, la celda de la grilla y
+ * `InvoiceCdrModal`), con el criterio único de `lib/invoiceRedError`.
+ *
+ * Ese apaño tiene un techo: cualquier pantalla nueva que use `estado` sin
+ * pasar por `esErrorDeRed` vuelve a mentir, y la grilla sigue rotulando
+ * "En Cola DLQ" a un fallo de red vía `MAPA_ESTADOS`. La solución de raíz es
+ * añadir `SIN_CONFIRMAR` al enum `CdrStatus` y dejar de colapsar, revisando
+ * badge, filtros y conteos. No se hizo antes de la demo por superficie de
+ * riesgo, no por olvido.
+ */
 const mapEstadoCdr = (
   status: Invoice['cdrStatus'],
 ): ComprobanteDemo['estado'] => {
@@ -501,8 +520,34 @@ export default function InvoicesListPage() {
                     {formatCurrency(inv.total, inv.moneda)}
                   </TableCell>
                   <TableCell align="center">
-                    <Badge variant={inv.cdrStatus === 'FALLO_CRITICO' ? 'destructive' : 'outline'}>
-                      {cdrStatusLabels[inv.cdrStatus]}
+                    {/*
+                      Un ERROR_RED no se rotula "Rechazado": SUNAT no lo evaluó.
+                      Se mira el estado CRUDO y no `cdrStatus`, porque el mapa
+                      del front colapsa FALLO_CRITICO en RECHAZADO_SUNAT y
+                      entonces la celda contradecía al texto de la ficha. Antes
+                      además decía "En Cola DLQ", que tampoco era cierto: el
+                      comprobante puede no estar en la DLQ.
+
+                      Ver la deuda en `lib/invoiceRedError`: la solución de raíz
+                      es un estado propio en el enum.
+                    */}
+                    <Badge
+                      variant={
+                        inv.estadoBackend === 'ERROR_RED'
+                          ? 'outline'
+                          : inv.cdrStatus === 'FALLO_CRITICO'
+                            ? 'destructive'
+                            : 'outline'
+                      }
+                      className={
+                        inv.estadoBackend === 'ERROR_RED'
+                          ? 'border-amber-500/40 bg-amber-500/10 text-amber-700'
+                          : undefined
+                      }
+                    >
+                      {inv.estadoBackend === 'ERROR_RED'
+                        ? 'Sin confirmar'
+                        : cdrStatusLabels[inv.cdrStatus]}
                       {inv.cdrCodigo ? ` (${inv.cdrCodigo})` : ''}
                     </Badge>
                     {/* TA-59: el badge OBSERVADO solo aparece si el estado crudo

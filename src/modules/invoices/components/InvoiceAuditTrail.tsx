@@ -19,6 +19,10 @@
  */
 import { Badge, PageText } from '@/components/ui';
 import type { ComprobanteDemo } from '../data/invoiceDemoTypes';
+import {
+  LECTURA_ERROR_RED as LECTURA_ERROR_RED_COMPARTIDA,
+  esErrorDeRed,
+} from '../lib/invoiceRedError';
 
 interface InvoiceAuditTrailProps {
   comprobante: ComprobanteDemo;
@@ -33,22 +37,10 @@ const LECTURA_DEL_ESTADO: Record<string, string> = {
 };
 
 /**
- * Lectura de un ERROR_RED.
- *
- * La fila recibe `estado: 'RECHAZADO'` porque `mapEstadoCdr` colapsa
- * FALLO_CRITICO ahí para que el badge salga en rojo. Eso hacía que la Bitácora
- * afirmara "SUNAT rechazó el comprobante" sobre uno que SUNAT NUNCA VIO: no
- * llegó a enviarse. Un rechazo es un veredicto del fisco; esto es un fallo de
- * transmisión, y confundirlos es afirmar algo falso sobre el documento.
+ * Lectura de un ERROR_RED: vive en `lib/invoiceRedError` junto al criterio, para
+ * que el modal y la bitácora no puedan discrepar sobre el mismo comprobante.
  */
-const LECTURA_ERROR_RED =
-  'No llegó a SUNAT: el envío falló por un error de red. SUNAT no lo evaluó, así que no hay rechazo ni aceptación.';
-
-/** ¿El comprobante falló en el envío, sin llegar a SUNAT? */
-const esErrorDeRed = (c: ComprobanteDemo): boolean =>
-  c.estadoBackend === 'ERROR_RED' ||
-  // Respaldo por si la fila llega sin el estado crudo del backend.
-  (!c.cdrCodigo && !c.ultimoErrorCodigo && c.cdrDescripcion?.includes('No llegó a SUNAT'));
+const LECTURA_ERROR_RED = LECTURA_ERROR_RED_COMPARTIDA;
 
 /** Bitácora con los datos reales del comprobante. */
 export const InvoiceAuditTrail = ({ comprobante }: InvoiceAuditTrailProps) => {
@@ -59,7 +51,16 @@ export const InvoiceAuditTrail = ({ comprobante }: InvoiceAuditTrailProps) => {
   const filas: { etiqueta: string; valor: string }[] = [
     {
       etiqueta: 'Estado del comprobante',
-      valor: comprobante.estado ?? 'No informado',
+      /*
+       * El valor crudo del backend, salvo en un fallo de red: ahí `estado` es
+       * el colapso del front (RECHAZADO) y mostrarlo contradiría a la lectura
+       * de la fila de abajo. Se rotula con el estado real del BACKEND —
+       * ERROR_RED— y no con la etiqueta de pantalla, porque este campo dice
+       * literalmente "lo que registró el sistema".
+       */
+      valor: falloDeRed
+        ? (comprobante.estadoBackend ?? 'ERROR_RED')
+        : (comprobante.estado ?? 'No informado'),
     },
     {
       etiqueta: 'Lectura',
@@ -117,13 +118,27 @@ export const InvoiceAuditTrail = ({ comprobante }: InvoiceAuditTrailProps) => {
         </div>
       ))}
 
+      {/*
+        Cierre de la Bitácora.
+
+        Con un fallo de red NO hay "resultado ante SUNAT": no lo hubo. Se dice
+        "SIN CONFIRMAR" y no "RECHAZADO", que es lo que decía antes y convertía
+        un fallo de transmisión en un veredicto del fisco. Es el rótulo más
+        visible de la ficha, así que es el que más pesa si miente.
+      */}
       <div className="flex items-center justify-between border-t pt-1.5">
-        <PageText variant="caption">Resultado ante SUNAT</PageText>
+        <PageText variant="caption">
+          {falloDeRed ? 'Resultado de la transmisión' : 'Resultado ante SUNAT'}
+        </PageText>
         <Badge
           variant={aceptado ? 'secondary' : comprobante.estado === 'RECHAZADO' ? 'destructive' : 'outline'}
           className="text-[10px]"
         >
-          {aceptado ? 'ACEPTADO' : (comprobante.estado ?? 'PENDIENTE')}
+          {falloDeRed
+            ? 'SIN CONFIRMAR'
+            : aceptado
+              ? 'ACEPTADO'
+              : (comprobante.estado ?? 'PENDIENTE')}
         </Badge>
       </div>
     </div>

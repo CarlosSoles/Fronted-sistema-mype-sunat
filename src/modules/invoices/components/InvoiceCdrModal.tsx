@@ -24,6 +24,7 @@ import { Download, FileCode2 } from 'lucide-react';
 import type { ComprobanteDemo } from '../data/invoiceDemoTypes';
 import { generarTramaQrSunat } from '../lib/invoiceCreditAndRules';
 import { identidadEmisora } from '../lib/invoiceExportConstants';
+import { esErrorDeRed } from '../lib/invoiceRedError';
 import {
   descargarDesdeBackend,
   extraerDigestValue,
@@ -119,13 +120,18 @@ export const InvoiceCdrModal = ({
     if (c.cdrCodigo) return `Código ${c.cdrCodigo}`;
     // El rechazo por SOAP Fault no trae CDR, pero sí un código de error.
     if (c.ultimoErrorCodigo) return `Código ${c.ultimoErrorCodigo}`;
+    // Antes de rotular "Rechazado" hay que descartar el ERROR_RED: `estado`
+    // viene colapsado desde FALLO_CRITICO y no distingue un fallo de envío de
+    // un rechazo real. Se comprueba primero para no llamar rechazado a un
+    // documento que SUNAT nunca recibió.
+    if (esErrorDeRed(c)) return 'Sin confirmar';
     if (c.estado === 'RECHAZADO') return 'Rechazado sin CDR';
     if (c.estado === 'ACEPTADO' || c.estado === 'OBSERVADO') {
       return 'Aceptado sin código';
     }
-    // El ERROR_RED tampoco tiene CDR, pero su causa no es un silencio de SUNAT:
-    // el envío no salió. "Sin respuesta de SUNAT" se leía como si SUNAT fuera a
-    // contestar, cuando en realidad el documento nunca le llegó.
+    // Último recurso: sin CDR, sin código de fault y sin ser un error de red.
+    // "Sin respuesta de SUNAT" se leía como si SUNAT fuera a contestar, cuando
+    // en realidad el documento nunca le llegó.
     return 'Sin confirmar';
   })();
 
@@ -167,7 +173,11 @@ export const InvoiceCdrModal = ({
             <span>
               {numeroSerie} · {c.clienteRazonSocial}
             </span>
-            <InvoiceStatusBadge estado={c.estado} codigo={c.cdrCodigo} />
+            <InvoiceStatusBadge
+              estado={c.estado}
+              codigo={c.cdrCodigo}
+              comprobante={c}
+            />
           </DialogTitle>
           <PageText variant="caption">
             {/* `null` es DESCONOCIDO, no "Contado": los comprobantes emitidos
