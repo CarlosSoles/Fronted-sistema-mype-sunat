@@ -23,6 +23,7 @@ import {
   LayoutDashboard,
   FileUp,
   ClipboardCheck,
+  Settings,
   Ship,
   Sparkles,
 } from 'lucide-react';
@@ -31,6 +32,14 @@ interface SubNavItem {
   title: string;
   path: string;
   icon: React.ComponentType<{ className?: string }>;
+  /**
+   * Roles que pueden ver este subítem dentro del módulo.
+   *
+   * Sin esto heredaría los roles del padre y ofrecería entradas que la propia
+   * ruta rechaza: el caso de Configuración de Facturación, que solo admite
+   * ADMIN pero aparecería a un operador y lo llevaría a "sin acceso".
+   */
+  allowedRoles?: Role[];
 }
 
 interface NavItem {
@@ -60,6 +69,18 @@ const NAV_ITEMS: NavItem[] = [
       { title: 'Notas de Crédito y Débito', path: '/invoices/notas', icon: FileMinus2 },
       { title: 'Bajas y Resúmenes Diarios', path: '/invoices/bajas', icon: FileX2 },
       { title: 'Monitor Outbox y CDR', path: '/invoices/monitor', icon: Activity },
+      // La ruta `/invoices/configuracion` (TA-61) existía desde el Sprint 2 y
+      // responde con `GET /invoices/config`, pero no figuraba en el menú: una
+      // auditoría del 1 de noviembre recorrió todo el módulo y concluyó que la
+      // pantalla "no existía", señalándola como el pedido repetido del docente.
+      // El docente también juzga por el menú, así que la entrada es obligatoria.
+      // Solo ADMIN porque así lo exige `RoleProtectedRoute` en la ruta.
+      {
+        title: 'Configuración',
+        path: '/invoices/configuracion',
+        icon: Settings,
+        allowedRoles: ['ADMIN'],
+      },
     ],
   },
   {
@@ -158,10 +179,25 @@ export const Sidebar = () => {
         location.pathname !== item.path &&
         !location.pathname.startsWith(`${item.path}/`)
       ) {
-        navigate(item.subItems?.[0]?.path ?? item.path);
+        // Se navega al primer subítem que el rol SÍ puede abrir; si ninguno lo
+        // es, al índice del módulo en lugar de a una ruta protegida.
+        navigate(subItemsVisibles(item)[0]?.path ?? item.path);
       }
       return { ...prev, [item.path]: willExpand };
     });
+  };
+
+  /**
+   * Subítems que el rol actual puede abrir.
+   *
+   * ADMIN ve todos. Un subítem sin `allowedRoles` hereda el del padre, que ya
+   * pasó el filtro de módulo; uno con roles se comprueba aparte para no ofrecer
+   * entradas que la ruta rechazaría con "sin acceso".
+   */
+  const subItemsVisibles = (item: NavItem): SubNavItem[] => {
+    const subs = item.subItems ?? [];
+    if (!currentRole || currentRole === 'ADMIN') return subs;
+    return subs.filter((sub) => !sub.allowedRoles || sub.allowedRoles.includes(currentRole));
   };
 
   const visibleNavItems = NAV_ITEMS.filter((item) => {
@@ -279,7 +315,7 @@ export const Sidebar = () => {
 
               {!isSidebarCollapsed && item.subItems && isExpanded && (
                 <div className="pl-3 ml-3 border-l-2 border-border/80 space-y-0.5 py-0.5">
-                  {item.subItems.map((sub) => (
+                  {subItemsVisibles(item).map((sub) => (
                     <NavLink
                       key={sub.path}
                       to={sub.path}

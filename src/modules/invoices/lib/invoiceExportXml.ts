@@ -18,7 +18,7 @@
  *     exoneradas o inafectas, y la leyenda 2006 de la detracción no existía.
  */
 import type { ComprobanteDemo, ItemDemo } from '../data/invoiceDemoTypes';
-import { RUC_EMISOR, EMPRESA_EMISORA } from './invoiceExportConstants';
+import { identidadEmisora } from './invoiceExportConstants';
 import { bloqueFirma, bloqueLineas, esc } from './invoiceExportXmlNodes';
 import { repartirEnCuotas } from './invoiceDetraccion';
 
@@ -201,6 +201,9 @@ export const generarXmlUbl21Comprobante = (
   const raiz =
     c.tipo === '07' ? 'CreditNote' : c.tipo === '08' ? 'DebitNote' : 'Invoice';
   const numeroSerie = `${c.serie}-${String(c.correlativo).padStart(4, '0')}`;
+  // La identidad del emisor sale de la empresa activa: un RUC literal aquí
+  // producía un XML cuyo emisor no era el que SUNAT aceptó.
+  const emisor = identidadEmisora();
   const desglose = desglosar(c, letras);
   const base = r2(desglose.gravado + desglose.exonerado + desglose.inafecto);
   const totalConIgv = r2(base + desglose.igv);
@@ -250,10 +253,10 @@ ${bloqueReferencia(c)}
   <cac:AccountingSupplierParty>
     <cac:Party>
       <cac:PartyIdentification>
-        <cbc:ID schemeID="6">${RUC_EMISOR}</cbc:ID>
+        <cbc:ID schemeID="6">${esc(emisor.ruc)}</cbc:ID>
       </cac:PartyIdentification>
       <cac:PartyLegalEntity>
-        <cbc:RegistrationName>${esc(EMPRESA_EMISORA)}</cbc:RegistrationName>
+        <cbc:RegistrationName>${esc(emisor.razonSocial)}</cbc:RegistrationName>
       </cac:PartyLegalEntity>
     </cac:Party>
   </cac:AccountingSupplierParty>
@@ -288,7 +291,7 @@ ${bloqueLineas(c)}
 
 /** Nombre oficial del archivo XML que exige SUNAT. */
 export const nombreArchivoXml = (c: ComprobanteDemo): string =>
-  `${RUC_EMISOR}-${c.tipo}-${c.serie}-${c.correlativo}.xml`;
+  `${identidadEmisora().ruc}-${c.tipo}-${c.serie}-${c.correlativo}.xml`;
 
 /** Descarga el XML del comprobante con el nombre oficial. */
 export const descargarXmlComprobante = (

@@ -2,8 +2,10 @@
  * Pruebas de las exportaciones del M1: XML UBL 2.1, PDF binario con QR, CSV
  * del SIRE RVIE y validaciones del formulario de emisión.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { COMPROBANTES_DEMO } from '@/modules/invoices/data/invoiceDemoData';
+import { useAuthStore } from '@/stores/authStore';
+import { identidadEmisora } from '@/modules/invoices/lib/invoiceExportConstants';
 import {
   generarXmlUbl21Comprobante,
   nombreArchivoXml,
@@ -35,6 +37,28 @@ const busqueda = <T extends { tipo: string }>(
 const factura = busqueda(COMPROBANTES_DEMO, '01');
 const boleta = busqueda(COMPROBANTES_DEMO, '03');
 const notaCredito = busqueda(COMPROBANTES_DEMO, '07');
+
+/**
+ * Identidad del emisor con la que los tests construyen documentos.
+ *
+ * El RUC ya no es una constante del código: sale de la empresa activa de la
+ * sesión, para que el QR y el XML del front lleven el mismo RUC con el que el
+ * backend firma. Estos tests instalan una empresa como lo haría el login y
+ * comprueban que su RUC aparece en las tres exportaciones.
+ */
+const EMPRESA_PRUEBA = {
+  tenantId: 'test-tenant',
+  ruc: '20601234567',
+  razonSocial: 'SYNC-SUNAT DEMO MYPE S.A.C.',
+} as const;
+
+beforeEach(() => {
+  useAuthStore.getState().setActiveCompany({ ...EMPRESA_PRUEBA });
+});
+
+afterEach(() => {
+  useAuthStore.setState({ activeCompany: null });
+});
 
 /** Boleta emitida a persona natural: el documento del cliente es un DNI. */
 const boletaConDni = COMPROBANTES_DEMO.filter(
@@ -97,8 +121,18 @@ describe('generarXmlUbl21Comprobante', () => {
 
   it('el nombre del archivo sigue el formato RUC-tipo-serie-correlativo', () => {
     expect(nombreArchivoXml(factura)).toBe(
-      `20601012341-01-F001-${factura.correlativo}.xml`,
+      `20601234567-01-F001-${factura.correlativo}.xml`,
     );
+  });
+
+  it('sin empresa en sesión no inventa un RUC', () => {
+    // Antes del arreglo, aquí se escribía el literal '20601012341', que no era
+    // el RUC de ninguna empresa: el XML del front salía con un emisor distinto
+    // del que el backend firmó. Sin sesión la identidad queda vacía y se nota.
+    useAuthStore.setState({ activeCompany: null });
+
+    expect(nombreArchivoXml(factura)).toBe(`-01-F001-${factura.correlativo}.xml`);
+    expect(identidadEmisora().hayEmisor).toBe(false);
   });
 });
 
@@ -116,10 +150,11 @@ describe('construirPdfBinarioSunat', () => {
   it('incorpora el recuadro fiscal con RUC, hash y trama QR de 10 campos', () => {
     const pdf = construirPdfBinarioSunat(factura);
 
-    expect(pdf).toContain('R.U.C. N° 20601012341');
+    expect(pdf).toContain('R.U.C. N° 20601234567');
     expect(pdf).toContain('COMPROBANTE ELECTRONICO');
     expect(pdf).toContain(factura.hashCpe);
-    expect(pdf).toContain('20601012341');
+    // El RUC del recuadro es el de la empresa activa, no un literal del código.
+    expect(pdf).toContain(EMPRESA_PRUEBA.ruc);
   });
 
   it('el nombre del PDF usa serie y correlativo en cuatro dígitos', () => {
@@ -148,7 +183,7 @@ describe('construirCsvRvie', () => {
 
   it('el nombre del reporte corresponde al periodo y al RUC del emisor', () => {
     expect(nombreArchivoRvie(COMPROBANTES_DEMO)).toBe(
-      'RVIE-20601012341-202610.csv',
+      'RVIE-20601234567-202610.csv',
     );
   });
 });

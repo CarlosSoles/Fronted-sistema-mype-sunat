@@ -5,7 +5,7 @@
  * derivan con el motor real de `../lib/invoiceCalculations`.
  *
  * IMPORTANTE: el RUC del adquirente nunca puede coincidir con el del emisor
- * (RUC 20601012341). SUNAT lo rechaza con el código de error 2022. Todos los
+ * (RUC 20601234567). SUNAT lo rechaza con el código de error 2022. Todos los
  * RUC de ejemplo superan el módulo 11 para no ensuciar las validaciones.
  */
 import { construir } from './invoiceDemoTypes';
@@ -22,8 +22,14 @@ export type {
   TipoOperacion,
 } from './invoiceDemoTypes';
 
-/** RUC de la empresa emisora del turno de demostración (módulo 11 válido). */
-export const RUC_EMISOR = '20601012341';
+/**
+ * RUC de la empresa emisora del turno de demostración (módulo 11 válido).
+ *
+ * Es el mismo RUC con el que el backend firma y envía a SUNAT (20601234567).
+ * Antes decía 20601012341, un literal que no correspondía a ninguna empresa de
+ * la base: la pantalla mostraba un emisor y el XML otro.
+ */
+export const RUC_EMISOR = '20601234567';
 
 /** RUC válido (módulo 11) usado como adquirente en las notas de crédito. */
 const RUC_CORPORACION = '20100070970';

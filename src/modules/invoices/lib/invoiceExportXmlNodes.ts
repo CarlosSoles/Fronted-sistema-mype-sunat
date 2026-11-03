@@ -14,7 +14,7 @@
  *     incoherencia que SUNAT rechaza.
  */
 import type { ComprobanteDemo, ItemDemo } from '../data/invoiceDemoTypes';
-import { EMPRESA_EMISORA } from './invoiceExportConstants';
+import { identidadEmisora } from './invoiceExportConstants';
 
 /** Escapa los caracteres reservados del XML. */
 export const esc = (valor: string): string =>
@@ -25,7 +25,9 @@ export const esc = (valor: string): string =>
     .replace(/"/g, '&quot;');
 
 /** Bloque de firma digital XMLDSig referenciada. */
-export const bloqueFirma = (hashCpe: string): string => `  <ext:UBLExtensions>
+export const bloqueFirma = (hashCpe: string): string => {
+  const sujeto = esc(identidadEmisora().razonSocial);
+  return `  <ext:UBLExtensions>
     <ext:UBLExtension>
       <ext:ExtensionContent>
         <ds:Signature Id="SignatureSP">
@@ -36,13 +38,14 @@ export const bloqueFirma = (hashCpe: string): string => `  <ext:UBLExtensions>
           <ds:SignatureValue>${esc(hashCpe)}</ds:SignatureValue>
           <ds:KeyInfo>
             <ds:X509Data>
-              <ds:X509SubjectName>CN=${esc(EMPRESA_EMISORA)}, O=${esc(EMPRESA_EMISORA)}, C=PE</ds:X509SubjectName>
+              <ds:X509SubjectName>CN=${sujeto}, O=${sujeto}, C=PE</ds:X509SubjectName>
             </ds:X509Data>
           </ds:KeyInfo>
         </ds:Signature>
       </ext:ExtensionContent>
     </ext:UBLExtension>
   </ext:UBLExtensions>`;
+};
 
 /** Etiqueta de línea según el tipo de comprobante. */
 const etiquetaLinea = (tipo: ComprobanteDemo['tipo']): string =>
