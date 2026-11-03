@@ -338,7 +338,14 @@ export default function InvoiceEmissionPage() {
         forma_pago: formaPago,
         cuotas:
           formaPago === 'Credito'
-            ? cuotas.map((c) => ({ monto: c.monto, vencimiento: c.vencimiento }))
+            ? cuotas.map((c) => ({
+                // Se redondea también al armar el payload. El editor ya guarda
+                // céntimos; este segundo redondeo garantiza que ningún flotante
+                // llegue a la regla 3319 aunque el importe entre por otra vía
+                // (restaurado, pegado en el campo o recalculado).
+                monto: Math.round((c.monto + Number.EPSILON) * 100) / 100,
+                vencimiento: c.vencimiento,
+              }))
             : undefined,
         items: items.map((i) => ({
           descripcion: i.descripcion.trim(),

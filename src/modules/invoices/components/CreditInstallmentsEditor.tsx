@@ -28,6 +28,22 @@ interface CreditInstallmentsEditorProps {
   onCambiar: (cuotas: readonly CuotaBorrador[]) => void;
 }
 
+/**
+ * Redondeo a céntimos, aplicado EN EL ORIGEN del dato.
+ *
+ * `repartirEnCuotas` ya redondea lo que calcula, pero cuando el usuario teclea
+ * un importe el `<input type="number">` puede entregar un flotante arrastrado
+ * (`11.800000190734863`) y ese valor viajaba tal cual al payload. La regla 3319
+ * exige que la suma de las cuotas sea EXACTAMENTE el neto pendiente y no admite
+ * tolerancia, así que el estado tiene que guardar céntimos limpios y no solo
+ * pintarlos limpios: un `toFixed` en el `value` arregla la vista y deja la
+ * basura dentro.
+ *
+ * `+ Number.EPSILON` compensa el caso clásico `1.005 → 1.00` de IEEE-754.
+ */
+const aCentimos = (valor: number): number =>
+  Number.isFinite(valor) ? Math.round((valor + Number.EPSILON) * 100) / 100 : 0;
+
 /** Tabla editable de cuotas con la comprobación de la regla 3319 al pie. */
 export const CreditInstallmentsEditor = ({
   cuotas,
@@ -44,7 +60,14 @@ export const CreditInstallmentsEditor = ({
   };
 
   const editar = (indice: number, parcial: Partial<CuotaBorrador>) => {
-    onCambiar(cuotas.map((c, i) => (i === indice ? { ...c, ...parcial } : c)));
+    // El importe se redondea aquí, al entrar: si se guarda el valor crudo del
+    // input, la suma de las cuotas deja de cuadrar al céntimo con el neto.
+    const limpio =
+      parcial.monto === undefined
+        ? parcial
+        : { ...parcial, monto: aCentimos(parcial.monto) };
+
+    onCambiar(cuotas.map((c, i) => (i === indice ? { ...c, ...limpio } : c)));
   };
 
   return (
@@ -88,7 +111,13 @@ export const CreditInstallmentsEditor = ({
                     min="0"
                     step="0.01"
                     className={`${CLASE_CELDA} text-right`}
-                    value={cuota.monto}
+                    // El importe se pinta formateado a céntimos. Sin el
+                    // `toFixed(2)` el input mostraba `11.800000190734863`: la
+                    // división del neto entre cuotas arrastra el error de coma
+                    // flotante de IEEE-754 y el campo lo enseñaba tal cual. Justo
+                    // en la tarea donde la regla 3319 exige cuadre exacto al
+                    // céntimo, el número en pantalla no cuadraba a la vista.
+                    value={Number.isFinite(cuota.monto) ? cuota.monto.toFixed(2) : ''}
                     onChange={(e) =>
                       editar(i, { monto: Number(e.target.value) })
                     }

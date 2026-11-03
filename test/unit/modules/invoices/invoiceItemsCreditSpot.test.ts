@@ -329,6 +329,21 @@ describe('TA-64 · cronograma de cuotas', () => {
     expect(repartirEnCuotas(1000, 0, '2026-10-31')).toEqual([]);
   });
 
+  it('el cronograma repartido no arrastra error de coma flotante', () => {
+    // 11.80 entre 2 da 5.9000000000000004 en IEEE-754. La regla 3319 exige
+    // cuadre exacto al céntimo, así que el estado tiene que guardar céntimos.
+    const cuotas = repartirEnCuotas(11.8, 2, '2026-11-01');
+
+    for (const cuota of cuotas) {
+      expect(cuota.monto).toBe(Math.round(cuota.monto * 100) / 100);
+      // Sin decimales residuales más allá de los céntimos.
+      expect(String(cuota.monto).length).toBeLessThanOrEqual(5);
+    }
+
+    const suma = cuotas.reduce((acc, c) => acc + c.monto, 0);
+    expect(suma.toFixed(2)).toBe('11.80');
+  });
+
   it('el cronograma editado a mano se comprueba contra el neto', () => {
     const cuotas = [
       { monto: 500, vencimiento: '2026-11-30' },
