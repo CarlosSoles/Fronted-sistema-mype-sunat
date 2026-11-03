@@ -327,3 +327,68 @@ describe('fecha de emisión como día calendario', () => {
     expect(convertida.fechaEmision).toBe('2026-11-01');
   });
 });
+
+// ---------------------------------------------------------------------------
+// 7 · Forma de pago y cronograma (factura al crédito)
+// ---------------------------------------------------------------------------
+
+describe('forma de pago y cronograma del detalle', () => {
+  /** Detalle del backend con los campos de pago que ahora expone. */
+  function detalle(
+    extra: Partial<ComprobanteDetalleBackend> = {},
+  ): ComprobanteDetalleBackend {
+    return {
+      ...fila({ serie: 'F001', correlativo: 56, numero: 'F001-00000056', monto_total: 1770 }),
+      ruc_emisor: '20601234567',
+      base_imponible: 1500,
+      total_igv: 270,
+      cdr: {
+        codigo: '0',
+        descripcion: 'La Factura numero F001-00000056, ha sido aceptada',
+        fecha_respuesta: '2026-11-03',
+        observaciones: [],
+      },
+      ...extra,
+    };
+  }
+
+  it('conserva las dos cuotas que viajaron en el XML', () => {
+    // El defecto real: la pantalla abría F001-00000056 como venta al contado
+    // porque el front escribía 'Contado' y [] a mano para toda fila.
+    const convertida = aInvoiceDetalle(
+      detalle({
+        forma_pago: 'Credito',
+        cuotas: [
+          { numero: 'Cuota001', monto: 885, vencimiento: '2026-12-03' },
+          { numero: 'Cuota002', monto: 885, vencimiento: '2027-01-02' },
+        ],
+      }),
+    );
+
+    expect(convertida.formaPago).toBe('Credito');
+    expect(convertida.cuotas).toHaveLength(2);
+    expect(convertida.cuotas?.[0]?.monto).toBe(885);
+    expect(convertida.cuotas?.[1]?.vencimiento).toBe('2027-01-02');
+  });
+
+  it('respeta el contado cuando el backend lo dice', () => {
+    const convertida = aInvoiceDetalle(
+      detalle({ forma_pago: 'Contado', cuotas: [] }),
+    );
+
+    expect(convertida.formaPago).toBe('Contado');
+    expect(convertida.cuotas).toEqual([]);
+  });
+
+  it('sin dato de la forma de pago deja null, no "Contado"', () => {
+    const convertida = aInvoiceDetalle(detalle({ forma_pago: null }));
+
+    expect(convertida.formaPago).toBeNull();
+  });
+
+  it('las cuotas por defecto son un arreglo vacío, nunca undefined', () => {
+    const convertida = aInvoiceDetalle(detalle());
+
+    expect(convertida.cuotas).toEqual([]);
+  });
+});

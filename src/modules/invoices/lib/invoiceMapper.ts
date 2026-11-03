@@ -56,6 +56,19 @@ export interface ComprobanteDetalleBackend extends ComprobanteBackend {
    */
   ultimo_error_codigo?: string | null;
   ultimo_error_mensaje?: string | null;
+  /**
+   * Forma de pago y cronograma DE LO QUE SE ENVIÓ a SUNAT.
+   *
+   * Los sirve el detalle leyendo el `payload_ubl` del comprobante, porque en la
+   * tabla `invoices` no hay columnas para ellos. `forma_pago` es `null` en los
+   * comprobantes anteriores a que el campo existiera.
+   */
+  forma_pago?: 'Contado' | 'Credito' | null;
+  cuotas?: readonly {
+    numero: string;
+    monto: number;
+    vencimiento: string;
+  }[];
   cdr: {
     codigo: string | null;
     descripcion: string | null;
@@ -192,6 +205,9 @@ export const aInvoiceDetalle = (fila: ComprobanteDetalleBackend): Invoice => {
     ultimoErrorMensaje: fila.ultimo_error_mensaje ?? undefined,
     // SHA-256 del XML firmado que se envió; permite verificar la descarga.
     hashCpe: fila.hash_xml ?? undefined,
+    // Forma de pago y cronograma reales, leídos del payload UBL enviado.
+    formaPago: fila.forma_pago ?? null,
+    cuotas: fila.cuotas ?? [],
   };
 };
 

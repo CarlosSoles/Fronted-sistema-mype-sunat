@@ -18,6 +18,15 @@ export type TipoOperacion = '0101' | '1001' | '0200';
 /** Forma de pago declarada en el comprobante. */
 export type FormaPago = 'Contado' | 'Credito';
 
+/**
+ * Forma de pago de un comprobante YA EMITIDO, tal como se leyó del backend.
+ *
+ * `null` = DESCONOCIDA: los comprobantes emitidos antes de que el backend
+ * expusiera el dato no tienen de dónde sacarlo. Es distinto de `FormaPago`,
+ * que es la decisión que se toma al emitir y por eso nunca admite desconocido.
+ */
+export type FormaPagoRegistrada = FormaPago | null;
+
 /** Cuota del cronograma de pago al crédito. */
 export interface CuotaDemo {
   numero: string;
@@ -90,7 +99,13 @@ export interface ComprobanteDemo {
   /** Tiempo de despacho en la cola Outbox, en ms. */
   tiempoDespachoMs?: number;
   tipoOperacion: TipoOperacion;
-  formaPago: FormaPago;
+  /**
+   * Forma de pago con la que se emitió.
+   *
+   * Admite `null` en comprobantes leídos del backend: antes se rellenaba con
+   * 'Contado' para toda fila, que es una AFIRMACIÓN fiscal que puede ser falsa.
+   */
+  formaPago: FormaPagoRegistrada;
   /** Cronograma de cuotas (solo si `formaPago` es 'Credito'). */
   cuotas: readonly CuotaDemo[];
   /** Motivo de la nota (solo para tipos 07 y 08). */
@@ -98,6 +113,16 @@ export interface ComprobanteDemo {
   cdrDescripcion: string;
   hashCpe: string;
   items: readonly ItemDemo[];
+  /**
+   * Estado CRUDO del backend (ACEPTADO, ERROR_RED…), cuando el comprobante
+   * viene de la API.
+   *
+   * `estado` es la vista simplificada del front y colapsa `ERROR_RED` dentro de
+   * RECHAZADO, lo que hace imposible distinguir un fallo de envío de un rechazo
+   * real de SUNAT. La Bitácora necesita el crudo para no afirmar un veredicto
+   * del fisco sobre un documento que nunca le llegó.
+   */
+  estadoBackend?: string;
 }
 
 /** Entrada reducida: el resto de montos se calcula. */

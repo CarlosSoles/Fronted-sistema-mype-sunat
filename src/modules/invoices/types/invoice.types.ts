@@ -73,6 +73,21 @@ export interface Invoice {
   estadoBackend?: string;
   /** ¿Admite reintento según el estado del backend? */
   reintentable?: boolean;
+  /**
+   * Forma de pago con la que se emitió, leída del `payload_ubl` del backend.
+   *
+   * Antes no existía y la pantalla de auditoría asumía "Contado" para toda
+   * fila, así que la factura al crédito aparecía sin cronograma. `null` o
+   * ausente significa DESCONOCIDA (comprobantes anteriores al campo), no
+   * "Contado".
+   */
+  formaPago?: 'Contado' | 'Credito' | null;
+  /** Cronograma que viajó en el `cac:PaymentTerms` del XML. */
+  cuotas?: readonly {
+    numero: string;
+    monto: number;
+    vencimiento: string;
+  }[];
 }
 
 export interface CreateInvoiceDto {

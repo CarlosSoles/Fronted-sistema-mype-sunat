@@ -54,7 +54,9 @@ const filaRvie = (c: ComprobanteDemo, carSunat: number): string => {
     c.detraccion.toFixed(2),
     c.retencion.toFixed(2),
     c.totalNeto.toFixed(2),
-    c.formaPago,
+    // La columna existe para informar; si el dato no se conoce se deja vacío en
+    // vez de escribir "Contado" sobre una venta al crédito.
+    c.formaPago ?? '',
     c.estado,
     c.cdrCodigo ?? '',
     c.documentoAfectado ?? '',
