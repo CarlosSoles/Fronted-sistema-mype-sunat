@@ -46,6 +46,8 @@ import { formatCurrency, formatDateToPeru } from '@/lib/formatters';
 import { FilePlus, RefreshCw, Info, FileSearch, CheckCircle2 } from 'lucide-react';
 import { InvoiceCdrModal } from '../components/InvoiceCdrModal';
 import { InvoiceEmitModal } from '../components/InvoiceEmitModal';
+import { cargarProductosAlmacen } from '../services/inventoryProductsApi';
+import type { ProductoBuscado } from '../lib/invoiceSearch';
 import type { TipoEmisible } from '../lib/invoiceEmitValidation';
 import type { Invoice } from '../types/invoice.types';
 import type { ComprobanteDemo } from '../data/invoiceDemoTypes';
@@ -294,11 +296,31 @@ export default function InvoicesListPage() {
    */
   const [fechaBorrador, setFechaBorrador] = useState('');
 
+  /**
+   * Productos del almacén para la grilla del modal (TA-61).
+   *
+   * SIN ESTO EL MODAL EMITÍA A CIEGAS. `InvoiceEmitModal` acepta `productos`,
+   * pero esta página nunca se los pasaba: `productos` quedaba en su valor por
+   * defecto (`[]`), así que el buscador de la grilla ni siquiera se dibujaba y
+   * —peor— `revisarGrilla` no tenía catálogo contra el que comparar. Teclear
+   * `CEM-001` con 10 en stock y pedir 999 pasaba sin un solo aviso, mientras la
+   * página `/invoices/emision` sí bloqueaba. No era la validación: era que el
+   * modal no recibía los datos con los que validar.
+   *
+   * Se cargan al abrir y no al montar la bandeja para no pedir el almacén a
+   * quien solo entró a mirar los comprobantes. Si falla, la lista queda vacía y
+   * la grilla sigue admitiendo líneas escritas a mano.
+   */
+  const [productosAlmacen, setProductosAlmacen] = useState<
+    readonly ProductoBuscado[]
+  >([]);
+
   const abrirEmision = useCallback((tipo: TipoEmisible) => {
     setFechaBorrador(
       new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString().slice(0, 10),
     );
     setEmitiendo(tipo);
+    cargarProductosAlmacen().then(setProductosAlmacen);
   }, []);
 
   /**
@@ -625,6 +647,7 @@ export default function InvoicesListPage() {
           existentes={listaDeLaEmpresa.map((inv) =>
             aComoComprobanteDemo(inv),
           )}
+          productos={productosAlmacen}
           /*
            * El modal EMITE y devuelve el resultado real del backend.
            *

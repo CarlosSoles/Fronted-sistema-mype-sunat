@@ -61,6 +61,7 @@ import { CustomerLookupField } from '../components/CustomerLookupField';
 import { InvoiceItemsGrid } from '../components/InvoiceItemsGrid';
 import { CreditInstallmentsEditor } from '../components/CreditInstallmentsEditor';
 import {
+  actualizarItem,
   calcularItem,
   totalizarItems,
   itemBolsa,
@@ -229,10 +230,20 @@ export default function InvoiceEmissionPage() {
     setItems((prev) => [...prev, itemVacio(String(Date.now()))]);
   };
 
+  /**
+   * Edita una línea con `actualizarItem`, el helper COMPARTIDO.
+   *
+   * Antes esta página tenía su propia versión —`{ ...item, ...parcial }` a
+   * pelo— que duplicaba la del modal y no aplicaba `sincronizarIcbper`. Por eso
+   * la bolsa plástica de ESTA pantalla se quedaba en S/ 0,50 al pasar la
+   * cantidad a 2, mientras la del modal se actualizaba a S/ 1,00: el mismo
+   * gesto daba resultados distintos según por dónde se entrara.
+   *
+   * Es el mismo tipo de duplicación que se eliminó del payload: mientras cada
+   * formulario tenga su copia de una regla, un arreglo en una no llega a la otra.
+   */
   const cambiarItem = (indice: number, parcial: Partial<ItemBorrador>) => {
-    setItems((prev) =>
-      prev.map((item, i) => (i === indice ? { ...item, ...parcial } : item)),
-    );
+    setItems((prev) => actualizarItem(prev, indice, parcial));
   };
 
   const eliminarItem = (indice: number) => {

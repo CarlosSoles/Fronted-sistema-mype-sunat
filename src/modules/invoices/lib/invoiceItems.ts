@@ -287,13 +287,57 @@ export const itemBolsa = (
   icbper: round2(cantidad * ICBPER_POR_UNIDAD),
 });
 
-/** Reemplaza una línea por índice sin mutar el arreglo original. */
+/**
+ * ¿La línea es la bolsa plástica del ICBPER?
+ *
+ * Se reconoce por el código fijo `ICBPER`, que es el que escribe `itemBolsa`.
+ * Sirve para tratar su importe como DERIVADO de la cantidad en lugar de como un
+ * dato que el usuario teclea por separado.
+ */
+export const esLineaBolsa = (item: ItemBorrador): boolean =>
+  item.codigo.trim().toUpperCase() === 'ICBPER';
+
+/**
+ * Sincroniza el ICBPER de la bolsa con su cantidad.
+ *
+ * EL DEFECTO QUE ESTO ARREGLA
+ *
+ * El ICBPER es S/ 0,50 por unidad (regla 3306), pero en la grilla era una celda
+ * más que el usuario tecleaba por su cuenta. `itemBolsa` lo calculaba bien al
+ * crear la línea, y a partir de ahí se desincronizaba: poner cantidad 2 dejaba
+ * el ICBPER en 0,50 y la liquidación cobraba la mitad. La cantidad y el impuesto
+ * decían cosas distintas del mismo hecho, y quien lo revisara ante SUNAT vería
+ * dos bolsas declaradas con el impuesto de una.
+ *
+ * Solo se toca la línea de bolsa: en cualquier otra, `icbper` es un importe que
+ * el usuario decide (una línea con ICBPER sin ser bolsa no existe en el
+ * catálogo, pero no se le pisa un valor escrito a mano).
+ */
+export const sincronizarIcbper = (item: ItemBorrador): ItemBorrador => {
+  if (!esLineaBolsa(item)) return item;
+
+  const cantidad = Number.isFinite(item.cantidad) ? Math.max(0, item.cantidad) : 0;
+  return { ...item, icbper: round2(cantidad * ICBPER_POR_UNIDAD) };
+};
+
+/**
+ * Reemplaza una línea por índice sin mutar el arreglo original.
+ *
+ * Después de aplicar el cambio se SINCRONIZA el ICBPER: si la línea es la bolsa
+ * plástica y el usuario acaba de cambiar la cantidad, el impuesto tiene que
+ * seguirla (S/ 0,50 por unidad). Sin esto, poner cantidad 2 dejaba el ICBPER en
+ * 0,50 y la liquidación cobraba la mitad de lo que declara la línea.
+ */
 export const actualizarItem = (
   items: readonly ItemBorrador[],
   indice: number,
   parcial: Partial<ItemBorrador>,
 ): readonly ItemBorrador[] =>
-  items.map((item, i) => (i === indice ? { ...item, ...parcial } : item));
+  items.map((item, i) =>
+    i === indice
+      ? sincronizarIcbper({ ...item, ...parcial })
+      : item,
+  );
 
 /** Elimina una línea por índice. */
 export const eliminarItem = (
