@@ -51,6 +51,7 @@ import {
   type ItemBorrador,
 } from '../lib/invoiceItems';
 import type { ProductoBuscado } from '../lib/invoiceSearch';
+import { revisarGrilla } from '../lib/invoiceStockLinea';
 import {
   buscarDetraccion,
   esDetraccionDadaDeBaja,
@@ -97,6 +98,7 @@ const calcularFlujo = (b: BorradorEmision) => {
 const motivosPendientes = (
   b: BorradorEmision,
   existentes: readonly ComprobanteDemo[],
+  productos: readonly ProductoBuscado[],
 ): string[] => {
   const motivos: string[] = [];
 
@@ -116,6 +118,26 @@ const motivosPendientes = (
       error.indice >= 0 ? `Línea ${error.indice + 1}` : 'Detalle';
     for (const motivo of error.motivos) {
       motivos.push(`${etiqueta}: ${motivo}`);
+    }
+  }
+
+  /**
+   * VALIDACIÓN CONTRA EL STOCK (docente, 31-10).
+   *
+   *   "la cantidad tiene que ser validada dependiendo de lo que tienes"
+   *
+   * La pantalla `/invoices/emision` ya lo hacía; el modal NO, aunque recibe
+   * los mismos `productos` para el buscador. Ese era el hueco real de la
+   * duplicación: quien emitía desde la bandeja podía pedir 500 kg con 20 en
+   * almacén, ver el formulario conforme y enterarse del rechazo al enviar.
+   *
+   * `validarItems` (arriba) NO cubre esto: solo mira descripción, unidad,
+   * cantidad positiva y valor unitario. El stock vive en `revisarGrilla`, que
+   * suma además las cantidades del MISMO SKU repartidas en varias líneas.
+   */
+  for (const linea of revisarGrilla(b.items, productos).lineas) {
+    if (linea.gravedad === 'error') {
+      motivos.push(`Línea ${linea.indice + 1}: ${linea.mensaje}`);
     }
   }
 
@@ -185,8 +207,8 @@ export const InvoiceEmitModal = ({
   const [errorEmision, setErrorEmision] = useState<string | null>(null);
 
   const pendientes = useMemo(
-    () => motivosPendientes(b, existentes),
-    [b, existentes],
+    () => motivosPendientes(b, existentes, productos),
+    [b, existentes, productos],
   );
   const puedeEmitir = pendientes.length === 0;
   const flujo = calcularFlujo(b);

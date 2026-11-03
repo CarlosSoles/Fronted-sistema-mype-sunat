@@ -63,11 +63,11 @@ import { CreditInstallmentsEditor } from '../components/CreditInstallmentsEditor
 import {
   calcularItem,
   totalizarItems,
+  itemBolsa,
+  itemDesdeProducto,
   itemVacio,
   type ItemBorrador,
 } from '../lib/invoiceItems';
-import type { AfectacionIgv } from '../lib/invoiceTaxes';
-import type { AfectacionGrilla } from '../types/invoiceEmision.types';
 import {
   calcularDetraccionPorLineas,
   repartirPago,
@@ -79,6 +79,7 @@ import {
 } from '../lib/invoiceDetraccion';
 import { cambiarFechaEmision } from '../lib/invoiceEmitDraft';
 import type { BorradorEmision } from '../lib/invoiceEmitDraft';
+import { borradorAPayloadEmision } from '../lib/invoiceEmitPayload';
 import {
   minimoDeFechaEmision,
   problemaDeFechaEmision,
@@ -95,25 +96,13 @@ import type { ResultadoEmisionBackend } from '../types/invoiceEmision.types';
 /** Series válidas por tipo (Catálogo del SEE). */
 const SERIES: Record<'01' | '03', string> = { '01': 'F001', '03': 'B001' };
 
-/**
- * Traducción de la afectación de la grilla al código del Catálogo 07.
- *
- * La grilla trabaja con nombres legibles ('GRAVADA', 'EXONERADA'...) porque los
- * usa para calcular la liquidación línea a línea; el XML necesita el código
- * numérico. Sin este paso, elegir "Exonerada" en pantalla emitía un comprobante
- * gravado.
- *
- *   GRAVADA   → 10  Gravado - Operación Onerosa
- *   EXONERADA → 20  Exonerado - Operación Onerosa (9997)
- *   INAFECTA  → 30  Inafecto - Operación Onerosa (9998)
- *   GRATUITA  → 11  Gravado - Retiro por premio a otros de bienes (9996)
+/*
+ * Aquí vivía `CODIGO_AFECTACION`, la traducción de 'GRAVADA' al código 10 del
+ * Catálogo 07. Se RETIRÓ al unificar: `borradorAPayloadEmision` hace esa misma
+ * traducción desde su propio `CODIGO_AFECTACION`, y tener las dos era
+ * precisamente el riesgo de que una línea exonerada saliera gravada por
+ * arreglar solo uno de los dos mapas.
  */
-const CODIGO_AFECTACION: Record<AfectacionIgv, AfectacionGrilla> = {
-  GRAVADA: '10',
-  EXONERADA: '20',
-  INAFECTA: '30',
-  GRATUITA: '11',
-};
 
 export default function InvoiceEmissionPage() {
   const [tipo, setTipo] = useState<'01' | '03'>('01');
@@ -254,29 +243,17 @@ export default function InvoiceEmissionPage() {
   /**
    * Coloca el producto elegido en la grilla.
    *
-   * SI HAY UNA LÍNEA VACÍA SE RELLENA, no se añade otra.
+   * SI HAY UNA LÍNEA VACÍA SE RELLENA, no se añade otra: la grilla nace con una
+   * fila vacía y añadir siempre dejaba esa fila arriba, de modo que quien
+   * editaba "la fila 1" cambiaba la vacía y el comprobante salía sin eso.
    *
-   * La grilla nace con una fila vacía. Antes esta función siempre hacía
-   * `[...prev, {nuevo}]`, así que al elegir el primer producto quedaba la fila
-   * vacía arriba y la nueva abajo: el usuario que después cambiaba la
-   * afectación, la cantidad o el precio de "la fila 1" estaba editando la fila
-   * vacía, y el comprobante salía con la línea de abajo sin esos cambios.
-   * Al emitir, la fila vacía además bloqueaba con "la línea 1 no tiene
-   * descripción".
+   * La línea se arma con `itemDesdeProducto`, que COMPRUEBA la unidad contra el
+   * Catálogo 03 (el almacén puede devolver "kg" o "NIU " y eso haría un XML
+   * rechazado). Antes esta página construía el objeto a mano y se saltaba esa
+   * comprobación; es exactamente la duplicación que se elimina al unificar.
    */
-  const agregarConProducto = (producto: {
-    sku: string;
-    descripcion: string;
-    unidad?: string;
-    valorUnitario: number;
-  }) => {
-    const relleno = {
-      codigo: producto.sku,
-      descripcion: producto.descripcion,
-      unidad: producto.unidad ?? 'NIU',
-      valorUnitario: producto.valorUnitario,
-      cantidad: 1,
-    };
+  const agregarConProducto = (producto: ProductoBuscado) => {
+    const relleno = itemDesdeProducto(producto, 'prod');
 
     setItems((prev) => {
       const vacia = prev.findIndex(
@@ -284,10 +261,10 @@ export default function InvoiceEmissionPage() {
       );
       if (vacia >= 0) {
         return prev.map((item, i) =>
-          i === vacia ? { ...item, ...relleno } : item,
+          i === vacia ? { ...item, ...relleno, clave: item.clave } : item,
         );
       }
-      return [...prev, { ...itemVacio(String(Date.now())), ...relleno }];
+      return [...prev, { ...relleno, clave: String(Date.now()) }];
     });
   };
 
@@ -358,49 +335,43 @@ export default function InvoiceEmissionPage() {
 
     setEnviando(true);
     try {
-      // Se manda lo que el usuario escribió; el backend liquida los impuestos,
-      // valida el stock contra el almacén y reserva el correlativo. El número
-      // de la respuesta es el real.
-      const r: ResultadoEmisionBackend = await invoicesApi.emitirComprobante({
-        tipo_comprobante: tipo,
+      /**
+       * UNIFICACIÓN: el payload sale del traductor compartido.
+       *
+       * Antes esta pantalla armaba el objeto a mano (tipo, serie, documento,
+       * cuotas e ítems, 40 líneas de traducción) mientras el modal usaba
+       * `borradorAPayloadEmision`. Dos implementaciones de «cómo se manda un
+       * comprobante» significan que un arreglo en una no llega a la otra: así se
+       * quedó fuera el `fecha_emision` aquí y la comprobación de stock allá.
+       *
+       * Se compone un `BorradorEmision` con los campos de esta pantalla y se
+       * delega la traducción. El backend liquida los impuestos, valida el stock
+       * y reserva el correlativo; el número de la respuesta es el real.
+       */
+      const borradorCompleto: BorradorEmision = {
+        tipo,
         serie: SERIES[tipo],
-        customer_identity_type: tipo === '01' ? '6' : '1',
-        customer_identity_number: clienteDoc.replace(/\D/g, ''),
-        customer_legal_name: clienteRazonSocial.trim(),
-        // D9: la fecha elegida viaja al backend. Antes no se mandaba —el campo
-        // tampoco existía— y el servidor fechaba con su propio reloj, que en UTC
-        // es el día siguiente a partir de las 19:00 de Lima.
-        fecha_emision: fechaEmision,
-        agente_retencion: agenteRetencion,
-        forma_pago: formaPago,
-        cuotas:
-          formaPago === 'Credito'
-            ? cuotas.map((c) => ({
-                // Se redondea también al armar el payload. El editor ya guarda
-                // céntimos; este segundo redondeo garantiza que ningún flotante
-                // llegue a la regla 3319 aunque el importe entre por otra vía
-                // (restaurado, pegado en el campo o recalculado).
-                monto: Math.round((c.monto + Number.EPSILON) * 100) / 100,
-                vencimiento: c.vencimiento,
-              }))
-            : undefined,
-        items: items.map((i) => ({
-          descripcion: i.descripcion.trim(),
-          codigo: i.codigo?.trim() || undefined,
-          unidad: i.unidad,
-          cantidad: i.cantidad,
-          valorUnitario: i.valorUnitario,
-          // La afectación es POR LÍNEA, no del comprobante: una factura de
-          // ferretería puede llevar un ítem gravado y otro exonerado. Antes se
-          // mandaba siempre `AFECTACION_DEFAULT` ('10' gravado), así que elegir
-          // "Exonerada" en la grilla no llegaba nunca al XML.
-          afectacion: CODIGO_AFECTACION[i.afectacion],
-          // Igual con la detracción: "eso lo manda el producto, no la factura".
-          codigoDetraccion: i.codigoDetraccion || undefined,
-          // El ICBPER solo viaja cuando la línea es una bolsa plástica.
-          icbper: i.icbper > 0 ? i.icbper : undefined,
-        })),
-      });
+        correlativo: 0, // lo asigna la serie en el backend
+        clienteDoc,
+        clienteTipoDoc: tipo === '01' ? '6' : '1',
+        clienteRazonSocial,
+        items,
+        formaPago,
+        cuotas,
+        numeroCuotas: cuotas.length || 2,
+        codigoDetraccion: '',
+        agenteRetencion,
+        bolsas: 0,
+        documentoAfectado: '',
+        tipoDocumentoAfectado: '0101',
+        motivoCodigo: '',
+        motivoDescripcion: '',
+        fecha: fechaEmision,
+      };
+
+      const r: ResultadoEmisionBackend = await invoicesApi.emitirComprobante(
+        borradorAPayloadEmision(borradorCompleto),
+      );
 
       setResultado({
         ok: true,
@@ -622,18 +593,12 @@ export default function InvoiceEmissionPage() {
                 onEliminar={eliminarItem}
                 onAgregar={agregarItem}
                 onAgregarBolsa={() =>
+                  // El ICBPER se calcula en `itemBolsa` (cantidad × 0,50).
+                  // Aquí estaba escrito a mano `icbper: 0.5` con cantidad 1, así
+                  // que añadir dos bolsas dejaba 0,50 en lugar de 1,00.
                   setItems((prev) => [
                     ...prev,
-                    {
-                      ...itemVacio(String(Date.now())),
-                      codigo: 'ICBPER',
-                      descripcion: 'Bolsa plástica',
-                      unidad: 'BG',
-                      cantidad: 1,
-                      valorUnitario: 0,
-                      icbper: 0.5,
-                      afectacion: 'GRAVADA',
-                    },
+                    itemBolsa(String(Date.now()), 1),
                   ])
                 }
                 productos={productos}
