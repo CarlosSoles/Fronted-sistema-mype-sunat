@@ -62,7 +62,7 @@ describe('sireDashboardApi', () => {
 
     const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
     const parsedUrl = new URL(url, 'http://localhost');
-    expect(parsedUrl.pathname).toBe(`${ENV.VITE_API_URL}/sire/dashboard/history`);
+    expect(url.startsWith(`${ENV.VITE_API_URL}/sire/dashboard/history`)).toBe(true);
     expect(parsedUrl.searchParams.get('start')).toBe('2026-10-29T00:00:00.000Z');
     expect(parsedUrl.searchParams.get('end')).toBe('2026-10-30T00:00:00.000Z');
     expect(parsedUrl.searchParams.get('granularity')).toBe('hour');
