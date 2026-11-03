@@ -392,3 +392,59 @@ describe('forma de pago y cronograma del detalle', () => {
     expect(convertida.cuotas).toEqual([]);
   });
 });
+
+/**
+ * Origen y motivo de una nota en la ficha.
+ *
+ * Las columnas se guardaban y el detalle las pública desde `16fe7c8`, pero el
+ * front no las mapeaba: la ficha de una nota ACEPTADA se abría sin decir sobre
+ * qué documento se emitió ni por qué.
+ */
+describe('origen y motivo de la nota', () => {
+  function nota(extra: Partial<ComprobanteDetalleBackend> = {}): ComprobanteDetalleBackend {
+    return {
+      ...fila({ tipo_comprobante: '07', serie: 'FC01', correlativo: 9, numero: 'FC01-00000009' }),
+      ruc_emisor: '20601234567',
+      base_imponible: 100,
+      total_igv: 18,
+      cdr: null,
+      referenced_document_type: '01',
+      referenced_series_correlative: 'F001-00000053',
+      credit_debit_reason_code: '06',
+      ...extra,
+    };
+  }
+
+  it('expone el documento afectado y el motivo con su descripcion', () => {
+    const convertida = aInvoiceDetalle(nota());
+
+    expect(convertida.documentoAfectado).toBe('F001-00000053');
+    expect(convertida.motivoNota?.codigo).toBe('06');
+    // La columna guarda solo el codigo: sin resolver el Catalogo 09 la ficha
+    // pintaba "(06 - )" con el hueco a la vista.
+    expect(convertida.motivoNota?.descripcion).toBe('Devolución total');
+  });
+
+  it('una factura no arrastra origen ni motivo', () => {
+    const convertida = aInvoiceDetalle(
+      nota({
+        tipo_comprobante: '01',
+        serie: 'F001',
+        numero: 'F001-00000056',
+        referenced_document_type: null,
+        referenced_series_correlative: null,
+        credit_debit_reason_code: null,
+      }),
+    );
+
+    expect(convertida.documentoAfectado).toBeUndefined();
+    expect(convertida.motivoNota).toBeUndefined();
+  });
+
+  it('con un codigo fuera del catalogo muestra el codigo y no inventa texto', () => {
+    const convertida = aInvoiceDetalle(nota({ credit_debit_reason_code: '99' }));
+
+    expect(convertida.motivoNota?.codigo).toBe('99');
+    expect(convertida.motivoNota?.descripcion).toBe('');
+  });
+});

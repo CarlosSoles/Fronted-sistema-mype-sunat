@@ -22,6 +22,7 @@ import type {
   InvoiceItem,
   Moneda,
 } from '../types/invoice.types';
+import { MOTIVOS_NC, MOTIVOS_ND } from './invoiceEmitValidation';
 
 /** Fila del backend tal como llega por HTTP. */
 export interface ComprobanteBackend {
@@ -69,6 +70,16 @@ export interface ComprobanteDetalleBackend extends ComprobanteBackend {
     monto: number;
     vencimiento: string;
   }[];
+  /**
+   * Referencia de una nota (07/08) al documento que modifica.
+   *
+   * Son columnas de `invoices` que el detalle publica desde `16fe7c8`. Sin
+   * ellas la ficha de una nota aceptada se abría sin origen ni motivo, que es
+   * justo lo que el docente pidió ("es sobre el documento que ya está").
+   */
+  referenced_document_type?: string | null;
+  referenced_series_correlative?: string | null;
+  credit_debit_reason_code?: string | null;
   cdr: {
     codigo: string | null;
     descripcion: string | null;
@@ -208,6 +219,25 @@ export const aInvoiceDetalle = (fila: ComprobanteDetalleBackend): Invoice => {
     // Forma de pago y cronograma reales, leídos del payload UBL enviado.
     formaPago: fila.forma_pago ?? null,
     cuotas: fila.cuotas ?? [],
+    // Referencia de la nota al documento que modifica. El modal ya sabía
+    // pintarla (`documentoAfectado` + `motivoNota`); lo que faltaba era que el
+    // dato llegara hasta aquí.
+    documentoAfectado: fila.referenced_series_correlative ?? undefined,
+    motivoNota: fila.credit_debit_reason_code
+      ? {
+          codigo: fila.credit_debit_reason_code,
+          // La columna guarda SOLO el código; la descripción vive en el
+          // Catálogo 09. Sin resolverla aquí, la ficha pintaba "(06 - )" con el
+          // hueco a la vista, que se lee como un dato roto. Si el código no está
+          // en el catálogo se muestra el código y nada más: no se inventa.
+          descripcion:
+            MOTIVOS_NC.find((m) => m.codigo === fila.credit_debit_reason_code)
+              ?.descripcion ??
+            MOTIVOS_ND.find((m) => m.codigo === fila.credit_debit_reason_code)
+              ?.descripcion ??
+            '',
+        }
+      : undefined,
   };
 };
 

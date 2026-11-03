@@ -212,6 +212,12 @@ const aComoComprobanteDemo = (
     // Estado crudo del backend: la Bitácora lo necesita para no rotular un
     // ERROR_RED como rechazo de SUNAT.
     estadoBackend: fuente.estadoBackend ?? inv.estadoBackend,
+    // Origen y motivo de una nota. Vienen del DETALLE: el listado no los trae.
+    // Sin esto una nota ACEPTADA se abría sin decir sobre qué documento se
+    // emitió, que es justo lo que el docente pidió ("es sobre el documento que
+    // ya está").
+    documentoAfectado: fuente.documentoAfectado,
+    motivoNota: fuente.motivoNota,
     items: [],
   };
 };

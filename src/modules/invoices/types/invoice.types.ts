@@ -88,6 +88,15 @@ export interface Invoice {
     monto: number;
     vencimiento: string;
   }[];
+  /**
+   * Documento que modifica una nota (07/08): `F001-00000053`.
+   *
+   * Viene de `referenced_series_correlative`, una columna de `invoices`. En
+   * facturas y boletas es `undefined` porque no afectan a ningún documento.
+   */
+  documentoAfectado?: string;
+  /** Motivo de la nota (Catálogo 09) tal como se guardó: `06`. */
+  motivoNota?: { codigo: string; descripcion: string };
 }
 
 export interface CreateInvoiceDto {
