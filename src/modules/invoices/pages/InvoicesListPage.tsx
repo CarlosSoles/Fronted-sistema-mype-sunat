@@ -159,21 +159,40 @@ const aComoComprobanteDemo = (
     // ahora manda el código y el motivo del fault en `ultimoError*`. Se usa eso
     // en lugar de "Sin respuesta de SUNAT todavía", que describía un rechazo
     // consumado como si SUNAT no hubiera contestado.
+    //
+    // FALLO_CRITICO (ERROR_RED) se trata ANTES que ese último recurso. Antes
+    // caía en "Sin respuesta de SUNAT todavía" mientras el badge, dos líneas
+    // más arriba, decía "Rechazado": la ficha se contradecía consigo misma. Un
+    // ERROR_RED no es un rechazo de SUNAT — SUNAT nunca contestó porque el
+    // envío no salió— así que el texto habla de la transmisión, no del CDR.
     cdrDescripcion:
       (fuente.cdrMensaje || inv.cdrMensaje) ??
       (fuente.ultimoErrorMensaje
         ? `Código ${fuente.ultimoErrorCodigo ?? '?'}: ${fuente.ultimoErrorMensaje}`
         : fuente.cdrCodigo || inv.cdrCodigo
           ? `Código ${fuente.cdrCodigo ?? inv.cdrCodigo} reportado por SUNAT`
-          : 'Sin respuesta de SUNAT todavía'),
+          : fuente.estadoBackend === 'ERROR_RED'
+            ? 'No llegó a SUNAT: el envío falló por un error de red y el comprobante no fue evaluado.'
+            : 'Sin respuesta de SUNAT todavía'),
     // SHA-256 del XML firmado; lo expone el endpoint de detalle.
     hashCpe: (fuente.hashCpe || inv.hashCpe) ?? '',
     moneda: inv.moneda,
     detraccion: 0,
     retencion: 0,
     tipoOperacion: '0101',
-    formaPago: 'Contado',
-    cuotas: [],
+    // Forma de pago y cronograma: vienen del DETALLE, que los lee del
+    // `payload_ubl` enviado a SUNAT. Antes se escribía `'Contado'` y `[]` a
+    // mano, así que toda factura al crédito se abría como venta al contado y
+    // sin cronograma aunque su XML llevara Cuota001/Cuota002.
+    //
+    // Solo se toma del detalle: el listado no los trae. Si el detalle aún no
+    // llegó no se afirma nada (`null` = desconocido), porque escribir "Contado"
+    // por defecto describiría como contado un crédito.
+    formaPago: detalle ? (detalle.formaPago ?? null) : null,
+    cuotas: detalle?.cuotas ?? [],
+    // Estado crudo del backend: la Bitácora lo necesita para no rotular un
+    // ERROR_RED como rechazo de SUNAT.
+    estadoBackend: fuente.estadoBackend ?? inv.estadoBackend,
     items: [],
   };
 };

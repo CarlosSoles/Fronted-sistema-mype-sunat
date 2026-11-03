@@ -32,10 +32,29 @@ const LECTURA_DEL_ESTADO: Record<string, string> = {
   RECHAZADO: 'SUNAT rechazó el comprobante. No tiene validez fiscal.',
 };
 
+/**
+ * Lectura de un ERROR_RED.
+ *
+ * La fila recibe `estado: 'RECHAZADO'` porque `mapEstadoCdr` colapsa
+ * FALLO_CRITICO ahí para que el badge salga en rojo. Eso hacía que la Bitácora
+ * afirmara "SUNAT rechazó el comprobante" sobre uno que SUNAT NUNCA VIO: no
+ * llegó a enviarse. Un rechazo es un veredicto del fisco; esto es un fallo de
+ * transmisión, y confundirlos es afirmar algo falso sobre el documento.
+ */
+const LECTURA_ERROR_RED =
+  'No llegó a SUNAT: el envío falló por un error de red. SUNAT no lo evaluó, así que no hay rechazo ni aceptación.';
+
+/** ¿El comprobante falló en el envío, sin llegar a SUNAT? */
+const esErrorDeRed = (c: ComprobanteDemo): boolean =>
+  c.estadoBackend === 'ERROR_RED' ||
+  // Respaldo por si la fila llega sin el estado crudo del backend.
+  (!c.cdrCodigo && !c.ultimoErrorCodigo && c.cdrDescripcion?.includes('No llegó a SUNAT'));
+
 /** Bitácora con los datos reales del comprobante. */
 export const InvoiceAuditTrail = ({ comprobante }: InvoiceAuditTrailProps) => {
   const aceptado =
     comprobante.estado === 'ACEPTADO' || comprobante.estado === 'OBSERVADO';
+  const falloDeRed = esErrorDeRed(comprobante);
 
   const filas: { etiqueta: string; valor: string }[] = [
     {
@@ -44,15 +63,21 @@ export const InvoiceAuditTrail = ({ comprobante }: InvoiceAuditTrailProps) => {
     },
     {
       etiqueta: 'Lectura',
-      valor:
-        LECTURA_DEL_ESTADO[comprobante.estado ?? ''] ??
-        'Estado no reconocido por la interfaz.',
+      valor: falloDeRed
+        ? LECTURA_ERROR_RED
+        : (LECTURA_DEL_ESTADO[comprobante.estado ?? ''] ??
+          'Estado no reconocido por la interfaz.'),
     },
     {
       etiqueta: 'Código CDR',
       valor: comprobante.cdrCodigo?.trim()
         ? comprobante.cdrCodigo
-        : 'Sin código: SUNAT todavía no respondió',
+        : falloDeRed
+          // No es "todavía no respondió": SUNAT no respondió PORQUE nunca le
+          // llegó el documento. Decirlo al revés sugiere una espera que no va
+          // a terminar sola.
+          ? 'Sin código: el envío no llegó a SUNAT'
+          : 'Sin código: SUNAT todavía no respondió',
     },
     {
       etiqueta: 'Descripción del CDR',
