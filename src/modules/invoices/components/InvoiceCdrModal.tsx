@@ -123,7 +123,10 @@ export const InvoiceCdrModal = ({
     if (c.estado === 'ACEPTADO' || c.estado === 'OBSERVADO') {
       return 'Aceptado sin código';
     }
-    return 'Sin respuesta de SUNAT';
+    // El ERROR_RED tampoco tiene CDR, pero su causa no es un silencio de SUNAT:
+    // el envío no salió. "Sin respuesta de SUNAT" se leía como si SUNAT fuera a
+    // contestar, cuando en realidad el documento nunca le llegó.
+    return 'Sin confirmar';
   })();
 
   /**
@@ -167,9 +170,14 @@ export const InvoiceCdrModal = ({
             <InvoiceStatusBadge estado={c.estado} codigo={c.cdrCodigo} />
           </DialogTitle>
           <PageText variant="caption">
+            {/* `null` es DESCONOCIDO, no "Contado": los comprobantes emitidos
+                antes de que el backend expusiera la forma de pago no tienen el
+                dato, y afirmar "Contado" sería inventar un dato fiscal. */}
             {c.formaPago === 'Credito'
-              ? `Crédito (${c.cuotas.length} cuotas)`
-              : 'Contado'}
+              ? `Crédito (${c.cuotas.length} cuota${c.cuotas.length === 1 ? '' : 's'})`
+              : c.formaPago === 'Contado'
+                ? 'Contado'
+                : 'Forma de pago no registrada'}
             {c.documentoAfectado
               ? ` · Afecta ${c.documentoAfectado}${
                   c.motivoNota
@@ -187,6 +195,30 @@ export const InvoiceCdrModal = ({
           </TabsList>
 
           <TabsContent value="cdr" className="space-y-4">
+            {/*
+              Cronograma del crédito.
+
+              Antes no se pintaba en ninguna parte: el modal recibía
+              `formaPago: 'Contado'` y `cuotas: []` fijos para toda fila, así que
+              la factura al crédito F001-00000056 —con dos cuotas de 885.00 en su
+              XML— se abría como una venta al contado. Se muestran los importes
+              tal como viajaron en cada `cac:PaymentTerms`.
+            */}
+            {c.formaPago === 'Credito' && c.cuotas.length > 0 && (
+              <div
+                className="space-y-1 rounded-lg border p-3"
+                data-testid="cronograma-cuotas"
+              >
+                <PageText variant="label">Cronograma de pago</PageText>
+                {c.cuotas.map((cuota) => (
+                  <PageText variant="caption" key={cuota.numero}>
+                    {cuota.numero}: S/ {cuota.monto.toFixed(2)} · vence{' '}
+                    {cuota.vencimiento}
+                  </PageText>
+                ))}
+              </div>
+            )}
+
             <div className="space-y-2 rounded-lg border p-3">
               <PageText variant="label">
                 Respuesta oficial CDR SUNAT (billService)
