@@ -23,8 +23,16 @@ export interface MetricasFacturacion {
   rechazados: number;
   /** Aceptados u observados. */
   aceptados: number;
-  /** En cola o con error de red, todavía sin resolver. */
+  /** En cola, todavía sin respuesta de SUNAT. */
   pendientes: number;
+  /**
+   * Comprobantes que no pudieron enviarse por un fallo de comunicación.
+   *
+   * NO son "pendientes": un pendiente espera respuesta, un error de red es un
+   * envío que falló. Su importe queda FUERA de `facturado*`. Puede venir
+   * ausente si el backend es anterior al campo; se asume 0.
+   */
+  erroresRed: number;
   /** Importe neto: bruto menos notas de crédito. */
   facturado: number;
   /** Importe bruto, sin descontar notas de crédito. */
@@ -45,6 +53,7 @@ export const METRICAS_VACIAS: MetricasFacturacion = {
   rechazados: 0,
   aceptados: 0,
   pendientes: 0,
+  erroresRed: 0,
   facturado: 0,
   facturadoBruto: 0,
   acreditado: 0,
@@ -93,6 +102,7 @@ export const normalizarMetricas = (
     rechazados: numero(crudo?.rechazados),
     aceptados: numero(crudo?.aceptados),
     pendientes: numero(crudo?.pendientes),
+    erroresRed: numero(crudo?.erroresRed),
     facturado: numero(crudo?.facturado),
     facturadoBruto: numero(crudo?.facturadoBruto),
     acreditado: numero(crudo?.acreditado),

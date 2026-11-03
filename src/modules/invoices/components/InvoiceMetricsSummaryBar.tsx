@@ -86,10 +86,43 @@ export const InvoiceMetricsSummaryBar = ({
         <CardContent>
           <PageText className="text-2xl font-semibold">{metricas.emitidos}</PageText>
           <PageText className="text-xs text-muted-foreground">
-            {metricas.pendientes} pendiente(s) de SUNAT
+            {metricas.pendientes - metricas.erroresRed} en espera de SUNAT
           </PageText>
         </CardContent>
       </Card>
+
+      {/*
+        Tarjeta propia para los ERROR_RED.
+
+        Antes se contaban dentro de "pendientes", y eso describía mal el estado:
+        un pendiente espera respuesta de SUNAT, mientras que un error de red es
+        un envío que FALLÓ. El backend ya no suma su importe a lo facturado, así
+        que la pantalla no puede seguir llamándolos "pendientes" sin
+        contradecirlo.
+
+        Solo se pinta cuando hay alguno: con cero, una tarjeta vacía más solo
+        ocupa sitio.
+      */}
+      {metricas.erroresRed > 0 && (
+        <Card size="sm" data-kpi="errores-red">
+          <CardHeader>
+            <CardTitle>Sin confirmar</CardTitle>
+            <CardAction>
+              <Badge variant="destructive" className="text-[10px]">
+                Reintentar
+              </Badge>
+            </CardAction>
+          </CardHeader>
+          <CardContent>
+            <PageText className="text-2xl font-semibold">
+              {metricas.erroresRed}
+            </PageText>
+            <PageText className="text-xs text-muted-foreground">
+              Falló el envío. Su importe NO está en lo facturado
+            </PageText>
+          </CardContent>
+        </Card>
+      )}
 
       <Card size="sm" data-kpi="aceptacion">
         <CardHeader>

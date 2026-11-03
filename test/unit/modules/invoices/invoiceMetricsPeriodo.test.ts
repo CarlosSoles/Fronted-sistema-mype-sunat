@@ -28,6 +28,7 @@ function metricas(extra: Partial<MetricasFacturacion> = {}): MetricasFacturacion
     aceptados: 8,
     rechazados: 1,
     pendientes: 1,
+    erroresRed: 0,
     facturadoBruto: 1180,
     acreditado: 118,
     debitado: 0,
@@ -103,6 +104,22 @@ describe('TA-69 - métricas del periodo (front)', () => {
         ...METRICAS_VACIAS,
         periodo: '2026-10',
       });
+    });
+
+    /*
+     * `erroresRed` se agregó al backend DESPUÉS del front. Si el contrato no
+     * llegara (backend anterior, caché, respuesta parcial), el campo tiene que
+     * quedar en 0 y nunca en `undefined`: la tarjeta lo compara con `> 0` y un
+     * `undefined` la dejaría siempre oculta aunque hubiera errores.
+     */
+    it('erroresRed ausente se normaliza a 0, no a undefined', () => {
+      const normal = normalizarMetricas({ pendientes: 3 }, '2026-10');
+      expect(normal.erroresRed).toBe(0);
+      expect(normal.erroresRed > 0).toBe(false);
+    });
+
+    it('erroresRed del backend se conserva', () => {
+      expect(normalizarMetricas({ erroresRed: 2 }).erroresRed).toBe(2);
     });
   });
 
