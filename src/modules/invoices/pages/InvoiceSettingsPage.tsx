@@ -24,6 +24,7 @@ import {
   PageText,
 } from '@/components/ui';
 import { InvoiceSettingsTab } from '../components/InvoiceSettingsTab';
+import { InvoiceConfigChecklist } from '../components/InvoiceConfigChecklist';
 import { useInvoiceConfig } from '../hooks/useInvoiceConfig';
 import { useAuthStore } from '@/stores/authStore';
 import type { ConfiguracionFe } from '../lib/invoiceSettings';
@@ -77,16 +78,18 @@ export default function InvoiceSettingsPage() {
         </Alert>
       ) : null}
 
+      {/*
+        D1: el checklist del backend, que antes se descartaba.
+        `useInvoiceConfig` ya traía `checklist` y `listo_para_emitir`; la
+        pantalla solo pintaba el RUC y las series, así que el usuario no tenía
+        forma de saber si SUNAT aceptaría sus comprobantes.
+      */}
+      {data && <InvoiceConfigChecklist config={data} />}
+
       <InvoiceSettingsTab
         ruc={ruc}
         configuracion={configuracion}
         series={data?.series ?? []}
-        onGuardar={() => {
-          // La configuración de entorno y credenciales vive en las variables
-          // del despliegue (el backend responde 409 explicándolo) y las series
-          // se gestionan con su propio endpoint. Por eso esta pantalla no
-          // guarda: evita prometer una escritura que el servidor rechazaría.
-        }}
       />
     </Page>
   );

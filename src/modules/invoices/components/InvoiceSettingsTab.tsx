@@ -13,13 +13,12 @@
  * La validación vive en `../lib/invoiceSettings` para poder probarla sin montar
  * el componente; el backend vuelve a validar, así que esta capa es comodidad.
  */
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   Alert,
   AlertDescription,
   AlertTitle,
   Badge,
-  Button,
   Card,
   Page,
   PageField,
@@ -42,9 +41,6 @@ import {
   avisoAmbiente,
   configuracionVacia,
   nombreTipo,
-  tieneErrores,
-  validarConfiguracion,
-  type AmbienteFe,
   type ConfiguracionFe,
   type SerieFe,
 } from '../lib/invoiceSettings';
@@ -56,7 +52,21 @@ interface InvoiceSettingsTabProps {
   ruc: string;
   configuracion?: Partial<ConfiguracionFe>;
   series?: readonly SerieFe[];
-  onGuardar: (config: ConfiguracionFe) => void;
+  /**
+   * Ya NO se llama desde aquí.
+   *
+   * El botón «Guardar configuración» se retiró en D1: estaba conectado a un
+   * callback que en `InvoiceSettingsPage` no hacía nada —solo un comentario
+   * explicando por qué no se guardaba—. El usuario rellenaba razón social,
+   * dirección o ubigeo, pulsaba e iba el mensaje a ninguna parte. El backend
+   * responde 409 a `PUT /invoices/config` a propósito, porque el entorno y las
+   * credenciales SOL viven en variables del despliegue.
+   *
+   * Un formulario que finge editar es peor que uno que solo muestra: el segundo
+   * dice la verdad. Se conserva la prop para no romper a quien lo monte, pero
+   * los campos pasan a ser de lectura.
+   */
+  onGuardar?: (config: ConfiguracionFe) => void;
 }
 
 /** Formulario de configuración del emisor electrónico. */
@@ -64,30 +74,12 @@ export const InvoiceSettingsTab = ({
   ruc,
   configuracion,
   series = [],
-  onGuardar,
 }: InvoiceSettingsTabProps) => {
-  const [config, setConfig] = useState<ConfiguracionFe>({
+  const [config] = useState<ConfiguracionFe>({
     ...configuracionVacia(ruc),
     ...configuracion,
     ruc,
   });
-  const [intentado, setIntentado] = useState(false);
-
-  const errores = useMemo(() => validarConfiguracion(config), [config]);
-  const hayErrores = tieneErrores(errores);
-
-  const cambiar = (parcial: Partial<ConfiguracionFe>) =>
-    setConfig((previo) => ({ ...previo, ...parcial }));
-
-  const guardar = () => {
-    setIntentado(true);
-    if (hayErrores) return;
-    onGuardar(config);
-  };
-
-  /** Muestra el error solo después del primer intento de guardar. */
-  const errorDe = (campo: keyof ConfiguracionFe): string | undefined =>
-    intentado ? errores[campo] : undefined;
 
   return (
     <Page>
@@ -124,12 +116,9 @@ export const InvoiceSettingsTab = ({
             id="cfg-razon"
             className={CLASE_INPUT}
             value={config.razonSocial}
-            onChange={(e) => cambiar({ razonSocial: e.target.value })}
+            readOnly
             placeholder="FERRETERIA LOS ANDES S.A.C."
           />
-          {errorDe('razonSocial') && (
-            <PageText variant="error">{errorDe('razonSocial')}</PageText>
-          )}
         </PageField>
 
         <PageField label="Nombre comercial" htmlFor="cfg-nombre">
@@ -137,7 +126,7 @@ export const InvoiceSettingsTab = ({
             id="cfg-nombre"
             className={CLASE_INPUT}
             value={config.nombreComercial}
-            onChange={(e) => cambiar({ nombreComercial: e.target.value })}
+            readOnly
             placeholder="Ferretería Los Andes"
           />
         </PageField>
@@ -147,12 +136,9 @@ export const InvoiceSettingsTab = ({
             id="cfg-direccion"
             className={CLASE_INPUT}
             value={config.direccion}
-            onChange={(e) => cambiar({ direccion: e.target.value })}
+            readOnly
             placeholder="Av. Larco 123 - Trujillo"
           />
-          {errorDe('direccion') && (
-            <PageText variant="error">{errorDe('direccion')}</PageText>
-          )}
         </PageField>
 
         <PageField label="Ubigeo (6 dígitos)" htmlFor="cfg-ubigeo">
@@ -161,14 +147,9 @@ export const InvoiceSettingsTab = ({
             className={CLASE_INPUT}
             value={config.ubigeo}
             maxLength={6}
-            onChange={(e) =>
-              cambiar({ ubigeo: e.target.value.replace(/\D/g, '') })
-            }
+            readOnly
             placeholder="130101"
           />
-          {errorDe('ubigeo') && (
-            <PageText variant="error">{errorDe('ubigeo')}</PageText>
-          )}
         </PageField>
       </Card>
 
@@ -176,10 +157,7 @@ export const InvoiceSettingsTab = ({
         <PageText variant="label">Envío a SUNAT</PageText>
 
         <PageField label="Ambiente" htmlFor="cfg-ambiente">
-          <Select
-            value={config.ambiente}
-            onValueChange={(v) => cambiar({ ambiente: v as AmbienteFe })}
-          >
+          <Select value={config.ambiente} disabled>
             <SelectTrigger id="cfg-ambiente">
               <SelectValue />
             </SelectTrigger>
@@ -188,6 +166,15 @@ export const InvoiceSettingsTab = ({
               <SelectItem value="produccion">Producción</SelectItem>
             </SelectContent>
           </Select>
+          {/*
+            D1: el selector está deshabilitado a propósito. El entorno lo fija
+            la variable `SUNAT_ENV` del despliegue y `PUT /invoices/config`
+            responde 409; ofrecerlo como editable era ofrecer un cambio que el
+            servidor iba a rechazar.
+          */}
+          <PageText variant="caption">
+            Lo define el despliegue (variable SUNAT_ENV), no esta pantalla.
+          </PageText>
         </PageField>
 
         <PageField label="Correo de copia" htmlFor="cfg-correo">
@@ -195,12 +182,9 @@ export const InvoiceSettingsTab = ({
             id="cfg-correo"
             className={CLASE_INPUT}
             value={config.correoCopia ?? ''}
-            onChange={(e) => cambiar({ correoCopia: e.target.value })}
+            readOnly
             placeholder="facturacion@empresa.pe"
           />
-          {errorDe('correoCopia') && (
-            <PageText variant="error">{errorDe('correoCopia')}</PageText>
-          )}
         </PageField>
 
         <PageField label="Cuenta del Banco de la Nación" htmlFor="cfg-cuenta">
@@ -208,19 +192,12 @@ export const InvoiceSettingsTab = ({
             id="cfg-cuenta"
             className={CLASE_INPUT}
             value={config.cuentaBancoNacion ?? ''}
-            onChange={(e) =>
-              cambiar({
-                cuentaBancoNacion: e.target.value.replace(/\D/g, ''),
-              })
-            }
+            readOnly
             placeholder="00019123456"
           />
           <PageText variant="caption">
             Se imprime en los comprobantes con detracción (SPOT).
           </PageText>
-          {errorDe('cuentaBancoNacion') && (
-            <PageText variant="error">{errorDe('cuentaBancoNacion')}</PageText>
-          )}
         </PageField>
       </Card>
 
@@ -263,17 +240,6 @@ export const InvoiceSettingsTab = ({
           </TableBody>
         </Table>
       </Card>
-
-      <div className="flex items-center justify-end gap-2">
-        {intentado && hayErrores && (
-          <PageText variant="error">
-            Corrija los campos marcados antes de guardar.
-          </PageText>
-        )}
-        <Button size="sm" onClick={guardar}>
-          Guardar configuración
-        </Button>
-      </div>
     </Page>
   );
 };
