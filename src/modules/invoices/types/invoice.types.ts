@@ -22,6 +22,11 @@ export interface Invoice {
   serie: string;
   /** Número completo que asigna el backend: F001-00000007. */
   numero: string;
+  /**
+   * Correlativo sin la serie. El backend lo devuelve siempre y sirve para
+   * reconocer el comprobante cuando alguien teclea solo el número suelto.
+   */
+  correlativo?: number;
   clienteRuc: string;
   clienteRazonSocial: string;
   fechaEmision: string;
@@ -32,6 +37,15 @@ export interface Invoice {
   cdrStatus: CdrStatus;
   cdrCodigo?: string;
   cdrMensaje?: string;
+  /**
+   * Código y motivo del último rechazo, cuando no hay CDR.
+   *
+   * Un rechazo puede llegar por SOAP Fault en lugar de ApplicationResponse; en
+   * ese caso `cdrCodigo` viene vacío y la pantalla lo rotulaba como PENDIENTE.
+   * Estos dos campos vienen del historial y son el único rastro del veredicto.
+   */
+  ultimoErrorCodigo?: string;
+  ultimoErrorMensaje?: string;
   /**
    * SHA-256 del XML firmado que se envió a SUNAT.
    *

@@ -53,6 +53,14 @@ export type TipoDocIdentidad = '1' | '6';
 /** Fila enriquecida que consume la tabla del módulo. */
 export interface ComprobanteDemo {
   id: string;
+  /**
+   * Número fiscal completo (`F001-00000045`), con ceros de relleno.
+   *
+   * Es la identidad que se compara al buscar el origen de una nota. `id` es el
+   * identificador técnico (UUID desde el backend, `serie-correlativo` sin ceros
+   * en los datos demo) y no sirve para lo que teclea el usuario.
+   */
+  numero?: string;
   tipo: TipoComprobante;
   serie: string;
   correlativo: number;
@@ -69,6 +77,14 @@ export interface ComprobanteDemo {
   totalNeto: number;
   estado: EstadoCdrDemo;
   cdrCodigo?: string;
+  /**
+   * Código y motivo del rechazo cuando SUNAT no devolvió CDR (SOAP Fault).
+   *
+   * El modal los usa para no rotular un RECHAZADO como "PENDIENTE": sin ellos
+   * no había ningún código que mostrar.
+   */
+  ultimoErrorCodigo?: string;
+  ultimoErrorMensaje?: string;
   /** Documento afectado, solo para notas de crédito/débito. */
   documentoAfectado?: string;
   /** Tiempo de despacho en la cola Outbox, en ms. */

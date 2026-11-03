@@ -15,6 +15,7 @@
  *    (Catálogo 09, motivo 13), como manda la RS 193-2020/SUNAT.
  */
 import type { LineaComprobante } from './invoiceTaxes';
+import { buscarAfectado } from './invoiceNotaOrigen';
 import type {
   ComprobanteDemo,
   ItemDemo,
@@ -267,9 +268,11 @@ export const vincularDocumentoAfectado = (
   borrador: BorradorEmision;
   afectado: ComprobanteDemo | undefined;
 } => {
-  const buscado = b.documentoAfectado.trim().toUpperCase();
+  // Búsqueda por NÚMERO FISCAL. Antes comparaba contra `c.id` (el UUID), así que
+  // el afectado nunca se encontraba: la nota no heredaba serie, tipo de
+  // operación, forma de pago ni fecha del documento original.
   const afectado = existentes.find(
-    (c) => c.estado !== 'RECHAZADO' && c.id.toUpperCase() === buscado,
+    (c) => c.estado !== 'RECHAZADO' && buscarAfectado([c], b.documentoAfectado) !== undefined,
   );
 
   return {
@@ -277,6 +280,26 @@ export const vincularDocumentoAfectado = (
       ...b,
       serie: serieParaNota(b.tipo, b.documentoAfectado, b.serie),
       tipoDocumentoAfectado: afectado?.tipoOperacion ?? '0101',
+      /**
+       * El adquirente de la nota ES el del documento afectado.
+       *
+       * El XML de una nota lleva el mismo `AccountingCustomerParty` que la
+       * factura que modifica, y SUNAT rechaza que difiera. El formulario, en
+       * cambio, arranca con el documento del cliente vacío: al escribir
+       * `F001-00000045` la nota se vinculaba bien pero quedaba bloqueada con
+       * "Documento inválido (RUC módulo 11 o DNI de 8 dígitos)", porque nadie
+       * había heredado el RUC de quien compró. Se reproduce en el navegador.
+       *
+       * Solo se rellena cuando el campo está VACÍO: si el usuario ya había
+       * tecleado un cliente, se respeta lo suyo y `problemasDeNota` le avisa de
+       * la discrepancia en lugar de cambiarle los datos por detrás.
+       */
+      clienteDoc: b.clienteDoc.trim()
+        ? b.clienteDoc
+        : (afectado?.clienteRuc ?? b.clienteDoc),
+      clienteRazonSocial: b.clienteRazonSocial.trim()
+        ? b.clienteRazonSocial
+        : (afectado?.clienteRazonSocial ?? b.clienteRazonSocial),
       formaPago: afectado?.formaPago ?? b.formaPago,
       numeroCuotas:
         afectado?.formaPago === 'Credito'

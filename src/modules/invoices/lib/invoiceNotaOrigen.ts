@@ -26,7 +26,21 @@ import type { BorradorEmision } from './invoiceEmitDraft';
 type ComprobanteElegible = Pick<
   ComprobanteDemo,
   'id' | 'tipo' | 'estado' | 'clienteRuc' | 'fechaEmision'
->;
+> & {
+  /**
+   * Serie y correlativo: son la identidad FISCAL del comprobante.
+   *
+   * `numero` trae la forma completa (`F001-00000045`) cuando viene del backend;
+   * `serie` + `correlativo` se usan como respaldo. `id` es el UUID de la base y
+   * NO sirve para lo que escribe el usuario en el mostrador.
+   */
+  numero?: string;
+  serie?: string;
+  correlativo?: number;
+};
+
+/** Comprobante en la forma que consume el buscador de origen. */
+export type { ComprobanteElegible };
 
 /**
  * ¿Este comprobante admite una nota de crédito o débito?
@@ -64,19 +78,71 @@ export const comprobantesElegibles = (
     .sort((a, b) => b.fechaEmision.localeCompare(a.fechaEmision));
 
 /**
+ * Número fiscal legible de un comprobante: `F001-00000045`.
+ *
+ * Se prefiere el `numero` que ya trae el backend; si no está, se arma con la
+ * serie y el correlativo a ocho dígitos. Devuelve cadena vacía si no hay datos
+ * suficientes, para no generar un número falso.
+ */
+export const numeroFiscal = (c: ComprobanteElegible): string => {
+  const directo = (c.numero ?? '').trim();
+  if (directo) return directo.toUpperCase();
+
+  const serie = (c.serie ?? '').trim().toUpperCase();
+  if (!serie || c.correlativo === undefined) return '';
+  return `${serie}-${String(c.correlativo).padStart(8, '0')}`;
+};
+
+/**
  * Busca el comprobante que la nota va a modificar.
  *
- * La comparación ignora mayúsculas y espacios porque el usuario escribe
- * "f001-00000042" en el mostrador; el número fiscal es el mismo.
+ * POR QUÉ SE COMPARA POR NÚMERO Y NO POR `id`
+ *
+ * Antes esta función hacía `c.id === buscado`, y `id` es el **UUID** de la base
+ * (`d819ddb0-64de-4a17-...`). El usuario escribe el número del comprobante
+ * (`F001-00000045`), así que la comparación no podía acertar NUNCA: cualquier
+ * número real respondía "No existe el comprobante en esta empresa" y ninguna
+ * nota podía nacer de un documento emitido, que es justo lo que el docente
+ * pidió replantear. El fallo no dependía de la sesión ni de la empresa.
+ *
+ * Se acepta tanto el número completo como el correlativo suelto, y la
+ * comparación ignora mayúsculas y espacios porque en el mostrador se teclea
+ * "f001-45" o "  F001-00000045 ".
  */
-export const buscarAfectado = (
-  existentes: readonly ComprobanteElegible[],
+export const buscarAfectado = <T extends ComprobanteElegible>(
+  existentes: readonly T[],
   numero: string,
-): ComprobanteElegible | undefined => {
-  const buscado = numero.trim().toUpperCase();
+): T | undefined => {
+  const buscado = numero.trim().toUpperCase().replace(/\s+/g, '');
   if (!buscado) return undefined;
 
-  return existentes.find((c) => c.id.trim().toUpperCase() === buscado);
+  // 1) Número fiscal canónico: F001-00000045.
+  const porNumero = existentes.find((c) => numeroFiscal(c) === buscado);
+  if (porNumero) return porNumero;
+
+  // 2) Número sin los ceros de relleno: el usuario escribe "F001-45" y en los
+  //    datos demo el id también omite los ceros. Se compara serie y correlativo
+  //    ya normalizados, no el texto literal.
+  const partes = buscado.match(/^(.+?)-0*(\d+)$/);
+  if (partes) {
+    const [, serieBuscada, correlativoBuscado] = partes;
+    const correlativo = Number(correlativoBuscado);
+    const porSerieYNumero = existentes.find(
+      (c) =>
+        (c.serie ?? '').trim().toUpperCase() === serieBuscada &&
+        c.correlativo === correlativo,
+    );
+    if (porSerieYNumero) return porSerieYNumero;
+  }
+
+  // 3) Solo el correlativo ("45"), si no hay ambigüedad entre series.
+  if (/^\d+$/.test(buscado)) {
+    const correlativo = Number(buscado);
+    const candidatos = existentes.filter((c) => c.correlativo === correlativo);
+    if (candidatos.length === 1) return candidatos[0];
+  }
+
+  return undefined;
 };
 
 /** Problema que impide emitir una nota, con el texto para mostrarlo. */

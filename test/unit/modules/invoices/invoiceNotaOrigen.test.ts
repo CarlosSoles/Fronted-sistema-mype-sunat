@@ -21,15 +21,28 @@ import {
 } from '@/modules/invoices/lib/invoiceNotaOrigen';
 import type { BorradorEmision } from '@/modules/invoices/lib/invoiceEmitDraft';
 
-/** Comprobante mínimo para las pruebas. */
+/**
+ * Comprobante mínimo para las pruebas.
+ *
+ * El `id` es un UUID DE VERDAD, no un número. Antes este fixture usaba
+ * `id: 'F001-00000042'` — un número disfrazado de identificador — y por eso la
+ * suite pasaba mientras la aplicación real no reconocía NINGÚN comprobante: la
+ * función comparaba contra el UUID y el número fiscal nunca coincidía.
+ */
 const comprobante = (parcial: {
   id?: string;
+  numero?: string;
+  serie?: string;
+  correlativo?: number;
   tipo?: '01' | '03' | '07' | '08';
   estado?: 'ACEPTADO' | 'RECHAZADO' | 'OBSERVADO' | 'EN_COLA';
   clienteRuc?: string;
   fechaEmision?: string;
 } = {}) => ({
-  id: 'F001-00000042',
+  id: 'd819ddb0-64de-4a17-9156-878630130a39',
+  numero: 'F001-00000042',
+  serie: 'F001',
+  correlativo: 42,
   tipo: '01' as const,
   estado: 'ACEPTADO' as const,
   clienteRuc: '20100070970',
@@ -110,7 +123,16 @@ describe('problemasDeNota — la nota exige el documento de origen', () => {
   it('bloquea una nota sobre otra nota', () => {
     const problemas = problemasDeNota(
       borradorNota({ documentoAfectado: 'FC01-00000001' }),
-      [comprobante({ id: 'FC01-00000001', tipo: '07' })],
+      [
+        comprobante({
+          // id = UUID, número = identidad fiscal: la nota se busca por número.
+          id: 'aa11bb22-cccc-4ddd-8eee-ffff00001111',
+          numero: 'FC01-00000001',
+          serie: 'FC01',
+          correlativo: 1,
+          tipo: '07',
+        }),
+      ],
       100,
     );
 
@@ -209,12 +231,65 @@ describe('comprobantesElegibles', () => {
 
 describe('buscarAfectado', () => {
   it('encuentra el comprobante sin importar el formato', () => {
-    expect(buscarAfectado([comprobante()], 'f001-00000042')?.id).toBe(
+    expect(buscarAfectado([comprobante()], 'f001-00000042')?.numero).toBe(
       'F001-00000042',
     );
   });
 
   it('devuelve undefined con un número vacío', () => {
     expect(buscarAfectado([comprobante()], '   ')).toBeUndefined();
+  });
+
+  // Estos casos existen porque la función comparaba contra el UUID: el fixture
+  // anterior tenía `id: 'F001-00000042'`, así que la suite pasaba mientras la
+  // app real respondía "No existe el comprobante" para CUALQUIER número.
+  it('encuentra por número aunque el id sea un UUID', () => {
+    const real = comprobante();
+    expect(real.id).toMatch(/^[0-9a-f-]{36}$/);
+
+    const encontrado = buscarAfectado([real], 'F001-00000045');
+    expect(encontrado).toBeUndefined(); // 42 ≠ 45: no debe acertar por parecido
+
+    expect(buscarAfectado([real], 'F001-00000042')).toBe(real);
+  });
+
+  it('acepta el número con espacios y en minúsculas', () => {
+    expect(buscarAfectado([comprobante()], '  f001-00000042  ')).toBeDefined();
+  });
+
+  it('reconstruye el número desde serie y correlativo si falta `numero`', () => {
+    const sinNumero = comprobante({
+      numero: '',
+      serie: 'B001',
+      correlativo: 7,
+    });
+
+    expect(
+      buscarAfectado([sinNumero], 'B001-00000007')?.correlativo,
+    ).toBe(7);
+  });
+
+  it('acepta el correlativo suelto cuando no hay ambigüedad', () => {
+    expect(buscarAfectado([comprobante()], '42')).toBeDefined();
+  });
+
+  it('con dos series y el mismo correlativo exige el número completo', () => {
+    const factura = comprobante({ numero: 'F001-00000009', correlativo: 9 });
+    const boleta = comprobante({
+      id: 'b2c3d4e5-0000-4444-8888-999999999999',
+      numero: 'B001-00000009',
+      serie: 'B001',
+      correlativo: 9,
+    });
+
+    expect(buscarAfectado([factura, boleta], '9')).toBeUndefined();
+    expect(buscarAfectado([factura, boleta], 'B001-00000009')?.serie).toBe(
+      'B001',
+    );
+  });
+
+  it('no confunde un número con el de otro comprobante', () => {
+    const otro = comprobante({ numero: 'F001-00000045', correlativo: 45 });
+    expect(buscarAfectado([otro], 'F001-00000044')).toBeUndefined();
   });
 });

@@ -46,6 +46,16 @@ export interface ComprobanteDetalleBackend extends ComprobanteBackend {
   total_igv: number;
   /** SHA-256 del XML firmado que se envió a SUNAT. */
   hash_xml?: string | null;
+  /**
+   * Motivo del rechazo cuando SUNAT no devolvió CDR.
+   *
+   * Un rechazo puede llegar como SOAP Fault en lugar de ApplicationResponse; en
+   * ese caso `cdr` es null pero el código y el mensaje del fault quedan en el
+   * historial. Sin este campo, la pantalla no tenía de dónde sacar el porqué y
+   * rotulaba el rechazo como "PENDIENTE".
+   */
+  ultimo_error_codigo?: string | null;
+  ultimo_error_mensaje?: string | null;
   cdr: {
     codigo: string | null;
     descripcion: string | null;
@@ -149,6 +159,7 @@ export const aInvoice = (fila: ComprobanteBackend): Invoice => {
     id: fila.id,
     serie: fila.serie,
     numero: fila.numero,
+    correlativo: fila.correlativo,
     clienteRuc: fila.cliente_documento ?? '',
     clienteRazonSocial: fila.cliente_nombre ?? 'CLIENTE SIN NOMBRE',
     fechaEmision: aDiaCalendario(fila.fecha_emision),
@@ -176,6 +187,9 @@ export const aInvoiceDetalle = (fila: ComprobanteDetalleBackend): Invoice => {
     subtotal: numero(fila.base_imponible),
     cdrMensaje: fila.cdr?.descripcion ?? undefined,
     cdrCodigo: fila.cdr?.codigo ?? base.cdrCodigo,
+    // Rechazo sin CDR: el código y el motivo del fault son lo único que hay.
+    ultimoErrorCodigo: fila.ultimo_error_codigo ?? undefined,
+    ultimoErrorMensaje: fila.ultimo_error_mensaje ?? undefined,
     // SHA-256 del XML firmado que se envió; permite verificar la descarga.
     hashCpe: fila.hash_xml ?? undefined,
   };

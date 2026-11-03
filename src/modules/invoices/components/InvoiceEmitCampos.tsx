@@ -22,6 +22,7 @@ import {
   vincularDocumentoAfectado,
 } from '../lib/invoiceEmitDraft';
 import type { BorradorEmision } from '../lib/invoiceEmitDraft';
+import { buscarAfectado } from '../lib/invoiceNotaOrigen';
 import type { ComprobanteDemo } from '../data/invoiceDemoTypes';
 import type { ProductoBuscado } from '../lib/invoiceSearch';
 import { CampoSelect, CampoTexto } from './InvoiceEmitCamposBase';
@@ -68,9 +69,10 @@ export const InvoiceEmitCampos = ({
 }: InvoiceEmitCamposProps) => {
   const esNota = esTipoNota(b.tipo);
   const motivos = b.tipo === '08' ? MOTIVOS_ND : MOTIVOS_NC;
-  const afectado = existentes.find(
-    (c) => c.id.toUpperCase() === b.documentoAfectado.trim().toUpperCase(),
-  );
+  // Se busca por NÚMERO FISCAL, no por `id`: `id` es el UUID de la base y el
+  // usuario teclea "F001-00000045". Comparar contra el UUID hacía que el campo
+  // marcara error y que la serie no se vinculara nunca.
+  const afectado = buscarAfectado(existentes, b.documentoAfectado);
 
   return (
     <div className="grid gap-3 sm:grid-cols-2">
@@ -166,8 +168,14 @@ export const InvoiceEmitCampos = ({
           {afectado && (
             <div className="sm:col-span-2 rounded-lg border bg-muted/40 p-2">
               <p className="text-[11px] text-muted-foreground">
-                Se vincula con {afectado.id} · {afectado.clienteRazonSocial} ·
-                total S/{' '}
+                {/* El número fiscal, no `id`: en los comprobantes reales `id` es
+                    el UUID del backend y ver un GUID crudo en pantalla se lee
+                    como un error del sistema. `numero` ya trae los ceros de
+                    relleno (F001-00000047); se reconstruye solo si faltara. */}
+                Se vincula con{' '}
+                {afectado.numero ||
+                  `${afectado.serie}-${String(afectado.correlativo).padStart(8, '0')}`}{' '}
+                · {afectado.clienteRazonSocial} · total S/{' '}
                 {afectado.baseImponible.toFixed(2)} + IGV de{' '}
                 {afectado.igv.toFixed(2)}
               </p>

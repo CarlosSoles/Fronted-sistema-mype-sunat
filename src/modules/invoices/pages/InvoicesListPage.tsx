@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useInvoicesList } from '../hooks/useInvoicesList';
+import { useComprobantesDeEmpresa } from '../hooks/useComprobantesDeEmpresa';
 import { useInvoiceMetrics } from '../hooks/useInvoiceMetrics';
 import { InvoiceMetricsSummaryBar } from '../components/InvoiceMetricsSummaryBar';
 import { METRICAS_VACIAS } from '../lib/invoiceMetricsPeriodo';
@@ -147,13 +148,24 @@ const aComoComprobanteDemo = (
     totalNeto: fuente.total,
     estado: mapEstadoCdr(fuente.cdrStatus),
     cdrCodigo: fuente.cdrCodigo ?? inv.cdrCodigo,
+    // Código y motivo del rechazo cuando SUNAT no devolvió CDR. Sin esto el
+    // modal no tenía con qué rotular un RECHAZADO y caía en "PENDIENTE".
+    ultimoErrorCodigo: fuente.ultimoErrorCodigo,
+    ultimoErrorMensaje: fuente.ultimoErrorMensaje,
     // `cdrMensaje` es la descripción que devuelve el backend; el modelo del
     // modal la llama `cdrDescripcion`.
+    //
+    // Un RECHAZADO sin CDR (SOAP Fault) no tiene código oficial: el backend
+    // ahora manda el código y el motivo del fault en `ultimoError*`. Se usa eso
+    // en lugar de "Sin respuesta de SUNAT todavía", que describía un rechazo
+    // consumado como si SUNAT no hubiera contestado.
     cdrDescripcion:
       (fuente.cdrMensaje || inv.cdrMensaje) ??
-      (fuente.cdrCodigo
-        ? `Código ${fuente.cdrCodigo} reportado por SUNAT`
-        : 'Sin respuesta de SUNAT todavía'),
+      (fuente.ultimoErrorMensaje
+        ? `Código ${fuente.ultimoErrorCodigo ?? '?'}: ${fuente.ultimoErrorMensaje}`
+        : fuente.cdrCodigo || inv.cdrCodigo
+          ? `Código ${fuente.cdrCodigo ?? inv.cdrCodigo} reportado por SUNAT`
+          : 'Sin respuesta de SUNAT todavía'),
     // SHA-256 del XML firmado; lo expone el endpoint de detalle.
     hashCpe: (fuente.hashCpe || inv.hashCpe) ?? '',
     moneda: inv.moneda,
@@ -260,6 +272,15 @@ export default function InvoicesListPage() {
     page,
     filtros,
   );
+  /**
+   * Comprobantes de TODA la empresa, para reconocer el origen de una nota.
+   *
+   * Solo se pide mientras el modal está abierto: la bandeja no lo necesita y
+   * pedirlo siempre sería una petición de más en cada visita.
+   */
+  const { data: comprobantesEmpresa } = useComprobantesDeEmpresa(
+    emitiendo !== null,
+  );
   // TA-69: la barra de resumen se alimenta del periodo completo, no de la
   // página visible, y por eso es una consulta aparte de la grilla.
   const { data: metricas, isLoading: cargandoMetricas } = useInvoiceMetrics();
@@ -284,6 +305,16 @@ export default function InvoicesListPage() {
     );
 
   const totalPages = data?.totalPages ?? 1;
+
+  /**
+   * Filas que alimentan el buscador de documento afectado del modal.
+   *
+   * Manda la consulta a la empresa; si aún no llegó (o falló), se cae a la
+   * grilla para no dejar el campo vacío mientras carga. Nunca se inventa nada:
+   * si no hay datos, el modal simplemente no encontrará el número y lo dirá.
+   */
+  const listaDeLaEmpresa: readonly Invoice[] =
+    comprobantesEmpresa ?? data?.data ?? [];
 
   return (
     <Page>
@@ -451,12 +482,30 @@ export default function InvoicesListPage() {
         </Table>
       </Card>
 
-      {/* Modal de emisión: el botón "Nueva Factura" lo abre. */}
+      {/*
+        Modal de emisión: el botón "Nueva Factura" lo abre.
+
+        `existentes` se ADAPTA con `aComoComprobanteDemo`, no se castea. Antes
+        decía `(data?.data ?? []) as unknown as readonly ComprobanteDemo[]`, y
+        ese `as unknown as` desactivaba al compilador: le prometía que una
+        `Invoice` tenía la forma de un `ComprobanteDemo`, y no la tiene. Los
+        nombres de los importes son distintos (`subtotal` aquí, `baseImponible`
+        allí), así que al encontrar el documento afectado el bloque «Se vincula
+        con ...» hacía `afectado.baseImponible.toFixed(2)` sobre `undefined` y el
+        módulo se caía con "Cannot read properties of undefined (reading
+        'toFixed')". Reproducido en el navegador el 3 nov sobre F001-00072582.
+
+        Se pasan los comprobantes de TODA la empresa, no los del apartado: una
+        nota sobre una factura tiene que poder nacer desde la página de Notas,
+        donde la grilla trae solo notas.
+      */}
       {emitiendo && (
         <InvoiceEmitModal
           tipoInicial={emitiendo}
           fecha={fechaBorrador}
-          existentes={(data?.data ?? []) as unknown as readonly ComprobanteDemo[]}
+          existentes={listaDeLaEmpresa.map((inv) =>
+            aComoComprobanteDemo(inv),
+          )}
           onEmitir={() => {
             cerrarEmision();
             // La emisión real la hace el backend; se recarga la bandeja para
@@ -467,9 +516,14 @@ export default function InvoicesListPage() {
         />
       )}
 
-      {/* Modal de auditoría: CDR, XML y PDF del comprobante elegido. */}
+      {/* Modal de auditoría: CDR, XML y PDF del comprobante elegido.
+          La `key` por id remonta el componente al cambiar de comprobante. Sin
+          ella React reutiliza la instancia y conserva el estado: el visor
+          seguía mostrando el XML del comprobante ANTERIOR mientras el CDR ya
+          era el del nuevo, y la pestaña elegida se arrastraba de uno a otro. */}
       {auditoria && (
         <InvoiceCdrModal
+          key={auditoria.id}
           comprobante={aComoComprobanteDemo(auditoria, detalleCdr)}
           modoInicial="cdr"
           onCerrar={() => {

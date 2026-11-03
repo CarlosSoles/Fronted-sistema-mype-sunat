@@ -31,6 +31,8 @@ export interface FiltrosInvoices {
   serie?: string;
   desde?: string;
   hasta?: string;
+  /** Filas por página. El backend admite hasta 100 (ver PAGE_SIZE_MAXIMO). */
+  page_size?: number;
 }
 
 /**
