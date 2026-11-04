@@ -1,4 +1,13 @@
-import { useState } from 'react';
+/**
+ * Libro Diario (PCGE).
+ *
+ * La pantalla trabaja contra el backend real: no guarda asientos en
+ * `localStorage` ni inventa una trama PLE cuando la API falla. El período es
+ * seleccionable y los asientos muestran su origen (factura, importación o
+ * manual), para que contabilidad pueda auditar de dónde salió cada línea.
+ */
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '@/lib/axios';
 import { DoubleEntryBalanceCard } from '../components/DoubleEntryBalanceCard';
@@ -18,9 +27,24 @@ import {
   TableRow,
 } from '@/components/ui';
 import { formatCurrency, formatDateToPeru } from '@/lib/formatters';
-import { BookOpen, CheckCircle2, Download, FilePlus, PlusCircle, RefreshCw, Trash2, X } from 'lucide-react';
+import {
+  BookOpen,
+  CheckCircle2,
+  Download,
+  FilePlus,
+  PlusCircle,
+  RefreshCw,
+  X,
+} from 'lucide-react';
 import { useRolePermissions } from '@/hooks/useRolePermissions';
 import { useAuthStore } from '@/stores/authStore';
+
+interface AccountingLine {
+  accountCode: string;
+  accountName: string;
+  debitAmount: number;
+  creditAmount: number;
+}
 
 interface Entry {
   id: string;
@@ -30,17 +54,22 @@ interface Entry {
   totalDebe: number;
   totalHaber: number;
   estaCuadrado: boolean;
+  sourceModule: string;
+  sourceReferenceId?: string;
+  lines: AccountingLine[];
 }
 
-/** Línea de asiento tal como la devuelve el backend. */
 interface LineaAsientoBackend {
+  accountCode?: string;
+  account_code?: string;
+  accountName?: string;
+  account_name?: string;
   debitAmount?: number | string;
   debit?: number | string;
   creditAmount?: number | string;
   credit?: number | string;
 }
 
-/** Asiento del backend: acepta camelCase y snake_case (contrato heredado). */
 interface AsientoBackend {
   id?: string;
   numeroAsiento?: string;
@@ -57,11 +86,79 @@ interface AsientoBackend {
   totalCredit?: number | string;
   total_credit?: number | string;
   totalHaber?: number | string;
+  sourceModule?: string;
+  source_module?: string;
+  sourceReferenceId?: string;
+  source_reference_id?: string;
   lines?: LineaAsientoBackend[];
   accounting_lines?: LineaAsientoBackend[];
 }
 
-const STORAGE_KEY = 'accounting_entries_demo_v2';
+const periodoActual = (): string => {
+  const hoy = new Date();
+  return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
+};
+
+const numeroVisible = (
+  entryNumber: number | undefined,
+  period: string,
+  index: number,
+): string => {
+  const correlativo = String(entryNumber ?? index + 1).padStart(3, '0');
+  return `001-${period.replace('-', '')}-${correlativo}`;
+};
+
+const mapearAsiento = (
+  item: AsientoBackend,
+  period: string,
+  index: number,
+): Entry => {
+  const lines = (item.lines ?? item.accounting_lines ?? []).map((linea) => ({
+    accountCode: linea.accountCode ?? linea.account_code ?? '',
+    accountName: linea.accountName ?? linea.account_name ?? '',
+    debitAmount: Number(linea.debitAmount ?? linea.debit ?? 0),
+    creditAmount: Number(linea.creditAmount ?? linea.credit ?? 0),
+  }));
+
+  const totalDebe =
+    lines.length > 0
+      ? lines.reduce((acc, linea) => acc + linea.debitAmount, 0)
+      : Number(item.totalDebit ?? item.total_debit ?? item.totalDebe ?? 0);
+  const totalHaber =
+    lines.length > 0
+      ? lines.reduce((acc, linea) => acc + linea.creditAmount, 0)
+      : Number(item.totalCredit ?? item.total_credit ?? item.totalHaber ?? 0);
+
+  return {
+    id: String(item.id ?? `${period}-${index}`),
+    numeroAsiento: numeroVisible(
+      item.entryNumber ?? item.entry_number,
+      period,
+      index,
+    ),
+    fechaContable:
+      item.entryDate ??
+      item.entry_date ??
+      item.fechaContable ??
+      new Date().toISOString().slice(0, 10),
+    glosa: item.glosa ?? item.concept ?? 'Asiento contable',
+    totalDebe,
+    totalHaber,
+    estaCuadrado: Math.abs(totalDebe - totalHaber) <= 0.01,
+    sourceModule: item.sourceModule ?? item.source_module ?? 'MANUAL',
+    sourceReferenceId: item.sourceReferenceId ?? item.source_reference_id,
+    lines,
+  };
+};
+
+const etiquetaOrigen = (source: string): string => {
+  const etiquetas: Record<string, string> = {
+    INVOICES: 'Facturación',
+    CUSTOMS: 'Importaciones',
+    MANUAL: 'Manual',
+  };
+  return etiquetas[source] ?? source;
+};
 
 export default function AccountingEntriesPage() {
   const navigate = useNavigate();
@@ -69,197 +166,141 @@ export default function AccountingEntriesPage() {
   const { activeCompany, user } = useAuthStore();
   const companyId = activeCompany?.tenantId ?? user?.companyId ?? '';
   const companyRuc = activeCompany?.ruc ?? user?.companyRuc ?? '';
+
+  const [period, setPeriod] = useState(periodoActual);
   const [isExporting, setIsExporting] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  // Carga inicial desde memoria local
-  const [entries, setEntries] = useState<Entry[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      } catch {
-        console.warn('Error al leer memoria local.');
-      }
-    }
-    return [];
-  });
-
+  const [error, setError] = useState<string | null>(null);
   const [glosa, setGlosa] = useState('');
   const [monto, setMonto] = useState('');
 
-  // 1. REFRESCAR / RECARGAR DESDE BACKEND O LOCALSTORAGE
-  const fetchEntriesFromApi = async () => {
-    setIsRefreshing(true);
-    try {
-      const { data } = await apiClient.get<AsientoBackend[]>('/accounting/entries');
+  const {
+    data: asientosBackend,
+    isLoading,
+    isFetching,
+    error: queryError,
+    refetch,
+  } = useQuery({
+    queryKey: ['accounting-entries', period],
+    queryFn: async () => {
+      const { data } = await apiClient.get<AsientoBackend[]>(
+        '/accounting/entries',
+        { params: { period } },
+      );
+      return data;
+    },
+    enabled: Boolean(companyId),
+  });
 
-      if (Array.isArray(data) && data.length > 0) {
-        const mappedEntries: Entry[] = data.map((item: AsientoBackend, index: number) => {
-          // Extraer líneas de detalles si vienen pobladas en el backend
-          const lines = item.lines || item.accounting_lines || [];
+  const entries = useMemo(
+    () =>
+      (Array.isArray(asientosBackend) ? asientosBackend : []).map(
+        (item, index) => mapearAsiento(item, period, index),
+      ),
+    [asientosBackend, period],
+  );
 
-          // Calcular suma de Debe
-          const sumDebe = lines.length > 0
-            ? lines.reduce((acc: number, l: LineaAsientoBackend) => acc + Number(l.debitAmount || l.debit || 0), 0)
-            : Number(item.totalDebit || item.total_debit || item.totalDebe || 0);
+  const totalDebe = useMemo(
+    () => entries.reduce((acc, entry) => acc + entry.totalDebe, 0),
+    [entries],
+  );
+  const totalHaber = useMemo(
+    () => entries.reduce((acc, entry) => acc + entry.totalHaber, 0),
+    [entries],
+  );
 
-          // Calcular suma de Haber
-          const sumHaber = lines.length > 0
-            ? lines.reduce((acc: number, l: LineaAsientoBackend) => acc + Number(l.creditAmount || l.credit || 0), 0)
-            : Number(item.totalCredit || item.total_credit || item.totalHaber || 0);
+  const loadError = queryError
+    ? 'No se pudieron cargar los asientos del período. Revisa la sesión y la conexión con el backend.'
+    : null;
 
-          return {
-            id: String(item.id || Date.now() + index),
-            numeroAsiento: item.numeroAsiento || `001-202610-00${item.entryNumber || item.entry_number || index + 1}`,
-            fechaContable: item.entryDate || item.entry_date || item.fechaContable || new Date().toISOString().split('T')[0],
-            glosa: item.glosa || item.concept || 'Asiento Contable',
-            totalDebe: sumDebe,
-            totalHaber: sumHaber,
-            estaCuadrado: true,
-          };
-        });
+  const guardarAsiento = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!glosa.trim() || !monto) return;
 
-        setEntries(mappedEntries);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(mappedEntries));
-      } else {
-        reloadFromLocalStorage();
-      }
-    } catch {
-      reloadFromLocalStorage();
-    } finally {
-      setIsRefreshing(false);
+    const valor = Number.parseFloat(monto);
+    if (!Number.isFinite(valor) || valor <= 0) {
+      setError('El monto del asiento debe ser mayor que cero.');
+      return;
     }
-  };
-
-  const reloadFromLocalStorage = () => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) setEntries([...parsed]);
-      } catch (e) {
-        console.error('Error parseando localStorage:', e);
-      }
-    }
-  };
-
-  const totalDebe = entries.reduce((acc, e) => acc + e.totalDebe, 0);
-  const totalHaber = entries.reduce((acc, e) => acc + e.totalHaber, 0);
-
-  // 2. BORRADO COMPLETO (RESET PARA DEMO)
-  const handleClearAllEntries = () => {
-    if (confirm('¿Deseas limpiar todos los asientos contables de la vista?')) {
-      setEntries([]);
-      localStorage.removeItem(STORAGE_KEY);
-      // Clave de la versión anterior: se limpia para no resucitar asientos viejos.
-      localStorage.removeItem('accounting_entries');
-    }
-  };
-
-  // 3. BORRADO INDIVIDUAL FILA POR FILA
-  const handleDeleteSingleEntry = (idToDelete: string) => {
-    const updated = entries.filter((item) => item.id !== idToDelete);
-    setEntries(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-  };
-
-  // 4. GUARDAR NUEVO ASIENTO MANUAL
-  const handleSaveEntry = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!glosa || !monto) return;
-
-    const val = parseFloat(monto);
-    const fechaActual = new Date().toISOString().split('T')[0];
-    const nextNumber = entries.length + 1;
-
-    const newEntry: Entry = {
-      id: String(Date.now()),
-      numeroAsiento: `001-202610-00${nextNumber}`,
-      fechaContable: fechaActual,
-      glosa: glosa,
-      totalDebe: val,
-      totalHaber: val,
-      estaCuadrado: true,
-    };
-
-    const updatedList = [newEntry, ...entries];
-    setEntries(updatedList);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedList));
 
     try {
       await apiClient.post('/accounting/entries', {
-        period: '2026-10',
-        entryNumber: Number(nextNumber),
-        entryDate: fechaActual,
-        glosa: glosa,
+        period,
+        entryDate: new Date().toISOString().slice(0, 10),
+        glosa: glosa.trim(),
         sourceModule: 'MANUAL',
         lines: [
-          { lineOrder: 1, accountCode: '121101', accountName: 'Cuentas por Cobrar', debitAmount: val, creditAmount: 0 },
-          { lineOrder: 2, accountCode: '701111', accountName: 'Venta de Mercaderías', debitAmount: 0, creditAmount: val },
+          {
+            lineOrder: 1,
+            accountCode: '121101',
+            accountName: 'Cuentas por cobrar comerciales',
+            debitAmount: valor,
+            creditAmount: 0,
+          },
+          {
+            lineOrder: 2,
+            accountCode: '701111',
+            accountName: 'Ventas de mercaderías',
+            debitAmount: 0,
+            creditAmount: valor,
+          },
         ],
       });
-    } catch {
-      console.warn('Operando en sandbox local.');
-    } finally {
       setGlosa('');
       setMonto('');
       setIsModalOpen(false);
+      await refetch();
+    } catch {
+      setError(
+        'No se pudo registrar el asiento. Verifica el período y la empresa activa.',
+      );
     }
   };
 
-  // 5. EXPORTACIÓN PLE ESTRICTAMENTE SINCRONIZADA
-  const handleExportPle = async () => {
+  const exportarPle = async () => {
     if (entries.length === 0) {
-      alert('No hay asientos registrados para exportar en el período activo.');
+      setError('No hay asientos para exportar en el período seleccionado.');
       return;
     }
 
     setIsExporting(true);
-    let fileName = 'LE2060101234120261000050100001111.txt';
-    let pleContent = '';
-
+    setError(null);
     try {
-      const { data } = await apiClient.post(
+      const { data } = await apiClient.post<{
+        fileName?: string;
+        content?: string;
+      }>(
         '/accounting/ple/export',
         {
           companyId,
           companyRuc,
-          year: 2026,
-          month: 10,
+          year: Number(period.slice(0, 4)),
+          month: Number(period.slice(5, 7)),
           bookCode: '050100',
         },
-        { timeout: 60000 },
+        { timeout: 60_000 },
       );
 
-      if (data.fileName && data.content) {
-        fileName = data.fileName;
-        pleContent = data.content;
-      }
-    } catch {
-      console.log('Generando trama desde la tabla local...');
-    } finally {
-      if (!pleContent) {
-        const lines: string[] = [];
-        entries.forEach((ent, idx) => {
-          const numAsiento = ent.numeroAsiento || `001-202610-00${idx + 1}`;
-          lines.push(`20261000|${numAsiento}|M001|121101|${ent.totalDebe.toFixed(2)}|0.00|${ent.glosa}|1||`);
-          lines.push(`20261000|${numAsiento}|M002|701111|0.00|${ent.totalHaber.toFixed(2)}|${ent.glosa}|1||`);
-        });
-        pleContent = lines.join('\r\n') + '\r\n';
+      if (!data.fileName || !data.content) {
+        throw new Error('El backend no devolvió una trama PLE válida');
       }
 
-      const blob = new Blob([pleContent], { type: 'text/plain;charset=utf-8' });
+      const blob = new Blob([data.content], {
+        type: 'text/plain;charset=utf-8',
+      });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = fileName;
+      link.download = data.fileName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+    } catch {
+      setError(
+        'No se pudo generar el PLE del período. No se descargó ningún archivo simulado.',
+      );
+    } finally {
       setIsExporting(false);
     }
   };
@@ -268,40 +309,87 @@ export default function AccountingEntriesPage() {
     <Page>
       <PageHeader
         title="Libro Diario (PCGE)"
-        description="Auditoría de asientos contables del periodo fiscal activo y validación de partida doble"
+        description="Asientos del período, origen del movimiento y validación de partida doble"
       >
-        <Button variant="default" size="sm" onClick={() => navigate('/invoices/emision')}>
+        <Button
+          variant="default"
+          size="sm"
+          onClick={() => navigate('/invoices/emision')}
+        >
           <FilePlus aria-hidden="true" className="w-4 h-4 mr-1" />
           Emitir Comprobante
         </Button>
 
-        {entries.length > 0 && (
-          <Button variant="ghost" size="sm" onClick={handleClearAllEntries} title="Limpiar todo (Demo)">
-            <Trash2 aria-hidden="true" className="w-4 h-4 text-muted-foreground hover:text-destructive" />
-          </Button>
-        )}
-
-        <Button variant="outline" size="sm" onClick={fetchEntriesFromApi} disabled={isRefreshing}>
-          <RefreshCw aria-hidden="true" className={isRefreshing ? 'animate-spin' : ''} />
-          {isRefreshing ? 'Refrescando...' : 'Refrescar'}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => void refetch()}
+          disabled={isFetching}
+        >
+          <RefreshCw
+            aria-hidden="true"
+            className={isFetching ? 'animate-spin' : ''}
+          />
+          {isFetching ? 'Refrescando...' : 'Refrescar'}
         </Button>
 
-        <Button variant="outline" size="sm" onClick={handleExportPle} disabled={isExporting || entries.length === 0}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={exportarPle}
+          disabled={isExporting || entries.length === 0}
+        >
           <Download aria-hidden="true" />
           {isExporting ? 'Exportando...' : 'Exportar PLE (.txt)'}
         </Button>
 
         {canCreateAccountingEntry ? (
-          <Button variant="outline" size="sm" onClick={() => setIsModalOpen(true)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsModalOpen(true)}
+          >
             <PlusCircle aria-hidden="true" />
             Nuevo Asiento
           </Button>
         ) : isAuditor ? (
-          <Badge variant="outline" className="h-9 px-3 text-xs bg-muted/60 text-muted-foreground border-dashed">
-            👁️ Auditoría Contable (Solo Lectura)
+          <Badge
+            variant="outline"
+            className="h-9 px-3 text-xs bg-muted/60 text-muted-foreground border-dashed"
+          >
+            Auditoría contable (solo lectura)
           </Badge>
         ) : null}
       </PageHeader>
+
+      <Card className="p-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="space-y-1">
+            <label
+              className="text-xs font-medium text-foreground"
+              htmlFor="periodo-contable"
+            >
+              Período contable
+            </label>
+            <Input
+              id="periodo-contable"
+              type="month"
+              value={period}
+              onChange={(event) => setPeriod(event.target.value)}
+              className="w-44"
+            />
+          </div>
+          <p className="text-xs text-muted-foreground pb-2">
+            Se consultan y exportan solo los asientos de este período.
+          </p>
+        </div>
+      </Card>
+
+      {(error ?? loadError) && (
+        <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          {error ?? loadError}
+        </div>
+      )}
 
       <DoubleEntryBalanceCard totalDebe={totalDebe} totalHaber={totalHaber} />
 
@@ -312,35 +400,61 @@ export default function AccountingEntriesPage() {
               <TableHead>N° Asiento</TableHead>
               <TableHead>Fecha</TableHead>
               <TableHead>Glosa / Concepto</TableHead>
+              <TableHead>Origen</TableHead>
               <TableHead align="right">Total Debe</TableHead>
               <TableHead align="right">Total Haber</TableHead>
               <TableHead align="center">Estado</TableHead>
-              <TableHead align="center">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {entries.length > 0 ? (
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={7} align="center">
+                  <PageText variant="muted">Cargando asientos...</PageText>
+                </TableCell>
+              </TableRow>
+            ) : entries.length > 0 ? (
               entries.map((entry) => (
                 <TableRow key={entry.id}>
-                  <TableCell>{entry.numeroAsiento}</TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {entry.numeroAsiento}
+                  </TableCell>
                   <TableCell>{formatDateToPeru(entry.fechaContable)}</TableCell>
-                  <TableCell>{entry.glosa}</TableCell>
-                  <TableCell align="right">{formatCurrency(entry.totalDebe, 'PEN')}</TableCell>
-                  <TableCell align="right">{formatCurrency(entry.totalHaber, 'PEN')}</TableCell>
-                  <TableCell align="center">
-                    <Badge variant={entry.estaCuadrado ? 'secondary' : 'destructive'}>
-                      {entry.estaCuadrado ? 'Cuadrado' : 'Descuadrado'}
+                  <TableCell>
+                    <div className="space-y-1">
+                      <span>{entry.glosa}</span>
+                      <div className="flex flex-wrap gap-1">
+                        {entry.lines.slice(0, 3).map((linea, index) => (
+                          <Badge
+                            key={`${entry.id}-${index}`}
+                            variant="outline"
+                            className="font-mono text-[10px]"
+                          >
+                            {linea.accountCode}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="secondary">
+                      {etiquetaOrigen(entry.sourceModule)}
                     </Badge>
                   </TableCell>
+                  <TableCell align="right">
+                    {formatCurrency(entry.totalDebe, 'PEN')}
+                  </TableCell>
+                  <TableCell align="right">
+                    {formatCurrency(entry.totalHaber, 'PEN')}
+                  </TableCell>
                   <TableCell align="center">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteSingleEntry(entry.id)}
-                      title="Eliminar este asiento"
+                    <Badge
+                      variant={
+                        entry.estaCuadrado ? 'secondary' : 'destructive'
+                      }
                     >
-                      <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
-                    </Button>
+                      {entry.estaCuadrado ? 'Cuadrado' : 'Descuadrado'}
+                    </Badge>
                   </TableCell>
                 </TableRow>
               ))
@@ -348,7 +462,10 @@ export default function AccountingEntriesPage() {
               <TableRow>
                 <TableCell colSpan={7} align="center">
                   <BookOpen aria-hidden="true" />
-                  <PageText variant="muted">No hay asientos contables registrados en el período activo.</PageText>
+                  <PageText variant="muted">
+                    No hay asientos contables en {period}. Las facturas
+                    aceptadas por SUNAT aparecerán aquí automáticamente.
+                  </PageText>
                 </TableCell>
               </TableRow>
             )}
@@ -367,13 +484,16 @@ export default function AccountingEntriesPage() {
             </button>
 
             <div>
-              <h3 className="text-lg font-semibold tracking-tight">Registrar Nuevo Asiento (PCGE)</h3>
+              <h3 className="text-lg font-semibold tracking-tight">
+                Registrar Nuevo Asiento (PCGE)
+              </h3>
               <p className="text-sm text-muted-foreground">
-                Ingresa el concepto y monto del movimiento para el Libro Diario.
+                Asiento manual del período {period}. Las facturas se contabilizan
+                automáticamente.
               </p>
             </div>
 
-            <form onSubmit={handleSaveEntry} className="space-y-4">
+            <form onSubmit={guardarAsiento} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-medium leading-none text-foreground">
                   Glosa / Concepto Contable
@@ -381,9 +501,9 @@ export default function AccountingEntriesPage() {
                 <Input
                   type="text"
                   required
-                  placeholder="Ej. Venta de mercaderías al contado"
+                  placeholder="Ej. Ajuste de inventario"
                   value={glosa}
-                  onChange={(e) => setGlosa(e.target.value)}
+                  onChange={(event) => setGlosa(event.target.value)}
                 />
               </div>
 
@@ -397,22 +517,27 @@ export default function AccountingEntriesPage() {
                   required
                   placeholder="2500.00"
                   value={monto}
-                  onChange={(e) => setMonto(e.target.value)}
+                  onChange={(event) => setMonto(event.target.value)}
                 />
               </div>
 
               <div className="p-3 bg-muted/40 border border-border/80 rounded-md text-xs space-y-1.5 text-muted-foreground">
                 <div className="flex items-center gap-1.5 text-foreground font-medium">
                   <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0" />
-                  <span>Cuentas automáticas PCGE: 1211 (Debe) / 7011 (Haber)</span>
+                  <span>Cuentas PCGE: 121101 (Debe) / 701111 (Haber)</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-foreground font-medium pl-5">
-                  <span>Partida Doble: Validada y Cuadrada</span>
+                  <span>Partida doble validada por el backend</span>
                 </div>
               </div>
 
               <div className="flex justify-end gap-2 pt-2 border-t border-border">
-                <Button type="button" variant="outline" size="sm" onClick={() => setIsModalOpen(false)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsModalOpen(false)}
+                >
                   Cancelar
                 </Button>
                 <Button type="submit" size="sm">
