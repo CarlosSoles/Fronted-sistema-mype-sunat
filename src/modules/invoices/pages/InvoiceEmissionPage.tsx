@@ -27,11 +27,17 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@/components/ui';
 import { Plus, Trash2, Send, CheckCircle2, FileText } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { extractApiErrorMessage } from '@/lib/apiErrors';
 import { invoicesApi } from '../services/invoicesApi';
+import { inventoryApi } from '@/modules/inventory/services/inventoryApi';
 import { siguienteCorrelativo } from '../lib/invoiceCorrelativo';
 import { aPayloadCreacion } from '../lib/invoiceApiMapper';
 import { construir, type ItemDemo } from '../data/invoiceDemoTypes';
@@ -43,6 +49,8 @@ import {
 
 interface InvoiceItem {
   id: string;
+  productId?: string;
+  sku?: string;
   description: string;
   quantity: number;
   unitPrice: number;
@@ -91,6 +99,13 @@ export default function InvoiceEmissionPage() {
     [pagina, serie],
   );
 
+  const { data: stockData } = useQuery({
+    queryKey: ['inventory-stocks-emision'],
+    queryFn: () => inventoryApi.getStockBalances(),
+    staleTime: 60_000,
+  });
+  const productos = (stockData?.balances ?? []).filter((balance) => balance.currentStock > 0);
+
   const base = round2(items.reduce((acc, item) => acc + totalLinea(item), 0));
   const igv = round2(base * 0.18);
   const total = round2(base + igv);
@@ -103,6 +118,22 @@ export default function InvoiceEmissionPage() {
     setItems((prev) =>
       prev.map((item) =>
         item.id === id ? { ...item, [campo]: valor } : item,
+      ),
+    );
+  };
+
+  const seleccionarProducto = (id: string, sku: string) => {
+    const producto = productos.find((balance) => balance.sku === sku);
+    setItems((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              productId: producto?.sku ?? undefined,
+              sku: producto?.sku,
+              description: producto?.description ?? item.description,
+            }
+          : item,
       ),
     );
   };
@@ -284,6 +315,7 @@ export default function InvoiceEmissionPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-56">Producto</TableHead>
                     <TableHead>Descripción</TableHead>
                     <TableHead className="w-24 text-center">Cant.</TableHead>
                     <TableHead className="w-32 text-right">
@@ -296,6 +328,23 @@ export default function InvoiceEmissionPage() {
                 <TableBody>
                   {items.map((item) => (
                     <TableRow key={item.id}>
+                      <TableCell>
+                        <Select
+                          value={item.sku ?? ''}
+                          onValueChange={(value) => seleccionarProducto(item.id, value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Elegir del inventario" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {productos.map((producto) => (
+                              <SelectItem key={producto.sku} value={producto.sku}>
+                                {producto.sku} · {producto.description} (stock {producto.currentStock})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
                       <TableCell>
                         <Input
                           type="text"
