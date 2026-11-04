@@ -44,9 +44,8 @@ import { InvoiceEmitModal } from './components/InvoiceEmitModal';
 import type { TipoEmision } from './components/InvoiceEmitMenu';
 import { TIPO_POR_OPCION } from './lib/invoiceEmitTipos';
 import { calcularResumenFiscal } from './lib/invoiceMetrics';
-import { aComprobanteDemo, aPayloadCreacion } from './lib/invoiceApiMapper';
+import { aComprobanteDemo } from './lib/invoiceApiMapper';
 import { invoicesApi } from './services/invoicesApi';
-import { useAuthStore } from '@/stores/authStore';
 import { aplicarFiltros, porApartado } from './lib/invoiceFilters';
 import { descargarPdfComprobante } from './lib/invoiceExportPdf';
 import { exportarReporteSireCsv } from './lib/invoiceExportSire';
@@ -93,9 +92,11 @@ export const InvoiceList = () => {
   const [filtros, setFiltros] = useState<InvoiceFiltros>(FILTROS_INICIALES);
   const [modalEmision, setModalEmision] = useState<TipoEmision | null>(null);
   const [visor, setVisor] = useState<VisorState | null>(null);
-  const [errorEmision, setErrorEmision] = useState<string | null>(null);
+  // El modal de emisión muestra su propio error si el backend niega la emisión
+  // (ya emite contra `POST /invoices/emitir`); este aviso queda para un fallo
+  // anterior a esa llamada.
+  const [errorEmision] = useState<string | null>(null);
   const [avisoCdr, setAvisoCdr] = useState<string | null>(null);
-  const { activeCompany } = useAuthStore();
 
   const {
     data: pagina,
@@ -131,27 +132,20 @@ export const InvoiceList = () => {
    * Alta real del comprobante: se persiste en el backend y se refresca la
    * grilla. Si falla, se avisa en pantalla en vez de fingir que se emitió.
    */
+  /**
+   * Alta real del comprobante. El modal ya emite contra
+   * `POST /invoices/emitir` y devuelve el número que asignó la serie; aquí solo
+   * se refresca la grilla para que aparezca. Si el backend negó la emisión, el
+   * modal lo muestra y esta devolución de llamada no llega.
+   */
   const agregarComprobante = useCallback(
-    async (nuevo: ComprobanteDemo) => {
+    () => {
       setModalEmision(null);
-      try {
-        setErrorEmision(null);
-        await invoicesApi.createInvoice(
-          aPayloadCreacion(nuevo, {
-            ruc: activeCompany?.ruc ?? '',
-            razonSocial: activeCompany?.razonSocial ?? '',
-          }),
-        );
-        await refetch();
-        navigate(RUTA_POR_TAB.comprobantes);
-        setFiltros({ ...FILTROS_INICIALES });
-      } catch {
-        setErrorEmision(
-          'No se pudo registrar el comprobante en el backend. Revisa la conexión y los datos del emisor.',
-        );
-      }
+      void refetch();
+      navigate(RUTA_POR_TAB.comprobantes);
+      setFiltros({ ...FILTROS_INICIALES });
     },
-    [activeCompany, navigate, refetch],
+    [navigate, refetch],
   );
 
   /** Reencola un comprobante en error para que el worker vuelva a pedir su CDR. */

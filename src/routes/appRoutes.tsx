@@ -13,8 +13,17 @@ const RegisterPage = React.lazy(() => import('@/modules/auth/pages/RegisterPage'
 const ProfilePage = React.lazy(() => import('@/modules/auth/pages/ProfilePage'));
 const SecurityPage = React.lazy(() => import('@/modules/auth/pages/SecurityPage'));
 
+// La bandeja oficial es InvoiceList: en dev la rehizo Oliver para que la
+// grilla se alimente del backend (GET /invoices), con reintento de CDR desde
+// la fila. La alternativa pages/InvoicesListPage se retiró en la fusión del
+// M1 para no dejar dos bandejas paralelas apuntando al mismo endpoint.
 const InvoicesListPage = React.lazy(() => import('@/modules/invoices/InvoiceList'));
 const InvoiceEmissionPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceEmissionPage'));
+// TA-61: pestaña de configuración de FE. Se carga aparte porque casi nadie la
+// abre a diario y no debe pesar en la primera carga del módulo.
+const InvoiceSettingsPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceSettingsPage'));
+const InvoiceBajasPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceBajasPage'));
+const InvoiceMonitorPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceMonitorPage'));
 const ResilienceDashboardPage = React.lazy(() => import('@/modules/resilience/pages/ResilienceDashboardPage'));
 const CustomsDashboardPage = React.lazy(() => import('@/modules/customs/pages/CustomsDashboardPage'));
 const ShipmentsListPage = React.lazy(() => import('@/modules/customs/pages/ShipmentsListPage'));
@@ -111,7 +120,7 @@ export const AppRoutes = () => {
                 <RoleProtectedRoute
                   allowedRoles={['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT']}
                 >
-                  <InvoicesListPage />
+                  <InvoiceBajasPage />
                 </RoleProtectedRoute>
               }
             />
@@ -121,7 +130,21 @@ export const AppRoutes = () => {
                 <RoleProtectedRoute
                   allowedRoles={['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT']}
                 >
-                  <InvoicesListPage />
+                  <InvoiceMonitorPage />
+                </RoleProtectedRoute>
+              }
+            />
+            {/*
+              TA-61: configuración de Facturación Electrónica (entorno, series y
+              checklist previo a emitir). Solo ADMIN: la pantalla muestra el
+              estado del certificado y de las credenciales SOL, que es
+              información de administración, no de operación diaria.
+            */}
+            <Route
+              path="/invoices/configuracion"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN']}>
+                  <InvoiceSettingsPage />
                 </RoleProtectedRoute>
               }
             />

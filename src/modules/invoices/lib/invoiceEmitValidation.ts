@@ -33,6 +33,15 @@ export const rucValido = (ruc: string): boolean => {
   const suma = digitos.reduce((acc, d, i) => acc + d * pesos[i], 0);
   const resto = suma % 11;
   const verificador = 11 - resto;
+  /*
+   * Dos casos especiales del módulo 11:
+   *
+   *   resto 1 → 11 - 1 = 10 → el dígito es 0 (p. ej. 20100070970)
+   *   resto 0 → 11 - 0 = 11 → el dígito es 1
+   *
+   * Comprobado contra RUC reales: 20100070970 tiene resto 1 y verificador 0;
+   * 20601012341 tiene resto 10 y verificador 1. Estas dos ramas son correctas.
+   */
   const digitoFinal =
     verificador === 10 ? 0 : verificador === 11 ? 1 : verificador;
 

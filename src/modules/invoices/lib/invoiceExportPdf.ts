@@ -7,7 +7,7 @@
  */
 import type { ComprobanteDemo } from '../data/invoiceDemoTypes';
 import { montoEnLetrasSunat, generarTramaQrSunat } from './invoiceCreditAndRules';
-import { RUC_EMISOR, EMPRESA_EMISORA, DOMICILIO_FISCAL } from './invoiceExportConstants';
+import { identidadEmisora } from './invoiceExportConstants';
 
 /** Escapa paréntesis y barras para el literal de texto de PostScript. */
 const ps = (texto: string): string =>
@@ -23,8 +23,11 @@ const monto = (valor: number): string =>
 /** Líneas de texto que componen el recuadro del comprobante. */
 const lineasContenido = (c: ComprobanteDemo): string[] => {
   const numeroSerie = `${c.serie}-${String(c.correlativo).padStart(4, '0')}`;
+  // El RUC y la razón social salen de la empresa activa, no de un literal: el
+  // QR impreso debe llevar el mismo RUC con el que el backend firmó el XML.
+  const emisor = identidadEmisora();
   const trama = generarTramaQrSunat({
-    rucEmisor: RUC_EMISOR,
+    rucEmisor: emisor.ruc,
     tipo: c.tipo,
     serie: c.serie,
     correlativo: c.correlativo,
@@ -38,9 +41,8 @@ const lineasContenido = (c: ComprobanteDemo): string[] => {
 
   return [
     'EMPRESA EMISORA',
-    `${EMPRESA_EMISORA}`,
-    `R.U.C. N° ${RUC_EMISOR}`,
-    `${DOMICILIO_FISCAL}`,
+    `${emisor.razonSocial || '(empresa sin razón social en sesión)'}`,
+    `R.U.C. N° ${emisor.ruc || '(sin RUC en sesión)'}`,
     '',
     `COMPROBANTE ELECTRONICO: ${numeroSerie}`,
     `FECHA DE EMISION: ${c.fechaEmision}`,
