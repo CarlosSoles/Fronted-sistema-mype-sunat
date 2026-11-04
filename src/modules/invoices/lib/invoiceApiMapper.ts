@@ -8,7 +8,7 @@
  */
 import type { EstadoCdrDemo, ComprobanteDemo, TipoComprobante } from '../data/invoiceDemoSchema';
 import { descripcionCdr } from '../data/invoiceDemoHelpers';
-import type { CreateInvoicePayload, InvoiceListado } from '../types/invoice.types';
+import type { CreateInvoicePayload, Invoice, InvoiceListado } from '../types/invoice.types';
 
 /** Redondeo a dos decimales, igual que el resto del módulo. */
 const round2 = (valor: number): number => Math.round(valor * 100) / 100;
@@ -47,39 +47,113 @@ function fechaLocal(iso: string): string {
   return `${fecha.getFullYear()}-${mes}-${dia}`;
 }
 
-/** Convierte una fila del backend al modelo de la grilla. */
-export function aComprobanteDemo(item: InvoiceListado): ComprobanteDemo {
-  const total = Number(item.monto_total ?? 0);
-  const base = item.base_imponible ?? round2(total / 1.18);
-  const igv = item.total_igv ?? round2(total - base);
-  const documento = item.cliente_documento ?? '';
+/**
+ * Convierte una fila del backend al modelo de la grilla.
+ *
+ * Acepta las DOS formas que circulan por el front: el `InvoiceListado` crudo
+ * del listado y el `Invoice` ya normalizado por `invoiceMapper` (que es lo que
+ * devuelve `invoicesApi.getInvoices`). Se unificaron aquí para no mantener dos
+ * mapeos del mismo comprobante, que es cómo se desincronizan las columnas.
+ */
+/** Datos del comprobante que la grilla necesita, ya sin depender del contrato. */
+interface FilaComprobante {
+  id: string;
+  serie: string;
+  correlativo: string;
+  tipoComprobante: string;
+  fechaEmision: string;
+  clienteDocumento: string;
+  clienteNombre: string;
+  moneda: string;
+  base: number;
+  igv: number;
+  total: number;
+  estado: string;
+  cdrCodigo?: string;
+  documentoAfectado?: string;
+  hashCpe: string;
+}
 
+/** Distingue la fila ya normalizada por `invoiceMapper` de la cruda. */
+const esInvoiceNormalizado = (item: Invoice | InvoiceListado): item is Invoice =>
+  'estadoBackend' in item;
+
+const desdeNormalizado = (item: Invoice): FilaComprobante => ({
+  id: item.id,
+  serie: item.serie,
+  correlativo: String(item.correlativo),
+  tipoComprobante: item.tipoComprobante ?? '01',
+  fechaEmision: item.fechaEmision,
+  clienteDocumento: item.clienteRuc,
+  clienteNombre: item.clienteRazonSocial,
+  moneda: item.moneda,
+  base: item.subtotal ?? round2(item.total / 1.18),
+  igv: item.igv,
+  total: item.total,
+  estado: item.estadoBackend ?? '',
+  cdrCodigo: item.cdrCodigo,
+  hashCpe: '',
+});
+
+const desdeCrudo = (item: InvoiceListado): FilaComprobante => {
+  const total = Number(item.monto_total) || 0;
   return {
     id: item.id,
-    tipo: TIPOS[item.tipo_comprobante] ?? '01',
     serie: item.serie,
-    correlativo: item.correlativo,
+    correlativo: String(item.correlativo),
+    tipoComprobante: item.tipo_comprobante,
+    fechaEmision: fechaLocal(item.fecha_emision),
+    clienteDocumento: item.cliente_documento ?? '',
+    clienteNombre: item.cliente_nombre ?? '',
+    moneda: item.moneda,
+    base: item.base_imponible ?? round2(total / 1.18),
+    igv: item.total_igv ?? round2(total - (item.base_imponible ?? round2(total / 1.18))),
+    total,
+    estado: item.estado,
+    cdrCodigo: item.cdr_codigo ?? undefined,
+    documentoAfectado: item.documento_afectado ?? undefined,
+    hashCpe: item.hash_cpe ?? '',
+  };
+};
+
+/**
+ * Convierte una fila del backend al modelo de la grilla.
+ *
+ * Acepta las DOS formas que circulan por el front: el `InvoiceListado` crudo
+ * del listado y el `Invoice` ya normalizado por `invoiceMapper` (que es lo que
+ * devuelve `invoicesApi.getInvoices`). Se unificaron aquí para no mantener dos
+ * mapeos del mismo comprobante, que es cómo se desincronizan las columnas.
+ */
+export function aComprobanteDemo(item: InvoiceListado | Invoice): ComprobanteDemo {
+  const fila = esInvoiceNormalizado(item) ? desdeNormalizado(item) : desdeCrudo(item);
+  const documento = fila.clienteDocumento;
+
+  return {
+    id: fila.id,
+    tipo: TIPOS[fila.tipoComprobante] ?? '01',
+    serie: fila.serie,
+    correlativo: Number(fila.correlativo) || 0,
     clienteRuc: documento,
     clienteTipoDoc: documento.length === 11 ? '6' : '1',
-    clienteRazonSocial: item.cliente_nombre ?? 'Sin nombre registrado',
-    fechaEmision: fechaLocal(item.fecha_emision),
-    moneda: item.moneda === 'USD' ? 'USD' : 'PEN',
-    baseImponible: base,
-    igv,
+    clienteRazonSocial: fila.clienteNombre || 'Sin nombre registrado',
+    fechaEmision: fila.fechaEmision,
+    moneda: fila.moneda === 'USD' ? 'USD' : 'PEN',
+    baseImponible: fila.base,
+    igv: fila.igv,
     // El backend todavía no persiste detracción ni retención por comprobante.
     detraccion: 0,
     retencion: 0,
-    totalNeto: total,
-    estado: ESTADOS[item.estado] ?? 'EN_COLA',
-    cdrCodigo: item.cdr_codigo ?? undefined,
-    documentoAfectado: item.documento_afectado ?? undefined,
+    totalNeto: fila.total,
+    estado: ESTADOS[fila.estado] ?? 'EN_COLA',
+    cdrCodigo: fila.cdrCodigo,
+    documentoAfectado: fila.documentoAfectado,
     tipoOperacion: '0101',
     formaPago: 'Contado',
     cuotas: [],
-    cdrDescripcion: item.cdr_codigo
-      ? descripcionCdr(item.cdr_codigo)
+    cdrDescripcion: fila.cdrCodigo
+      ? descripcionCdr(fila.cdrCodigo)
       : 'Sin CDR: el comprobante aún no tiene respuesta de SUNAT',
-    hashCpe: item.hash_cpe ?? '',
+    hashCpe: fila.hashCpe,
     items: [],
   };
 }

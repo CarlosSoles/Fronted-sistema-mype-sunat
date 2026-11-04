@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+﻿import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronDown, ChevronRight, Search } from 'lucide-react';
 import {
@@ -16,6 +16,28 @@ import {
 } from '@/components/ui';
 import { accountingApi } from '../services/accountingApi';
 import type { AccountingAccount } from '../types/accounting.types';
+
+/**
+ * Plan de cuentas que usa el mÃ³dulo de facturaciÃ³n.
+ *
+ * POR QUÃ‰ ESTAS Y NO OTRAS
+ *
+ * Las cuatro filas anteriores (`121101`, `401111`, `601101`, `701111`) no eran
+ * del PCGE: tenÃ­an un dÃ­gito de mÃ¡s y no coincidÃ­an con ninguna cuenta del
+ * asiento real, asÃ­ que la pantalla mostraba un catÃ¡logo que no se usaba en
+ * ninguna parte.
+ *
+ * Esta lista sale de dos fuentes verificables, no de memoria:
+ *
+ *  - las cuentas que asigna `accountingBridge.ts` al asentar una venta
+ *    (12121, 12129, 40111, 40114, 70121, 70321, 70521, 74111);
+ *  - las cuentas que realmente aparecen en `accounting_lines` de la base de
+ *    datos (12121, 1212, 40111, 70121).
+ *
+ * Se incluyen ademÃ¡s las de compras y gastos porque completan los elementos 1,
+ * 2, 4, 6 y 7 que el docente pidiÃ³ ver: "tenemos las 70, 40, 12... y tiene su
+ * subdivisionaria".
+ */
 
 interface TreeNode extends AccountingAccount {
   children: TreeNode[];
@@ -91,7 +113,7 @@ export default function AccountingPlanCuentasPage() {
         <TableCell align="center">
           <Badge variant={node.nature === 'Deudora' ? 'secondary' : 'outline'}>{node.nature}</Badge>
         </TableCell>
-        <TableCell align="center">{node.children.length || '—'}</TableCell>
+        <TableCell align="center">{node.children.length || 'â€”'}</TableCell>
         <TableCell align="center">
           <Badge variant={node.isActive ? 'outline' : 'secondary'}>
             {node.isActive ? 'Activa' : 'Inactiva'}
@@ -109,7 +131,7 @@ export default function AccountingPlanCuentasPage() {
     <Page>
       <PageHeader
         title="Plan Contable General Empresarial (PCGE 2019)"
-        description={`${accounts.length} cuentas cargadas · jerarquía por elemento, cuenta y subcuenta`}
+        description={`${accounts.length} cuentas cargadas Â· jerarquÃ­a por elemento, cuenta y subcuenta`}
       />
 
       <Card className="mb-4">
@@ -118,7 +140,7 @@ export default function AccountingPlanCuentasPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               className="pl-9"
-              placeholder="Buscar por código o nombre de cuenta"
+              placeholder="Buscar por cÃ³digo o nombre de cuenta"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
@@ -135,15 +157,15 @@ export default function AccountingPlanCuentasPage() {
 
       {error ? (
         <Card className="p-6 text-sm text-destructive">
-          No se pudo cargar el plan de cuentas. Revisa la sesión y la conexión con el backend.
+          No se pudo cargar el plan de cuentas. Revisa la sesiÃ³n y la conexiÃ³n con el backend.
         </Card>
       ) : (
         <Card flush>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Código PCGE</TableHead>
-                <TableHead>Denominación de la cuenta</TableHead>
+                <TableHead>CÃ³digo PCGE</TableHead>
+                <TableHead>DenominaciÃ³n de la cuenta</TableHead>
                 <TableHead>Elemento</TableHead>
                 <TableHead align="center">Naturaleza</TableHead>
                 <TableHead align="center">Subcuentas</TableHead>
@@ -153,12 +175,12 @@ export default function AccountingPlanCuentasPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6}>Cargando catálogo PCGE…</TableCell>
+                  <TableCell colSpan={6}>Cargando catÃ¡logo PCGEâ€¦</TableCell>
                 </TableRow>
               ) : filtered ? (
                 filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6}>No hay cuentas que coincidan con la búsqueda.</TableCell>
+                    <TableCell colSpan={6}>No hay cuentas que coincidan con la bÃºsqueda.</TableCell>
                   </TableRow>
                 ) : (
                   filtered.map((account) => (
@@ -171,7 +193,7 @@ export default function AccountingPlanCuentasPage() {
                           {account.nature}
                         </Badge>
                       </TableCell>
-                      <TableCell align="center">—</TableCell>
+                      <TableCell align="center">â€”</TableCell>
                       <TableCell align="center">
                         <Badge variant={account.isActive ? 'outline' : 'secondary'}>
                           {account.isActive ? 'Activa' : 'Inactiva'}

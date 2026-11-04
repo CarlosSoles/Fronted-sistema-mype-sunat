@@ -1,8 +1,27 @@
+/**
+ * Estado de un comprobante frente a SUNAT, tal como lo pinta el front.
+ *
+ * POR QUÉ `SIN_CONFIRMAR` EXISTE (deuda A, cerrada el 3 nov)
+ *
+ * Antes `ERROR_RED` se colapsaba en `FALLO_CRITICO`, que la grilla rotulaba
+ * "En Cola DLQ" y el modal convertía en RECHAZADO. Las dos etiquetas eran
+ * falsas: el comprobante ni está en la DLQ por el hecho de tener un error de
+ * red, ni fue rechazado por SUNAT — nunca le llegó.
+ *
+ * `FALLO_CRITICO` se conserva por compatibilidad de datos ya guardados, pero
+ * **nada del backend lo produce**: `MAPA_ESTADOS` manda `ERROR_RED` a
+ * `SIN_CONFIRMAR`. Es el único estado que NO es un veredicto.
+ */
 export type CdrStatus =
   | 'EN_COLA_OUTBOX'
   | 'ACEPTADO_SUNAT'
+  | 'SIN_CONFIRMAR'
+  /** @deprecated nada lo produce; ver el comentario de arriba. */
   | 'FALLO_CRITICO'
   | 'RECHAZADO_SUNAT';
+
+/** Moneda del comprobante. */
+export type Moneda = 'PEN' | 'USD';
 
 export interface InvoiceItem {
   id?: string;
@@ -17,25 +36,90 @@ export interface InvoiceItem {
 export interface Invoice {
   id: string;
   serie: string;
+  /** Número completo que asigna el backend: F001-00000007. */
   numero: string;
+  /**
+   * Correlativo sin la serie. El backend lo devuelve siempre y sirve para
+   * reconocer el comprobante cuando alguien teclea solo el número suelto.
+   */
+  correlativo?: number;
   clienteRuc: string;
   clienteRazonSocial: string;
   fechaEmision: string;
-  moneda: 'PEN' | 'USD';
+  moneda: Moneda;
   subtotal: number;
   igv: number;
   total: number;
   cdrStatus: CdrStatus;
   cdrCodigo?: string;
   cdrMensaje?: string;
+  /**
+   * Código y motivo del último rechazo, cuando no hay CDR.
+   *
+   * Un rechazo puede llegar por SOAP Fault en lugar de ApplicationResponse; en
+   * ese caso `cdrCodigo` viene vacío y la pantalla lo rotulaba como PENDIENTE.
+   * Estos dos campos vienen del historial y son el único rastro del veredicto.
+   */
+  ultimoErrorCodigo?: string;
+  ultimoErrorMensaje?: string;
+  /**
+   * SHA-256 del XML firmado que se envió a SUNAT.
+   *
+   * Lo devuelve el endpoint de detalle. Permite comprobar que el archivo
+   * descargado es exactamente el que viajó; si falta, la pantalla lo dice en
+   * lugar de mostrar un valor inventado.
+   */
+  hashCpe?: string;
   items?: InvoiceItem[];
+  /**
+   * Tipo del Catálogo 01 (01 Factura, 03 Boleta, 07 NC, 08 ND).
+   *
+   * TA-59: el modelo del front no contemplaba el tipo aunque el backend lo
+   * devuelve siempre, así que la grilla no podía ni mostrar ni filtrar por él.
+   */
+  tipoComprobante: string;
+  /**
+   * Estado CRUDO del backend (ACEPTADO, EN_COLA, ERROR_RED...).
+   *
+   * Se conserva además del `cdrStatus` porque el reintento y el badge de
+   * «OBSERVADO» necesitan distinguir estados que el status de CDR colapsa: un
+   * comprobante OBSERVADO y uno ACEPTADO son ambos ACEPTADO_SUNAT, pero solo el
+   * primero muestra el aviso.
+   */
+  estadoBackend?: string;
+  /** ¿Admite reintento según el estado del backend? */
+  reintentable?: boolean;
+  /**
+   * Forma de pago con la que se emitió, leída del `payload_ubl` del backend.
+   *
+   * Antes no existía y la pantalla de auditoría asumía "Contado" para toda
+   * fila, así que la factura al crédito aparecía sin cronograma. `null` o
+   * ausente significa DESCONOCIDA (comprobantes anteriores al campo), no
+   * "Contado".
+   */
+  formaPago?: 'Contado' | 'Credito' | null;
+  /** Cronograma que viajó en el `cac:PaymentTerms` del XML. */
+  cuotas?: readonly {
+    numero: string;
+    monto: number;
+    vencimiento: string;
+  }[];
+  /**
+   * Documento que modifica una nota (07/08): `F001-00000053`.
+   *
+   * Viene de `referenced_series_correlative`, una columna de `invoices`. En
+   * facturas y boletas es `undefined` porque no afectan a ningún documento.
+   */
+  documentoAfectado?: string;
+  /** Motivo de la nota (Catálogo 09) tal como se guardó: `06`. */
+  motivoNota?: { codigo: string; descripcion: string };
 }
 
 export interface CreateInvoiceDto {
   serie: string;
   clienteRuc: string;
   clienteRazonSocial: string;
-  moneda: 'PEN' | 'USD';
+  moneda: Moneda;
   items: Omit<InvoiceItem, 'id' | 'subtotal' | 'igv' | 'total'>[];
 }
 

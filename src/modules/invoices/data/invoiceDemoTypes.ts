@@ -80,6 +80,10 @@ export function construir(semilla: SemillaComprobante): ComprobanteDemo {
 
   return {
     id: `${semilla.serie}-${semilla.correlativo}`,
+    // Número fiscal completo, con los ceros de relleno que exige SUNAT. El `id`
+    // de los datos demo omite los ceros (F001-43) y NO sirve como identidad
+    // fiscal: `numero` es lo que se compara al buscar el origen de una nota.
+    numero: `${semilla.serie}-${String(semilla.correlativo).padStart(8, '0')}`,
     tipo: semilla.tipo,
     serie: semilla.serie,
     correlativo: semilla.correlativo,
