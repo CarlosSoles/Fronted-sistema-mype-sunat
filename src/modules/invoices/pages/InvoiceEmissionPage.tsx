@@ -226,6 +226,7 @@ export default function InvoiceEmissionPage() {
     setCuotas(cambiarFechaEmision(previo, nueva).cuotas);
   };
 
+
   const agregarItem = () => {
     setItems((prev) => [...prev, itemVacio(String(Date.now()))]);
   };

@@ -48,6 +48,7 @@ const SireHistoryPage = React.lazy(() => import('@/modules/sire/pages/SireHistor
 const AccountingEntriesPage = React.lazy(() => import('@/modules/accounting/pages/AccountingEntriesPage'));
 const AccountingPlanCuentasPage = React.lazy(() => import('@/modules/accounting/pages/AccountingPlanCuentasPage'));
 const AccountingPlePage = React.lazy(() => import('@/modules/accounting/pages/AccountingPlePage'));
+const AccountingPeriodsPage = React.lazy(() => import('@/modules/accounting/pages/AccountingPeriodsPage'));
 
 // Fallback de carga durante la descarga del chunk
 const PageLoadingFallback = () => (
@@ -384,6 +385,14 @@ export const AppRoutes = () => {
               element={
                 <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
                   <AccountingPlanCuentasPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/accounting/periods"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <AccountingPeriodsPage />
                 </RoleProtectedRoute>
               }
             />

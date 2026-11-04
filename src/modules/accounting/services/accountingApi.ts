@@ -1,19 +1,42 @@
 import { apiClient } from '@/lib/axios';
 import {
+  type AccountingAccount,
   type AccountingEntry,
+  type AccountingPeriod,
+  type CreateAccountingEntryInput,
   type PleExportConfig,
 } from '../types/accounting.types';
 
 export const accountingApi = {
-  getEntries: async (periodo?: string): Promise<AccountingEntry[]> => {
+  getEntries: async (period?: string): Promise<AccountingEntry[]> => {
     const response = await apiClient.get<AccountingEntry[]>('/accounting/entries', {
-      params: { periodo },
+      params: { period },
     });
     return response.data;
   },
 
-  createEntry: async (entry: Omit<AccountingEntry, 'id' | 'numeroAsiento' | 'estaCuadrado'>): Promise<AccountingEntry> => {
+  createEntry: async (entry: CreateAccountingEntryInput): Promise<AccountingEntry> => {
     const response = await apiClient.post<AccountingEntry>('/accounting/entries', entry);
+    return response.data;
+  },
+
+  getAccounts: async (): Promise<AccountingAccount[]> => {
+    const response = await apiClient.get<AccountingAccount[]>('/accounting/accounts');
+    return response.data;
+  },
+
+  getPeriods: async (): Promise<AccountingPeriod[]> => {
+    const response = await apiClient.get<AccountingPeriod[]>('/accounting/periods');
+    return response.data;
+  },
+
+  openPeriod: async (year: number, month: number): Promise<AccountingPeriod> => {
+    const response = await apiClient.post<AccountingPeriod>('/accounting/periods', { year, month });
+    return response.data;
+  },
+
+  closePeriod: async (period: string): Promise<AccountingPeriod> => {
+    const response = await apiClient.post<AccountingPeriod>(`/accounting/periods/${period}/close`);
     return response.data;
   },
 

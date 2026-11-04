@@ -16,6 +16,42 @@ export interface AccountingEntry {
   movimientos: AccountingMovement[];
 }
 
+export interface AccountingAccount {
+  code: string;
+  name: string;
+  element: string;
+  nature: 'Deudora' | 'Acreedora';
+  parentCode: string | null;
+  level: number;
+  isActive: boolean;
+}
+
+export interface AccountingPeriod {
+  companyId: string;
+  period: string; // YYYY-MM
+  year: number;
+  month: number;
+  status: 'ABIERTO' | 'CERRADO';
+  openedAt: string;
+  closedAt?: string | null;
+}
+
+export interface AccountingLineInput {
+  lineOrder: number;
+  accountCode: string;
+  accountName: string;
+  debitAmount: number;
+  creditAmount: number;
+}
+
+export interface CreateAccountingEntryInput {
+  period: string;
+  entryDate: string;
+  glosa: string;
+  sourceModule: string;
+  lines: AccountingLineInput[];
+}
+
 export interface PleExportConfig {
   periodo: string; // AAAAMM
   libro: '5.1_DIARIO' | '6.1_MAYOR' | '8.1_COMPRAS' | '14.1_VENTAS';
