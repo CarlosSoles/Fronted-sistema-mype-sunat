@@ -29,14 +29,13 @@ import {
 import { formatCurrency, formatDateToPeru } from '@/lib/formatters';
 import {
   BookOpen,
-  CheckCircle2,
   Download,
   FilePlus,
   PlusCircle,
   RefreshCw,
-  X,
 } from 'lucide-react';
 import { useRolePermissions } from '@/hooks/useRolePermissions';
+import ManualEntryModal from '../components/ManualEntryModal';
 import { useAuthStore } from '@/stores/authStore';
 
 interface AccountingLine {
@@ -171,8 +170,6 @@ export default function AccountingEntriesPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [glosa, setGlosa] = useState('');
-  const [monto, setMonto] = useState('');
 
   const {
     data: asientosBackend,
@@ -212,50 +209,6 @@ export default function AccountingEntriesPage() {
   const loadError = queryError
     ? 'No se pudieron cargar los asientos del período. Revisa la sesión y la conexión con el backend.'
     : null;
-
-  const guardarAsiento = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!glosa.trim() || !monto) return;
-
-    const valor = Number.parseFloat(monto);
-    if (!Number.isFinite(valor) || valor <= 0) {
-      setError('El monto del asiento debe ser mayor que cero.');
-      return;
-    }
-
-    try {
-      await apiClient.post('/accounting/entries', {
-        period,
-        entryDate: new Date().toISOString().slice(0, 10),
-        glosa: glosa.trim(),
-        sourceModule: 'MANUAL',
-        lines: [
-          {
-            lineOrder: 1,
-            accountCode: '121101',
-            accountName: 'Cuentas por cobrar comerciales',
-            debitAmount: valor,
-            creditAmount: 0,
-          },
-          {
-            lineOrder: 2,
-            accountCode: '701111',
-            accountName: 'Ventas de mercaderías',
-            debitAmount: 0,
-            creditAmount: valor,
-          },
-        ],
-      });
-      setGlosa('');
-      setMonto('');
-      setIsModalOpen(false);
-      await refetch();
-    } catch {
-      setError(
-        'No se pudo registrar el asiento. Verifica el período y la empresa activa.',
-      );
-    }
-  };
 
   const exportarPle = async () => {
     if (entries.length === 0) {
@@ -473,81 +426,12 @@ export default function AccountingEntriesPage() {
         </Table>
       </Card>
 
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-card border border-border rounded-lg max-w-md w-full p-6 shadow-xl relative text-card-foreground space-y-4">
-            <button
-              onClick={() => setIsModalOpen(false)}
-              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div>
-              <h3 className="text-lg font-semibold tracking-tight">
-                Registrar Nuevo Asiento (PCGE)
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                Asiento manual del período {period}. Las facturas se contabilizan
-                automáticamente.
-              </p>
-            </div>
-
-            <form onSubmit={guardarAsiento} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium leading-none text-foreground">
-                  Glosa / Concepto Contable
-                </label>
-                <Input
-                  type="text"
-                  required
-                  placeholder="Ej. Ajuste de inventario"
-                  value={glosa}
-                  onChange={(event) => setGlosa(event.target.value)}
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium leading-none text-foreground">
-                  Monto Total (PEN)
-                </label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  required
-                  placeholder="2500.00"
-                  value={monto}
-                  onChange={(event) => setMonto(event.target.value)}
-                />
-              </div>
-
-              <div className="p-3 bg-muted/40 border border-border/80 rounded-md text-xs space-y-1.5 text-muted-foreground">
-                <div className="flex items-center gap-1.5 text-foreground font-medium">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0" />
-                  <span>Cuentas PCGE: 121101 (Debe) / 701111 (Haber)</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-foreground font-medium pl-5">
-                  <span>Partida doble validada por el backend</span>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2 border-t border-border">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsModalOpen(false)}
-                >
-                  Cancelar
-                </Button>
-                <Button type="submit" size="sm">
-                  Guardar Asiento
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <ManualEntryModal
+        open={isModalOpen}
+        period={period}
+        onClose={() => setIsModalOpen(false)}
+        onSaved={() => void refetch()}
+      />
     </Page>
   );
 }

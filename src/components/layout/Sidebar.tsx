@@ -9,6 +9,7 @@ import {
   BookOpen,
   Boxes,
   Calculator,
+  CalendarDays,
   CheckSquare,
   ChevronDown,
   CreditCard,
@@ -109,6 +110,7 @@ const NAV_ITEMS: NavItem[] = [
     subItems: [
       { title: 'Libro Diario (PCGE)', path: '/accounting', icon: FileText },
       { title: 'Plan de Cuentas (PCGE)', path: '/accounting/plan-cuentas', icon: BookOpen },
+      { title: 'Períodos Contables', path: '/accounting/periods', icon: CalendarDays },
       { title: 'Libros Electrónicos (PLE/SIRE)', path: '/accounting/ple', icon: FileCheck2 },
     ],
   },
