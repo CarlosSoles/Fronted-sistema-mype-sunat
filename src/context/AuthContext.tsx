@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { authApi } from '@/modules/auth/services/authApi';
+import { cargarEmpresaActiva } from '@/modules/auth/lib/empresaActiva';
 import {
   type AuthUser,
   type ChangePasswordPayload,
@@ -26,8 +27,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const storeUser = useAuthStore((s) => s.user);
   const storeToken = useAuthStore((s) => s.token);
 
-  const [user, setUser] = useState<AuthUser | null>((storeUser as AuthUser) || null);
-  const [accessToken, setAccessToken] = useState<string | null>(storeToken);
+  /**
+   * La sesión del store MANDA sobre el estado local.
+   *
+   * POR QUÉ SE DERIVA EN RENDER Y NO CON UN `useEffect`
+   *
+   * Cuando la sesión viene de `localStorage` (una recarga), `persist` de zustand
+   * todavía no ha hidratado en el primer render, así que el `useState` local
+   * arranca en `null`. Si nada lo vuelve a leer, `isAuthenticated` da `false` y
+   * `ProtectedRoute` manda a /login con una sesión válida guardada.
+   *
+   * La primera versión lo resolvía con un `useEffect` que copiaba el store al
+   * estado. Funcionaba, pero provocaba renders en cascada y `react-hooks`
+   * lo marca como error. Derivar en render da el mismo resultado sin efecto:
+   * si el store trae token, se usa el del store; el estado local solo cubre el
+   * hueco hasta que `persist` hidrata.
+   */
+  const [tokenLocal, setAccessToken] = useState<string | null>(storeToken);
+  const [usuarioLocal, setUser] = useState<AuthUser | null>((storeUser as AuthUser) || null);
+
+  const accessToken = storeToken ?? tokenLocal;
+  const user = (storeUser as AuthUser) ?? usuarioLocal;
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Restauración de sesión silenciosa (Silent Refresh on mount - F5 resilience)
@@ -42,13 +62,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setAccessToken(token);
           setUser(response.user);
           useAuthStore.getState().setSession(token, response.user);
-          if (response.companies && response.companies.length > 0) {
-            useAuthStore.getState().setActiveCompany(response.companies[0]);
-          }
+          // La empresa se resuelve por `/auth/profile`: ni el login ni el
+          // refresh la devuelven, y sin ella la sesión quedaba sin RUC emisor.
+          void cargarEmpresaActiva();
         }
       } catch {
-        // Si no hay cookie válida o expiró, mantenemos el estado local limpio
-        if (isMounted && !storeToken) {
+        // Si no hay cookie válida o expiró, se intenta primero RECUPERAR la
+        // sesión que el store ya tiene en memoria o en `localStorage`.
+        //
+        // Antes se hacía `logout()` directamente cuando el store no tenía token
+        // en ese instante. El problema: al recargar la página, `persist` de
+        // zustand todavía no ha hidratado cuando este `catch` se ejecuta, así
+        // que el store estaba vacío y se borraba una sesión que en realidad
+        // existía guardada. El resultado era entrar con el botón y salir a
+        // /login en la siguiente recarga.
+        const enStore = useAuthStore.getState();
+        if (isMounted && enStore.token) {
+          setAccessToken(enStore.token);
+          if (enStore.user) setUser(enStore.user as AuthUser);
+        } else if (isMounted) {
+          // De verdad no hay sesión: se limpia.
           useAuthStore.getState().logout();
         }
       } finally {
@@ -73,6 +106,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     useAuthStore.getState().setSession(token, data.user);
     if (data.companies && data.companies.length > 0) {
       useAuthStore.getState().setActiveCompany(data.companies[0]);
+    } else {
+      // El login no trae `companies`; la empresa sale del perfil.
+      await cargarEmpresaActiva(true);
     }
   };
 
@@ -84,6 +120,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     useAuthStore.getState().setSession(token, data.user);
     if (data.companies && data.companies.length > 0) {
       useAuthStore.getState().setActiveCompany(data.companies[0]);
+    } else {
+      await cargarEmpresaActiva(true);
     }
   };
 
@@ -139,3 +177,15 @@ export const useAuthContext = (): AuthContextType => {
   }
   return context;
 };
+
+/**
+ * Igual que `useAuthContext` pero devuelve `undefined` si no hay proveedor.
+ *
+ * Lo usa `ProtectedRoute`: en la aplicación siempre hay `AuthProvider`, pero en
+ * una prueba de navegación se monta el guardián solo para comprobar que redirige
+ * y montar medio árbol de la aplicación obligaría a simular red, token y
+ * refresco para verificar una redirección.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export const useAuthContextOptional = (): AuthContextType | undefined =>
+  useContext(AuthContext);

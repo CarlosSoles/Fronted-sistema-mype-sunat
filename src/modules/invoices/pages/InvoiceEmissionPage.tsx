@@ -1,17 +1,50 @@
 /**
- * Emisión de comprobantes en página completa.
+ * Emisión de comprobantes electrónicos (M1).
  *
- * Es la pantalla que el docente vio desde Contabilidad. Mantiene el detalle
- * multi-ítem y ahora usa el emisor de la sesión, el correlativo real de la
- * serie y el endpoint `POST /invoices`; ya no hay RUC hardcodeado ni un
- * `catch` que simule una emisión exitosa.
+ * QUÉ SE CORRIGIÓ AQUÍ Y POR QUÉ
  *
- * La lógica tributaria fina (detracción, retención, notas, ICBPER) sigue en
- * `InvoiceEmitModal`; el siguiente paso es reutilizarla aquí.
+ * Revisión del docente (31-10):
+ *
+ * 1. **Inventaba el CDR.** Si el `fetch` fallaba, el `catch` pintaba un verde
+ *    "ACEPTADO - CDR SUNAT Simulado". Una constancia de recepción la emite SUNAT
+ *    o no existe. Ahora, si la petición falla, se muestra el error y el
+ *    comprobante NO queda aceptado.
+ *
+ * 2. **Un ítem por comprobante.** "No vas a colocar una factura por producto".
+ *    La grilla admite varias líneas, cada una con su afectación de IGV y su
+ *    detracción.
+ *
+ * 3. **El cliente "que no lo escriba, que lo busque".** El campo usa el buscador
+ *    de la cartera y permite registrar uno nuevo cuando no existe.
+ *
+ * 4. **"Supone que esos productos los tienes en tu inventario, ¿por qué tendría
+ *    que escribirlos?"** El buscador de productos trae SKU, descripción y
+ *    precio del almacén.
+ *
+ * 5. **"La cantidad tiene que ser validada dependiendo de lo que tienes."** El
+ *    stock se conoce al elegir el producto y la grilla avisa cuando se pide más
+ *    de lo disponible; el backend lo vuelve a validar antes de reservar el
+ *    correlativo.
+ *
+ * COMPROBADO CONTRA EL SERVIDOR REAL
+ *
+ * Hasta hoy esta pantalla mandaba el formulario a `POST /invoices`, que exige el
+ * contrato fiscal completo (`payload_ubl`, `correlativo`...). El backend
+ * respondía 400 `property clienteRuc should not exist` a TODAS las emisiones:
+ * la pantalla nunca pudo emitir nada. Ahora usa `POST /invoices/emitir`, que
+ * acepta la forma del formulario y devuelve el número real.
+ *
+ * LO QUE ESTA PANTALLA NO DICE
+ *
+ * El número que se muestra es el que asignó la serie, y el estado es PENDIENTE.
+ * El CDR se consulta en la bandeja. No se muestra "ACEPTADO" en ningún caso
+ * aquí, porque SUNAT no ha respondido todavía.
  */
-import { useMemo, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
   Badge,
   Button,
   Card,
@@ -21,180 +54,359 @@ import {
   Input,
   Page,
   PageHeader,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  PageText,
 } from '@/components/ui';
-import { Plus, Trash2, Send, CheckCircle2, FileText } from 'lucide-react';
-import { useAuthStore } from '@/stores/authStore';
-import { extractApiErrorMessage } from '@/lib/apiErrors';
-import { invoicesApi } from '../services/invoicesApi';
-import { siguienteCorrelativo } from '../lib/invoiceCorrelativo';
-import { aPayloadCreacion } from '../lib/invoiceApiMapper';
-import { construir, type ItemDemo } from '../data/invoiceDemoTypes';
-import { round2 } from '../lib/invoiceTaxes';
+import { FileText, Send, Plus } from 'lucide-react';
+import { CustomerLookupField } from '../components/CustomerLookupField';
+import { InvoiceItemsGrid } from '../components/InvoiceItemsGrid';
+import { CreditInstallmentsEditor } from '../components/CreditInstallmentsEditor';
 import {
-  documentoValidoParaTipo,
-  mensajeErrorDocumento,
-} from '../lib/invoiceEmitValidation';
+  actualizarItem,
+  calcularItem,
+  totalizarItems,
+  itemBolsa,
+  itemDesdeProducto,
+  itemVacio,
+  type ItemBorrador,
+} from '../lib/invoiceItems';
+import {
+  calcularDetraccionPorLineas,
+  repartirPago,
+} from '../lib/invoiceDetraccionLinea';
+import {
+  repartirEnCuotas,
+  validarCronograma,
+  type CuotaBorrador,
+} from '../lib/invoiceDetraccion';
+import { cambiarFechaEmision } from '../lib/invoiceEmitDraft';
+import type { BorradorEmision } from '../lib/invoiceEmitDraft';
+import { borradorAPayloadEmision } from '../lib/invoiceEmitPayload';
+import {
+  minimoDeFechaEmision,
+  problemaDeFechaEmision,
+  topeDeFechaEmision,
+} from '../lib/invoiceEmitFecha';
+import { hoyEnLima } from '../lib/invoiceFecha';
+import { calcularRetencion } from '../lib/invoiceRetentions';
+import { invoicesApi } from '../services/invoicesApi';
+import { cargarProductosAlmacen } from '../services/inventoryProductsApi';
+import { revisarGrilla, primeraLineaConError } from '../lib/invoiceStockLinea';
+import type { ProductoBuscado } from '../lib/invoiceSearch';
+import type { ResultadoEmisionBackend } from '../types/invoiceEmision.types';
 
-interface InvoiceItem {
-  id: string;
-  description: string;
-  quantity: number;
-  unitPrice: number;
-}
+/** Series válidas por tipo (Catálogo del SEE). */
+const SERIES: Record<'01' | '03', string> = { '01': 'F001', '03': 'B001' };
 
-const fechaLocalIso = (fecha: Date): string => {
-  const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-  const dia = String(fecha.getDate()).padStart(2, '0');
-  return `${fecha.getFullYear()}-${mes}-${dia}`;
-};
-
-const totalLinea = (item: InvoiceItem): number =>
-  round2(item.quantity * item.unitPrice);
+/*
+ * Aquí vivía `CODIGO_AFECTACION`, la traducción de 'GRAVADA' al código 10 del
+ * Catálogo 07. Se RETIRÓ al unificar: `borradorAPayloadEmision` hace esa misma
+ * traducción desde su propio `CODIGO_AFECTACION`, y tener las dos era
+ * precisamente el riesgo de que una línea exonerada saliera gravada por
+ * arreglar solo uno de los dos mapas.
+ */
 
 export default function InvoiceEmissionPage() {
-  const { activeCompany } = useAuthStore();
-  const queryClient = useQueryClient();
-  const [docType, setDocType] = useState<'01' | '03'>('01');
-  const [customerDoc, setCustomerDoc] = useState('');
-  const [customerName, setCustomerName] = useState('');
-  const [items, setItems] = useState<InvoiceItem[]>([
-    {
-      id: '1',
-      description: '',
-      quantity: 1,
-      unitPrice: 0,
-    },
-  ]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [responseStatus, setResponseStatus] = useState<{
-    invoiceId: string;
-    message: string;
+  const [tipo, setTipo] = useState<'01' | '03'>('01');
+  const [clienteDoc, setClienteDoc] = useState('');
+  const [clienteRazonSocial, setClienteRazonSocial] = useState('');
+  const [items, setItems] = useState<readonly ItemBorrador[]>([itemVacio('1')]);
+  const [agenteRetencion, setAgenteRetencion] = useState(false);
+  // Forma de pago y cronograma (HU-10). Antes la pantalla mandaba siempre
+  // 'Contado'; el selector vivía solo en el modal de la bandeja. Las funciones
+  // que reparten las cuotas ya existían y estaban probadas en
+  // `invoiceEmitDraft`, así que aquí solo se guarda el estado.
+  const [formaPago, setFormaPago] = useState<'Contado' | 'Credito'>('Contado');
+  const [cuotas, setCuotas] = useState<readonly CuotaBorrador[]>([]);
+  const [enviando, setEnviando] = useState(false);
+  const [productos, setProductos] = useState<readonly ProductoBuscado[]>([]);
+  const [resultado, setResultado] = useState<{
+    ok: boolean;
+    mensaje: string;
+    numero?: string;
+    avisos?: readonly string[];
   } | null>(null);
 
-  const serie = docType === '01' ? 'F001' : 'B001';
+  // Productos del almacén para el buscador: el docente fue explícito en que el
+  // producto sale del inventario, no del teclado. Si la carga falla, la lista
+  // queda vacía y la grilla sigue admitiendo líneas escritas a mano.
+  useEffect(() => {
+    let vivo = true;
+    cargarProductosAlmacen().then((lista) => {
+      if (vivo) setProductos(lista);
+    });
+    return () => {
+      vivo = false;
+    };
+  }, []);
 
-  const { data: pagina } = useQuery({
-    queryKey: ['invoices-emision', serie],
-    queryFn: () => invoicesApi.getInvoices(1, { serie, page_size: 100 }),
-    staleTime: 30_000,
-  });
+  // Liquidación real línea por línea: cada línea aporta según su afectación y
+  // las gratuitas no cobran. No hay un 18 % sobre el total.
+  const totales = useMemo(() => totalizarItems(items), [items]);
 
-  const correlativo = useMemo(
-    () => siguienteCorrelativo(pagina?.data ?? [], serie),
-    [pagina, serie],
+  /**
+   * Desglose por afectación del Catálogo 07.
+   *
+   * `TotalesGrilla` solo trae base, IGV y total; la pantalla necesita ver cuánto
+   * de la venta es gravada, exonerada e inafecta —SUNAT las pide separadas en el
+   * XML— así que se agregan aquí sin tocar el modelo.
+   */
+  const porAfectacion = useMemo(() => {
+    const acumulado = { GRAVADA: 0, EXONERADA: 0, INAFECTA: 0, GRATUITA: 0 };
+    for (const item of items) {
+      acumulado[item.afectacion] += calcularItem(item).base;
+    }
+    return acumulado;
+  }, [items]);
+
+  const importeTotal = totales.total;
+
+  // Detracción por LÍNEA: "los productos son con detracción, no la factura".
+  const detraccion = useMemo(
+    () =>
+      calcularDetraccionPorLineas(
+        items.map((i) => ({
+          base: calcularItem(i).base,
+          codigoDetraccion: i.codigoDetraccion,
+        })),
+        importeTotal,
+      ),
+    [items, importeTotal],
   );
 
-  const base = round2(items.reduce((acc, item) => acc + totalLinea(item), 0));
-  const igv = round2(base * 0.18);
-  const total = round2(base + igv);
+  // Retención del IGV: es del CLIENTE, no del comprobante.
+  const retencion = useMemo(
+    () => calcularRetencion(importeTotal, agenteRetencion),
+    [importeTotal, agenteRetencion],
+  );
 
-  const actualizarItem = (
-    id: string,
-    campo: keyof Pick<InvoiceItem, 'description' | 'quantity' | 'unitPrice'>,
-    valor: string | number,
-  ) => {
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, [campo]: valor } : item,
-      ),
-    );
+  const reparto = useMemo(
+    () => repartirPago(importeTotal, detraccion.monto, retencion),
+    [importeTotal, detraccion.monto, retencion],
+  );
+
+  /**
+   * Neto que se reparte en cuotas: el pago directo, es decir el importe total
+   * menos la detracción (que va al Banco de la Nación) y menos la retención
+   * (que retiene el cliente). Las cuotas deben sumar exactamente esto por la
+   * regla 3319, sin tolerancia.
+   */
+  const netoPendiente = useMemo(
+    () => Math.round(Math.max(0, reparto.pagoDirecto) * 100) / 100,
+    [reparto.pagoDirecto],
+  );
+
+  /**
+   * Fecha de emisión en Lima (D9). Se precarga con HOY y es editable.
+   *
+   * Es la base de los vencimientos de las cuotas (regla 3267), así que al
+   * cambiarla hay que re-derivar el cronograma: se hace con
+   * `cambiarFechaEmision`, que conserva el plazo de cada cuota respecto de la
+   * emisión anterior. Se calcula en el inicializador del `useState` y no en el
+   * cuerpo porque la regla `react-hooks/purity` prohíbe `Date.now()` durante el
+   * render.
+   */
+  const [fechaEmision, setFechaEmision] = useState(hoyEnLima);
+
+  /** Motivo por el que la fecha de emisión no sirve, o `null` (D9). */
+  const problemaFecha = problemaDeFechaEmision(fechaEmision);
+
+  /**
+   * Cambia la fecha y arrastra el cronograma.
+   *
+   * Se trabaja sobre un borrador mínimo en lugar de sobre el estado de la
+   * página porque esta pantalla guarda los campos en `useState` sueltos y la
+   * re-derivación de plazos vive una sola vez, en `invoiceEmitDraft`.
+   */
+  const cambiarFecha = (nueva: string) => {
+    // `cambiarFechaEmision` solo lee `fecha` y `cuotas` del borrador, así que un
+    // objeto mínimo basta: esta pantalla guarda los campos sueltos y no monta un
+    // `BorradorEmision` completo.
+    const previo = { fecha: fechaEmision, cuotas } as BorradorEmision;
+    setFechaEmision(nueva);
+    setCuotas(cambiarFechaEmision(previo, nueva).cuotas);
   };
 
   const agregarItem = () => {
-    setItems((prev) => [
-      ...prev,
-      { id: String(Date.now()), description: '', quantity: 1, unitPrice: 0 },
-    ]);
+    setItems((prev) => [...prev, itemVacio(String(Date.now()))]);
   };
 
-  const quitarItem = (id: string) => {
+  /**
+   * Edita una línea con `actualizarItem`, el helper COMPARTIDO.
+   *
+   * Antes esta página tenía su propia versión —`{ ...item, ...parcial }` a
+   * pelo— que duplicaba la del modal y no aplicaba `sincronizarIcbper`. Por eso
+   * la bolsa plástica de ESTA pantalla se quedaba en S/ 0,50 al pasar la
+   * cantidad a 2, mientras la del modal se actualizaba a S/ 1,00: el mismo
+   * gesto daba resultados distintos según por dónde se entrara.
+   *
+   * Es el mismo tipo de duplicación que se eliminó del payload: mientras cada
+   * formulario tenga su copia de una regla, un arreglo en una no llega a la otra.
+   */
+  const cambiarItem = (indice: number, parcial: Partial<ItemBorrador>) => {
+    setItems((prev) => actualizarItem(prev, indice, parcial));
+  };
+
+  const eliminarItem = (indice: number) => {
     if (items.length === 1) return;
-    setItems((prev) => prev.filter((item) => item.id !== id));
+    setItems((prev) => prev.filter((_, i) => i !== indice));
   };
 
-  const emitir = async (event: React.FormEvent) => {
-    event.preventDefault();
-    setError(null);
-    setResponseStatus(null);
+  /**
+   * Coloca el producto elegido en la grilla.
+   *
+   * SI HAY UNA LÍNEA VACÍA SE RELLENA, no se añade otra: la grilla nace con una
+   * fila vacía y añadir siempre dejaba esa fila arriba, de modo que quien
+   * editaba "la fila 1" cambiaba la vacía y el comprobante salía sin eso.
+   *
+   * La línea se arma con `itemDesdeProducto`, que COMPRUEBA la unidad contra el
+   * Catálogo 03 (el almacén puede devolver "kg" o "NIU " y eso haría un XML
+   * rechazado). Antes esta página construía el objeto a mano y se saltaba esa
+   * comprobación; es exactamente la duplicación que se elimina al unificar.
+   */
+  const agregarConProducto = (producto: ProductoBuscado) => {
+    const relleno = itemDesdeProducto(producto, 'prod');
 
-    if (!activeCompany?.ruc || !activeCompany.razonSocial) {
-      setError('No hay una empresa activa en la sesión.');
-      return;
-    }
-    if (!documentoValidoParaTipo(docType, customerDoc)) {
-      setError(mensajeErrorDocumento(docType));
-      return;
-    }
-    if (!customerName.trim()) {
-      setError('Ingresa la razón social o nombre del cliente.');
-      return;
-    }
-    if (base <= 0 || items.some((item) => !item.description.trim())) {
-      setError('Cada ítem necesita descripción y un importe mayor que cero.');
-      return;
-    }
-
-    const lineas: ItemDemo[] = items.map((item, index) => ({
-      codigo: `ITM-${index + 1}`,
-      descripcion: item.description.trim(),
-      unidad: 'NIU',
-      cantidad: item.quantity,
-      valorUnitario: item.unitPrice,
-      afectacion: 'GRAVADA',
-    }));
-
-    const comprobante = construir({
-      tipo: docType,
-      serie,
-      correlativo,
-      ruc: customerDoc,
-      tipoDocCliente: docType === '01' ? '6' : '1',
-      razonSocial: customerName.trim(),
-      fecha: fechaLocalIso(new Date()),
-      base,
-      afectacion: 'GRAVADA',
-      estado: 'EN_COLA',
-      items: lineas,
-    });
-
-    const payload = aPayloadCreacion(comprobante, {
-      ruc: activeCompany.ruc,
-      razonSocial: activeCompany.razonSocial,
-    });
-
-    setIsSubmitting(true);
-    try {
-      const data = await invoicesApi.createInvoice(payload);
-      setResponseStatus({
-        invoiceId: data.id ?? `${serie}-${correlativo}`,
-        message:
-          'Comprobante registrado en el outbox. El CDR llegará cuando el worker lo procese.',
-      });
-      // El correlativo y la grilla deben reflejar el comprobante recién creado:
-      // sin esto, dos emisiones seguidas piden el mismo número.
-      await queryClient.refetchQueries({ queryKey: ['invoices-emision', serie] });
-      void queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      setItems([
-        { id: String(Date.now()), description: '', quantity: 1, unitPrice: 0 },
-      ]);
-      setCustomerDoc('');
-      setCustomerName('');
-    } catch (err) {
-      setError(
-        extractApiErrorMessage(
-          err,
-          'No se pudo registrar el comprobante. Revisa los datos, la conexión y la empresa activa.',
-        ),
+    setItems((prev) => {
+      const vacia = prev.findIndex(
+        (i) => !i.descripcion.trim() && !i.codigo.trim(),
       );
+      if (vacia >= 0) {
+        return prev.map((item, i) =>
+          i === vacia ? { ...item, ...relleno, clave: item.clave } : item,
+        );
+      }
+      return [...prev, { ...relleno, clave: String(Date.now()) }];
+    });
+  };
+
+  const emitir = async (evento: React.FormEvent) => {
+    evento.preventDefault();
+
+    setResultado(null);
+
+    // Validaciones locales para que el usuario vea el problema en el mismo
+    // formulario. El backend las repite: esto no sustituye su validación.
+    if (problemaFecha) {
+      setResultado({ ok: false, mensaje: problemaFecha });
+      return;
+    }
+    if (!clienteDoc.trim()) {
+      setResultado({
+        ok: false,
+        mensaje:
+          tipo === '01'
+            ? 'La factura exige el RUC del cliente.'
+            : 'Indique el documento del comprador.',
+      });
+      return;
+    }
+    if (!clienteRazonSocial.trim()) {
+      setResultado({ ok: false, mensaje: 'Falta la razón social del cliente.' });
+      return;
+    }
+    const lineaSinDescripcion = items.findIndex((i) => !i.descripcion.trim());
+    if (lineaSinDescripcion >= 0) {
+      setResultado({
+        ok: false,
+        mensaje: `La línea ${lineaSinDescripcion + 1} no tiene descripción.`,
+      });
+      return;
+    }
+
+    // El docente: "la cantidad tiene que ser validada dependiendo de lo que
+    // tienes". Se detiene ANTES de llamar al backend: el backend también lo
+    // rechaza, pero avisar aquí evita que el usuario espere una respuesta para
+    // enterarse de algo que la pantalla ya sabe.
+    const revision = revisarGrilla(items, productos);
+    const primerError = primeraLineaConError(revision);
+    if (primerError) {
+      setResultado({
+        ok: false,
+        mensaje: `Línea ${primerError.indice + 1}: ${primerError.mensaje}`,
+      });
+      return;
+    }
+
+    // Una venta al crédito sin cronograma válido no se manda: el backend la
+    // rechazaría y el usuario habría esperado una vuelta completa. La regla
+    // 3319 exige que las cuotas sumen el neto pendiente sin tolerancia.
+    if (formaPago === 'Credito') {
+      const revision = validarCronograma(cuotas, netoPendiente, fechaEmision);
+      if (!revision.cuadra || revision.errores.length > 0) {
+        setResultado({
+          ok: false,
+          mensaje:
+            revision.errores[0] ??
+            `El cronograma no cuadra: las cuotas suman ${revision.suma.toFixed(2)} ` +
+              `y el neto pendiente es ${revision.netoPendiente.toFixed(2)}.`,
+        });
+        return;
+      }
+    }
+
+    setEnviando(true);
+    try {
+      /**
+       * UNIFICACIÓN: el payload sale del traductor compartido.
+       *
+       * Antes esta pantalla armaba el objeto a mano (tipo, serie, documento,
+       * cuotas e ítems, 40 líneas de traducción) mientras el modal usaba
+       * `borradorAPayloadEmision`. Dos implementaciones de «cómo se manda un
+       * comprobante» significan que un arreglo en una no llega a la otra: así se
+       * quedó fuera el `fecha_emision` aquí y la comprobación de stock allá.
+       *
+       * Se compone un `BorradorEmision` con los campos de esta pantalla y se
+       * delega la traducción. El backend liquida los impuestos, valida el stock
+       * y reserva el correlativo; el número de la respuesta es el real.
+       */
+      const borradorCompleto: BorradorEmision = {
+        tipo,
+        serie: SERIES[tipo],
+        correlativo: 0, // lo asigna la serie en el backend
+        clienteDoc,
+        clienteTipoDoc: tipo === '01' ? '6' : '1',
+        clienteRazonSocial,
+        items,
+        formaPago,
+        cuotas,
+        numeroCuotas: cuotas.length || 2,
+        codigoDetraccion: '',
+        agenteRetencion,
+        bolsas: 0,
+        documentoAfectado: '',
+        tipoDocumentoAfectado: '0101',
+        motivoCodigo: '',
+        motivoDescripcion: '',
+        fecha: fechaEmision,
+      };
+
+      const r: ResultadoEmisionBackend = await invoicesApi.emitirComprobante(
+        borradorAPayloadEmision(borradorCompleto),
+      );
+
+      setResultado({
+        ok: true,
+        numero: r.numero,
+        mensaje:
+          `Registrado por S/ ${r.monto_total.toFixed(2)} con ${r.lineas.length} ` +
+          'línea(s). Queda PENDIENTE de envío: el CDR se consulta en la bandeja. ' +
+          'Aquí todavía no hay respuesta de SUNAT.',
+        avisos: r.avisos,
+      });
+
+      // La grilla se limpia para no reenviar la misma venta por doble clic.
+      setItems([itemVacio('1')]);
+    } catch (error: unknown) {
+      // NO se inventa un CDR ni un número. Si el backend rechaza, se dice por
+      // qué: el mensaje del backend explica qué falta (stock, RUC, correlativo).
+      const mensaje =
+        error instanceof Error ? error.message : 'Error desconocido';
+      setResultado({
+        ok: false,
+        mensaje: `No se pudo emitir el comprobante: ${mensaje}`,
+      });
     } finally {
-      setIsSubmitting(false);
+      setEnviando(false);
     }
   };
 
@@ -202,66 +414,171 @@ export default function InvoiceEmissionPage() {
     <Page>
       <PageHeader
         title="Emisión de Comprobantes Electrónicos"
-        description="Facturas y boletas con detalle multi-ítem, correlativo real y registro en el backend"
+        description="Facturas (F001) y boletas (B001) con detalle de varias líneas, stock validado y liquidación real"
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <form onSubmit={emitir} className="lg:col-span-2 space-y-6">
+      <form onSubmit={emitir} className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <FileText className="w-4 h-4 text-primary" />
-                Datos del Comprobante y Cliente
+              <CardTitle className="flex items-center gap-2 text-base">
+                <FileText className="h-4 w-4 text-primary" />
+                Datos del comprobante y del cliente
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-foreground">
-                    Tipo de Comprobante
+                  <label
+                    htmlFor="tipo-cpe"
+                    className="text-xs font-medium text-foreground"
+                  >
+                    Tipo de comprobante
                   </label>
                   <select
-                    value={docType}
-                    onChange={(e) => setDocType(e.target.value as '01' | '03')}
-                    className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    id="tipo-cpe"
+                    value={tipo}
+                    onChange={(e) => {
+                      setTipo(e.target.value as '01' | '03');
+                      setResultado(null);
+                    }}
+                    className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   >
                     <option value="01">Factura Electrónica (F001)</option>
                     <option value="03">Boleta de Venta Electrónica (B001)</option>
                   </select>
                 </div>
 
+                {/*
+                  D9 · Fecha de emisión editable, precargada con hoy en Lima.
+                  Antes era un `useState` congelado: la venta del viernes que se
+                  registra el lunes no se podía fechar el viernes. El tope
+                  superior es hoy y el inferior, el plazo del resumen diario
+                  (regla 2957), porque fuera de él la boleta nace sin forma de
+                  informarse.
+                */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-foreground">
-                    {docType === '01' ? 'RUC del Cliente' : 'DNI del Cliente'}
+                  <label
+                    htmlFor="fecha-emision"
+                    className="text-xs font-medium text-foreground"
+                  >
+                    Fecha de emisión
                   </label>
                   <Input
-                    type="text"
-                    required
-                    placeholder={docType === '01' ? '20123456789' : '71234567'}
-                    value={customerDoc}
-                    onChange={(e) =>
-                      setCustomerDoc(e.target.value.replace(/\D/g, ''))
-                    }
+                    id="fecha-emision"
+                    type="date"
+                    min={minimoDeFechaEmision()}
+                    max={topeDeFechaEmision()}
+                    value={fechaEmision}
+                    onChange={(e) => cambiarFecha(e.target.value)}
                   />
+                  {problemaFecha && (
+                    <PageText variant="error">{problemaFecha}</PageText>
+                  )}
+                  {!problemaFecha && formaPago === 'Credito' && cuotas.length > 0 && (
+                    <PageText variant="caption">
+                      Los vencimientos conservan su plazo respecto de la nueva
+                      fecha.
+                    </PageText>
+                  )}
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-foreground">
-                  Razón Social / Nombre del Cliente
+                <label
+                  htmlFor="agente-retencion"
+                  className="text-xs font-medium text-foreground"
+                >
+                  El cliente es Agente de Retención
                 </label>
-                <Input
-                  type="text"
-                  required
-                  placeholder="Ej. SERVICIOS INTEGRALES S.A.C."
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                />
+                <label className="flex h-9 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm">
+                  <input
+                    id="agente-retencion"
+                    type="checkbox"
+                    checked={agenteRetencion}
+                    onChange={(e) => setAgenteRetencion(e.target.checked)}
+                  />
+                  <span className="text-xs text-muted-foreground">
+                    Retiene el 3 % del IGV
+                  </span>
+                </label>
               </div>
 
-              <div className="rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground">
-                Serie {serie} · correlativo {correlativo} · emisor{' '}
-                {activeCompany?.ruc ?? 'sin empresa activa'}
+              {/*
+                HU-10: forma de pago. Antes esta pantalla mandaba siempre
+                'Contado' y el selector solo existía en el modal de la bandeja,
+                así que una venta al crédito no se podía emitir desde aquí.
+                Al pasar a Crédito se reparte el neto pendiente en una cuota
+                por defecto, que el usuario puede editar abajo.
+              */}
+              <div className="space-y-1.5">
+                <span className="text-xs font-medium text-foreground">
+                  Forma de pago
+                </span>
+                <div className="flex gap-2">
+                  {(['Contado', 'Credito'] as const).map((forma) => (
+                    <Button
+                      key={forma}
+                      type="button"
+                      size="sm"
+                      variant={formaPago === forma ? 'default' : 'outline'}
+                      onClick={() => {
+                        setFormaPago(forma);
+                        setCuotas(
+                          forma === 'Credito'
+                            ? repartirEnCuotas(netoPendiente, 1, fechaEmision)
+                            : [],
+                        );
+                      }}
+                    >
+                      {forma === 'Credito' ? 'Crédito' : 'Contado'}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {formaPago === 'Credito' && (
+                <CreditInstallmentsEditor
+                  cuotas={cuotas}
+                  netoPendiente={netoPendiente}
+                  fechaEmision={fechaEmision}
+                  onCambiar={setCuotas}
+                />
+              )}
+
+              {/*
+                El docente: el cliente "que no lo escriba, que lo busque". Este
+                campo busca en la cartera de la empresa y rellena documento y
+                razón social.
+              */}
+              <CustomerLookupField
+                documento={clienteDoc}
+                razonSocial={clienteRazonSocial}
+                labelDocumento={
+                  tipo === '01'
+                    ? 'RUC del cliente'
+                    : 'DNI / documento del comprador'
+                }
+                placeholderDocumento={tipo === '01' ? '20100070970' : '70123456'}
+                onElegir={(cliente) => {
+                  setClienteDoc(cliente.numeroDocumento);
+                  setClienteRazonSocial(cliente.razonSocial);
+                }}
+              />
+
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="razon-cliente"
+                  className="text-xs font-medium text-foreground"
+                >
+                  Razón social / nombre
+                </label>
+                <Input
+                  id="razon-cliente"
+                  value={clienteRazonSocial}
+                  onChange={(e) => setClienteRazonSocial(e.target.value)}
+                  placeholder="FERRETERÍA LOS ANDES S.A.C."
+                />
               </div>
             </CardContent>
           </Card>
@@ -269,7 +586,7 @@ export default function InvoiceEmissionPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">
-                Detalle de Productos / Servicios
+                Detalle de bienes y servicios
               </CardTitle>
               <Button
                 type="button"
@@ -277,153 +594,144 @@ export default function InvoiceEmissionPage() {
                 size="sm"
                 onClick={agregarItem}
               >
-                <Plus className="w-4 h-4 mr-1" /> Agregar Ítem
+                <Plus className="mr-1 h-4 w-4" /> Añadir ítem
               </Button>
             </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Descripción</TableHead>
-                    <TableHead className="w-24 text-center">Cant.</TableHead>
-                    <TableHead className="w-32 text-right">
-                      P. Unit (PEN)
-                    </TableHead>
-                    <TableHead className="w-32 text-right">Subtotal (sin IGV)</TableHead>
-                    <TableHead className="w-12 text-center"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>
-                        <Input
-                          type="text"
-                          required
-                          placeholder="Descripción del ítem"
-                          value={item.description}
-                          onChange={(e) =>
-                            actualizarItem(
-                              item.id,
-                              'description',
-                              e.target.value,
-                            )
-                          }
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          min="1"
-                          value={item.quantity}
-                          onChange={(e) =>
-                            actualizarItem(
-                              item.id,
-                              'quantity',
-                              Math.max(1, Number(e.target.value) || 1),
-                            )
-                          }
-                          className="text-center"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={item.unitPrice}
-                          onChange={(e) =>
-                            actualizarItem(
-                              item.id,
-                              'unitPrice',
-                              Math.max(0, Number(e.target.value) || 0),
-                            )
-                          }
-                          className="text-right"
-                        />
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        S/ {totalLinea(item).toFixed(2)}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => quitarItem(item.id)}
-                          disabled={items.length === 1}
-                        >
-                          <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <CardContent>
+              <InvoiceItemsGrid
+                items={items}
+                onCambiar={cambiarItem}
+                onEliminar={eliminarItem}
+                onAgregar={agregarItem}
+                onAgregarBolsa={() =>
+                  // El ICBPER se calcula en `itemBolsa` (cantidad × 0,50).
+                  // Aquí estaba escrito a mano `icbper: 0.5` con cantidad 1, así
+                  // que añadir dos bolsas dejaba 0,50 en lugar de 1,00.
+                  setItems((prev) => [
+                    ...prev,
+                    itemBolsa(String(Date.now()), 1),
+                  ])
+                }
+                productos={productos}
+                onAgregarConProducto={agregarConProducto}
+              />
             </CardContent>
           </Card>
-
-          {error && (
-            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-              {error}
-            </div>
-          )}
 
           <div className="flex justify-end">
             <Button
               type="submit"
               size="lg"
-              disabled={isSubmitting || !activeCompany}
+              disabled={enviando}
               className="min-w-[200px]"
             >
-              <Send className="w-4 h-4 mr-2" />
-              {isSubmitting ? 'Registrando...' : 'Emitir Comprobante'}
+              <Send className="mr-2 h-4 w-4" />
+              {enviando ? 'Emitiendo…' : 'Emitir comprobante'}
             </Button>
           </div>
-        </form>
+        </div>
 
         <div className="space-y-6">
           <Card className="bg-muted/30">
             <CardHeader>
-              <CardTitle className="text-base">Resumen de Liquidación</CardTitle>
+              <CardTitle className="text-base">Liquidación</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 text-sm">
+            <CardContent className="space-y-2 text-sm">
               <div className="flex justify-between text-muted-foreground">
-                <span>Op. Gravada (Subtotal)</span>
-                <span>S/ {base.toFixed(2)}</span>
+                <span>Op. gravada</span>
+                <span>S/ {porAfectacion.GRAVADA.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
-                <span>IGV (18%)</span>
-                <span>S/ {igv.toFixed(2)}</span>
+                <span>Op. exonerada</span>
+                <span>S/ {porAfectacion.EXONERADA.toFixed(2)}</span>
               </div>
-              <div className="border-t border-border pt-3 flex justify-between font-semibold text-lg text-foreground">
-                <span>Importe Total</span>
-                <span className="text-primary">S/ {total.toFixed(2)}</span>
+              <div className="flex justify-between text-muted-foreground">
+                <span>Op. inafecta</span>
+                <span>S/ {porAfectacion.INAFECTA.toFixed(2)}</span>
               </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>IGV (18 %)</span>
+                <span>S/ {totales.igv.toFixed(2)}</span>
+              </div>
+              {totales.icbper > 0 && (
+                <div className="flex justify-between text-muted-foreground">
+                  <span>ICBPER</span>
+                  <span>S/ {totales.icbper.toFixed(2)}</span>
+                </div>
+              )}
+              <div className="flex justify-between border-t border-border pt-2 font-semibold">
+                <span>Importe total</span>
+                <span className="text-primary">
+                  S/ {reparto.importeTotal.toFixed(2)}
+                </span>
+              </div>
+
+              {/*
+                El docente: "los productos son con detracción, no la factura".
+                Por eso se muestra qué línea la genera y cuánto, no un porcentaje
+                suelto sobre el total.
+              */}
+              {detraccion.aplica ? (
+                <div className="space-y-1 border-t border-border pt-2 text-xs">
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>
+                      Detracción (Cat. 54 {detraccion.codigos.join(', ')})
+                    </span>
+                    <span>S/ {detraccion.monto.toFixed(2)}</span>
+                  </div>
+                  <PageText variant="caption">
+                    Se deposita en el Banco de la Nación. Solo sobre la base de
+                    las líneas sujetas (S/ {detraccion.baseSujeta.toFixed(2)}).
+                  </PageText>
+                </div>
+              ) : (
+                detraccion.motivoNoAplica && (
+                  <PageText variant="caption">
+                    {detraccion.motivoNoAplica}
+                  </PageText>
+                )
+              )}
+
+              {reparto.retenidoIgv > 0 && (
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Retención IGV (3 %)</span>
+                  <span>S/ {reparto.retenidoIgv.toFixed(2)}</span>
+                </div>
+              )}
+
+              {(detraccion.aplica || reparto.retenidoIgv > 0) && (
+                <div className="flex justify-between border-t border-border pt-2 text-xs font-medium">
+                  <span>Pago directo al proveedor</span>
+                  <span>S/ {reparto.pagoDirecto.toFixed(2)}</span>
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          {responseStatus && (
-            <Card className="border-primary/50 bg-primary/5">
-              <CardHeader>
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-primary" />
-                  Comprobante registrado
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-xs">
-                <div>
-                  <span className="font-semibold">ID:</span>
-                  <Badge variant="secondary" className="ml-2 font-mono">
-                    {responseStatus.invoiceId}
+          {resultado && (
+            <Alert variant={resultado.ok ? 'info' : 'destructive'}>
+              <AlertTitle>
+                {resultado.ok ? 'Comprobante registrado' : 'No se emitió'}
+              </AlertTitle>
+              <AlertDescription>
+                {resultado.numero && (
+                  <Badge variant="secondary" className="mr-2 font-mono">
+                    {resultado.numero}
                   </Badge>
-                </div>
-                <p className="text-muted-foreground">{responseStatus.message}</p>
-              </CardContent>
-            </Card>
+                )}
+                {resultado.mensaje}
+                {resultado.avisos && resultado.avisos.length > 0 && (
+                  <ul className="mt-2 list-disc pl-4 text-xs">
+                    {resultado.avisos.map((aviso) => (
+                      <li key={aviso}>{aviso}</li>
+                    ))}
+                  </ul>
+                )}
+              </AlertDescription>
+            </Alert>
           )}
         </div>
-      </div>
+      </form>
     </Page>
   );
 }

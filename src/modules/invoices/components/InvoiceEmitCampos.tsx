@@ -3,7 +3,11 @@
  *
  * Se extraen de `InvoiceEmitModal.tsx` para mantener ambos archivos por debajo
  * del límite de líneas. Los primitivos de campo viven en
- * `InvoiceEmitCamposBase` y los tributarios en `InvoiceEmitCamposTributarios`.
+ * `InvoiceEmitCamposBase`, los tributarios en `InvoiceEmitCamposTributarios` y
+ * la grilla de detalle en `InvoiceItemsGrid` (TA-64).
+ *
+ * TA-64 quita los campos únicos «Descripción del ítem» y «Monto base
+ * imponible»: el detalle ahora es una grilla de varias líneas.
  */
 import {
   SERIES_POR_TIPO,
@@ -13,20 +17,36 @@ import {
   mensajeErrorDocumento,
 } from '../lib/invoiceEmitValidation';
 import {
+  cambiarFechaEmision,
   cambiarTipo,
   esTipoNota,
   vincularDocumentoAfectado,
 } from '../lib/invoiceEmitDraft';
 import type { BorradorEmision } from '../lib/invoiceEmitDraft';
+import { minimoDeFechaEmision, topeDeFechaEmision } from '../lib/invoiceEmitFecha';
+import { buscarAfectado } from '../lib/invoiceNotaOrigen';
 import type { ComprobanteDemo } from '../data/invoiceDemoTypes';
-import { CampoSelect, CampoTexto } from './InvoiceEmitCamposBase';
+import type { ProductoBuscado } from '../lib/invoiceSearch';
+import { CampoFecha, CampoSelect, CampoTexto } from './InvoiceEmitCamposBase';
+import { CustomerLookupField } from './CustomerLookupField';
 import { InvoiceEmitCamposTributarios } from './InvoiceEmitCamposTributarios';
+import { InvoiceItemsGrid } from './InvoiceItemsGrid';
 
 interface InvoiceEmitCamposProps {
   borrador: BorradorEmision;
   actualizar: (parcial: Partial<BorradorEmision>) => void;
   /** Comprobantes ya emitidos: se usan para vincular las notas. */
   existentes: readonly ComprobanteDemo[];
+  /** Total del comprobante calculado, para estimar la detracción. */
+  total: number;
+  onItemCambiado: (indice: number, parcial: Partial<BorradorEmision['items'][number]>) => void;
+  onItemEliminado: (indice: number) => void;
+  onItemAgregado: () => void;
+  onBolsaAgregada: () => void;
+  /** TA-61: productos del almacén para el buscador de la grilla. */
+  productos?: readonly ProductoBuscado[];
+  /** TA-61: agrega una línea con los datos del producto elegido. */
+  onItemDesdeProducto?: (producto: ProductoBuscado) => void;
 }
 
 const OPCIONES_TIPO = [
@@ -36,17 +56,36 @@ const OPCIONES_TIPO = [
   { value: '08' as const, label: '08 - Nota de Débito' },
 ];
 
-/** Campos de identificación del comprobante y del cliente. */
+/** Campos de identificación del comprobante, del cliente y del detalle. */
 export const InvoiceEmitCampos = ({
   borrador: b,
   actualizar,
   existentes,
+  total,
+  onItemCambiado,
+  onItemEliminado,
+  onItemAgregado,
+  onBolsaAgregada,
+  productos,
+  onItemDesdeProducto,
 }: InvoiceEmitCamposProps) => {
   const esNota = esTipoNota(b.tipo);
   const motivos = b.tipo === '08' ? MOTIVOS_ND : MOTIVOS_NC;
-  const afectado = existentes.find(
-    (c) => c.id.toUpperCase() === b.documentoAfectado.trim().toUpperCase(),
-  );
+  // Se busca por NÚMERO FISCAL, no por `id`: `id` es el UUID de la base y el
+  // usuario teclea "F001-00000045". Comparar contra el UUID hacía que el campo
+  // marcara error y que la serie no se vinculara nunca.
+  const afectado = buscarAfectado(existentes, b.documentoAfectado);
+
+  /**
+   * ¿Una nota vinculada hereda la fecha del documento que modifica?
+   *
+   * Sí para la nota al CRÉDITO con motivo 13 (ajustes de operaciones
+   * intragrupo / diferencia de cambio), que por la RS 193-2020/SUNAT debe llevar
+   * la misma fecha que el comprobante original. En ese caso el campo no impone
+   * los topes de «no futuro» ni del plazo del resumen: la fecha no la elige el
+   * usuario, la hereda de un documento que ya existe.
+   */
+  const afectaFechaHeredada = esNota && Boolean(afectado) && b.motivoCodigo === '13';
 
   return (
     <div className="grid gap-3 sm:grid-cols-2">
@@ -71,19 +110,54 @@ export const InvoiceEmitCampos = ({
         disabled={esNota && Boolean(b.documentoAfectado.trim())}
       />
 
-      <CampoTexto
-        id="doc-cliente"
-        label={
+      {/*
+        D9 · Fecha de emisión.
+
+        Nace precargada con HOY en Lima y es editable, porque fechar un
+        comprobante es una decisión del negocio: la venta del viernes que se
+        registra el lunes lleva la fecha del viernes. Antes era un `useState`
+        congelado que el usuario no podía tocar.
+
+        El tope superior es hoy (no se emite a futuro) y el inferior, el plazo
+        del resumen diario (regla 2957). Si la nota está vinculada a un
+        documento afectado, la fecha la manda él: el motivo 13 (RS 193-2020)
+        exige la fecha del comprobante original, así que el campo se muestra
+        pero se explica por qué no es libre.
+      */}
+      <CampoFecha
+        id="fecha-emision"
+        label="Fecha de emisión"
+        value={b.fecha}
+        onChange={(v) => actualizar(cambiarFechaEmision(b, v))}
+        min={afectaFechaHeredada ? undefined : minimoDeFechaEmision()}
+        max={afectaFechaHeredada ? undefined : topeDeFechaEmision()}
+        ayuda={
+          afectaFechaHeredada
+            ? 'Es la fecha del comprobante afectado: la nota al crédito la hereda (motivo 13).'
+            : b.formaPago === 'Credito' && b.cuotas.length > 0
+              ? 'Al cambiarla, los vencimientos conservan su plazo respecto de la nueva fecha.'
+              : undefined
+        }
+      />
+
+      <CustomerLookupField
+        documento={b.clienteDoc}
+        razonSocial={b.clienteRazonSocial}
+        labelDocumento={
           b.tipo === '03' ? 'DNI del cliente' : 'RUC / DNI del cliente'
         }
-        value={b.clienteDoc}
-        onChange={(v) => actualizar({ clienteDoc: v.replace(/\D/g, '') })}
-        placeholder={b.tipo === '03' ? '45678912' : '20100070970'}
-        error={
+        placeholderDocumento={b.tipo === '03' ? '45678912' : '20100070970'}
+        errorDocumento={
           b.clienteDoc.length > 0 &&
           !documentoValidoParaTipo(b.tipo, b.clienteDoc)
             ? mensajeErrorDocumento(b.tipo)
             : undefined
+        }
+        onElegir={(cliente) =>
+          actualizar({
+            clienteDoc: cliente.numeroDocumento,
+            clienteRazonSocial: cliente.razonSocial,
+          })
         }
       />
 
@@ -95,22 +169,21 @@ export const InvoiceEmitCampos = ({
         placeholder="CORPORACIÓN TEXTIL DEL NORTE S.A.C."
       />
 
-      <CampoTexto
-        id="desc-item"
-        label="Descripción del ítem"
-        value={b.descripcion}
-        onChange={(v) => actualizar({ descripcion: v })}
+      <InvoiceItemsGrid
+        items={b.items}
+        onCambiar={onItemCambiado}
+        onEliminar={onItemEliminado}
+        onAgregar={onItemAgregado}
+        onAgregarBolsa={onBolsaAgregada}
+        productos={productos}
+        onAgregarConProducto={onItemDesdeProducto}
       />
 
-      <CampoTexto
-        id="base-item"
-        label="Monto base imponible"
-        type="number"
-        value={b.base}
-        onChange={(v) => actualizar({ base: Number(v) })}
+      <InvoiceEmitCamposTributarios
+        borrador={b}
+        actualizar={actualizar}
+        total={total}
       />
-
-      <InvoiceEmitCamposTributarios borrador={b} actualizar={actualizar} />
 
       {esNota && (
         <>
@@ -138,8 +211,14 @@ export const InvoiceEmitCampos = ({
           {afectado && (
             <div className="sm:col-span-2 rounded-lg border bg-muted/40 p-2">
               <p className="text-[11px] text-muted-foreground">
-                Se vincula con {afectado.id} · {afectado.clienteRazonSocial} ·
-                total S/{' '}
+                {/* El número fiscal, no `id`: en los comprobantes reales `id` es
+                    el UUID del backend y ver un GUID crudo en pantalla se lee
+                    como un error del sistema. `numero` ya trae los ceros de
+                    relleno (F001-00000047); se reconstruye solo si faltara. */}
+                Se vincula con{' '}
+                {afectado.numero ||
+                  `${afectado.serie}-${String(afectado.correlativo).padStart(8, '0')}`}{' '}
+                · {afectado.clienteRazonSocial} · total S/{' '}
                 {afectado.baseImponible.toFixed(2)} + IGV de{' '}
                 {afectado.igv.toFixed(2)}
               </p>

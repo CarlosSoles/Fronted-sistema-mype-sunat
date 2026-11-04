@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '@/lib/axios';
 import { DoubleEntryBalanceCard } from '../components/DoubleEntryBalanceCard';
@@ -21,6 +21,15 @@ import { formatCurrency, formatDateToPeru } from '@/lib/formatters';
 import { BookOpen, CheckCircle2, Download, FilePlus, PlusCircle, RefreshCw, Trash2, X } from 'lucide-react';
 import { useRolePermissions } from '@/hooks/useRolePermissions';
 import { useAuthStore } from '@/stores/authStore';
+import { hoyEnLima, periodoActualLima } from '@/modules/invoices/lib/invoiceFecha';
+
+interface EntryLine {
+  lineOrder: number;
+  accountCode: string;
+  accountName: string;
+  debitAmount: number;
+  creditAmount: number;
+}
 
 interface Entry {
   id: string;
@@ -30,13 +39,23 @@ interface Entry {
   totalDebe: number;
   totalHaber: number;
   estaCuadrado: boolean;
+  /** Líneas reales del asiento. Vacío si la fuente no trae detalle. */
+  lines?: EntryLine[];
 }
 
 /** Línea de asiento tal como la devuelve el backend. */
 interface LineaAsientoBackend {
+  lineOrder?: number;
+  line_order?: number;
+  accountCode?: string;
+  account_code?: string;
+  accountName?: string;
+  account_name?: string;
   debitAmount?: number | string;
+  debit_amount?: number | string;
   debit?: number | string;
   creditAmount?: number | string;
+  credit_amount?: number | string;
   credit?: number | string;
 }
 
@@ -62,6 +81,17 @@ interface AsientoBackend {
 }
 
 const STORAGE_KEY = 'accounting_entries_demo_v2';
+
+/**
+ * Periodo fiscal que se muestra y se exporta, en Lima (UTC-5).
+ *
+ * Antes estaba fijo en 2026-10 en tres sitios: la lectura de asientos, el alta
+ * de un asiento manual y la exportación PLE. Las ventas del módulo de
+ * facturación se asientan en el mes en que ocurren, así que en noviembre la
+ * pantalla decía "no hay asientos" aunque hubiera doce. Se toma el mes en curso.
+ */
+const periodoActual = (): { anio: number; mes: number; clave: string } =>
+  periodoActualLima();
 
 export default function AccountingEntriesPage() {
   const navigate = useNavigate();
@@ -94,7 +124,11 @@ export default function AccountingEntriesPage() {
   const fetchEntriesFromApi = async () => {
     setIsRefreshing(true);
     try {
-      const { data } = await apiClient.get<AsientoBackend[]>('/accounting/entries');
+      // apiClient ya resuelve la base de la API y el token; el periodo va en la
+      // query para que se lean los asientos del mes en curso y no del fijo.
+      const { data } = await apiClient.get<AsientoBackend[]>(
+        `/accounting/entries?period=${periodoActual().clave}`,
+      );
 
       if (Array.isArray(data) && data.length > 0) {
         const mappedEntries: Entry[] = data.map((item: AsientoBackend, index: number) => {
@@ -119,6 +153,16 @@ export default function AccountingEntriesPage() {
             totalDebe: sumDebe,
             totalHaber: sumHaber,
             estaCuadrado: true,
+            // Se conservan las líneas tal como las registró el backend
+            // (cuenta, nombre y montos). La trama PLE necesita estas cuentas,
+            // no un par fijo elegido en el cliente.
+            lines: lines.map((l: LineaAsientoBackend, order: number) => ({
+              lineOrder: Number(l.lineOrder ?? l.line_order ?? order + 1),
+              accountCode: String(l.accountCode ?? l.account_code ?? ''),
+              accountName: String(l.accountName ?? l.account_name ?? ''),
+              debitAmount: Number(l.debitAmount ?? l.debit_amount ?? 0),
+              creditAmount: Number(l.creditAmount ?? l.credit_amount ?? 0),
+            })),
           };
         });
 
@@ -146,6 +190,29 @@ export default function AccountingEntriesPage() {
     }
   };
 
+  /**
+   * Carga los asientos del backend AL ENTRAR a la pantalla.
+   *
+   * Antes no había `useEffect`: la página solo leía `localStorage` y se quedaba
+   * vacía hasta que el usuario pulsaba "Refrescar". Para el docente eso se ve
+   * como un Libro Diario sin asientos aunque el sistema los tenga —y los tiene,
+   * porque cada comprobante aceptado genera el suyo—.
+   *
+   * Se difiere a un microtask porque `fetchEntriesFromApi` hace `setState` de
+   * inmediato y la regla `react-hooks/set-state-in-effect` lo prohíbe.
+   */
+  useEffect(() => {
+    let vivo = true;
+    void Promise.resolve().then(() => {
+      if (vivo) void fetchEntriesFromApi();
+    });
+    return () => {
+      vivo = false;
+    };
+    // Sólo al montar: el refresco manual sigue disponible en el botón.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const totalDebe = entries.reduce((acc, e) => acc + e.totalDebe, 0);
   const totalHaber = entries.reduce((acc, e) => acc + e.totalHaber, 0);
 
@@ -172,17 +239,22 @@ export default function AccountingEntriesPage() {
     if (!glosa || !monto) return;
 
     const val = parseFloat(monto);
-    const fechaActual = new Date().toISOString().split('T')[0];
+    const fechaActual = hoyEnLima();
     const nextNumber = entries.length + 1;
+    const periodo = periodoActual();
 
     const newEntry: Entry = {
       id: String(Date.now()),
-      numeroAsiento: `001-202610-00${nextNumber}`,
+      numeroAsiento: `001-${periodo.anio}${String(periodo.mes).padStart(2, '0')}-00${nextNumber}`,
       fechaContable: fechaActual,
       glosa: glosa,
       totalDebe: val,
       totalHaber: val,
       estaCuadrado: true,
+      lines: [
+        { lineOrder: 1, accountCode: '121101', accountName: 'Cuentas por Cobrar', debitAmount: val, creditAmount: 0 },
+        { lineOrder: 2, accountCode: '701111', accountName: 'Venta de Mercaderías', debitAmount: 0, creditAmount: val },
+      ],
     };
 
     const updatedList = [newEntry, ...entries];
@@ -190,8 +262,9 @@ export default function AccountingEntriesPage() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedList));
 
     try {
+      // apiClient añade URL base y token; la empresa sale del JWT.
       await apiClient.post('/accounting/entries', {
-        period: '2026-10',
+        period: periodo.clave,
         entryNumber: Number(nextNumber),
         entryDate: fechaActual,
         glosa: glosa,
@@ -218,7 +291,8 @@ export default function AccountingEntriesPage() {
     }
 
     setIsExporting(true);
-    let fileName = 'LE2060101234120261000050100001111.txt';
+    const periodo = periodoActual();
+    let fileName = `LE20601012341${periodo.anio}${String(periodo.mes).padStart(2, '0')}00050100001111.txt`;
     let pleContent = '';
 
     try {
@@ -227,8 +301,8 @@ export default function AccountingEntriesPage() {
         {
           companyId,
           companyRuc,
-          year: 2026,
-          month: 10,
+          year: periodo.anio,
+          month: periodo.mes,
           bookCode: '050100',
         },
         { timeout: 60000 },
@@ -242,26 +316,47 @@ export default function AccountingEntriesPage() {
       console.log('Generando trama desde la tabla local...');
     } finally {
       if (!pleContent) {
+        // Sin respuesta del backend se arma la trama con las líneas REALES del
+        // asiento. Si algún asiento no trae detalle se omite y se avisa: antes se
+        // escribían dos líneas fijas (121101 / 701111) para cada uno, lo que
+        // producía una trama PLE con cuentas distintas a las registradas.
+        const sinDetalle: string[] = [];
         const lines: string[] = [];
         entries.forEach((ent, idx) => {
           const numAsiento = ent.numeroAsiento || `001-202610-00${idx + 1}`;
-          lines.push(`20261000|${numAsiento}|M001|121101|${ent.totalDebe.toFixed(2)}|0.00|${ent.glosa}|1||`);
-          lines.push(`20261000|${numAsiento}|M002|701111|0.00|${ent.totalHaber.toFixed(2)}|${ent.glosa}|1||`);
+          if (!ent.lines || ent.lines.length === 0) {
+            sinDetalle.push(numAsiento);
+            return;
+          }
+          for (const l of [...ent.lines].sort((a, b) => a.lineOrder - b.lineOrder)) {
+            lines.push(
+              `${periodo.anio}${String(periodo.mes).padStart(2, '0')}00|${numAsiento}|${l.accountCode}|${l.accountCode}|${l.debitAmount.toFixed(2)}|${l.creditAmount.toFixed(2)}|${ent.glosa}|${l.lineOrder}|${ent.fechaContable}|`,
+            );
+          }
         });
-        pleContent = lines.join('\r\n') + '\r\n';
+
+        if (sinDetalle.length > 0) {
+          alert(
+            `No se pudo descargar la trama del servidor y ${sinDetalle.length} asiento(s) no tienen el detalle de cuentas cargado (${sinDetalle.join(', ')}). ` +
+              'Esos asientos se omiten para no inventar cuentas: pulsa "Refrescar" y vuelve a exportar.',
+          );
+        }
+        pleContent = lines.length > 0 ? lines.join('\r\n') + '\r\n' : '';
       }
 
-      const blob = new Blob([pleContent], { type: 'text/plain;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      setIsExporting(false);
+      if (pleContent) {
+        const blob = new Blob([pleContent], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
     }
+    setIsExporting(false);
   };
 
   return (
@@ -321,28 +416,75 @@ export default function AccountingEntriesPage() {
           <TableBody>
             {entries.length > 0 ? (
               entries.map((entry) => (
-                <TableRow key={entry.id}>
-                  <TableCell>{entry.numeroAsiento}</TableCell>
-                  <TableCell>{formatDateToPeru(entry.fechaContable)}</TableCell>
-                  <TableCell>{entry.glosa}</TableCell>
-                  <TableCell align="right">{formatCurrency(entry.totalDebe, 'PEN')}</TableCell>
-                  <TableCell align="right">{formatCurrency(entry.totalHaber, 'PEN')}</TableCell>
-                  <TableCell align="center">
-                    <Badge variant={entry.estaCuadrado ? 'secondary' : 'destructive'}>
-                      {entry.estaCuadrado ? 'Cuadrado' : 'Descuadrado'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell align="center">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteSingleEntry(entry.id)}
-                      title="Eliminar este asiento"
-                    >
-                      <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
+                <Fragment key={entry.id}>
+                  <TableRow>
+                    <TableCell>{entry.numeroAsiento}</TableCell>
+                    <TableCell>{formatDateToPeru(entry.fechaContable)}</TableCell>
+                    <TableCell>{entry.glosa}</TableCell>
+                    <TableCell align="right">{formatCurrency(entry.totalDebe, 'PEN')}</TableCell>
+                    <TableCell align="right">{formatCurrency(entry.totalHaber, 'PEN')}</TableCell>
+                    <TableCell align="center">
+                      <Badge variant={entry.estaCuadrado ? 'secondary' : 'destructive'}>
+                        {entry.estaCuadrado ? 'Cuadrado' : 'Descuadrado'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteSingleEntry(entry.id)}
+                        title="Eliminar este asiento"
+                      >
+                        <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+
+                  {/*
+                    Desglose del asiento por cuenta y subdivisionaria.
+
+                    El docente lo pidió con estas palabras: "tienes la glosa,
+                    tienes el monto, pero no tienes lo esencial: te falta el
+                    asiento... ahí debería aparecer las cuentas". La tabla
+                    mostraba solo el total de cada asiento, así que no se veía a
+                    qué cuenta se había ido el cargo ni de dónde salía el abono.
+
+                    Cada línea se pinta como subfila del asiento para que el
+                    número y la glosa queden visualmente pegados a sus cuentas.
+                  */}
+                  {entry.lines && entry.lines.length > 0 && (
+                    <TableRow>
+                      <TableCell />
+                      <TableCell />
+                      <TableCell>
+                        <table className="w-full text-xs">
+                          <tbody>
+                            {[...entry.lines]
+                              .sort((a, b) => a.lineOrder - b.lineOrder)
+                              .map((l) => (
+                                <tr key={`${entry.id}-${l.lineOrder}`}>
+                                  <td className="w-20 py-0.5 pr-2 font-mono text-muted-foreground">
+                                    {l.accountCode}
+                                  </td>
+                                  <td className="py-0.5 pr-2">{l.accountName}</td>
+                                  <td className="w-24 py-0.5 pr-2 text-right font-mono">
+                                    {l.debitAmount > 0 ? formatCurrency(l.debitAmount, 'PEN') : ''}
+                                  </td>
+                                  <td className="w-24 py-0.5 text-right font-mono">
+                                    {l.creditAmount > 0 ? formatCurrency(l.creditAmount, 'PEN') : ''}
+                                  </td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      </TableCell>
+                      <TableCell align="right" />
+                      <TableCell align="right" />
+                      <TableCell align="center" />
+                      <TableCell align="center" />
+                    </TableRow>
+                  )}
+                </Fragment>
               ))
             ) : (
               <TableRow>

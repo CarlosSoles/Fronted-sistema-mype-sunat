@@ -3,6 +3,7 @@ import { Button, Card, Page, PageHeader } from '@/components/ui';
 import { Download, FileCheck2, Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { apiClient } from '@/lib/axios';
+import { periodoActualLima } from '@/modules/invoices/lib/invoiceFecha';
 
 export default function AccountingPlePage() {
   const { activeCompany, user } = useAuthStore();
@@ -16,13 +17,18 @@ export default function AccountingPlePage() {
     const setLoader = bookCode === '5.1' ? setIsDownloadingDiario : setIsDownloadingMayor;
     setLoader(true);
 
+    // El periodo fiscal sale del mes en curso en Lima, no de una constante.
+    // Estaba fijo en 2026-10, así que la trama bajaba con los asientos de
+    // octubre aunque la empresa ya facturara en noviembre.
+    const { anio, mes } = periodoActualLima();
+
     try {
       // Petición al endpoint real de NestJS
       const response = await apiClient.post('/accounting/ple/export', {
         companyId,
         companyRuc,
-        year: 2026,
-        month: 10,
+        year: anio,
+        month: mes,
         bookCode: bookCode, // Pasa '5.1' o '6.1' dinámicamente
       });
 

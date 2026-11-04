@@ -5,7 +5,7 @@
  * contribuyente sube al Módulo 3 de SUNAT, con una fila por comprobante.
  */
 import type { ComprobanteDemo } from '../data/invoiceDemoTypes';
-import { RUC_EMISOR } from './invoiceExportConstants';
+import { identidadEmisora } from './invoiceExportConstants';
 
 /** Encabezados del RVIE (Módulo 3 del SIRE). */
 const COLUMNAS_RVIE = [
@@ -54,7 +54,9 @@ const filaRvie = (c: ComprobanteDemo, carSunat: number): string => {
     c.detraccion.toFixed(2),
     c.retencion.toFixed(2),
     c.totalNeto.toFixed(2),
-    c.formaPago,
+    // La columna existe para informar; si el dato no se conoce se deja vacío en
+    // vez de escribir "Contado" sobre una venta al crédito.
+    c.formaPago ?? '',
     c.estado,
     c.cdrCodigo ?? '',
     c.documentoAfectado ?? '',
@@ -78,7 +80,7 @@ export const nombreArchivoRvie = (
   comprobantes: readonly ComprobanteDemo[],
 ): string => {
   const periodo = comprobantes[0]?.fechaEmision.slice(0, 7).replace('-', '');
-  return `RVIE-${RUC_EMISOR}-${periodo ?? 'SIN-PERIODO'}.csv`;
+  return `RVIE-${identidadEmisora().ruc}-${periodo ?? 'SIN-PERIODO'}.csv`;
 };
 
 /** Descarga el CSV del RVIE con MIME text/csv. */
