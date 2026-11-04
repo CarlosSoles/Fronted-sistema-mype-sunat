@@ -235,7 +235,13 @@ export const InvoiceList = () => {
             refrescarCola();
             setFiltros({ ...FILTROS_INICIALES });
           }}
-          onEmitir={(tipo) => setModalEmision(tipo)}
+          onEmitir={(tipo) => {
+            if (tipo === 'Nota') {
+              setModalEmision(tipo);
+              return;
+            }
+            navigate(`/invoices/emision?tipo=${tipo === 'Factura' ? '01' : '03'}`);
+          }}
         />
 
         <TabsContent value="monitor">

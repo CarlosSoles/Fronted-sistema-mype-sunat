@@ -11,6 +11,7 @@
  */
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import {
   Badge,
   Button,
@@ -68,7 +69,10 @@ const totalLinea = (item: InvoiceItem): number =>
 export default function InvoiceEmissionPage() {
   const { activeCompany } = useAuthStore();
   const queryClient = useQueryClient();
-  const [docType, setDocType] = useState<'01' | '03'>('01');
+  const [searchParams] = useSearchParams();
+  const [docType, setDocType] = useState<'01' | '03'>(
+    searchParams.get('tipo') === '03' ? '03' : '01',
+  );
   const [customerDoc, setCustomerDoc] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [items, setItems] = useState<InvoiceItem[]>([
