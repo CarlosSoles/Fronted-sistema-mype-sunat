@@ -16,6 +16,12 @@ export const useLogin = () => {
       setSession(token, data.user);
       if (data.companies && data.companies.length > 0) {
         setActiveCompany(data.companies[0]);
+      } else if (data.user.companyId) {
+        setActiveCompany({
+          tenantId: data.user.companyId,
+          ruc: data.user.companyRuc || '',
+          razonSocial: data.user.companyLegalName || data.user.fullName || 'Empresa',
+        });
       }
       const defaultPath = getDefaultRouteForRole(data.user?.role);
       navigate(defaultPath);
