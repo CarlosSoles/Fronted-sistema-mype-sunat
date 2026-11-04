@@ -1,23 +1,9 @@
-/**
- * Orquestador de la vista principal del módulo de Facturación (M1).
- *
- * Integra las tarjetas KPI fiscales, la navegación por los cuatro apartados
- * oficiales, la barra de filtros, la grilla enriquecida de comprobantes y los
- * modales de emisión y auditoría CDR.
- *
- * Los filtros y el apartado activo se aplican al conjunto sobre el que se
- * calculan los KPI y el monitor Outbox, no solo a la grilla: si el usuario
- * filtra "Rechazado", las tarjetas también deben mostrar ese subconjunto.
- * El aviso de la consola fiscal deja constancia de que la emisión real contra
- * el backend está planificada para el Sprint 2.
- */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Page, PageHeader, Tabs, TabsContent } from '@/components/ui';
-import { COMPROBANTES_DEMO } from './data/invoiceDemoData';
+import { useInvoicesList } from './hooks/useInvoicesList';
 import type { ComprobanteDemo } from './data/invoiceDemoTypes';
 import { InvoiceKpiCards } from './components/InvoiceKpiCards';
-import { InvoiceDemoNotice } from './components/InvoiceDemoNotice';
 import {
   InvoiceTabsNav,
   RUTA_POR_TAB,
@@ -34,15 +20,10 @@ import { InvoiceOutboxMonitor } from './components/InvoiceOutboxMonitor';
 import { InvoiceCdrModal } from './components/InvoiceCdrModal';
 import { InvoiceEmitModal } from './components/InvoiceEmitModal';
 import type { TipoEmision } from './components/InvoiceEmitMenu';
-import { TIPO_POR_OPCION } from './lib/invoiceEmitTipos';
 import { calcularResumenFiscal } from './lib/invoiceMetrics';
 import { aplicarFiltros, porApartado } from './lib/invoiceFilters';
 import { descargarPdfComprobante } from './lib/invoiceExportPdf';
 import { exportarReporteSireCsv } from './lib/invoiceExportSire';
-import {
-  DESPACHO_SIMULADO_MS,
-  registrarRespuestaCdr,
-} from './lib/invoiceOutbox';
 
 const FILTROS_INICIALES: InvoiceFiltros = {
   busqueda: '',
@@ -51,19 +32,12 @@ const FILTROS_INICIALES: InvoiceFiltros = {
   hasta: '',
 };
 
-/**
- * Fecha `YYYY-MM-DD` en la zona horaria del equipo, no en UTC.
- *
- * Un comprobante emitido a las 20:00 en Lima sigue siendo del mismo día
- * calendario; `toISOString()` lo habría fechado un día antes.
- */
-export const fechaLocalIso = (d: Date): string => {
+const fechaLocalIso = (d: Date): string => {
   const mes = String(d.getMonth() + 1).padStart(2, '0');
   const dia = String(d.getDate()).padStart(2, '0');
   return `${d.getFullYear()}-${mes}-${dia}`;
 };
 
-/** Indica si el usuario está viendo un subconjunto y no el periodo completo. */
 const hayFiltrosActivos = (
   filtros: InvoiceFiltros,
   tab: InvoiceTabId,
@@ -75,7 +49,7 @@ const hayFiltrosActivos = (
   filtros.hasta !== '';
 
 interface VisorState {
-  comprobante: ComprobanteDemo;
+  comprobante: any;
   modo: 'cdr' | 'xml';
 }
 
@@ -84,10 +58,79 @@ export const InvoiceList = () => {
   const { pathname } = useLocation();
   const activeTab = tabDesdeRuta(pathname);
   const [filtros, setFiltros] = useState<InvoiceFiltros>(FILTROS_INICIALES);
-  const [comprobantes, setComprobantes] =
-    useState<readonly ComprobanteDemo[]>(COMPROBANTES_DEMO);
   const [modalEmision, setModalEmision] = useState<TipoEmision | null>(null);
   const [visor, setVisor] = useState<VisorState | null>(null);
+
+  // Consulta REAL a la API mediante React Query
+  const { data, isLoading, refetch } = useInvoicesList();
+
+  // Mapeo adaptativo desde Supabase hacia la interfaz requerida por las utilidades
+  const comprobantes = useMemo(() => {
+    const rawItems = data?.data || [];
+    return rawItems.map((inv: any) => {
+      const ubl = inv.payload_ubl || {};
+      const customer = ubl.customer || {};
+      const tax = ubl.tax_details || {};
+
+      const subtotalVal = Number(tax.subtotal || inv.subtotal || 0);
+      const igvVal = Number(tax.igv || inv.igv || 0);
+      const totalVal = Number(inv.monto_total || inv.total || 0);
+      const detraccionVal = Number(tax.detraccion || inv.detraccion || 0);
+      const retencionVal = Number(tax.retencion || inv.retencion || 0);
+
+      const tipoDocCliente =
+        customer.identity_document_type === '6'
+          ? '6 - RUC'
+          : customer.identity_document_type === '1'
+          ? '1 - DNI'
+          : '6 - RUC';
+
+      const estadoMapeado =
+        inv.estado === 'ACEPTADO'
+          ? 'ACEPTADO'
+          : inv.estado === 'ERROR_RED'
+          ? 'RECHAZADO'
+          : inv.estado || 'ACEPTADO';
+
+      return {
+        id: inv.id,
+        tipo: inv.tipo_comprobante || (inv.serie?.startsWith('F') ? '01' : '03'),
+        serie: inv.serie || 'F001',
+        correlativo: inv.correlativo || 1,
+        numero: inv.correlativo || 1,
+        clienteRazonSocial:
+          customer.legal_name ||
+          inv.clienteRazonSocial ||
+          inv.cliente_razon_social ||
+          'CLIENTE GENERAL',
+        clienteRuc:
+          customer.identity_document_number ||
+          inv.clienteRuc ||
+          inv.cliente_ruc ||
+          '00000000000',
+        clienteTipoDoc: tipoDocCliente,
+        fechaEmision: inv.fecha_emision || inv.createdAt || fechaLocalIso(new Date()),
+        moneda: inv.moneda || 'PEN',
+        baseImponible: subtotalVal,
+        opGravada: subtotalVal,
+        montoIgv: igvVal,
+        subtotal: subtotalVal,
+        igv: igvVal,
+        montoTotal: totalVal,
+        total: totalVal,
+        totalNeto: totalVal,
+        detraccion: detraccionVal,
+        retencion: retencionVal,
+        tieneDetraccion: detraccionVal > 0,
+        tieneRetencion: retencionVal > 0,
+        estado: estadoMapeado,
+        cdrStatus: inv.estado === 'ACEPTADO' ? 'ACEPTADO_SUNAT' : 'EN_COLA_OUTBOX',
+        observaciones: inv.observaciones || [],
+        xmlUrl: inv.xml_url || '#',
+        cdrUrl: inv.cdr_url || '#',
+      } as unknown as ComprobanteDemo;
+    });
+  }, [data]);
 
   const conteo = useMemo(() => contarPorTab(comprobantes), [comprobantes]);
 
@@ -102,52 +145,21 @@ export const InvoiceList = () => {
     [visibles],
   );
 
-  const hayEnCola = comprobantes.some((c) => c.estado === 'EN_COLA');
-
-  /**
-   * Despacho simulado de la cola: cada comprobante en cola recibe su CDR a
-   * los pocos segundos, como lo haría el worker Outbox contra el billService.
-   */
-  useEffect(() => {
-    if (!hayEnCola) return;
-
-    const temporizador = window.setTimeout(() => {
-      setComprobantes((previos) =>
-        previos.map((c) => registrarRespuestaCdr(c)),
-      );
-    }, DESPACHO_SIMULADO_MS);
-
-    return () => window.clearTimeout(temporizador);
-  }, [hayEnCola]);
-
-  const agregarComprobante = useCallback((nuevo: ComprobanteDemo) => {
-    setComprobantes((previos) => [nuevo, ...previos]);
-    setModalEmision(null);
-    navigate(RUTA_POR_TAB.comprobantes);
-    setFiltros({ ...FILTROS_INICIALES });
-  }, [navigate]);
-
-  /** Reproduce el ciclo del worker cuando el usuario pulsa "Refrescar". */
+  /** Recarga los registros directamente desde Supabase */
   const refrescarCola = useCallback(() => {
-    setComprobantes((previos) =>
-      previos.map((c) => registrarRespuestaCdr(c)),
-    );
-  }, []);
+    refetch();
+  }, [refetch]);
 
-  /** Grilla de comprobantes con los visores XML/CDR y la descarga PDF. */
+  /** Grilla de comprobantes */
   const grilla = (mensajeVacio?: string) => (
     <InvoiceTable
       comprobantes={visibles}
-      mensajeVacio={mensajeVacio}
+      mensajeVacio={isLoading ? 'Cargando comprobantes desde Supabase...' : mensajeVacio}
       onVerXml={(c) => setVisor({ comprobante: c, modo: 'xml' })}
       onVerCdr={(c) => setVisor({ comprobante: c, modo: 'cdr' })}
       onDescargarPdf={descargarPdfComprobante}
     />
   );
-
-  // `toISOString()` devuelve la fecha en UTC: en Lima (UTC-5) después de las
-  // 19:00 retrocedía un día y el comprobante se emitía con fecha de ayer.
-  const fechaHoy = fechaLocalIso(new Date());
 
   return (
     <Page>
@@ -155,8 +167,6 @@ export const InvoiceList = () => {
         title="Facturación Electrónica UBL 2.1"
         description="Emisión, consulta y seguimiento de comprobantes electrónicos sincronizados con SUNAT"
       />
-
-      <InvoiceDemoNotice />
 
       <InvoiceKpiCards resumen={resumen} filtrado={hayFiltrosActivos(filtros, activeTab)} />
 
@@ -207,11 +217,11 @@ export const InvoiceList = () => {
 
       {modalEmision && (
         <InvoiceEmitModal
-          tipoInicial={TIPO_POR_OPCION[modalEmision]}
-          fecha={fechaHoy}
-          existentes={comprobantes}
-          onEmitir={agregarComprobante}
           onCerrar={() => setModalEmision(null)}
+          onEmitirExito={() => {
+            setModalEmision(null);
+            refetch(); // Forzar recarga tras emitir
+          }}
         />
       )}
     </Page>

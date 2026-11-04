@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { DoubleEntryBalanceCard } from '../components/DoubleEntryBalanceCard';
 import {
   Badge,
@@ -17,7 +16,7 @@ import {
   TableRow,
 } from '@/components/ui';
 import { formatCurrency, formatDateToPeru } from '@/lib/formatters';
-import { BookOpen, CheckCircle2, Download, FilePlus, PlusCircle, RefreshCw, Trash2, X } from 'lucide-react';
+import { BookOpen, CheckCircle2, Download, PlusCircle, RefreshCw, Trash2, X } from 'lucide-react';
 import { useRolePermissions } from '@/hooks/useRolePermissions';
 
 interface Entry {
@@ -34,7 +33,6 @@ const ACTIVE_COMPANY_ID = '5eaccb4e-a6ec-4f23-9909-85fe7fc9e879';
 const STORAGE_KEY = 'accounting_entries_demo_v2';
 
 export default function AccountingEntriesPage() {
-  const navigate = useNavigate();
   const { canCreateAccountingEntry, isAuditor } = useRolePermissions();
   const [isExporting, setIsExporting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -57,7 +55,7 @@ export default function AccountingEntriesPage() {
   const [glosa, setGlosa] = useState('');
   const [monto, setMonto] = useState('');
 
-  // 1. REFRESCAR / RECARGAR DESDE BACKEND O LOCALSTORAGE
+  // REFRESCAR DESDE BACKEND
   const fetchEntriesFromApi = async () => {
     setIsRefreshing(true);
     try {
@@ -71,15 +69,12 @@ export default function AccountingEntriesPage() {
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
           const mappedEntries: Entry[] = data.map((item: any, index: number) => {
-            // Extraer líneas de detalles si vienen pobladas en el backend
             const lines = item.lines || item.accounting_lines || [];
 
-            // Calcular suma de Debe
             const sumDebe = lines.length > 0
               ? lines.reduce((acc: number, l: any) => acc + Number(l.debitAmount || l.debit || 0), 0)
               : Number(item.totalDebit || item.total_debit || item.totalDebe || 0);
 
-            // Calcular suma de Haber
             const sumHaber = lines.length > 0
               ? lines.reduce((acc: number, l: any) => acc + Number(l.creditAmount || l.credit || 0), 0)
               : Number(item.totalCredit || item.total_credit || item.totalHaber || 0);
@@ -125,24 +120,20 @@ export default function AccountingEntriesPage() {
   const totalDebe = entries.reduce((acc, e) => acc + e.totalDebe, 0);
   const totalHaber = entries.reduce((acc, e) => acc + e.totalHaber, 0);
 
-  // 2. BORRADO COMPLETO (RESET PARA DEMO)
   const handleClearAllEntries = () => {
     if (confirm('¿Deseas limpiar todos los asientos contables de la vista?')) {
       setEntries([]);
       localStorage.removeItem(STORAGE_KEY);
-      // Clave de la versión anterior: se limpia para no resucitar asientos viejos.
       localStorage.removeItem('accounting_entries');
     }
   };
 
-  // 3. BORRADO INDIVIDUAL FILA POR FILA
   const handleDeleteSingleEntry = (idToDelete: string) => {
     const updated = entries.filter((item) => item.id !== idToDelete);
     setEntries(updated);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
   };
 
-  // 4. GUARDAR NUEVO ASIENTO MANUAL
   const handleSaveEntry = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!glosa || !monto) return;
@@ -194,7 +185,6 @@ export default function AccountingEntriesPage() {
     }
   };
 
-  // 5. EXPORTACIÓN PLE ESTRICTAMENTE SINCRONIZADA
   const handleExportPle = async () => {
     if (entries.length === 0) {
       alert('No hay asientos registrados para exportar en el período activo.');
@@ -256,11 +246,6 @@ export default function AccountingEntriesPage() {
         title="Libro Diario (PCGE)"
         description="Auditoría de asientos contables del periodo fiscal activo y validación de partida doble"
       >
-        <Button variant="default" size="sm" onClick={() => navigate('/invoices/emision')}>
-          <FilePlus aria-hidden="true" className="w-4 h-4 mr-1" />
-          Emitir Comprobante
-        </Button>
-
         {entries.length > 0 && (
           <Button variant="ghost" size="sm" onClick={handleClearAllEntries} title="Limpiar todo (Demo)">
             <Trash2 aria-hidden="true" className="w-4 h-4 text-muted-foreground hover:text-destructive" />

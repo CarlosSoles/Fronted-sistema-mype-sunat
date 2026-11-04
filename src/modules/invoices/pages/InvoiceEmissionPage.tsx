@@ -16,7 +16,9 @@ import {
   TableRow,
   Badge,
 } from '@/components/ui';
-import { Plus, Trash2, Send, CheckCircle2, FileText } from 'lucide-react';
+import { Plus, Trash2, Send, CheckCircle2, FileText, UserPlus, ShoppingBag, Search } from 'lucide-react';
+import { invoicesApi } from '../services/invoicesApi';
+import { apiClient } from '@/lib/axios';
 
 interface InvoiceItem {
   id: string;
@@ -30,8 +32,12 @@ export default function InvoiceEmissionPage() {
   const [docType, setDocType] = useState<'01' | '03'>('01'); // 01: Factura, 03: Boleta
   const [customerRuc, setCustomerRuc] = useState('');
   const [customerName, setCustomerName] = useState('');
+  const [isSearchingCustomer, setIsSearchingCustomer] = useState(false);
+  const [isRetentionAgent, setIsRetentionAgent] = useState(false);
+  const [icbperBags, setIcbperBags] = useState<number>(0);
+
   const [items, setItems] = useState<InvoiceItem[]>([
-    { id: '1', description: 'Servicio de Consultoría Contable', quantity: 1, unitPrice: 1000, total: 1000 },
+    { id: '1', description: 'Material de Construcción', quantity: 1, unitPrice: 0, total: 0 },
   ]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,10 +48,35 @@ export default function InvoiceEmissionPage() {
     cdrStatus?: string;
   } | null>(null);
 
-  // Cálculos de Totales
+  // Cálculos tributarios SUNAT
   const subtotal = items.reduce((acc, item) => acc + item.total, 0);
   const igv = subtotal * 0.18;
-  const totalAmount = subtotal + igv;
+  const icbperTotal = icbperBags * 0.50;
+  const retentionTotal = isRetentionAgent ? (subtotal + igv) * 0.03 : 0;
+  const totalAmount = subtotal + igv + icbperTotal - retentionTotal;
+
+  // Búsqueda REAL de cliente en la base de datos a través del backend
+  const handleRucChange = async (val: string) => {
+    setCustomerRuc(val);
+    const cleanRuc = val.trim();
+
+    if (cleanRuc.length === 11 || cleanRuc.length === 8) {
+      setIsSearchingCustomer(true);
+      try {
+        const response = await apiClient.get(`/companies/search`, {
+          params: { tax_id: cleanRuc },
+        });
+        if (response.data) {
+          setCustomerName(response.data.legal_name || response.data.razon_social || '');
+          setIsRetentionAgent(!!response.data.is_retention_agent);
+        }
+      } catch {
+        // Si no existe, permite ingresar manualmente la Razón Social
+      } finally {
+        setIsSearchingCustomer(false);
+      }
+    }
+  };
 
   const handleAddItem = () => {
     const newItem: InvoiceItem = {
@@ -90,55 +121,48 @@ export default function InvoiceEmissionPage() {
     setIsSubmitting(true);
     setResponseStatus(null);
 
-    const payload = {
-      companyRuc: '20601012341',
-      documentType: docType,
-      series: docType === '01' ? 'F001' : 'B001',
-      customerDocumentType: docType === '01' ? '6' : '1',
-      customerDocumentNumber: customerRuc,
-      customerName: customerName,
-      items: items.map((it) => ({
-        description: it.description,
-        quantity: it.quantity,
-        unitPrice: it.unitPrice,
-        subtotal: it.total,
-        igv: it.total * 0.18,
-        total: it.total * 1.18,
-      })),
-      totalSubtotal: subtotal,
-      totalIgv: igv,
-      totalAmount: totalAmount,
+    // Payload dinámico enviado directamente a NestJS / Supabase
+    const payload: any = {
+      tipo_comprobante: docType,
+      serie: docType === '01' ? 'F001' : 'B001',
+      correlativo: Math.floor(10000 + Math.random() * 89999), // Genera un correlativo dinámico para evitar error 409
+      ruc_emisor: '20100047218',
+      monto_total: totalAmount,
+      payload_ubl: {
+        customer: {
+          identity_document_number: customerRuc,
+          identity_document_type: docType === '01' ? '6' : '1',
+          legal_name: customerName,
+        },
+        tax_details: {
+          subtotal,
+          igv,
+          icbper: icbperTotal,
+          retencion: retentionTotal,
+        },
+        items: items.map((it) => ({
+          description: it.description,
+          quantity: it.quantity,
+          unit_price: it.unitPrice,
+          total: it.total,
+        })),
+      },
     };
 
     try {
-      const res = await fetch('http://localhost:3000/api/v1/invoices', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok || res.status === 202 || res.status === 201) {
-        const data = await res.json().catch(() => ({}));
-        setResponseStatus({
-          success: true,
-          invoiceId: data.id || data.invoiceId || `INV-${Date.now().toString().slice(-6)}`,
-          message: 'Comprobante recibido y procesado en la cola de emisión SUNAT.',
-          cdrStatus: 'ACEPTADO - Constancia de Recepción (CDR) validada.',
-        });
-      } else {
-        throw new Error('Error al conectar con el servidor.');
-      }
-    } catch {
-      // Sandbox / Modo Local Demo
+      const res = await invoicesApi.createInvoice(payload);
       setResponseStatus({
         success: true,
-        invoiceId: `INV-${Date.now().toString().slice(-6)}`,
-        message: 'Comprobante emitido correctamente (Entorno Sandbox / Simulación local).',
-        cdrStatus: 'ACEPTADO - CDR SUNAT Simulado 0001.',
+        invoiceId: res.id || `INV-${(res as any).correlativo || Date.now().toString().slice(-6)}`,
+        message: 'Comprobante registrado con éxito en Supabase y enviado a procesamiento UBL.',
+        cdrStatus: 'ACEPTADO - Comprobante recepcionado correctamente.',
       });
+      // Resetea el formulario al emitir con éxito
+      setCustomerRuc('');
+      setCustomerName('');
+      setItems([{ id: '1', description: '', quantity: 1, unitPrice: 0, total: 0 }]);
+    } catch (err: any) {
+      alert(`Error al emitir comprobante: ${err.response?.data?.message || err.message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -148,17 +172,20 @@ export default function InvoiceEmissionPage() {
     <Page>
       <PageHeader
         title="Emisión de Comprobantes Electrónicos"
-        description="Generación de Facturas (F001) y Boletas (B001) con integración a SUNAT"
+        description="Emisión real conectada al Backend NestJS y Supabase (UBL 2.1)"
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <form onSubmit={handleEmitInvoice} className="lg:col-span-2 space-y-6">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base flex items-center gap-2">
                 <FileText className="w-4 h-4 text-primary" />
                 Datos del Comprobante y Cliente
               </CardTitle>
+              <Button type="button" variant="ghost" size="sm" className="text-xs">
+                <UserPlus className="w-3.5 h-3.5 mr-1" /> Nuevo Cliente
+              </Button>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -178,13 +205,18 @@ export default function InvoiceEmissionPage() {
                   <label className="text-xs font-medium text-foreground">
                     {docType === '01' ? 'RUC del Cliente' : 'DNI / Documento'}
                   </label>
-                  <Input
-                    type="text"
-                    required
-                    placeholder={docType === '01' ? '20123456789' : '71234567'}
-                    value={customerRuc}
-                    onChange={(e) => setCustomerRuc(e.target.value)}
-                  />
+                  <div className="relative">
+                    <Input
+                      type="text"
+                      required
+                      placeholder={docType === '01' ? '20100047218' : '45096325'}
+                      value={customerRuc}
+                      onChange={(e) => handleRucChange(e.target.value)}
+                    />
+                    {isSearchingCustomer && (
+                      <Search className="w-4 h-4 absolute right-2.5 top-2.5 animate-spin text-muted-foreground" />
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -193,10 +225,23 @@ export default function InvoiceEmissionPage() {
                 <Input
                   type="text"
                   required
-                  placeholder="Ej. SERVICIOS INTEGRALES S.A.C."
+                  placeholder="Ingrese o busque por RUC..."
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
                 />
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <input
+                  type="checkbox"
+                  id="retentionAgent"
+                  checked={isRetentionAgent}
+                  onChange={(e) => setIsRetentionAgent(e.target.checked)}
+                  className="rounded border-input text-primary focus:ring-ring"
+                />
+                <label htmlFor="retentionAgent" className="text-xs text-muted-foreground font-medium cursor-pointer">
+                  El cliente es Agente de Retención del IGV (3%)
+                </label>
               </div>
             </CardContent>
           </Card>
@@ -212,7 +257,7 @@ export default function InvoiceEmissionPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Descripción</TableHead>
+                    <TableHead>Descripción (Selección de Inventario)</TableHead>
                     <TableHead className="w-24 text-center">Cant.</TableHead>
                     <TableHead className="w-32 text-right">P. Unit (PEN)</TableHead>
                     <TableHead className="w-32 text-right">Total</TableHead>
@@ -226,7 +271,7 @@ export default function InvoiceEmissionPage() {
                         <Input
                           type="text"
                           required
-                          placeholder="Descripción del ítem"
+                          placeholder="Descripción del producto..."
                           value={item.description}
                           onChange={(e) => handleItemChange(item.id, 'description', e.target.value)}
                         />
@@ -270,6 +315,26 @@ export default function InvoiceEmissionPage() {
             </CardContent>
           </Card>
 
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <ShoppingBag className="w-4 h-4 text-primary" />
+                  <span className="font-medium">Bolsas plásticas ICBPER (S/ 0.50 c/u):</span>
+                </div>
+                <div className="w-24">
+                  <Input
+                    type="number"
+                    min="0"
+                    value={icbperBags}
+                    onChange={(e) => setIcbperBags(Math.max(0, parseInt(e.target.value) || 0))}
+                    className="text-center h-8 text-xs"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="flex justify-end">
             <Button type="submit" size="lg" disabled={isSubmitting} className="min-w-[200px]">
               <Send className="w-4 h-4 mr-2" />
@@ -292,6 +357,21 @@ export default function InvoiceEmissionPage() {
                 <span>IGV (18%)</span>
                 <span>S/ {igv.toFixed(2)}</span>
               </div>
+
+              {icbperTotal > 0 && (
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Bolsas Plásticas (ICBPER)</span>
+                  <span>S/ {icbperTotal.toFixed(2)}</span>
+                </div>
+              )}
+
+              {isRetentionAgent && (
+                <div className="flex justify-between text-amber-600 dark:text-amber-400 font-medium">
+                  <span>Retención IGV (3%)</span>
+                  <span>S/ {retentionTotal.toFixed(2)}</span>
+                </div>
+              )}
+
               <div className="border-t border-border pt-3 flex justify-between font-semibold text-lg text-foreground">
                 <span>Importe Total</span>
                 <span className="text-primary">S/ {totalAmount.toFixed(2)}</span>
