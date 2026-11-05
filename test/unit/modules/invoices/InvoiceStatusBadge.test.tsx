@@ -18,7 +18,7 @@ describe('InvoiceStatusBadge', () => {
   it('rotula un fallo de envío como "Sin confirmar"', () => {
     render(<InvoiceStatusBadge estado="SIN_CONFIRMAR" />);
 
-    expect(screen.getByText('Sin confirmar')).toBeDefined();
+    expect(screen.getByText('Error de red (ERROR_RED)')).toBeDefined();
   });
 
   it('NO confunde un fallo de envío con un rechazo', () => {

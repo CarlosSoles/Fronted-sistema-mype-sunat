@@ -31,11 +31,12 @@ export const aplicarFiltros = (
 
   return comprobantes.filter((c) => {
     const documento = `${c.serie}-${c.correlativo}`;
+    const terminoNumero = termino.replace(/^(\w+)-0*(\d+)$/, '$1-$2');
     const coincideTexto =
       !termino ||
       `${documento} ${c.clienteRuc} ${c.clienteRazonSocial}`
         .toLowerCase()
-        .includes(termino);
+        .includes(termino) || documento.toLowerCase().includes(terminoNumero);
 
     const coincideEstado =
       filtros.estado === 'TODOS' || c.estado === filtros.estado;

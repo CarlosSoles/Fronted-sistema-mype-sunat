@@ -23,6 +23,7 @@ const ESTADOS: Record<string, EstadoCdrDemo> = {
   ACEPTADO: 'ACEPTADO',
   OBSERVADO: 'OBSERVADO',
   RECHAZADO: 'RECHAZADO',
+  ERROR_RED: 'SIN_CONFIRMAR',
   ANULADO: 'RECHAZADO',
 };
 
@@ -92,6 +93,7 @@ const desdeNormalizado = (item: Invoice): FilaComprobante => ({
   total: item.total,
   estado: item.estadoBackend ?? '',
   cdrCodigo: item.cdrCodigo,
+  documentoAfectado: item.documentoAfectado,
   hashCpe: '',
 });
 
@@ -145,6 +147,7 @@ export function aComprobanteDemo(item: InvoiceListado | Invoice): ComprobanteDem
     retencion: 0,
     totalNeto: fila.total,
     estado: ESTADOS[fila.estado] ?? 'EN_COLA',
+    estadoBackend: fila.estado,
     cdrCodigo: fila.cdrCodigo,
     documentoAfectado: fila.documentoAfectado,
     tipoOperacion: '0101',

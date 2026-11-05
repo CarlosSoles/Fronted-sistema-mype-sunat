@@ -51,9 +51,10 @@ describe('invoiceApiMapper', () => {
   });
 
   it('trata los estados intermedios como "en cola", no como aceptados', () => {
-    for (const estado of ['PENDIENTE', 'EN_COLA', 'PROCESANDO', 'ENVIADO', 'ERROR_RED']) {
+    for (const estado of ['PENDIENTE', 'EN_COLA', 'PROCESANDO', 'ENVIADO']) {
       expect(aComprobanteDemo(fila({ estado })).estado).toBe('EN_COLA');
     }
+    expect(aComprobanteDemo(fila({ estado: 'ERROR_RED' })).estado).toBe('SIN_CONFIRMAR');
     expect(aComprobanteDemo(fila({ estado: 'ANULADO' })).estado).toBe('RECHAZADO');
   });
 

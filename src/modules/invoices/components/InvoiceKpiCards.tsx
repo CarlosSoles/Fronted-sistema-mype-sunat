@@ -40,7 +40,7 @@ export const InvoiceKpiCards = ({
           <CardTitle>Total Facturado del Periodo</CardTitle>
           <CardAction>
             <Badge variant="outline" className="text-[10px]">
-              {filtrado ? 'Vista filtrada' : 'Base + IGV 18%'}
+              {filtrado ? 'Vista filtrada' : 'Bruto aceptado'}
             </Badge>
           </CardAction>
         </CardHeader>
@@ -49,11 +49,11 @@ export const InvoiceKpiCards = ({
             {formatCurrency(resumen.totalFacturado, 'PEN')}
           </PageText>
           <PageText variant="caption">
-            Base {formatCurrency(resumen.baseTotal, 'PEN')} · IGV{' '}
+            Base neta {formatCurrency(resumen.baseTotal, 'PEN')} · IGV{' '}
             {formatCurrency(resumen.igvTotal, 'PEN')}
           </PageText>
           <PageText variant="caption">
-            Neto a cobrar {formatCurrency(resumen.netoTotalCobrar, 'PEN')}
+            Acreditado {formatCurrency(resumen.acreditado, 'PEN')} · Neto {formatCurrency(resumen.netoTotalCobrar, 'PEN')}
           </PageText>
         </CardContent>
       </Card>
@@ -70,7 +70,7 @@ export const InvoiceKpiCards = ({
         <CardContent className="space-y-1">
           <PageText variant="metric">{resumen.aceptados}</PageText>
           <PageText variant="caption">
-            Tasa de éxito {resumen.tasaExito}%
+            Tasa de éxito en facturas y boletas {resumen.tasaExito}%
           </PageText>
           <PageText variant="caption">
             Observados 4xxx: {resumen.observados}
@@ -95,7 +95,7 @@ export const InvoiceKpiCards = ({
 
       <Card size="sm" data-kpi="rechazados">
         <CardHeader>
-          <CardTitle>Rechazos / En DLQ</CardTitle>
+          <CardTitle>Rechazos / Error de red</CardTitle>
           <CardAction>
             <Badge variant="destructive" className="text-[10px]">
               Rojo
@@ -109,9 +109,7 @@ export const InvoiceKpiCards = ({
             {resumen.rechazados}
           </PageText>
           <PageText variant="caption">
-            {resumen.rechazados > 0
-              ? 'Requiere acción correctiva'
-              : 'Sin rechazos en el periodo'}
+            Errores de red: {resumen.erroresRed} · Sin confirmación de SUNAT
           </PageText>
         </CardContent>
       </Card>

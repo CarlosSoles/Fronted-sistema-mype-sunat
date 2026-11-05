@@ -24,6 +24,8 @@ export interface ResumenFiscal {
   enCola: number;
   despachoPromedioMs: number;
   rechazados: number;
+  erroresRed: number;
+  acreditado: number;
   /** Comprobantes aceptados con observaciones del CDR (código 4xxx). */
   observados: number;
   /** Importe neto a cobrar tras descontar detracciones y retenciones. */
@@ -44,7 +46,7 @@ export const calcularResumenFiscal = (
   comprobantes: readonly ComprobanteDemo[],
 ): ResumenFiscal => {
   // Los rechazos quedan fuera de todo agregado fiscal.
-  const validos = comprobantes.filter((c) => c.estado !== 'RECHAZADO');
+  const validos = comprobantes.filter((c) => ESTADOS_ACEPTADOS.has(c.estado));
 
   const afectanTotales = validos.filter(
     (c) => TIPOS_QUE_SUMAN.has(c.tipo) || TIPOS_QUE_RESTAN.has(c.tipo),
@@ -59,7 +61,8 @@ export const calcularResumenFiscal = (
   const igvTotal = round2(
     afectanTotales.reduce((acc, c) => acc + signo(c) * c.igv, 0),
   );
-  const totalFacturado = round2(baseTotal + igvTotal);
+  const totalFacturado = round2(afectanTotales.filter((c) => c.tipo === '01' || c.tipo === '03').reduce((acc, c) => acc + c.totalNeto, 0));
+  const acreditado = round2(afectanTotales.filter((c) => c.tipo === '07').reduce((acc, c) => acc + c.totalNeto, 0));
 
   const netoTotalCobrar = round2(
     afectanTotales.reduce((acc, c) => acc + signo(c) * c.totalNeto, 0),
@@ -86,9 +89,10 @@ export const calcularResumenFiscal = (
 
   // La tasa de éxito se mide sobre los comprobantes que SUNAT ya respondió:
   // los que siguen en cola todavía no tienen veredicto y no deben hundirla.
-  const respondidos = comprobantes.filter((c) => c.estado !== 'EN_COLA');
-  const tasaExito = respondidos.length
-    ? round2((aceptados / respondidos.length) * 100)
+  const principales = comprobantes.filter((c) => c.tipo === '01' || c.tipo === '03');
+  const exitos = principales.filter((c) => ESTADOS_ACEPTADOS.has(c.estado)).length;
+  const tasaExito = principales.length
+    ? round2((exitos / principales.length) * 100)
     : 0;
 
   return {
@@ -100,6 +104,8 @@ export const calcularResumenFiscal = (
     enCola,
     despachoPromedioMs,
     rechazados,
+    erroresRed: comprobantes.filter((c) => c.estado === 'SIN_CONFIRMAR').length,
+    acreditado,
     observados,
     netoTotalCobrar,
   };

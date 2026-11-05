@@ -105,7 +105,15 @@ export const InvoiceList = () => {
     refetch,
   } = useQuery({
     queryKey: ['invoices', 1],
-    queryFn: () => invoicesApi.getInvoices(1),
+    queryFn: async () => {
+      const primera = await invoicesApi.getInvoices(1, { page_size: 100 });
+      const paginas = await Promise.all(
+        Array.from({ length: Math.max(0, primera.totalPages - 1) }, (_, i) =>
+          invoicesApi.getInvoices(i + 2, { page_size: 100 }),
+        ),
+      );
+      return { ...primera, data: [ ...primera.data, ...paginas.flatMap((p) => p.data) ] };
+    },
     staleTime: 1000 * 60 * 3,
   });
 
