@@ -15,3 +15,9 @@
 | Serie | Serie fija según tipo | Longitud de serie y reglas de nota |
 
 Las reglas del servidor continúan siendo decisivas; esta tabla solo compara comprobaciones de presentación. Las diferencias que no aplican al formulario de factura o dependen de otros procesos no se alteraron.
+
+## Bandeja y datos de demostración
+
+`InvoiceList` obtiene las páginas mediante una única consulta `invoicesApi.getInvoices`, aplica `porApartado` y `aplicarFiltros` para construir `visibles` y usa ese mismo arreglo en `InvoiceTable` y `calcularResumenFiscal`. La prueba `invoiceReconciliacionVista` suma las filas aceptadas del rango y compara la tarjeta. El 5 nov en esta sesión, el despliegue mostró ocho filas con el conjunto B001-0003/0004 y bruto aceptado S/ 5,942.48; no se reprodujo la discrepancia con las filas de la auditoría. No hay evidencia suficiente para atribuir su origen a caché o al seed.
+
+El `package.json` del backend declara `seed` como comando independiente y `start:prod` ejecuta `node dist/main`; el orquestador de seeds inspeccionado llama a auth, customs y accounting. Esto no demuestra qué comandos externos configura el proveedor al arrancar ni qué base atendió cada respuesta: no se concluye que haya o no resiembra en el despliegue.
