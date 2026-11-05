@@ -104,12 +104,12 @@ export const InvoiceKpiCards = ({
         </CardHeader>
         <CardContent className="space-y-1">
           <PageText
-            variant={resumen.rechazados > 0 ? 'metric-destructive' : 'metric'}
+            variant={resumen.rechazados + resumen.erroresRed > 0 ? 'metric-destructive' : 'metric'}
           >
-            {resumen.rechazados}
+            {resumen.rechazados + resumen.erroresRed}
           </PageText>
           <PageText variant="caption">
-            Errores de red: {resumen.erroresRed} · Sin confirmación de SUNAT
+            Rechazos SUNAT: {resumen.rechazados} · Errores de red: {resumen.erroresRed}
           </PageText>
         </CardContent>
       </Card>
