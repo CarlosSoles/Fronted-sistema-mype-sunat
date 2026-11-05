@@ -21,10 +21,10 @@ import type { ProductoBuscado } from '../lib/invoiceSearch';
 import type { AfectacionIgv } from '../lib/invoiceTaxes';
 
 const OPCIONES_AFECTACION: readonly { value: AfectacionIgv; label: string }[] = [
-  { value: 'GRAVADA', label: 'Gravada 18%' },
-  { value: 'EXONERADA', label: 'Exonerada' },
-  { value: 'INAFECTA', label: 'Inafecta' },
-  { value: 'GRATUITA', label: 'Gratuita' },
+  { value: 'GRAVADA', label: '10 - Gravada onerosa (tributo 1000 - IGV)'  },
+  { value: 'EXONERADA', label: '20 - Exonerada (tributo 9997 - Exonerado)'  },
+  { value: 'INAFECTA', label: '30 - Inafecta (tributo 9998 - Inafecto)'  },
+  { value: 'GRATUITA', label: '11 - Retiro por premio (tributo 1000 - IGV)'  },
 ];
 
 const CLASE_CELDA =

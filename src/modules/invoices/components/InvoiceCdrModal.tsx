@@ -32,6 +32,7 @@ import {
 } from '../lib/invoiceDescarga';
 import { InvoiceStatusBadge } from './InvoiceStatusBadge';
 import { InvoiceAuditTrail } from './InvoiceAuditTrail';
+import { leerTributosXml, NOMBRES_AFECTACION, NOMBRES_TRIBUTO, rotularCodigo } from '../lib/invoiceTributosXml';
 
 interface InvoiceCdrModalProps {
   comprobante: ComprobanteDemo | null;
@@ -276,6 +277,14 @@ export const InvoiceCdrModal = ({
               )}
             </div>
 
+            <div className="space-y-1 rounded-lg border p-3">
+              <PageText variant="label">Afectación y tributos por línea</PageText>
+              {xmlReal && leerTributosXml(xmlReal).length > 0 ? leerTributosXml(xmlReal).map((linea, indice) => (
+                <PageText variant="caption" key={`${linea.id ?? 'sin-id'}-${indice}`}>
+                  Línea {linea.id ?? 'sin número'}{linea.descripcion ? ` · ${linea.descripcion}` : ''} · Afectación IGV (Catálogo 07): {rotularCodigo(linea.afectacion, NOMBRES_AFECTACION)} · Tributo (Catálogo 05): {rotularCodigo(linea.tributo, NOMBRES_TRIBUTO)}
+                </PageText>
+              )) : <PageText variant="caption">{xmlReal === undefined ? 'Consultando XML…' : 'Datos de afectación y tributo no disponibles en el XML.'}</PageText>}
+            </div>
             <InvoiceAuditTrail comprobante={c} />
           </TabsContent>
 
