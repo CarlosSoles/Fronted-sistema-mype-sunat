@@ -573,26 +573,14 @@ export default function InvoiceEmissionPage() {
                 }
                 placeholderDocumento={tipo === '01' ? '20100070970' : '70123456'}
                 onDocumentoChange={(valor) => { setClienteDoc(valor); setClienteRazonSocial(''); }}
+                onRazonSocialChange={setClienteRazonSocial}
                 onElegir={(cliente) => {
                   setClienteDoc(cliente.numeroDocumento);
                   setClienteRazonSocial(cliente.razonSocial);
                 }}
               />
 
-              <div className="space-y-1.5">
-                <label
-                  htmlFor="razon-cliente"
-                  className="text-xs font-medium text-foreground"
-                >
-                  Razón social / nombre
-                </label>
-                <Input
-                  id="razon-cliente"
-                  value={clienteRazonSocial}
-                  onChange={(e) => setClienteRazonSocial(e.target.value)}
-                  placeholder="FERRETERÍA LOS ANDES S.A.C."
-                />
-              </div>
+
             </CardContent>
           </Card>
 

@@ -158,6 +158,7 @@ export const InvoiceEmitCampos = ({
             : undefined
         }
         onDocumentoChange={(clienteDoc) => actualizar({ clienteDoc, clienteRazonSocial: '' })}
+        onRazonSocialChange={(clienteRazonSocial) => actualizar({ clienteRazonSocial })}
         onElegir={(cliente) =>
           actualizar({
             clienteDoc: cliente.numeroDocumento,
@@ -166,13 +167,6 @@ export const InvoiceEmitCampos = ({
         }
       />
 
-      <CampoTexto
-        id="razon-cliente"
-        label="Razón social / nombre"
-        value={b.clienteRazonSocial}
-        onChange={(v) => actualizar({ clienteRazonSocial: v })}
-        placeholder="CORPORACIÓN TEXTIL DEL NORTE S.A.C."
-      />
 
       <InvoiceItemsGrid
         items={b.items}

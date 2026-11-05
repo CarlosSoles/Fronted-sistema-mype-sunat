@@ -48,11 +48,11 @@ const aCentimos = (valor: number): number =>
 /** Conserva el texto mientras se escribe; redondea al guardar el valor numérico. */
 const ImporteEditable = ({ monto, etiqueta, onChange }: { monto: number; etiqueta: string; onChange: (valor: number) => void }) => {
   const [texto, setTexto] = useState<string | null>(null);
-  return <input aria-label={etiqueta} type="number" min="0" step="0.01"
+  return <input aria-label={etiqueta} type="text" inputMode="decimal"
     className={`${CLASE_CELDA} text-right`}
     value={texto ?? (Number.isFinite(monto) ? monto.toFixed(2) : '')}
-    onFocus={() => setTexto(Number.isFinite(monto) ? String(monto) : '')}
-    onChange={(e) => { const valor = e.target.value; setTexto(valor); onChange(valor === '' ? 0 : Number(valor)); }}
+    onFocus={(e) => { setTexto(e.currentTarget.value); e.currentTarget.select(); }}
+    onChange={(e) => { const valor = e.target.value; if (!/^\d*(?:\.\d{0,2})?$/.test(valor)) return; setTexto(valor); onChange(valor === '' ? 0 : Number(valor)); }}
     onBlur={() => setTexto(null)} />;
 };
 
