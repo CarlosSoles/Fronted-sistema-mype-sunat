@@ -247,10 +247,7 @@ export const InvoiceList = () => {
         <InvoiceFiltersBar
           filtros={filtros}
           onFiltrosChange={setFiltros}
-          onActualizar={() => {
-            refrescarCola();
-            setFiltros({ ...FILTROS_INICIALES });
-          }}
+          onActualizar={refrescarCola}
           onEmitir={(tipo) => {
             if (tipo === 'Nota') {
               setModalEmision(tipo);
