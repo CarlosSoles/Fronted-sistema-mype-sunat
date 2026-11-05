@@ -18,4 +18,3 @@ it('permite teclear importes desiguales sin reformatear cada tecla', () => {
   expect(campo.value).toBe('1000.00');
   expect(screen.getAllByText(/cuotas suman/)[0].textContent).toContain('1590.00');
 });
-
