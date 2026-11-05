@@ -46,6 +46,7 @@ interface CustomerLookupFieldProps {
   razonSocial: string;
   /** Se dispara al elegir un cliente: rellena documento y razón social. */
   onElegir: (cliente: ClienteBuscado) => void;
+  onDocumentoChange?: (documento: string) => void;
   /** Label del campo, que cambia entre factura y boleta. */
   labelDocumento: string;
   placeholderDocumento?: string;
@@ -57,10 +58,12 @@ export const CustomerLookupField = ({
   documento,
   razonSocial,
   onElegir,
+  onDocumentoChange,
   labelDocumento,
   placeholderDocumento,
   errorDocumento,
 }: CustomerLookupFieldProps) => {
+  const [estadoCarga, setEstadoCarga] = useState<'cargando' | 'listo' | 'error'>('cargando');
   const [cartera, setCartera] = useState<readonly ClienteBuscado[]>([]);
   const [textoEscribido, setTextoEscribido] = useState<string | null>(null);
   const [abierto, setAbierto] = useState(false);
@@ -78,10 +81,10 @@ export const CustomerLookupField = ({
     invoicesApi
       .buscarClientes()
       .then((lista) => {
-        if (vivo) setCartera(lista);
+        if (vivo) { setCartera(lista); setEstadoCarga('listo'); }
       })
       .catch(() => {
-        if (vivo) setCartera([]);
+        if (vivo) { setCartera([]); setEstadoCarga('error'); }
       });
 
     return () => {
@@ -122,7 +125,9 @@ export const CustomerLookupField = ({
         onChange={(e) => {
           // El documento es numérico: se limpia al escribir y NO se dispara
           // onElegir, porque el usuario puede estar corrigiendo a mano.
-          setTextoEscribido(e.target.value.replace(/\D/g, ''));
+          const valor = e.target.value;
+          setTextoEscribido(valor);
+          onDocumentoChange?.(/^\d*$/.test(valor) ? valor : '');
           setAbierto(true);
         }}        onKeyDown={(e) => {
           if (e.key === 'Escape') setAbierto(false);
@@ -131,7 +136,9 @@ export const CustomerLookupField = ({
 
       {errorDocumento && <PageText variant="error">{errorDocumento}</PageText>}
 
-      {mostrarSugerencias && resultados.length > 0 && (
+      {mostrarSugerencias && estadoCarga === 'cargando' && <PageText variant="caption">Buscando en la cartera…</PageText>}
+      {mostrarSugerencias && estadoCarga === 'error' && <PageText variant="error">No se pudo cargar la cartera; puede volver a abrir el formulario.</PageText>}
+      {mostrarSugerencias && estadoCarga === 'listo' && resultados.length > 0 && (
         <ul className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-md border bg-background shadow">
           {resultados.map((cliente) => (
             <li key={`${cliente.tipoDocumento}-${cliente.numeroDocumento}`}>
@@ -157,7 +164,7 @@ export const CustomerLookupField = ({
         </ul>
       )}
 
-      {mostrarSugerencias && resultados.length === 0 && (
+      {mostrarSugerencias && estadoCarga === 'listo' && resultados.length === 0 && (
         <PageText variant="caption">
           Sin coincidencias en su cartera. Puede escribirlo a mano.
         </PageText>

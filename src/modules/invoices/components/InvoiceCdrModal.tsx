@@ -288,7 +288,7 @@ export const InvoiceCdrModal = ({
             {xmlReal && requiereRevisionContableXml(xmlReal) && (
               <PageText variant="caption" className="text-amber-700">Descuento 01/03: revisar si el asiento automático está pendiente de revisión contable.</PageText>
             )}
-            <InvoiceAuditTrail comprobante={c} />
+            <InvoiceAuditTrail comprobante={c} digest={xmlReal === undefined ? undefined : digest} />
           </TabsContent>
 
           <TabsContent value="xml">

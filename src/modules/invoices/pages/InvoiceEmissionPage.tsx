@@ -572,6 +572,7 @@ export default function InvoiceEmissionPage() {
                     : 'DNI / documento del comprador'
                 }
                 placeholderDocumento={tipo === '01' ? '20100070970' : '70123456'}
+                onDocumentoChange={(valor) => { setClienteDoc(valor); setClienteRazonSocial(''); }}
                 onElegir={(cliente) => {
                   setClienteDoc(cliente.numeroDocumento);
                   setClienteRazonSocial(cliente.razonSocial);

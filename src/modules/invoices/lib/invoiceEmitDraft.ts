@@ -106,11 +106,11 @@ export const borradorInicial = (
   items: [
     {
       clave: nuevaClave(),
-      codigo: 'SRV-001',
-      descripcion: 'Servicio de confección',
+      codigo: tipo === '07' || tipo === '08' ? '' : 'SRV-001',
+      descripcion: tipo === '07' || tipo === '08' ? '' : 'Servicio de confección',
       unidad: 'NIU',
       cantidad: 1,
-      valorUnitario: 100,
+      valorUnitario: tipo === '07' || tipo === '08' ? 0 : 100,
       afectacion: 'GRAVADA',
       icbper: 0,
     },

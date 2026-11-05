@@ -237,6 +237,13 @@ export const InvoiceList = () => {
         <InvoiceCombinedSummary resumen={resumenCombinado} />
       )}
 
+      {filtros.desde && filtros.hasta && filtros.desde > filtros.hasta && (
+        <Alert variant="destructive" role="alert">
+          <AlertTitle>Rango de fechas inválido</AlertTitle>
+          <AlertDescription>La fecha Desde debe ser anterior o igual a Hasta.</AlertDescription>
+        </Alert>
+      )}
+
       <Tabs
         value={activeTab}
         onValueChange={(valor) =>

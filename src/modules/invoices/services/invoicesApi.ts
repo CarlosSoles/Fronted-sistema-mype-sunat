@@ -58,7 +58,14 @@ export interface FiltrosInvoices {
  * Los filtros se envían solo si tienen valor: mandar `estado=` (vacío) hace que
  * el backend filtre por una cadena vacía y no devuelva nada.
  */
+export interface SaldoNota { total: number; devuelto: number; disponible: number; }
+
 export const invoicesApi = {
+  getSaldoNota: async (id: string): Promise<SaldoNota> => {
+    const { data } = await apiClient.get<SaldoNota>(`/invoices/${encodeURIComponent(id)}/saldo`);
+    if (![data.total, data.devuelto, data.disponible].every((n) => typeof n === 'number' && Number.isFinite(n) && n >= 0)) throw new Error('El saldo recibido no es válido.');
+    return data;
+  },
   getInvoices: async (
     page = 1,
     filtros: FiltrosInvoices = {},
