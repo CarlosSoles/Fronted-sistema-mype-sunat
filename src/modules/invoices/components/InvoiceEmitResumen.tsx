@@ -15,6 +15,7 @@ import {
 import { montoEnLetrasSunat } from '../lib/invoiceCreditAndRules';
 import { borradorALiquidar, esTipoNota } from '../lib/invoiceEmitDraft';
 import type { BorradorEmision } from '../lib/invoiceEmitDraft';
+import { totalizarItems } from '../lib/invoiceItems';
 
 interface InvoiceEmitResumenProps {
   borrador: BorradorEmision;
@@ -47,7 +48,7 @@ export const InvoiceEmitResumen = ({ borrador }: InvoiceEmitResumenProps) => {
     (acc, item) => acc + (Number.isFinite(item.icbper) ? item.icbper : 0),
     0,
   );
-  const importeTotal = liquidacion.importeTotal + icbperLineas;
+  const importeTotal = totalizarItems(borrador.items).total;
   const detraccion = montoDetraccionPara(importeTotal, codigo);
   const neto = importeTotal - detraccion - liquidacion.montoRetencion;
 

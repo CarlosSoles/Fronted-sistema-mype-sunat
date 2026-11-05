@@ -106,6 +106,7 @@ export const InvoiceItemsGrid = ({
               <th className="px-2 py-1 text-left">Und.</th>
               <th className="px-2 py-1 text-right">Cant.</th>
               <th className="px-2 py-1 text-right">V. unit.</th>
+              <th className="px-2 py-1 text-left">Descuento (Cat. 53)</th>
               <th className="px-2 py-1 text-right">ICBPER</th>
               <th className="px-2 py-1 text-left">Afectación (Cat. 07) / tributo (Cat. 05)</th>
               <th className="px-2 py-1 text-left">Detrac.</th>
@@ -197,6 +198,16 @@ export const InvoiceItemsGrid = ({
                         onCambiar(i, { valorUnitario: Number(e.target.value) })
                       }
                     />
+                  </td>
+                  <td className="px-1 py-1">
+                    <select aria-label={`Tipo de descuento de la línea ${i + 1}`} className={CLASE_CELDA}
+                      value={item.descuento?.codigo ?? ''}
+                      onChange={(e) => onCambiar(i, { descuento: e.target.value ? { codigo: e.target.value as '00' | '01', monto: item.descuento?.monto ?? 0 } : null })}>
+                      <option value="">Sin descuento</option>
+                      <option value="00">00 - Afecta base IGV</option>
+                      <option value="01">01 - No afecta base IGV</option>
+                    </select>
+                    {item.descuento && <input aria-label={`Monto de descuento de la línea ${i + 1}`} type="number" min="0" step="0.01" className={`${CLASE_CELDA} text-right`} value={item.descuento.monto} onChange={(e) => onCambiar(i, { descuento: { ...item.descuento!, monto: Number(e.target.value) } })} />}
                   </td>
                   <td className="px-1 py-1">
                     <input

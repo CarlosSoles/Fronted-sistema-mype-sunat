@@ -83,6 +83,7 @@ export const borradorAPayloadEmision = (
       unidad: item.unidad,
       cantidad: item.cantidad,
       valorUnitario: item.valorUnitario,
+      descuento: item.descuento ?? null,
       // La afectación es POR LÍNEA: una factura puede llevar un ítem gravado y
       // otro exonerado. Mandar siempre '10' hacía que elegir "Exonerada" no
       // llegara nunca al XML.

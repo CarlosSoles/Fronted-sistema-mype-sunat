@@ -119,14 +119,13 @@ describe('TA-64 · detracción por línea', () => {
     expect(r.aplica).toBe(false);
   });
 
-  it('redondea el monto al entero como pide SUNAT', () => {
-    // 12 % de 1001 = 120.12 -> 120
+  it('conserva los céntimos de la detracción', () => {
+    // 12 % de 1001 = 120.12
     const r = calcularDetraccionPorLineas(
       [{ base: 1001, codigoDetraccion: '012' }],
       1770,
     );
-    expect(Number.isInteger(r.monto)).toBe(true);
-    expect(r.monto).toBe(120);
+    expect(r.monto).toBe(120.12);
   });
 });
 

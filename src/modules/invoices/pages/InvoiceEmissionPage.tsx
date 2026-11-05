@@ -169,7 +169,7 @@ export default function InvoiceEmissionPage() {
     () =>
       calcularDetraccionPorLineas(
         items.map((i) => ({
-          base: calcularItem(i).base,
+          base: calcularItem(i).total,
           codigoDetraccion: i.codigoDetraccion,
         })),
         importeTotal,

@@ -63,6 +63,7 @@ export interface ItemBorrador {
   cantidad: number;
   valorUnitario: number;
   afectacion: AfectacionIgv;
+  descuento?: { codigo: '00' | '01'; monto: number } | null;
   /** Importe del ICBPER de la línea; > 0 la marca como bolsa plástica. */
   icbper: number;
   /**
@@ -100,7 +101,7 @@ export const calcularItem = (item: ItemBorrador): TotalesItem => {
     : 0;
 
   const linea = calcularLinea({
-    base: round2(cantidad * valor),
+    base: round2(Math.max(0, cantidad * valor - (item.descuento?.codigo === '00' ? item.descuento.monto : 0))),
     afectacion: item.afectacion,
   });
 
@@ -110,7 +111,7 @@ export const calcularItem = (item: ItemBorrador): TotalesItem => {
   const igv = esGratuita ? 0 : linea.igv;
   const icbper = Number.isFinite(item.icbper) ? Math.max(0, item.icbper) : 0;
 
-  return { base, igv, icbper, total: round2(base + igv + icbper) };
+  return { base, igv, icbper, total: round2(base + igv + icbper - (item.descuento?.codigo === '01' ? item.descuento.monto : 0)) };
 };
 
 /** Total de una grilla de líneas. */
@@ -134,9 +135,10 @@ export const totalizarItems = (
         base: acc.base + t.base,
         igv: acc.igv + t.igv,
         icbper: acc.icbper + t.icbper,
+        total: acc.total + t.total,
       };
     },
-    { base: 0, igv: 0, icbper: 0 },
+    { base: 0, igv: 0, icbper: 0, total: 0 },
   );
 
   const base = round2(acumulado.base);
@@ -147,7 +149,7 @@ export const totalizarItems = (
     base,
     igv,
     icbper,
-    total: round2(base + igv + icbper),
+    total: round2(acumulado.total),
     lineas: items.length,
   };
 };
@@ -203,6 +205,9 @@ export const validarItems = (
     }
     if (!Number.isFinite(item.valorUnitario) || item.valorUnitario < 0) {
       motivos.push('El valor unitario no puede ser negativo.');
+    }
+    if (item.descuento && (!Number.isFinite(item.descuento.monto) || item.descuento.monto <= 0 || item.descuento.monto > item.cantidad * item.valorUnitario || item.afectacion === 'GRATUITA')) {
+      motivos.push('El descuento debe ser positivo, no exceder el valor de la línea y no aplicarse a una línea gratuita.');
     }
     // Una línea gratuita con valor cero no informa nada; una onerosa en cero
     // pasa, porque puede ser un bien de cortesía declarado como exonerado.
