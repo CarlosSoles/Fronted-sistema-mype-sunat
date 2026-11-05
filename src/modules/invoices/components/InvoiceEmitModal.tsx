@@ -12,6 +12,8 @@
  * regla del Catálogo 01/03/06/07/09/10/54.
  */
 import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { buscarAfectado } from '../lib/invoiceNotaOrigen';
 import {
   Button,
   Dialog,
@@ -208,12 +210,26 @@ export const InvoiceEmitModal = ({
   /** Motivo por el que el backend rechazó, o por el que no se llegó a enviar. */
   const [errorEmision, setErrorEmision] = useState<string | null>(null);
 
-  const pendientes = useMemo(
+  const afectado = buscarAfectado(existentes, b.documentoAfectado);
+  const saldoNota = useQuery({
+    queryKey: ['invoice-saldo-nota', afectado?.id],
+    queryFn: () => invoicesApi.getSaldoNota(afectado!.id),
+    enabled: b.tipo === '07' && !!afectado,
+    staleTime: 0,
+    retry: false,
+  });
+
+  const pendientesBase = useMemo(
     () => motivosPendientes(b, existentes, productos),
     [b, existentes, productos],
   );
-  const puedeEmitir = pendientes.length === 0;
   const flujo = calcularFlujo(b);
+  const pendientes = [...pendientesBase];
+  if (b.tipo === '07' && afectado) {
+    if (!saldoNota.data || saldoNota.isFetching || saldoNota.isError) pendientes.push(saldoNota.isError ? 'No se pudo consultar el saldo de la nota; inténtelo de nuevo.' : 'Consultando saldo del comprobante…');
+    else if (Math.round(flujo.importeTotal * 100) > Math.round(saldoNota.data.disponible * 100)) pendientes.push(`La nota supera el saldo disponible informado por el servidor (S/ ${saldoNota.data.disponible.toFixed(2)}).`);
+  }
+  const puedeEmitir = pendientes.length === 0;
 
   const actualizar = (parcial: Partial<BorradorEmision>) =>
     setB((previo) => {
@@ -311,6 +327,10 @@ export const InvoiceEmitModal = ({
     setEnviando(true);
     setErrorEmision(null);
     try {
+      if (b.tipo === '07' && afectado) {
+        const actual = await invoicesApi.getSaldoNota(afectado.id);
+        if (Math.round(flujo.importeTotal * 100) > Math.round(actual.disponible * 100)) throw new Error('La nota supera el saldo actualizado del comprobante.');
+      }
       const resultado = await invoicesApi.emitirComprobante(
         borradorAPayloadEmision(b),
       );
@@ -341,6 +361,7 @@ export const InvoiceEmitModal = ({
           actualizar={actualizar}
           existentes={existentes}
           total={flujo.importeTotal}
+          saldoNota={b.tipo === '07' ? saldoNota.data : undefined}
           onItemCambiado={cambiarItem}
           onItemEliminado={quitarItem}
           onItemAgregado={nuevoItem}
