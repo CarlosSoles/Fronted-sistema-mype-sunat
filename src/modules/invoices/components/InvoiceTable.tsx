@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui';
-import type { ComprobanteDemo } from '../data/invoiceDemoData';
+import type { ComprobanteDemo } from '../data/invoiceDemoSchema';
 import { InvoiceTableRow } from './InvoiceTableRow';
 
 interface InvoiceTableProps {

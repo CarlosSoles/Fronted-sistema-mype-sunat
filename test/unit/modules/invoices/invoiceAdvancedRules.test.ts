@@ -4,7 +4,7 @@ import {
 } from '@/modules/invoices/lib/invoiceMetrics';
 import {
   COMPROBANTES_DEMO,
-} from '@/modules/invoices/data/invoiceDemoData';
+} from './fixtures/comprobantesDemo';
 import { construir } from '@/modules/invoices/data/invoiceDemoTypes';
 
 describe('calcularResumenFiscal', () => {

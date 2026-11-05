@@ -11,7 +11,7 @@
  *  - BA-06: el CSV del RVIE incluía rechazados y comunicaciones de baja.
  */
 import { describe, expect, it } from 'vitest';
-import { COMPROBANTES_DEMO } from '@/modules/invoices/data/invoiceDemoData';
+import { COMPROBANTES_DEMO } from './fixtures/comprobantesDemo';
 import { construir } from '@/modules/invoices/data/invoiceDemoTypes';
 import {
   borradorAComprobante,

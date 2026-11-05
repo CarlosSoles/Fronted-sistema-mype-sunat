@@ -8,7 +8,7 @@
  * (RUC 20601234567). SUNAT lo rechaza con el código de error 2022. Todos los
  * RUC de ejemplo superan el módulo 11 para no ensuciar las validaciones.
  */
-import { construir } from './invoiceDemoTypes';
+import { construir } from '@/modules/invoices/data/invoiceDemoTypes';
 
 export type {
   ComprobanteDemo,
@@ -20,7 +20,7 @@ export type {
   SemillaComprobante,
   TipoComprobante,
   TipoOperacion,
-} from './invoiceDemoTypes';
+} from '@/modules/invoices/data/invoiceDemoTypes';
 
 /**
  * RUC de la empresa emisora del turno de demostración (módulo 11 válido).

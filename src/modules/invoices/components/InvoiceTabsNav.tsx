@@ -8,7 +8,7 @@
  *  4. Monitor Outbox y Auditoría CDR.
  */
 import { Badge, TabsList, TabsTrigger } from '@/components/ui';
-import type { ComprobanteDemo } from '../data/invoiceDemoData';
+import type { ComprobanteDemo } from '../data/invoiceDemoSchema';
 
 /** Identificadores de los cuatro apartados. */
 export type InvoiceTabId =

@@ -12,7 +12,7 @@
  *  - Los Resúmenes (RA/RC) no se agregan aquí: son comunicaciones, no ventas.
  */
 import { igvDesdeBase, round2 } from '../lib/invoiceCalculations';
-import type { ComprobanteDemo } from '../data/invoiceDemoData';
+import type { ComprobanteDemo } from '../data/invoiceDemoSchema';
 
 /** Métricas agregadas que alimentan las tarjetas superiores. */
 export interface ResumenFiscal {
