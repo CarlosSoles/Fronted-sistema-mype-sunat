@@ -157,6 +157,7 @@ export const InvoiceEmitCampos = ({
             ? mensajeErrorDocumento(b.tipo)
             : undefined
         }
+        onDocumentoChange={(clienteDoc) => actualizar({ clienteDoc, clienteRazonSocial: '' })}
         onElegir={(cliente) =>
           actualizar({
             clienteDoc: cliente.numeroDocumento,
