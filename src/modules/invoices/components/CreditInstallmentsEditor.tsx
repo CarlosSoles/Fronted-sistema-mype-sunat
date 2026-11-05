@@ -11,6 +11,7 @@
  * vivo: si el usuario descuadra el cronograma, el botón de emitir se bloquea
  * con el motivo exacto en lugar de dejar que el backend lo rechace.
  */
+import { useState } from 'react';
 import { Button, PageText } from '@/components/ui';
 import {
   repartirEnCuotas,
@@ -43,6 +44,17 @@ interface CreditInstallmentsEditorProps {
  */
 const aCentimos = (valor: number): number =>
   Number.isFinite(valor) ? Math.round((valor + Number.EPSILON) * 100) / 100 : 0;
+
+/** Conserva el texto mientras se escribe; redondea al guardar el valor numérico. */
+const ImporteEditable = ({ monto, etiqueta, onChange }: { monto: number; etiqueta: string; onChange: (valor: number) => void }) => {
+  const [texto, setTexto] = useState<string | null>(null);
+  return <input aria-label={etiqueta} type="number" min="0" step="0.01"
+    className={`${CLASE_CELDA} text-right`}
+    value={texto ?? (Number.isFinite(monto) ? monto.toFixed(2) : '')}
+    onFocus={() => setTexto(Number.isFinite(monto) ? String(monto) : '')}
+    onChange={(e) => { const valor = e.target.value; setTexto(valor); onChange(valor === '' ? 0 : Number(valor)); }}
+    onBlur={() => setTexto(null)} />;
+};
 
 /** Tabla editable de cuotas con la comprobación de la regla 3319 al pie. */
 export const CreditInstallmentsEditor = ({
@@ -105,22 +117,11 @@ export const CreditInstallmentsEditor = ({
                   Cuota{String(i + 1).padStart(3, '0')}
                 </td>
                 <td className="px-1 py-1">
-                  <input
-                    aria-label={`Importe de la cuota ${i + 1}`}
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    className={`${CLASE_CELDA} text-right`}
-                    // El importe se pinta formateado a céntimos. Sin el
-                    // `toFixed(2)` el input mostraba `11.800000190734863`: la
-                    // división del neto entre cuotas arrastra el error de coma
-                    // flotante de IEEE-754 y el campo lo enseñaba tal cual. Justo
-                    // en la tarea donde la regla 3319 exige cuadre exacto al
-                    // céntimo, el número en pantalla no cuadraba a la vista.
-                    value={Number.isFinite(cuota.monto) ? cuota.monto.toFixed(2) : ''}
-                    onChange={(e) =>
-                      editar(i, { monto: Number(e.target.value) })
-                    }
+                  <ImporteEditable
+                    key={i}
+                    etiqueta={`Importe de la cuota ${i + 1}`}
+                    monto={cuota.monto}
+                    onChange={(monto) => editar(i, { monto })}
                   />
                 </td>
                 <td className="px-1 py-1">

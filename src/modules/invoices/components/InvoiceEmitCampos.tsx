@@ -32,6 +32,7 @@ import { CustomerLookupField } from './CustomerLookupField';
 import { InvoiceEmitCamposTributarios } from './InvoiceEmitCamposTributarios';
 import { InvoiceItemsGrid } from './InvoiceItemsGrid';
 import { InvoiceDescuentoGlobal } from './InvoiceDescuentoGlobal';
+import type { SaldoNota } from '../services/invoicesApi';
 
 interface InvoiceEmitCamposProps {
   borrador: BorradorEmision;
@@ -40,6 +41,7 @@ interface InvoiceEmitCamposProps {
   existentes: readonly ComprobanteDemo[];
   /** Total del comprobante calculado, para estimar la detracción. */
   total: number;
+  saldoNota?: SaldoNota;
   onItemCambiado: (indice: number, parcial: Partial<BorradorEmision['items'][number]>) => void;
   onItemEliminado: (indice: number) => void;
   onItemAgregado: () => void;
@@ -63,6 +65,7 @@ export const InvoiceEmitCampos = ({
   actualizar,
   existentes,
   total,
+  saldoNota,
   onItemCambiado,
   onItemEliminado,
   onItemAgregado,
@@ -154,6 +157,7 @@ export const InvoiceEmitCampos = ({
             ? mensajeErrorDocumento(b.tipo)
             : undefined
         }
+        onDocumentoChange={(clienteDoc) => actualizar({ clienteDoc, clienteRazonSocial: '' })}
         onElegir={(cliente) =>
           actualizar({
             clienteDoc: cliente.numeroDocumento,
@@ -221,10 +225,11 @@ export const InvoiceEmitCampos = ({
                 Se vincula con{' '}
                 {afectado.numero ||
                   `${afectado.serie}-${String(afectado.correlativo).padStart(8, '0')}`}{' '}
-                · {afectado.clienteRazonSocial} · total S/{' '}
+                · {afectado.clienteRazonSocial} · base S/{' '}
                 {afectado.baseImponible.toFixed(2)} + IGV de{' '}
                 {afectado.igv.toFixed(2)}
               </p>
+              {saldoNota && <p className="text-xs">Total S/ {saldoNota.total.toFixed(2)} · Acreditado según servidor S/ {saldoNota.devuelto.toFixed(2)} · Disponible según servidor S/ {saldoNota.disponible.toFixed(2)}. Las notas antiguas sin vínculo por ID pueden no estar incluidas.</p>}
             </div>
           )}
           <CampoSelect
