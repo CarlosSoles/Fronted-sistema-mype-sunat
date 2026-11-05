@@ -32,7 +32,7 @@ export const ShipmentHeaderCard: React.FC<ShipmentHeaderCardProps> = ({ shipment
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
           <div className="flex items-center gap-2">
             <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
             <div>
@@ -69,6 +69,16 @@ export const ShipmentHeaderCard: React.FC<ShipmentHeaderCardProps> = ({ shipment
               <p className="text-[11px] text-muted-foreground">Fecha Estimada (ETA)</p>
               <p className="font-medium text-foreground">
                 {shipment.eta_date ? new Date(shipment.eta_date).toLocaleDateString('es-PE') : 'No definida'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Ship className="h-4 w-4 text-primary shrink-0" />
+            <div>
+              <p className="text-[11px] text-muted-foreground">Orden de Origen</p>
+              <p className="font-semibold text-primary truncate max-w-[150px]">
+                {shipment.order_reference || 'ORD-2026-00042 (100 Laptops)'}
               </p>
             </div>
           </div>

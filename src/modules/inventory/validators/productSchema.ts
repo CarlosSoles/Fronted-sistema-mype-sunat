@@ -6,6 +6,14 @@ export const productSchema = z.object({
   sunat_type_code: z.string().optional(),
   sunat_unit_code: z.string().optional(),
   min_stock_alert: z.number().min(0, 'El stock mínimo no puede ser negativo').optional(),
+  brand: z.string().optional(),
+  model: z.string().optional(),
+  category: z.string().optional(),
+  barcode: z.string().optional(),
+  hs_code: z.string().optional(),
+  weight_kg: z.number().optional(),
+  volume_m3: z.number().optional(),
+  tax_affectation: z.string().optional(),
 });
 
 export type ProductFormData = z.infer<typeof productSchema>;
