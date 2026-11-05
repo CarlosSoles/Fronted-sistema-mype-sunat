@@ -13,12 +13,13 @@ import { InventoryProductSearchSelect } from './InventoryProductSearchSelect';
 import {
   UNIDADES_MEDIDA,
   calcularItem,
+  esLineaBolsa,
   type ItemBorrador,
 } from '../lib/invoiceItems';
 import { CODIGOS_DETRACCION } from '../lib/invoiceDetraccion';
 import { revisarGrilla } from '../lib/invoiceStockLinea';
 import type { ProductoBuscado } from '../lib/invoiceSearch';
-import type { AfectacionIgv } from '../lib/invoiceTaxes';
+import { ICBPER_POR_UNIDAD, type AfectacionIgv } from '../lib/invoiceTaxes';
 
 const OPCIONES_AFECTACION: readonly { value: AfectacionIgv; label: string }[] = [
   { value: 'GRAVADA', label: '10 - Gravada onerosa (tributo 1000 - IGV)'  },
@@ -217,13 +218,14 @@ export const InvoiceItemsGrid = ({
                       aria-label={`ICBPER de la línea ${i + 1}`}
                       type="number"
                       min="0"
-                      step="0.5"
+                      step={esLineaBolsa(item) ? '0.5' : '1'}
                       className={`${CLASE_CELDA} text-right`}
-                      value={item.icbper}
+                      value={esLineaBolsa(item) ? item.icbper : item.icbper / ICBPER_POR_UNIDAD}
                       onChange={(e) =>
-                        onCambiar(i, { icbper: Number(e.target.value) })
+                        onCambiar(i, { icbper: esLineaBolsa(item) ? Number(e.target.value) : Math.max(0, Math.floor(Number(e.target.value))) * ICBPER_POR_UNIDAD })
                       }
                     />
+                    {!esLineaBolsa(item) && <span className="text-[10px]">Cantidad de bolsas · S/ 0.50 c/u</span>}
                   </td>
                   <td className="px-1 py-1">
                     <select

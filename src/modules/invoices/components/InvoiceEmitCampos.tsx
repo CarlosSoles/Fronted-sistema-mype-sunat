@@ -224,6 +224,7 @@ export const InvoiceEmitCampos = ({
                 {afectado.igv.toFixed(2)}
               </p>
               {saldoNota && <p className="text-xs">Total S/ {saldoNota.total.toFixed(2)} · Acreditado según servidor S/ {saldoNota.devuelto.toFixed(2)} · Disponible según servidor S/ {saldoNota.disponible.toFixed(2)}. Las notas antiguas sin vínculo por ID pueden no estar incluidas.</p>}
+              {b.tipo === '07' && saldoNota && Math.round(saldoNota.devuelto * 100) > Math.round(saldoNota.total * 100) && <p role="alert" className="text-xs text-destructive">El acreditado según el servidor supera el total del comprobante. Revise el sobre-crédito antes de continuar.</p>}
             </div>
           )}
           <CampoSelect
