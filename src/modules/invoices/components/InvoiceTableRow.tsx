@@ -43,7 +43,18 @@ export const InvoiceTableRow = ({
   const descuento = c.detraccion + c.retencion;
 
   return (
-    <TableRow>
+    <TableRow
+      className="cursor-pointer"
+      tabIndex={0}
+      aria-label={`Ver detalle XML de ${c.serie}-${c.correlativo}`}
+      onClick={() => onVerXml(c)}
+      onKeyDown={(e) => {
+        if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault();
+          onVerXml(c);
+        }
+      }}
+    >
       <TableCell>
         <PageText variant="label">{TIPO_LABEL[c.tipo]}</PageText>
         <PageText variant="caption">
@@ -105,7 +116,7 @@ export const InvoiceTableRow = ({
         <InvoiceStatusBadge estado={c.estado} codigo={c.cdrCodigo} />
       </TableCell>
 
-      <TableCell align="right">
+      <TableCell align="right" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-end gap-1">
           <Button
             variant="ghost"
