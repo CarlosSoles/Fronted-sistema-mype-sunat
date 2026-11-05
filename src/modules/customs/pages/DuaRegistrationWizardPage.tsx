@@ -15,7 +15,8 @@ import { ArrowLeft, ArrowRight, RotateCcw, CheckCircle2, CreditCard } from 'luci
 export default function DuaRegistrationWizardPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const shipmentId = searchParams.get('shipmentId') || 'demo-shipment-001';
+  const shipmentId = searchParams.get('shipmentId') || 'EXP-2026-00042';
+  const orderId = searchParams.get('orderId');
 
   const {
     currentStep,
@@ -30,7 +31,7 @@ export default function DuaRegistrationWizardPage() {
     isSubmitting,
     isSuccess,
     declarationResult,
-  } = useDuaWizard(shipmentId);
+  } = useDuaWizard(shipmentId, orderId);
 
   const handleFinalSubmit = async () => {
     try {
@@ -91,8 +92,8 @@ export default function DuaRegistrationWizardPage() {
       <CustomsSubNav />
 
       <PageHeader
-        title="DAM y Valoración Aduanera"
-        description="Declaración Aduanera de Mercancías (Formatos A, B y C), series arancelarias y cálculo anticipado de tributos."
+        title="3. Despacho y Declaración Aduanera (DAM / DUA)"
+        description="Declaración Aduanera de Mercancías (Formatos A, B y C), series arancelarias y numeración oficial ante SUNAT."
       >
         <div className="flex gap-2">
           <Button

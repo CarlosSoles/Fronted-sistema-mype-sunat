@@ -62,8 +62,8 @@ export default function ShipmentsListPage() {
       <CustomsSubNav />
 
       <PageHeader
-        title="Expedientes y Embarques"
-        description="Supervisión de expedientes de importación, embarques internacionales, tracking aduanero y control documental."
+        title="2. Tránsito y Arribo Internacional"
+        description="Seguimiento de travesía marítima/aérea, control de documentos de transporte (BL / Guía Aérea), navieras y confirmación de arribo al Callao."
       >
         <div className="flex items-center gap-2">
           <Button
@@ -101,7 +101,7 @@ export default function ShipmentsListPage() {
               className="h-7 px-2.5 text-xs gap-1"
             >
               <LayoutGrid className="h-3 w-3" />
-              Kanban
+              Tablero Logístico
             </Button>
             <Button
               size="sm"
@@ -118,10 +118,10 @@ export default function ShipmentsListPage() {
             <Button
               size="sm"
               onClick={() => setIsModalOpen(true)}
-              className="h-8 text-xs gap-1.5"
+              className="h-8 text-xs gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-sm"
             >
               <PlusCircle className="h-3.5 w-3.5" />
-              Aperturar Expediente
+              Registrar Embarque / BL
             </Button>
           )}
         </div>
@@ -145,6 +145,7 @@ export default function ShipmentsListPage() {
           <ShipmentKanban
             shipments={filteredShipments}
             onSelectShipment={handleSelectShipment}
+            onNavigateToDam={(id) => navigate(`/customs/declarations/new?shipmentId=${id}`)}
           />
         ) : (
           <ShipmentsDataTable

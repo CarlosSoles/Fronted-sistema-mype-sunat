@@ -10,16 +10,42 @@ import {
 export const normalizeDeclarationRecord = (
   raw: Record<string, unknown>
 ): CustomsDeclarationRecord => {
+  const fob = Number(raw.fob_total_usd ?? raw.fobTotalUsd ?? raw.fobValueUsd ?? 0);
+  const freight = Number(raw.freight_total_usd ?? raw.freightTotalUsd ?? raw.freightValueUsd ?? 0);
+  const insurance = Number(raw.insurance_total_usd ?? raw.insuranceTotalUsd ?? raw.insuranceValueUsd ?? 0);
+  const cifUsd = Number(raw.cif_total_usd ?? raw.cifTotalUsd ?? raw.cifValueUsd ?? (fob + freight + insurance));
+  const tc = Number(raw.exchange_rate ?? raw.exchangeRate ?? 3.82);
+  const cifPen = Number(raw.cif_total_pen ?? raw.cifTotalPen ?? raw.cifValuePen ?? (cifUsd * tc));
+
+  let seriesList: any[] = [];
+  if (Array.isArray(raw.series) && raw.series.length > 0) {
+    seriesList = raw.series;
+  } else if (Array.isArray(raw.items) && raw.items.length > 0) {
+    seriesList = (raw.items as any[]).map((it, idx) => ({
+      series_order: it.seriesOrder || it.series_order || it.itemOrder || it.item_order || idx + 1,
+      product_code: it.productCode || it.product_code || `PROD-${idx + 1}`,
+      hs_code: it.hsCode || it.hs_code || '8471.30.00.00',
+      commercial_description: it.commercialDescription || it.commercial_description || 'Mercancía importada',
+      destination_type: it.destinationType || it.destination_type || 'MERCADERIA',
+      physical_quantity: Number(it.quantity || it.physical_quantity || 1),
+      physical_unit: it.unitCode || it.unit_code || 'NIU',
+      net_weight_kg: Number(it.netWeightKg || it.net_weight_kg || 0),
+      gross_weight_kg: Number(it.grossWeightKg || it.gross_weight_kg || 0),
+      fob_usd: Number(it.fobTotalUsd || it.fob_total_usd || (it.quantity * it.fobUnitUsd) || 0),
+      ad_valorem_rate: Number(it.adValoremRate || it.ad_valorem_rate || 0),
+    }));
+  }
+
   return {
-    id: String(raw.id || ''),
+    id: String(raw.id || 'dam-001'),
     company_id: String(raw.company_id ?? raw.companyId ?? ''),
     shipment_id: String(raw.shipment_id ?? raw.shipmentId ?? ''),
-    dua_number: String(raw.dua_number ?? raw.duaNumber ?? ''),
+    dua_number: String(raw.dua_number ?? raw.duaNumber ?? '118-2026-10-045892'),
     customs_code: String(raw.customs_code ?? raw.customsCode ?? raw.customsAgencyCode ?? '118'),
-    declaration_year: Number(raw.declaration_year ?? raw.declarationYear ?? 2026),
+    declaration_year: Number(raw.declaration_year ?? raw.declarationYear ?? new Date().getFullYear()),
     regime_code: String(raw.regime_code ?? raw.regimeCode ?? '10'),
     correlative_number: String(raw.correlative_number ?? raw.correlativeNumber ?? ''),
-    numeration_date: String(raw.numeration_date ?? raw.numerationDate ?? ''),
+    numeration_date: String(raw.numeration_date ?? raw.numerationDate ?? new Date().toISOString()),
     dispatch_mode: (raw.dispatch_mode ?? raw.dispatchMode ?? '10') as any,
     channel: (raw.channel as CustomsChannel) || 'VERDE',
     transport_doc_number: String(raw.transport_doc_number ?? raw.transportDocNumber ?? ''),
@@ -28,13 +54,13 @@ export const normalizeDeclarationRecord = (
         ? String(raw.manifest_number)
         : raw.manifestNumber != null
         ? String(raw.manifestNumber)
-        : undefined,
-    fob_total_usd: Number(raw.fob_total_usd ?? raw.fobTotalUsd ?? raw.fobValueUsd ?? 0),
-    freight_total_usd: Number(raw.freight_total_usd ?? raw.freightTotalUsd ?? raw.freightValueUsd ?? 0),
-    insurance_total_usd: Number(raw.insurance_total_usd ?? raw.insuranceTotalUsd ?? raw.insuranceValueUsd ?? 0),
-    cif_total_usd: Number(raw.cif_total_usd ?? raw.cifTotalUsd ?? raw.cifValueUsd ?? 0),
-    exchange_rate: Number(raw.exchange_rate ?? raw.exchangeRate ?? 3.82),
-    cif_total_pen: Number(raw.cif_total_pen ?? raw.cifTotalPen ?? raw.cifValuePen ?? 0),
+        : '',
+    fob_total_usd: fob,
+    freight_total_usd: freight,
+    insurance_total_usd: insurance,
+    cif_total_usd: cifUsd,
+    exchange_rate: tc,
+    cif_total_pen: cifPen,
     total_ad_valorem_pen: Number(raw.total_ad_valorem_pen ?? raw.totalAdValoremPen ?? 0),
     total_igv_pen: Number(raw.total_igv_pen ?? raw.totalIgvPen ?? 0),
     total_ipm_pen: Number(raw.total_ipm_pen ?? raw.totalIpmPen ?? 0),
@@ -43,9 +69,14 @@ export const normalizeDeclarationRecord = (
       raw.has_article_160_guarantee ?? raw.hasArticle160Guarantee ?? false
     ),
     version: Number(raw.version ?? 1),
-    created_at: String(raw.created_at ?? raw.createdAt ?? ''),
-    series: Array.isArray(raw.series) ? (raw.series as any) : [],
+    created_at: String(raw.created_at ?? raw.createdAt ?? new Date().toISOString()),
+    series: seriesList,
     settlements: Array.isArray(raw.settlements) ? (raw.settlements as any) : undefined,
+    supplier_name: (raw.supplier_name ?? raw.supplierName) as string | undefined,
+    supplier_tax_id: (raw.supplier_tax_id ?? raw.supplierTaxId) as string | undefined,
+    supplier_country: (raw.supplier_country ?? raw.supplierCountry) as string | undefined,
+    commercial_invoice_number: (raw.commercial_invoice_number ?? raw.commercialInvoiceNumber ?? raw.invoice_number) as string | undefined,
+    incoterm: (raw.incoterm ?? raw.incoterms) as string | undefined,
   };
 };
 

@@ -89,6 +89,11 @@ export interface CustomsDeclarationRecord {
   created_at: string;
   series: CustomsItemDetail[];
   settlements?: CustomsSettlementRecord[];
+  supplier_name?: string;
+  supplier_tax_id?: string;
+  supplier_country?: string;
+  commercial_invoice_number?: string;
+  incoterm?: string;
 }
 
 export interface RegisterDuaWizardItemPayload {

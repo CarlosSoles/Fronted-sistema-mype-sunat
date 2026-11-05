@@ -31,6 +31,9 @@ export * from './CustomsSubNav';
 export * from './DamFormatsViewerModal';
 export * from './GoodsReceiptTabContent';
 export * from './QuickTariffCalculatorModal';
+export * from './NewImportOrderModal';
+export * from './AddOrderDocumentModal';
+export * from './OrderChecklistTab';
 
 // Legacy exports preservados para compatibilidad
 export * from './CustomsKpiCards';

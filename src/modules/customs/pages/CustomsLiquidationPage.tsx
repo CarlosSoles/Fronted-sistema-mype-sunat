@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Page, PageHeader, Button, Card } from '@/components/ui';
 import {
   CustomsSubNav,
@@ -6,11 +7,12 @@ import {
   PaySettlementModal,
 } from '../components';
 import { useCustomsSettlements } from '../hooks/useCustomsSettlements';
-import { CreditCard, RefreshCw, AlertCircle, CheckCircle2, Check } from 'lucide-react';
+import { CreditCard, RefreshCw, AlertCircle, CheckCircle2, Check, ArrowLeft } from 'lucide-react';
 import { type CustomsSettlementRecord } from '../types';
 import { formatCurrency } from '@/lib/formatters';
 
 export default function CustomsLiquidationPage() {
+  const navigate = useNavigate();
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [selectedSettlement, setSelectedSettlement] = useState<CustomsSettlementRecord | null>(null);
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
@@ -63,9 +65,18 @@ export default function CustomsLiquidationPage() {
       <CustomsSubNav />
 
       <PageHeader
-        title="Tributos y Pagos Aduaneros"
-        description="Gestión de liquidaciones de cobranza SUNAT (CDA oficial 18D), derechos arancelarios y pagos bancarios."
+        title="Liquidación y Pago de Tributos (CDA)"
+        description="Cobranza oficial SUNAT (CDA formato 18D), derechos arancelarios y pagos bancarios de la DAM."
       >
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => navigate('/customs/declarations')}
+          className="text-xs gap-1.5 h-8"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Volver a Despacho y DAM
+        </Button>
         <Button
           size="sm"
           variant="outline"
