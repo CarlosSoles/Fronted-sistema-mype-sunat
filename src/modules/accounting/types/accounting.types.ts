@@ -52,6 +52,46 @@ export interface CreateAccountingEntryInput {
   lines: AccountingLineInput[];
 }
 
+export interface LedgerMovement {
+  entryId: string;
+  entryNumber: number;
+  entryDate: string;
+  glosa: string;
+  sourceModule: string;
+  accountCode: string;
+  accountName: string;
+  debit: number;
+  credit: number;
+  saldo: number;
+}
+
+export interface LedgerResponse {
+  period: string;
+  accountCode: string;
+  accountName: string;
+  nature: string;
+  openingBalance: number;
+  movements: LedgerMovement[];
+  totalDebit: number;
+  totalCredit: number;
+  closingBalance: number;
+}
+
+export interface TrialBalanceRow {
+  accountCode: string;
+  accountName: string;
+  debit: number;
+  credit: number;
+  balance: number;
+}
+
+export interface TrialBalanceResponse {
+  period: string;
+  rows: TrialBalanceRow[];
+  totalDebit: number;
+  totalCredit: number;
+}
+
 export interface PleExportConfig {
   periodo: string; // AAAAMM
   libro: '5.1_DIARIO' | '6.1_MAYOR' | '8.1_COMPRAS' | '14.1_VENTAS';
