@@ -50,6 +50,7 @@ import { invoicesApi } from './services/invoicesApi';
 import { aplicarFiltros, porApartado } from './lib/invoiceFilters';
 import { descargarPdfComprobante } from './lib/invoiceExportPdf';
 import { exportarReporteSireCsv } from './lib/invoiceExportSire';
+import { useInvoiceFiltros } from './lib/useInvoiceFiltros';
 
 const FILTROS_INICIALES: InvoiceFiltros = {
   busqueda: '',
@@ -90,7 +91,7 @@ export const InvoiceList = () => {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const activeTab = tabDesdeRuta(pathname);
-  const [filtros, setFiltros] = useState<InvoiceFiltros>(FILTROS_INICIALES);
+  const [filtros, setFiltros] = useInvoiceFiltros();
   const [modalEmision, setModalEmision] = useState<TipoEmision | null>(null);
   const [visor, setVisor] = useState<VisorState | null>(null);
   // El modal de emisión muestra su propio error si el backend niega la emisión

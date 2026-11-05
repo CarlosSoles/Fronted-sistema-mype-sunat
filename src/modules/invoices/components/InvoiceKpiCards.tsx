@@ -53,7 +53,7 @@ export const InvoiceKpiCards = ({
             {formatCurrency(resumen.igvTotal, 'PEN')}
           </PageText>
           <PageText variant="caption">
-            Acreditado {formatCurrency(resumen.acreditado, 'PEN')} · Neto {formatCurrency(resumen.netoTotalCobrar, 'PEN')}
+            Acreditado {formatCurrency(resumen.acreditado, 'PEN')} · Neto de esta vista (sin notas) {formatCurrency(resumen.netoTotalCobrar, 'PEN')}
           </PageText>
         </CardContent>
       </Card>
