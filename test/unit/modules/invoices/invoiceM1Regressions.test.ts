@@ -253,8 +253,8 @@ describe('BA-04 · la cola Outbox se vacía cuando llega el CDR', () => {
   });
 });
 
-describe('BA-05 · la tasa de éxito ignora lo que aún no tiene veredicto', () => {
-  it('no cuenta los comprobantes EN_COLA como fallidos', () => {
+describe('BA-05 · la tasa de éxito incluye los comprobantes pendientes', () => {
+  it('incluye los comprobantes EN_COLA en el denominador', () => {
     const enCola = construir({
       tipo: '01',
       serie: 'F001',
@@ -279,7 +279,7 @@ describe('BA-05 · la tasa de éxito ignora lo que aún no tiene veredicto', () 
 
     const resumen = calcularResumenFiscal([enCola, aceptado]);
 
-    expect(resumen.tasaExito).toBe(100);
+    expect(resumen.tasaExito).toBe(50);
   });
 
   it('sin comprobantes respondidos la tasa es 0 y no NaN', () => {

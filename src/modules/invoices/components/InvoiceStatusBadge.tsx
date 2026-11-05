@@ -46,7 +46,7 @@ const ESTADOS: Record<
    * emitiéndose una vez resuelto el problema de red.
    */
   SIN_CONFIRMAR: {
-    label: 'Sin confirmar',
+    label: 'Error de red (ERROR_RED)',
     className: 'border-amber-500/40 bg-amber-500/10 text-amber-700',
     ariaLabel: 'No llegó a SUNAT: el envío falló por un error de red',
   },
