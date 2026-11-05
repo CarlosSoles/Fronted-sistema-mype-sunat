@@ -24,6 +24,7 @@ import {
   TabsContent,
 } from '@/components/ui';
 import type { ComprobanteDemo } from './data/invoiceDemoTypes';
+import { InvoiceCombinedSummary } from './components/InvoiceCombinedSummary';
 import { InvoiceKpiCards } from './components/InvoiceKpiCards';
 import { InvoiceDemoNotice } from './components/InvoiceDemoNotice';
 import {
@@ -136,6 +137,11 @@ export const InvoiceList = () => {
     [visibles],
   );
 
+  const resumenCombinado = useMemo(
+    () => calcularResumenFiscal(aplicarFiltros(comprobantes, filtros)),
+    [comprobantes, filtros],
+  );
+
   /**
    * Alta real del comprobante: se persiste en el backend y se refresca la
    * grilla. Si falla, se avisa en pantalla en vez de fingir que se emitió.
@@ -221,6 +227,10 @@ export const InvoiceList = () => {
       <InvoiceDemoNotice />
 
       <InvoiceKpiCards resumen={resumen} filtrado={hayFiltrosActivos(filtros, activeTab)} />
+
+      {activeTab === 'comprobantes' && !isLoading && !isError && (
+        <InvoiceCombinedSummary resumen={resumenCombinado} />
+      )}
 
       <Tabs
         value={activeTab}

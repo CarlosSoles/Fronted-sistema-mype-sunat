@@ -26,6 +26,7 @@ export interface ResumenFiscal {
   rechazados: number;
   erroresRed: number;
   acreditado: number;
+  debitado: number;
   /** Comprobantes aceptados con observaciones del CDR (código 4xxx). */
   observados: number;
   /** Importe neto a cobrar tras descontar detracciones y retenciones. */
@@ -106,6 +107,7 @@ export const calcularResumenFiscal = (
     rechazados,
     erroresRed: comprobantes.filter((c) => c.estado === 'SIN_CONFIRMAR').length,
     acreditado,
+    debitado: round2(afectanTotales.filter((c) => c.tipo === '08').reduce((acc, c) => acc + c.totalNeto, 0)),
     observados,
     netoTotalCobrar,
   };
