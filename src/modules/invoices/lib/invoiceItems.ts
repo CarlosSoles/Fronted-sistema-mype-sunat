@@ -206,7 +206,7 @@ export const validarItems = (
     if (!Number.isFinite(item.valorUnitario) || item.valorUnitario < 0) {
       motivos.push('El valor unitario no puede ser negativo.');
     }
-    if (item.descuento && (!Number.isFinite(item.descuento.monto) || item.descuento.monto <= 0 || item.descuento.monto > item.cantidad * item.valorUnitario || item.afectacion === 'GRATUITA')) {
+    if (item.descuento && (!Number.isFinite(item.descuento.monto) || item.descuento.monto <= 0 || round2(item.descuento.monto) !== item.descuento.monto || item.descuento.monto > item.cantidad * item.valorUnitario || item.afectacion === 'GRATUITA')) {
       motivos.push('El descuento debe ser positivo, no exceder el valor de la línea y no aplicarse a una línea gratuita.');
     }
     // Una línea gratuita con valor cero no informa nada; una onerosa en cero

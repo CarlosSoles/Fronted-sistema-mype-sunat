@@ -69,6 +69,7 @@ export interface EmitirComprobantePayload {
    */
   cuotas?: readonly { monto: number; vencimiento: string }[];
   items: readonly LineaEmisionPayload[];
+  descuento_global?: { codigo: '02' | '03'; monto: number } | null;
   /** Notas (07/08): comprobante que se modifica. Obligatorio en notas. */
   documento_afectado?: string;
   codigo_motivo_nota?: string;

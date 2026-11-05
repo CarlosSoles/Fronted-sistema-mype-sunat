@@ -19,7 +19,7 @@ import type { AfectacionGrilla, EmitirComprobantePayload } from '../types/invoic
 import type { BorradorEmision } from './invoiceEmitDraft';
 import { esTipoNota } from './invoiceEmitDraft';
 import { validarCronograma } from './invoiceDetraccion';
-import { totalizarItems } from './invoiceItems';
+import { liquidarDescuentoGlobal } from './invoiceDescuentoGlobal';
 
 /**
  * Traducción de la afectación de la grilla al código del Catálogo 07.
@@ -77,6 +77,7 @@ export const borradorAPayloadEmision = (
             vencimiento: c.vencimiento,
           }))
         : undefined,
+    descuento_global: b.descuentoGlobal ?? null,
     items: b.items.map((item) => ({
       descripcion: item.descripcion.trim(),
       codigo: item.codigo.trim() || undefined,
@@ -116,7 +117,7 @@ export const problemaDeCronograma = (b: BorradorEmision): string | null => {
 
   const revision = validarCronograma(
     b.cuotas,
-    totalizarItems(b.items).total,
+    liquidarDescuentoGlobal(b.items, b.descuentoGlobal).total,
     b.fecha,
   );
   if (revision.cuadra && revision.errores.length === 0) return null;

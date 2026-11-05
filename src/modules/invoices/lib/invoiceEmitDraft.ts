@@ -14,6 +14,7 @@
  *  - Las Notas al crédito recuperan la fecha de emisión del documento afectado
  *    (Catálogo 09, motivo 13), como manda la RS 193-2020/SUNAT.
  */
+import type { DescuentoGlobal } from './invoiceDescuentoGlobal';
 import type { LineaComprobante } from './invoiceTaxes';
 import { buscarAfectado } from './invoiceNotaOrigen';
 import type {
@@ -56,6 +57,7 @@ export interface BorradorEmision {
    * romper el flujo de quien escribía directo en el primer campo.
    */
   items: readonly ItemBorrador[];
+  descuentoGlobal?: DescuentoGlobal | null;
   formaPago: 'Contado' | 'Credito';
   /**
    * Cronograma editable (TA-64). Si está vacío se reparte el neto
@@ -113,6 +115,7 @@ export const borradorInicial = (
       icbper: 0,
     },
   ],
+  descuentoGlobal: null,
   formaPago: 'Contado',
   cuotas: [],
   numeroCuotas: 2,
