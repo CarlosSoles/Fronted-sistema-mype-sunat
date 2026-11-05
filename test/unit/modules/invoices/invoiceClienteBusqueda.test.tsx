@@ -16,7 +16,8 @@ const sinTilde = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u030
 const montar = () => render(<MemoryRouter><InvoiceEmissionPage /></MemoryRouter>);
 beforeEach(() => vi.mocked(apiClient.get).mockImplementation(async (url, config) => {
   if (url !== '/invoices/customers/lookup') throw new Error(`Ruta inesperada: ${url}`);
-  const q = String(config?.params?.q ?? '');
+  const params = config?.params as { q?: string } | undefined;
+  const q = String(params?.q ?? '');
   const coincide = /^\d+$/.test(q) ? cliente.numeroDocumento.startsWith(q) : sinTilde(cliente.razonSocial).includes(sinTilde(q));
   return { data: coincide ? [cliente] : [] } as never;
 }));
