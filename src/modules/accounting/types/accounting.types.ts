@@ -92,6 +92,29 @@ export interface TrialBalanceResponse {
   totalCredit: number;
 }
 
+export interface IncomeStatementLine {
+  accountCode: string;
+  accountName: string;
+  amount: number;
+}
+
+export interface IncomeStatementGroup {
+  key: 'ingresos' | 'costoVentas' | 'gastosOperativos';
+  label: string;
+  lines: IncomeStatementLine[];
+  total: number;
+}
+
+export interface IncomeStatementResponse {
+  period: string;
+  groups: IncomeStatementGroup[];
+  ingresos: number;
+  costoVentas: number;
+  gastosOperativos: number;
+  resultadoBruto: number;
+  resultadoOperativo: number;
+}
+
 export interface PleExportConfig {
   periodo: string; // AAAAMM
   libro: '5.1_DIARIO' | '6.1_MAYOR' | '8.1_COMPRAS' | '14.1_VENTAS';
