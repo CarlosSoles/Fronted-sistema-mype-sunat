@@ -38,6 +38,8 @@ export interface ComprobanteBackend {
   cliente_documento: string | null;
   cliente_nombre: string | null;
   cdr_codigo: string | null;
+  documento_afectado?: string | null;
+  referenced_series_correlative?: string | null;
 }
 
 /** Detalle del backend: la fila más la ficha. */
@@ -202,6 +204,7 @@ export const aInvoice = (fila: ComprobanteBackend): Invoice => {
     // El tipo no está en el modelo del front: se añade en la forma extendida.
     tipoComprobante: fila.tipo_comprobante,
     estadoBackend: fila.estado,
+    documentoAfectado: fila.referenced_series_correlative ?? fila.documento_afectado ?? undefined,
     reintentable: esReintentable(fila.estado),
   };
 };
