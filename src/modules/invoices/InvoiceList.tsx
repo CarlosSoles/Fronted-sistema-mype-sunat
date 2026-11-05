@@ -226,7 +226,11 @@ export const InvoiceList = () => {
 
       <InvoiceDemoNotice />
 
-      <InvoiceKpiCards resumen={resumen} filtrado={hayFiltrosActivos(filtros, activeTab)} />
+      {isLoading ? (
+        <div role="status">Cargando indicadores…</div>
+      ) : !isError && activeTab !== 'notas' ? (
+        <InvoiceKpiCards resumen={resumen} filtrado={hayFiltrosActivos(filtros, activeTab)} />
+      ) : null}
 
       {activeTab === 'comprobantes' && !isLoading && !isError && (
         <InvoiceCombinedSummary resumen={resumenCombinado} />
