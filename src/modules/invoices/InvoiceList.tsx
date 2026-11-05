@@ -226,7 +226,11 @@ export const InvoiceList = () => {
 
       <InvoiceDemoNotice />
 
-      <InvoiceKpiCards resumen={resumen} filtrado={hayFiltrosActivos(filtros, activeTab)} />
+      {isLoading ? (
+        <div role="status">Cargando indicadores…</div>
+      ) : !isError && activeTab !== 'notas' ? (
+        <InvoiceKpiCards resumen={resumen} filtrado={hayFiltrosActivos(filtros, activeTab)} />
+      ) : null}
 
       {activeTab === 'comprobantes' && !isLoading && !isError && (
         <InvoiceCombinedSummary resumen={resumenCombinado} />
@@ -243,10 +247,7 @@ export const InvoiceList = () => {
         <InvoiceFiltersBar
           filtros={filtros}
           onFiltrosChange={setFiltros}
-          onActualizar={() => {
-            refrescarCola();
-            setFiltros({ ...FILTROS_INICIALES });
-          }}
+          onActualizar={refrescarCola}
           onEmitir={(tipo) => {
             if (tipo === 'Nota') {
               setModalEmision(tipo);

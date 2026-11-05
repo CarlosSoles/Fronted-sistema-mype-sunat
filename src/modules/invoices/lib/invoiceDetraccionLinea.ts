@@ -43,7 +43,7 @@ export interface DetraccionPorLineas {
   aplica: boolean;
   /** Base sujeta: suma del valor de venta de las líneas sujetas. */
   baseSujeta: number;
-  /** Importe a depositar en el Banco de la Nación, redondeado al entero. */
+  /** Importe de detracción con dos decimales. */
   monto: number;
   /** Códigos del Catálogo 54 detectados. */
   codigos: readonly string[];
@@ -116,8 +116,7 @@ export const calcularDetraccionPorLineas = (
     );
   }
 
-  // La base es el valor de venta de las líneas sujetas: la detracción se
-  // calcula antes del IGV, no sobre el total.
+  // La base comprende el importe de las líneas sujetas, con sus tributos.
   const baseSujeta = round2(
     sujetas.reduce((acc, l) => acc + (Number.isFinite(l.base) ? l.base : 0), 0),
   );
@@ -128,7 +127,7 @@ export const calcularDetraccionPorLineas = (
   return {
     aplica: true,
     baseSujeta,
-    monto: Math.round(baseSujeta * tipo.porcentaje + Number.EPSILON),
+    monto: round2(baseSujeta * tipo.porcentaje),
     codigos,
     motivoNoAplica: '',
   };

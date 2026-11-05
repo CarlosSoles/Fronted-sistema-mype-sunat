@@ -12,7 +12,7 @@ import {
 } from '@/components/ui';
 import { Download, FileCode2, FileCheck2, RefreshCw } from 'lucide-react';
 import { formatCurrency, formatDateToPeru } from '@/lib/formatters';
-import type { ComprobanteDemo } from '../data/invoiceDemoData';
+import type { ComprobanteDemo } from '../data/invoiceDemoSchema';
 import { InvoiceStatusBadge } from './InvoiceStatusBadge';
 
 /** Etiqueta legible del tipo de comprobante (Catálogo 01). */

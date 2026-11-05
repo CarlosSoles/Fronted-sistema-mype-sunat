@@ -60,18 +60,20 @@ import {
 import { FileText, Send, Plus } from 'lucide-react';
 import { CustomerLookupField } from '../components/CustomerLookupField';
 import { InvoiceItemsGrid } from '../components/InvoiceItemsGrid';
+import { InvoiceDescuentoGlobal } from '../components/InvoiceDescuentoGlobal';
+import { liquidarDescuentoGlobal, type DescuentoGlobal } from '../lib/invoiceDescuentoGlobal';
+import { detraccionConDescuento } from '../lib/invoiceDetraccionGlobal';
 import { CreditInstallmentsEditor } from '../components/CreditInstallmentsEditor';
 import {
   actualizarItem,
   calcularItem,
-  totalizarItems,
+  validarItems,
   itemBolsa,
   itemDesdeProducto,
   itemVacio,
   type ItemBorrador,
 } from '../lib/invoiceItems';
 import {
-  calcularDetraccionPorLineas,
   repartirPago,
 } from '../lib/invoiceDetraccionLinea';
 import {
@@ -114,6 +116,7 @@ export default function InvoiceEmissionPage() {
   const [clienteDoc, setClienteDoc] = useState('');
   const [clienteRazonSocial, setClienteRazonSocial] = useState('');
   const [items, setItems] = useState<readonly ItemBorrador[]>([itemVacio('1')]);
+  const [descuentoGlobal, setDescuentoGlobal] = useState<DescuentoGlobal | null>(null);
   const [agenteRetencion, setAgenteRetencion] = useState(false);
   // Forma de pago y cronograma (HU-10). Antes la pantalla mandaba siempre
   // 'Contado'; el selector vivía solo en el modal de la bandeja. Las funciones
@@ -145,7 +148,7 @@ export default function InvoiceEmissionPage() {
 
   // Liquidación real línea por línea: cada línea aporta según su afectación y
   // las gratuitas no cobran. No hay un 18 % sobre el total.
-  const totales = useMemo(() => totalizarItems(items), [items]);
+  const totales = useMemo(() => liquidarDescuentoGlobal(items, descuentoGlobal), [items, descuentoGlobal]);
 
   /**
    * Desglose por afectación del Catálogo 07.
@@ -159,22 +162,16 @@ export default function InvoiceEmissionPage() {
     for (const item of items) {
       acumulado[item.afectacion] += calcularItem(item).base;
     }
+    acumulado.GRAVADA = totales.gravado;
     return acumulado;
-  }, [items]);
+  }, [items, totales.gravado]);
 
   const importeTotal = totales.total;
 
   // Detracción por LÍNEA: "los productos son con detracción, no la factura".
   const detraccion = useMemo(
-    () =>
-      calcularDetraccionPorLineas(
-        items.map((i) => ({
-          base: calcularItem(i).base,
-          codigoDetraccion: i.codigoDetraccion,
-        })),
-        importeTotal,
-      ),
-    [items, importeTotal],
+    () => detraccionConDescuento(items, descuentoGlobal),
+    [items, descuentoGlobal],
   );
 
   // Retención del IGV: es del CLIENTE, no del comprobante.
@@ -309,6 +306,15 @@ export default function InvoiceEmissionPage() {
       setResultado({ ok: false, mensaje: 'Falta la razón social del cliente.' });
       return;
     }
+    const erroresItems = validarItems(items);
+    if (erroresItems.length > 0) {
+      setResultado({ ok: false, mensaje: `Línea ${erroresItems[0].indice + 1}: ${erroresItems[0].motivos[0]}` });
+      return;
+    }
+    if (totales.error) {
+      setResultado({ ok: false, mensaje: totales.error });
+      return;
+    }
     const lineaSinDescripcion = items.findIndex((i) => !i.descripcion.trim());
     if (lineaSinDescripcion >= 0) {
       setResultado({
@@ -372,6 +378,7 @@ export default function InvoiceEmissionPage() {
         clienteTipoDoc: tipo === '01' ? '6' : '1',
         clienteRazonSocial,
         items,
+        descuentoGlobal,
         formaPago,
         cuotas,
         numeroCuotas: cuotas.length || 2,
@@ -620,6 +627,7 @@ export default function InvoiceEmissionPage() {
                 productos={productos}
                 onAgregarConProducto={agregarConProducto}
               />
+              <InvoiceDescuentoGlobal valor={descuentoGlobal} onChange={setDescuentoGlobal} />
             </CardContent>
           </Card>
 
