@@ -58,6 +58,7 @@ import {
   PageText,
 } from '@/components/ui';
 import { FileText, Send, Plus } from 'lucide-react';
+import { documentoValidoParaTipo, mensajeErrorDocumento } from '../lib/invoiceEmitValidation';
 import { CustomerLookupField } from '../components/CustomerLookupField';
 import { InvoiceItemsGrid } from '../components/InvoiceItemsGrid';
 import { InvoiceDescuentoGlobal } from '../components/InvoiceDescuentoGlobal';
@@ -302,6 +303,10 @@ export default function InvoiceEmissionPage() {
       });
       return;
     }
+    if (!documentoValidoParaTipo(tipo, clienteDoc.trim())) {
+      setResultado({ ok: false, mensaje: mensajeErrorDocumento(tipo) });
+      return;
+    }
     if (!clienteRazonSocial.trim()) {
       setResultado({ ok: false, mensaje: 'Falta la razón social del cliente.' });
       return;
@@ -511,7 +516,7 @@ export default function InvoiceEmissionPage() {
                     onChange={(e) => setAgenteRetencion(e.target.checked)}
                   />
                   <span className="text-xs text-muted-foreground">
-                    Retiene el 3 % del IGV
+                    Retiene el 3 % del importe total de la operación
                   </span>
                 </label>
               </div>
@@ -572,6 +577,7 @@ export default function InvoiceEmissionPage() {
                     : 'DNI / documento del comprador'
                 }
                 placeholderDocumento={tipo === '01' ? '20100070970' : '70123456'}
+                errorDocumento={clienteDoc.length > 0 && !documentoValidoParaTipo(tipo, clienteDoc) ? mensajeErrorDocumento(tipo) : undefined}
                 onDocumentoChange={(valor) => { setClienteDoc(valor); setClienteRazonSocial(''); }}
                 onRazonSocialChange={setClienteRazonSocial}
                 onElegir={(cliente) => {

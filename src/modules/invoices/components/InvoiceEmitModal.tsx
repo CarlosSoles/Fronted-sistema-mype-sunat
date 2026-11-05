@@ -214,7 +214,7 @@ export const InvoiceEmitModal = ({
   const saldoNota = useQuery({
     queryKey: ['invoice-saldo-nota', afectado?.id],
     queryFn: () => invoicesApi.getSaldoNota(afectado!.id),
-    enabled: b.tipo === '07' && !!afectado,
+    enabled: esTipoNota(b.tipo) && !!afectado,
     staleTime: 0,
     retry: false,
   });
@@ -361,7 +361,7 @@ export const InvoiceEmitModal = ({
           actualizar={actualizar}
           existentes={existentes}
           total={flujo.importeTotal}
-          saldoNota={b.tipo === '07' ? saldoNota.data : undefined}
+          saldoNota={esTipoNota(b.tipo) ? saldoNota.data : undefined}
           onItemCambiado={cambiarItem}
           onItemEliminado={quitarItem}
           onItemAgregado={nuevoItem}
