@@ -50,3 +50,12 @@ export const NOMBRES_TRIBUTO: Record<string, string> = {
 };
 export const rotularCodigo = (codigo: string | null, nombres: Record<string, string>): string =>
   codigo ? `${codigo} - ${nombres[codigo] ?? 'Código no reconocido'}` : 'No registrado';
+
+/** Solo evalúa nodos AllowanceCharge presentes en el XML firmado. */
+export const requiereRevisionContableXml = (xml: string): boolean => {
+  const doc = new DOMParser().parseFromString(xml, 'application/xml');
+  if (doc.getElementsByTagName('parsererror').length) return false;
+  return Array.from(doc.getElementsByTagNameNS(CAC, 'AllowanceCharge')).some((cargo) =>
+    ['01', '03'].includes(texto(cargo, CBC, 'AllowanceChargeReasonCode') ?? ''),
+  );
+};

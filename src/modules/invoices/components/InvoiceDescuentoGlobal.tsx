@@ -12,5 +12,6 @@ export const InvoiceDescuentoGlobal = ({ valor, onChange }: { valor: DescuentoGl
       </select>
       {valor && <input aria-label="Monto del descuento global" type="number" min="0" step="0.01" className="h-9 rounded border bg-background px-2 text-sm" value={valor.monto} onChange={(e) => onChange({ ...valor, monto: Number(e.target.value) })} />}
     </div>
+    {valor?.codigo === '03' && <p className="text-xs text-amber-700">El asiento automático se bloqueará; requiere revisión contable.</p>}
   </div>
 );

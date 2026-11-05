@@ -32,7 +32,7 @@ import {
 } from '../lib/invoiceDescarga';
 import { InvoiceStatusBadge } from './InvoiceStatusBadge';
 import { InvoiceAuditTrail } from './InvoiceAuditTrail';
-import { leerTributosXml, NOMBRES_AFECTACION, NOMBRES_TRIBUTO, rotularCodigo } from '../lib/invoiceTributosXml';
+import { leerTributosXml, NOMBRES_AFECTACION, NOMBRES_TRIBUTO, requiereRevisionContableXml, rotularCodigo } from '../lib/invoiceTributosXml';
 
 interface InvoiceCdrModalProps {
   comprobante: ComprobanteDemo | null;
@@ -285,6 +285,9 @@ export const InvoiceCdrModal = ({
                 </PageText>
               )) : <PageText variant="caption">{xmlReal === undefined ? 'Consultando XML…' : 'Datos de afectación y tributo no disponibles en el XML.'}</PageText>}
             </div>
+            {xmlReal && requiereRevisionContableXml(xmlReal) && (
+              <PageText variant="caption" className="text-amber-700">Descuento 01/03: revisar si el asiento automático está pendiente de revisión contable.</PageText>
+            )}
             <InvoiceAuditTrail comprobante={c} />
           </TabsContent>
 

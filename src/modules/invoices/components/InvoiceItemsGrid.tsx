@@ -208,6 +208,7 @@ export const InvoiceItemsGrid = ({
                       <option value="01">01 - No afecta base IGV</option>
                     </select>
                     {item.descuento && <input aria-label={`Monto de descuento de la línea ${i + 1}`} type="number" min="0" step="0.01" className={`${CLASE_CELDA} text-right`} value={item.descuento.monto} onChange={(e) => onCambiar(i, { descuento: { ...item.descuento!, monto: Number(e.target.value) } })} />}
+                    {item.descuento?.codigo === '01' && <p className="text-xs text-amber-700">El asiento automático se bloqueará; requiere revisión contable.</p>}
                   </td>
                   <td className="px-1 py-1">
                     <input
