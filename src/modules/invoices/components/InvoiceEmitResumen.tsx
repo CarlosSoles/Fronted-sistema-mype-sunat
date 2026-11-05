@@ -15,6 +15,7 @@ import {
 import { montoEnLetrasSunat } from '../lib/invoiceCreditAndRules';
 import { borradorALiquidar, esTipoNota } from '../lib/invoiceEmitDraft';
 import type { BorradorEmision } from '../lib/invoiceEmitDraft';
+import { liquidarDescuentoGlobal } from '../lib/invoiceDescuentoGlobal';
 
 interface InvoiceEmitResumenProps {
   borrador: BorradorEmision;
@@ -47,7 +48,8 @@ export const InvoiceEmitResumen = ({ borrador }: InvoiceEmitResumenProps) => {
     (acc, item) => acc + (Number.isFinite(item.icbper) ? item.icbper : 0),
     0,
   );
-  const importeTotal = liquidacion.importeTotal + icbperLineas;
+  const resumenGlobal = liquidarDescuentoGlobal(borrador.items, borrador.descuentoGlobal);
+  const importeTotal = resumenGlobal.total;
   const detraccion = montoDetraccionPara(importeTotal, codigo);
   const neto = importeTotal - detraccion - liquidacion.montoRetencion;
 
@@ -55,9 +57,9 @@ export const InvoiceEmitResumen = ({ borrador }: InvoiceEmitResumenProps) => {
     <div className="space-y-1 rounded-lg border bg-muted/40 p-3">
       <PageText variant="label">Resumen calculado</PageText>
 
-      {liquidacion.opGravada > 0 && (
+      {resumenGlobal.gravado > 0 && (
         <PageText variant="caption">
-          Gravada {soles(liquidacion.opGravada)} · IGV {soles(liquidacion.igv)}
+          Gravada {soles(resumenGlobal.gravado)} · IGV {soles(resumenGlobal.igv)}
         </PageText>
       )}
       {liquidacion.opExonerada > 0 && (

@@ -61,7 +61,7 @@ const VARIANTE_POR_GRAVEDAD = {
 export default function InvoiceMonitorPage() {
   const [alertas, setAlertas] = useState<AlertasOperativas | null>(null);
   const [enVuelo, setEnVuelo] = useState<readonly Invoice[]>([]);
-  const [cargando, setCargando] = useState(false);
+  const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reintentando, setReintentando] = useState<string | null>(null);
 
@@ -149,6 +149,7 @@ export default function InvoiceMonitorPage() {
         </Alert>
       )}
 
+      {alertas ? (<>
       {/*
         TA-69: las dos alertas que no se ven en ninguna cifra de la bandeja.
         El certificado que vence detiene la emisión (error 4000) y un comprobante
@@ -202,7 +203,9 @@ export default function InvoiceMonitorPage() {
         </Card>
       </PageGrid>
 
-      <Card flush>
+      </>) : !error ? <div role="status">Cargando estado del monitor…</div> : null}
+
+      {alertas && <Card flush>
         <CardHeader>
           <CardTitle className="text-base">
             Comprobantes en vuelo ({enVuelo.length})
@@ -269,7 +272,7 @@ export default function InvoiceMonitorPage() {
             )}
           </TableBody>
         </Table>
-      </Card>
+      </Card>}
     </Page>
   );
 }

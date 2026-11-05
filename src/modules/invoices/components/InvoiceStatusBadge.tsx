@@ -19,7 +19,7 @@
  * acepta pero ya no decide nada.
  */
 import { Badge } from '@/components/ui';
-import type { EstadoCdrDemo } from '../data/invoiceDemoData';
+import type { EstadoCdrDemo } from '../data/invoiceDemoSchema';
 
 /** Metadatos visuales de cada estado. */
 const ESTADOS: Record<

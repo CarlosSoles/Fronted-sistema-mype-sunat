@@ -31,6 +31,7 @@ import { CampoFecha, CampoSelect, CampoTexto } from './InvoiceEmitCamposBase';
 import { CustomerLookupField } from './CustomerLookupField';
 import { InvoiceEmitCamposTributarios } from './InvoiceEmitCamposTributarios';
 import { InvoiceItemsGrid } from './InvoiceItemsGrid';
+import { InvoiceDescuentoGlobal } from './InvoiceDescuentoGlobal';
 
 interface InvoiceEmitCamposProps {
   borrador: BorradorEmision;
@@ -178,6 +179,8 @@ export const InvoiceEmitCampos = ({
         productos={productos}
         onAgregarConProducto={onItemDesdeProducto}
       />
+
+      <InvoiceDescuentoGlobal valor={b.descuentoGlobal} onChange={(descuentoGlobal) => actualizar({ descuentoGlobal })} />
 
       <InvoiceEmitCamposTributarios
         borrador={b}

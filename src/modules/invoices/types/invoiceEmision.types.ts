@@ -43,6 +43,7 @@ export interface LineaEmisionPayload {
   /** Valor unitario SIN IGV. */
   valorUnitario: number;
   afectacion?: AfectacionGrilla;
+  descuento?: { codigo: '00' | '01'; monto: number } | null;
   /** Código del Catálogo 54 cuando la línea está sujeta a detracción. */
   codigoDetraccion?: string;
   /** ICBPER de la línea cuando es una bolsa plástica. */
@@ -68,6 +69,7 @@ export interface EmitirComprobantePayload {
    */
   cuotas?: readonly { monto: number; vencimiento: string }[];
   items: readonly LineaEmisionPayload[];
+  descuento_global?: { codigo: '02' | '03'; monto: number } | null;
   /** Notas (07/08): comprobante que se modifica. Obligatorio en notas. */
   documento_afectado?: string;
   codigo_motivo_nota?: string;

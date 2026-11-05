@@ -3,7 +3,7 @@
  * de fechas. Se separa del componente para mantener el orquestador bajo el
  * límite de líneas y poder probarse de forma aislada.
  */
-import type { ComprobanteDemo } from '../data/invoiceDemoData';
+import type { ComprobanteDemo } from '../data/invoiceDemoSchema';
 import {
   INVOICE_TABS,
   type InvoiceTabId,

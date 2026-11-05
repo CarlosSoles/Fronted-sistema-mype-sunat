@@ -21,7 +21,7 @@
  * sistema perdió 3. Cada comprobante excluido se pinta con su motivo: fuera del
  * plazo de 7 días (regla 2957), rechazado por SUNAT o ya anulado.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Badge,
   Button,
@@ -59,6 +59,7 @@ import {
 type Pestana = 'resumen' | 'baja';
 
 export default function InvoiceBajasPage() {
+  const solicitud = useRef(0);
   const [pestana, setPestana] = useState<Pestana>('resumen');
   const [fecha, setFecha] = useState(hoyEnLima());
   const [vista, setVista] = useState<VistaPreviaResumen | null>(null);
@@ -66,6 +67,7 @@ export default function InvoiceBajasPage() {
   const [error, setError] = useState<string | null>(null);
 
   const cargar = useCallback(async (tipo: Pestana, dia: string) => {
+    const actual = ++solicitud.current;
     setCargando(true);
     setError(null);
     try {
@@ -73,8 +75,9 @@ export default function InvoiceBajasPage() {
         tipo === 'resumen'
           ? await invoicesApi.getVistaResumen(dia)
           : await invoicesApi.getVistaBaja(dia);
-      setVista(datos);
+      if (actual === solicitud.current) setVista(datos);
     } catch (e: unknown) {
+      if (actual !== solicitud.current) return;
       setVista(null);
       setError(
         e instanceof Error
@@ -82,7 +85,7 @@ export default function InvoiceBajasPage() {
           : 'No se pudo cargar la vista previa del envío.',
       );
     } finally {
-      setCargando(false);
+      if (actual === solicitud.current) setCargando(false);
     }
   }, []);
 
@@ -126,7 +129,7 @@ export default function InvoiceBajasPage() {
             variant={pestana === 'resumen' ? 'default' : 'ghost'}
             role="tab"
             aria-selected={pestana === 'resumen'}
-            onClick={() => setPestana('resumen')}
+            onClick={() => { if (pestana !== 'resumen') { solicitud.current++; setVista(null); setPestana('resumen'); } }}
           >
             Resumen diario (RC)
           </Button>
@@ -136,7 +139,7 @@ export default function InvoiceBajasPage() {
             variant={pestana === 'baja' ? 'default' : 'ghost'}
             role="tab"
             aria-selected={pestana === 'baja'}
-            onClick={() => setPestana('baja')}
+            onClick={() => { if (pestana !== 'baja') { solicitud.current++; setVista(null); setPestana('baja'); } }}
           >
             Anulación de comprobante (RA)
           </Button>
@@ -153,7 +156,7 @@ export default function InvoiceBajasPage() {
             id="fecha-envio"
             type="date"
             value={fecha}
-            onChange={(e) => setFecha(e.target.value)}
+            onChange={(e) => { solicitud.current++; setVista(null); setFecha(e.target.value); }}
             className="h-9 rounded-md border border-input bg-background px-3 text-sm"
           />
         </div>

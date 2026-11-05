@@ -37,7 +37,6 @@ import {
   esTipoNota,
   nuevaClave,
   siguienteCorrelativo,
-  totalesDelBorrador,
 } from '../lib/invoiceEmitDraft';
 import type { BorradorEmision } from '../lib/invoiceEmitDraft';
 import {
@@ -58,6 +57,7 @@ import {
   montoDetraccionPara,
   validarCronograma,
 } from '../lib/invoiceDetraccion';
+import { liquidarDescuentoGlobal } from '../lib/invoiceDescuentoGlobal';
 import { InvoiceEmitCampos } from './InvoiceEmitCampos';
 import { InvoiceEmitResumen } from './InvoiceEmitResumen';
 import { CreditInstallmentsEditor } from './CreditInstallmentsEditor';
@@ -86,11 +86,11 @@ interface InvoiceEmitModalProps {
 
 /** Totales que necesita el flujo: importe total y neto pendiente de pago. */
 const calcularFlujo = (b: BorradorEmision) => {
-  const totales = totalesDelBorrador(b);
+  const totales = liquidarDescuentoGlobal(b.items, b.descuentoGlobal);
   const esNota = esTipoNota(b.tipo);
   const codigo = esNota ? undefined : b.codigoDetraccion;
-  const detraccion = montoDetraccionPara(totales.total + totales.icbper, codigo);
-  const importeTotal = totales.total + totales.icbper;
+  const detraccion = montoDetraccionPara(totales.total, codigo);
+  const importeTotal = totales.total;
   return { importeTotal, detraccion, neto: importeTotal - detraccion };
 };
 
@@ -101,6 +101,8 @@ const motivosPendientes = (
   productos: readonly ProductoBuscado[],
 ): string[] => {
   const motivos: string[] = [];
+  const errorGlobal = liquidarDescuentoGlobal(b.items, b.descuentoGlobal).error;
+  if (errorGlobal) motivos.push(errorGlobal);
 
   if (b.serie.length !== 4) motivos.push('La serie debe tener 4 caracteres.');
 

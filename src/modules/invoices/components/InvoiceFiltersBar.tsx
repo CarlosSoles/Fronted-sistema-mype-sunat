@@ -19,7 +19,7 @@ import {
 } from '@/components/ui';
 import { RefreshCw } from 'lucide-react';
 import { useState } from 'react';
-import type { EstadoCdrDemo } from '../data/invoiceDemoData';
+import type { EstadoCdrDemo } from '../data/invoiceDemoSchema';
 import { InvoiceEmitMenu, type TipoEmision } from './InvoiceEmitMenu';
 
 export type { TipoEmision };

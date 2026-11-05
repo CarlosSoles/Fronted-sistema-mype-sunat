@@ -3,7 +3,7 @@
  * del SIRE RVIE y validaciones del formulario de emisión.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { COMPROBANTES_DEMO } from '@/modules/invoices/data/invoiceDemoData';
+import { COMPROBANTES_DEMO } from './fixtures/comprobantesDemo';
 import { useAuthStore } from '@/stores/authStore';
 import { identidadEmisora } from '@/modules/invoices/lib/invoiceExportConstants';
 import {

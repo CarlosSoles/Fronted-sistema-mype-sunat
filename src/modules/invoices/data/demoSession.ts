@@ -12,7 +12,7 @@
  * Solo se activa en desarrollo; en producción el login exige el backend real.
  */
 import type { ActiveCompany, UserSession } from '@/stores/authStore';
-import { RUC_EMISOR } from './invoiceDemoData';
+const RUC_EMISOR = '20601234567';
 
 /** Clave de persistencia definida en `stores/authStore.ts`. */
 export const AUTH_STORAGE_KEY = 'sync-sunat-auth';
