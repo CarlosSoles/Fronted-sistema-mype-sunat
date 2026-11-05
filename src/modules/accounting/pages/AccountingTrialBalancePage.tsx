@@ -20,6 +20,12 @@ const periodoActual = () => {
   return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
 };
 
+
+const normalizarPeriodo = (value: string): string => {
+  const match = /^(\d{4})-(\d{1,2})$/.exec(value);
+  return match ? `${match[1]}-${match[2].padStart(2, '0')}` : value;
+};
+
 export default function AccountingTrialBalancePage() {
   const [period, setPeriod] = useState(periodoActual);
   const { data, isLoading, error } = useQuery({
@@ -38,10 +44,22 @@ export default function AccountingTrialBalancePage() {
         <div className="p-4 flex items-end gap-3">
           <div className="space-y-1.5">
             <label className="text-xs font-medium">Período</label>
-            <Input type="month" value={period} onChange={(event) => setPeriod(event.target.value)} />
+            <Input type="month" value={period} onChange={(event) => setPeriod(normalizarPeriodo(event.target.value))} />
           </div>
-          <Badge variant={data && Math.abs(data.totalDebit - data.totalCredit) < 0.01 ? 'outline' : 'destructive'}>
-            {data && Math.abs(data.totalDebit - data.totalCredit) < 0.01 ? 'Cuadrado' : 'Descuadrado'}
+          <Badge
+            variant={
+              !data
+                ? 'outline'
+                : Math.abs(data.totalDebit - data.totalCredit) < 0.01
+                  ? 'outline'
+                  : 'destructive'
+            }
+          >
+            {!data
+              ? 'Sin datos'
+              : Math.abs(data.totalDebit - data.totalCredit) < 0.01
+                ? 'Cuadrado'
+                : 'Descuadrado'}
           </Badge>
         </div>
       </Card>
