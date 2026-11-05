@@ -27,6 +27,11 @@ const periodoActual = () => {
 };
 
 const money = (value: number) => `S/ ${value.toFixed(2)}`;
+const normalizarPeriodo = (value: string): string => {
+  const match = /^(\d{4})-(\d{1,2})$/.exec(value);
+  return match ? `${match[1]}-${match[2].padStart(2, '0')}` : value;
+};
+
 
 export default function AccountingLedgerPage() {
   const [period, setPeriod] = useState(periodoActual);
@@ -56,7 +61,7 @@ export default function AccountingLedgerPage() {
         <div className="p-4 flex flex-col gap-3 md:flex-row md:items-end">
           <div className="space-y-1.5">
             <label className="text-xs font-medium">Período</label>
-            <Input type="month" value={period} onChange={(event) => setPeriod(event.target.value)} />
+            <Input type="month" value={period} onChange={(event) => setPeriod(normalizarPeriodo(event.target.value))} />
           </div>
           <div className="space-y-1.5 min-w-72">
             <label className="text-xs font-medium">Cuenta contable</label>
