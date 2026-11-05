@@ -41,6 +41,7 @@
  * aquí, porque SUNAT no ha respondido todavía.
  */
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Alert,
   AlertDescription,
@@ -106,7 +107,10 @@ const SERIES: Record<'01' | '03', string> = { '01': 'F001', '03': 'B001' };
  */
 
 export default function InvoiceEmissionPage() {
-  const [tipo, setTipo] = useState<'01' | '03'>('01');
+  const [searchParams] = useSearchParams();
+  const [tipo, setTipo] = useState<'01' | '03'>(
+    searchParams.get('tipo') === '03' ? '03' : '01',
+  );
   const [clienteDoc, setClienteDoc] = useState('');
   const [clienteRazonSocial, setClienteRazonSocial] = useState('');
   const [items, setItems] = useState<readonly ItemBorrador[]>([itemVacio('1')]);
