@@ -26,6 +26,7 @@ import {
 
 interface InvoiceAuditTrailProps {
   comprobante: ComprobanteDemo;
+  digest?: string | null;
 }
 
 /** Estados que el sistema reconoce, con su lectura en lenguaje claro. */
@@ -42,7 +43,7 @@ const LECTURA_DEL_ESTADO: Record<string, string> = {
 };
 
 /** Bitácora con los datos reales del comprobante. */
-export const InvoiceAuditTrail = ({ comprobante }: InvoiceAuditTrailProps) => {
+export const InvoiceAuditTrail = ({ comprobante, digest }: InvoiceAuditTrailProps) => {
   const aceptado =
     comprobante.estado === 'ACEPTADO' || comprobante.estado === 'OBSERVADO';
   // Desde que ERROR_RED llega como SIN_CONFIRMAR, el estado se basta a sí
@@ -91,9 +92,7 @@ export const InvoiceAuditTrail = ({ comprobante }: InvoiceAuditTrailProps) => {
     },
     {
       etiqueta: 'Hash del XML (digest)',
-      valor: comprobante.hashCpe?.trim()
-        ? comprobante.hashCpe
-        : 'No disponible en esta vista',
+      valor: digest === undefined ? 'Consultando XML…' : digest?.trim() || 'No disponible en el XML firmado',
     },
   ];
 
