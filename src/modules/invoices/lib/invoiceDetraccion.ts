@@ -19,6 +19,7 @@
  * puede corregir en el mismo formulario.
  */
 import { round2 } from './invoiceTaxes';
+import { fechaIsoValida } from './invoiceFecha';
 
 /** Operación sujeta a detracción según el Catálogo 54. */
 export interface CodigoDetraccion {
@@ -29,12 +30,13 @@ export interface CodigoDetraccion {
 
 /** Códigos vigentes del Catálogo 54 que se ofrecen en el formulario. */
 export const CODIGOS_DETRACCION: readonly CodigoDetraccion[] = [
-  { codigo: '012', descripcion: 'Demás servicios gravados con el IGV', porcentaje: 0.12 },
-  { codigo: '019', descripcion: 'Servicio de naturaleza intangible', porcentaje: 0.12 },
-  { codigo: '022', descripcion: 'Otros servicios empresariales', porcentaje: 0.1 },
+  { codigo: '012', descripcion: 'Intermediación laboral y tercerización', porcentaje: 0.12 },
+  { codigo: '019', descripcion: 'Arrendamiento de bienes', porcentaje: 0.1 },
+  { codigo: '022', descripcion: 'Otros servicios empresariales', porcentaje: 0.12 },
   { codigo: '027', descripcion: 'Flete terrestre', porcentaje: 0.04 },
-  { codigo: '035', descripcion: 'Intermediación laboral', porcentaje: 0.12 },
-  { codigo: '039', descripcion: 'Arrendamiento de bienes muebles', porcentaje: 0.1 },
+  { codigo: '035', descripcion: 'Bienes exonerados del IGV', porcentaje: 0.015 },
+  { codigo: '037', descripcion: 'Demás servicios gravados con el IGV', porcentaje: 0.12 },
+  { codigo: '039', descripcion: 'Minerales no metálicos', porcentaje: 0.1 },
 ] as const;
 
 /**
@@ -166,10 +168,18 @@ export const validarCronograma = (
   }
 
   const emision = Date.parse(`${fechaEmision}T00:00:00Z`);
+  if (!fechaIsoValida(fechaEmision)) errores.push('La fecha de emisión no es válida.');
 
   for (const cuota of normalizadas) {
+    if (Math.abs(cuota.monto * 100 - Math.round(cuota.monto * 100)) > 1e-7) {
+      errores.push(`La ${cuota.numero} no puede tener fracciones de céntimo.`);
+    }
     if (!cuota.vencimiento) {
       errores.push(`La ${cuota.numero} no tiene fecha de vencimiento.`);
+      continue;
+    }
+    if (!fechaIsoValida(cuota.vencimiento)) {
+      errores.push(`La ${cuota.numero} tiene una fecha de vencimiento inválida.`);
       continue;
     }
     const vence = Date.parse(`${cuota.vencimiento}T00:00:00Z`);
