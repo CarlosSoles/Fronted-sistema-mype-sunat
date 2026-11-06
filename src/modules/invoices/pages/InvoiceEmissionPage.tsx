@@ -92,6 +92,7 @@ import {
 } from '../lib/invoiceEmitFecha';
 import { hoyEnLima } from '../lib/invoiceFecha';
 import { calcularRetencion } from '../lib/invoiceRetentions';
+import { RetencionMaestro } from '../components/RetencionMaestro';
 import { invoicesApi } from '../services/invoicesApi';
 import { cargarProductosAlmacen } from '../services/inventoryProductsApi';
 import { revisarGrilla, primeraLineaConError } from '../lib/invoiceStockLinea';
@@ -119,6 +120,7 @@ export default function InvoiceEmissionPage() {
   const [items, setItems] = useState<readonly ItemBorrador[]>([itemVacio('1')]);
   const [descuentoGlobal, setDescuentoGlobal] = useState<DescuentoGlobal | null>(null);
   const [agenteRetencion, setAgenteRetencion] = useState(false);
+  const [correccionRetencion, setCorreccionRetencion] = useState(false);
   // Forma de pago y cronograma (HU-10). Antes la pantalla mandaba siempre
   // 'Contado'; el selector vivía solo en el modal de la bandeja. Las funciones
   // que reparten las cuotas ya existían y estaban probadas en
@@ -389,6 +391,7 @@ export default function InvoiceEmissionPage() {
         numeroCuotas: cuotas.length || 2,
         codigoDetraccion: '',
         agenteRetencion,
+        correccionRetencion,
         bolsas: 0,
         documentoAfectado: '',
         tipoDocumentoAfectado: '0101',
@@ -501,25 +504,8 @@ export default function InvoiceEmissionPage() {
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label
-                  htmlFor="agente-retencion"
-                  className="text-xs font-medium text-foreground"
-                >
-                  El cliente es Agente de Retención
-                </label>
-                <label className="flex h-9 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm">
-                  <input
-                    id="agente-retencion"
-                    type="checkbox"
-                    checked={agenteRetencion}
-                    onChange={(e) => setAgenteRetencion(e.target.checked)}
-                  />
-                  <span className="text-xs text-muted-foreground">
-                    Retiene el 3 % del importe total de la operación
-                  </span>
-                </label>
-              </div>
+              <RetencionMaestro documento={clienteDoc} razonSocial={clienteRazonSocial} valor={agenteRetencion}
+                onChange={(valor, correccion) => { setAgenteRetencion(valor); setCorreccionRetencion(correccion); }} />
 
               {/*
                 HU-10: forma de pago. Antes esta pantalla mandaba siempre
