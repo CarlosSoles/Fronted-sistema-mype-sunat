@@ -1,5 +1,5 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
-import { ENV } from '@/config/env.config';
+import { API_BASE_URL } from '@/config/env.config';
 import { useAuthStore } from '@/stores/authStore';
 
 interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
@@ -12,7 +12,7 @@ interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
  * con cola de espera para renovación automática en segundo plano (Silent Refresh).
  */
 export const apiClient = axios.create({
-  baseURL: ENV.VITE_API_URL,
+  baseURL: API_BASE_URL,
   timeout: 15000,
   withCredentials: true,
   headers: {
@@ -97,7 +97,7 @@ apiClient.interceptors.response.use(
     try {
       // Petición directa a refresco para evitar ciclos de interceptor
       const refreshResponse = await axios.post<{ accessToken?: string; token?: string }>(
-        `${ENV.VITE_API_URL}/auth/refresh`,
+        `${API_BASE_URL}/auth/refresh`,
         {},
         { withCredentials: true }
       );

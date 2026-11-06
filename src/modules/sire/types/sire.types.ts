@@ -69,6 +69,10 @@ export interface SireReplacementRequest extends SireWorkflowRequest {
   file: File;
 }
 
+export interface SireReportUploadRequest extends SireWorkflowRequest {
+  file: File;
+}
+
 export interface ImportSireProposalRequest {
   period: string;
   bookType: SireBookType;
@@ -161,9 +165,14 @@ export interface SireDashboardMetrics {
   failedCalls: number;
   totalRetries: number;
   lastStateChange: string;
-  mttd: number | null;
-  mttr: number | null;
-  mtbf: number | null;
+  circuitBreakerScope: string;
+  activityScope: string;
+  mttdSeconds: number | null;
+  mttrSeconds: number | null;
+  mtbfSeconds: number | null;
+  mttd?: number | null;
+  mttr?: number | null;
+  mtbf?: number | null;
 }
 
 export type SireDashboardGranularity = 'minute' | 'hour' | 'day';
@@ -172,6 +181,9 @@ export interface SireDashboardHistoryPoint {
   timestamp: string;
   retries: number;
   availabilityPercent: number | null;
+  observedCalls: number;
+  successfulCalls: number;
+  failedCalls: number;
 }
 
 export interface SireDashboardHistoryResponse {

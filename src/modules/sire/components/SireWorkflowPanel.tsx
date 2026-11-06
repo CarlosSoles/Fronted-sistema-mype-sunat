@@ -40,6 +40,8 @@ const EmptyTable = ({ message }: { message: string }) => (
 );
 
 const getErrorMessage = (cause: unknown) => cause instanceof Error ? cause.message : 'No se pudo completar la operación SIRE.';
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const isAllowedTextFile = (file: File) => /\.txt$/i.test(file.name) && file.size > 0 && file.size <= MAX_FILE_SIZE;
 
 export const SireWorkflowPanel = ({ initialRuc }: { initialRuc: string }) => {
   const [ruc, setRuc] = useState(initialRuc);
@@ -50,6 +52,8 @@ export const SireWorkflowPanel = ({ initialRuc }: { initialRuc: string }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [proposalFile, setProposalFile] = useState<File | null>(null);
+  const [reportFile, setReportFile] = useState<File | null>(null);
   const request = useMemo<SireWorkflowRequest>(() => ({ ruc, period, bookType }), [bookType, period, ruc]);
   const onComplete = useCallback((response: SireWorkflowResponse) => {
     setWorkflow(response);
@@ -80,7 +84,29 @@ export const SireWorkflowPanel = ({ initialRuc }: { initialRuc: string }) => {
   const consultProposal = () => void run(() => sireApi.getProposal(request));
   const exclude = (record: SireWorkflowRecord) => void run(() => sireApi.exclude({ ...request, proposalId: record.proposalId, carSunat: record.carSunat, reason: 'Exclusión solicitada por el usuario' }));
   const remove = (record: SireWorkflowRecord) => void run(() => sireApi.removePreliminaryRecord({ ...request, proposalId: record.proposalId, carSunat: record.carSunat, reason: 'Eliminación solicitada por el usuario' }));
-  const replace = (file: File) => void run(() => sireApi.replaceProposal({ ...request, file }));
+  const replace = (file: File) => {
+    if (!isAllowedTextFile(file)) {
+      setError('Selecciona un archivo TXT no vacío de máximo 5 MiB.');
+      return;
+    }
+    void run(() => sireApi.replaceProposal({ ...request, file }));
+  };
+  const submitProposal = () => {
+    if (proposalFile && isAllowedTextFile(proposalFile)) void run(() => sireApi.submitProposal({ ...request, file: proposalFile }));
+    else if (proposalFile) setError('Selecciona un archivo TXT no vacío de máximo 5 MiB.');
+  };
+  const uploadReport = () => {
+    if (!reportFile) return;
+    const extensionAllowed = /\.(csv|xlsx)$/i.test(reportFile.name);
+    if (!extensionAllowed || reportFile.size === 0 || reportFile.size > MAX_FILE_SIZE) {
+      setError('Selecciona un archivo CSV o XLSX no vacío de máximo 5 MiB.');
+      return;
+    }
+    void run(() => sireApi.uploadReport({ ...request, file: reportFile }));
+  };
+  const confirmAction = (message: string, operation: () => void) => {
+    if (window.confirm(message)) operation();
+  };
   const changeTab = (value: string) => {
     const nextTab = value as WorkflowTab;
     setTab(nextTab);
@@ -114,11 +140,13 @@ export const SireWorkflowPanel = ({ initialRuc }: { initialRuc: string }) => {
         <Tabs value={tab} onValueChange={changeTab}>
           <TabsList className="h-auto w-full flex-wrap justify-start"><TabsTrigger value="proposal">Propuesta</TabsTrigger><TabsTrigger value="excluded">Excluidos</TabsTrigger><TabsTrigger value="preliminary">Preliminar</TabsTrigger><TabsTrigger value="generated">Generado</TabsTrigger></TabsList>
           <TabsContent value="proposal" forceMount className="mt-4 space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2"><div><h3 className="font-semibold">Comprobantes propuestos</h3><p className="text-sm text-muted-foreground">RUC {ruc || 'no seleccionado'} · periodo {period}</p></div><div className="flex gap-2"><Button type="button" variant="outline" disabled={loading || generated || !ruc || ruc.length !== 11} onClick={consultProposal}>{loading && <LoaderCircle className="animate-spin" />}Consultar propuesta</Button><Button type="button" disabled={loading || generated || !current?.records?.length} onClick={() => void run(() => sireApi.acceptProposal({ ...request, confirmed: true }))}>Aceptar Propuesta Completa</Button></div></div>
-            <div className="overflow-x-auto rounded-xl border"><Table><TableHeader><TableRow><TableHead>Comprobante</TableHead><TableHead>Fecha</TableHead><TableHead>Total</TableHead><TableHead>CAR</TableHead><TableHead>Origen</TableHead><TableHead>Acción</TableHead></TableRow></TableHeader><TableBody>{proposalRecords.length ? proposalRecords.map((record) => <WorkflowRow key={record.proposalId} record={record} actionLabel="Excluir" disabled={loading || generated} onAction={() => exclude(record)} />) : <EmptyTable message="Consulta la propuesta para cargar comprobantes." />}</TableBody></Table></div>
+            <div className="flex flex-wrap items-center justify-between gap-2"><div><h3 className="font-semibold">Comprobantes propuestos</h3><p className="text-sm text-muted-foreground">RUC {ruc || 'no seleccionado'} · periodo {period}</p></div><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" disabled={loading || generated || !ruc || ruc.length !== 11} onClick={consultProposal}>{loading && <LoaderCircle className="animate-spin" />}Consultar propuesta</Button><Button type="button" variant="outline" disabled={loading || generated || !proposalFile} onClick={submitProposal}>Importar TXT</Button><Button type="button" disabled={loading || generated || !current?.records?.length} onClick={() => confirmAction('¿Aceptar la propuesta completa?', () => void run(() => sireApi.acceptProposal({ ...request, confirmed: true })))}>Aceptar Propuesta Completa</Button></div></div>
+            <div className="rounded-lg border border-dashed p-3 text-sm"><label className="font-medium">Archivo TXT de propuesta<input className="mt-2 block w-full text-sm" type="file" accept=".txt,text/plain" disabled={loading || generated} onChange={(event) => setProposalFile(event.target.files?.[0] ?? null)} /></label>{proposalFile && <p className="mt-2 text-xs text-muted-foreground">{proposalFile.name} · {(proposalFile.size / 1024).toFixed(1)} KB <Button type="button" variant="link" size="sm" className="px-1" onClick={() => setProposalFile(null)}>Cancelar</Button></p>}</div>
+            <div className="rounded-lg border border-dashed p-3 text-sm"><label className="font-medium">Reporte local CSV/XLSX<input className="mt-2 block w-full text-sm" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled={loading || generated} onChange={(event) => setReportFile(event.target.files?.[0] ?? null)} /></label>{reportFile && <p className="mt-2 text-xs text-muted-foreground">{reportFile.name} · {(reportFile.size / 1024).toFixed(1)} KB <Button type="button" variant="link" size="sm" className="px-1" onClick={() => setReportFile(null)}>Cancelar</Button><Button type="button" variant="outline" size="sm" className="ml-2" disabled={loading || generated} onClick={uploadReport}>Cargar reporte</Button></p>}</div>
+            <div className="overflow-x-auto rounded-xl border"><Table><TableHeader><TableRow><TableHead>Comprobante</TableHead><TableHead>Fecha</TableHead><TableHead>Total</TableHead><TableHead>CAR</TableHead><TableHead>Origen</TableHead><TableHead>Acción</TableHead></TableRow></TableHeader><TableBody>{proposalRecords.length ? proposalRecords.map((record) => <WorkflowRow key={record.proposalId} record={record} actionLabel="Excluir" disabled={loading || generated} onAction={() => confirmAction('¿Excluir este registro?', () => exclude(record))} />) : <EmptyTable message="Consulta la propuesta para cargar comprobantes." />}</TableBody></Table></div>
           </TabsContent>
           <TabsContent value="excluded" forceMount className="mt-4 space-y-3"><p className="text-sm text-muted-foreground">Los comprobantes excluidos se muestran cuando el backend responde con `status: EXCLUIDO`.</p><div className="overflow-x-auto rounded-xl border"><Table><TableHeader><TableRow><TableHead>Comprobante</TableHead><TableHead>Fecha</TableHead><TableHead>Total</TableHead><TableHead>CAR</TableHead><TableHead>Origen</TableHead><TableHead>Estado</TableHead></TableRow></TableHeader><TableBody>{excludedRecords.length ? excludedRecords.map((record) => <TableRow key={record.proposalId}><TableCell>{record.documentType} {record.series}-{record.correlative}</TableCell><TableCell>{record.issueDate}</TableCell><TableCell>{record.totalAmount.toFixed(2)}</TableCell><TableCell>{record.carSunat}</TableCell><TableCell>{record.origin}</TableCell><TableCell>{record.status}</TableCell></TableRow>) : <EmptyTable message="No hay comprobantes excluidos para este periodo." />}</TableBody></Table></div></TabsContent>
-          <TabsContent value="preliminary" forceMount className="mt-4 space-y-3"><div className="flex flex-wrap justify-end gap-2"><label className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-border px-2.5 text-sm font-medium has-[:disabled]:pointer-events-none has-[:disabled]:opacity-50"><FileUp />Subir TXT (Reemplazo)<Input className="sr-only" type="file" accept=".txt,text/plain" disabled={loading || generated} onChange={(event) => { const file = event.target.files?.[0]; if (file) replace(file); event.currentTarget.value = ''; }} /></label><Button type="button" disabled={loading || generated || !records.length} onClick={() => void run(() => sireApi.registerPreliminary({ ...request, records }))}>Registrar Preliminar</Button></div><div className="overflow-x-auto rounded-xl border"><Table><TableHeader><TableRow><TableHead>Comprobante</TableHead><TableHead>Origen</TableHead><TableHead>Total</TableHead><TableHead>Estado</TableHead><TableHead>Acción</TableHead></TableRow></TableHeader><TableBody>{records.length ? records.map((record) => <WorkflowRow key={record.proposalId} record={record} actionLabel="Eliminar" disabled={loading || generated || record.origin !== 'USUARIO'} onAction={() => remove(record)} />) : <EmptyTable message="No hay registros en el preliminar para este periodo." />}</TableBody></Table></div></TabsContent>
+          <TabsContent value="preliminary" forceMount className="mt-4 space-y-3"><div className="flex flex-wrap justify-end gap-2"><label className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-border px-2.5 text-sm font-medium has-[:disabled]:pointer-events-none has-[:disabled]:opacity-50"><FileUp />Subir TXT (Reemplazo)<Input className="sr-only" type="file" accept=".txt,text/plain" disabled={loading || generated} onChange={(event) => { const file = event.target.files?.[0]; if (file) replace(file); event.currentTarget.value = ''; }} /></label><Button type="button" disabled={loading || generated || !records.length} onClick={() => void run(() => sireApi.registerPreliminary({ ...request, records }))}>Registrar Preliminar</Button></div><div className="overflow-x-auto rounded-xl border"><Table><TableHeader><TableRow><TableHead>Comprobante</TableHead><TableHead>Origen</TableHead><TableHead>Total</TableHead><TableHead>Estado</TableHead><TableHead>Acción</TableHead></TableRow></TableHeader><TableBody>{records.length ? records.map((record) => <WorkflowRow key={record.proposalId} record={record} actionLabel="Eliminar" disabled={loading || generated || record.origin !== 'USUARIO'} onAction={() => confirmAction('¿Eliminar este preliminar?', () => remove(record))} />) : <EmptyTable message="No hay registros en el preliminar para este periodo." />}</TableBody></Table></div></TabsContent>
           <TabsContent value="generated" forceMount className="mt-4"><p className="text-sm text-muted-foreground">El registro generado se consulta mediante el endpoint correspondiente cuando SUNAT confirme el estado `GENERADO`.</p></TabsContent>
         </Tabs>
         <section className="rounded-xl border bg-muted/30 p-4" aria-label="Monitor de tickets"><div className="flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2"><Bell className="size-4" /><h3 className="font-semibold">Monitor de tickets</h3></div><Button type="button" variant="outline" size="sm" disabled={!current?.ticket || loading} onClick={() => void run(() => sireApi.getStatus({ ...request, ticket: current?.ticket ?? undefined }))}><RefreshCw />Actualizar</Button></div><p className="mt-2 text-sm text-muted-foreground">{current?.ticket ? `Ticket ${current.ticket}: ${current.status ?? 'PENDIENTE'}` : 'No hay tickets pendientes.'}</p></section>

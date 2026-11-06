@@ -17,6 +17,11 @@ const metricResponse = {
   mttd: null,
   mttr: 120,
   mtbf: null,
+  circuitBreakerScope: 'global',
+  activityScope: 'company',
+  mttdSeconds: null,
+  mttrSeconds: 120,
+  mtbfSeconds: null,
 };
 
 afterEach(() => {
@@ -48,7 +53,7 @@ describe('sireDashboardApi', () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      json: vi.fn().mockResolvedValue({ points: [], limit: 24, offset: 48, hasMore: true }),
+      json: vi.fn().mockResolvedValue({ data: [], pagination: { limit: 24, offset: 48, hasMore: true } }),
     });
     vi.stubGlobal('fetch', fetchMock);
 

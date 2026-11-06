@@ -1,4 +1,4 @@
-import { ENV } from '@/config/env.config';
+import { API_BASE_URL } from '@/config/env.config';
 import { useAuthStore } from '@/stores/authStore';
 import type {
   CloseSirePeriodResponse,
@@ -13,6 +13,7 @@ import type {
   SirePreliminaryRequest,
   SireRecordActionRequest,
   SireReplacementRequest,
+  SireReportUploadRequest,
   SireWorkflowRequest,
   SireWorkflowResponse,
 } from '../types/sire.types';
@@ -106,7 +107,7 @@ const workflowRequest = async <T>(path: string, init: RequestInit): Promise<T> =
   const token = useAuthStore.getState().token;
   if (!token) throw new SireApiError('Tu sesión venció o no es válida. Inicia sesión nuevamente.', 401);
   try {
-    const response = await fetch(`${ENV.VITE_API_URL}${path}`, {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
       ...init,
       headers: { ...authenticatedHeaders(token, Boolean(init.body)), ...init.headers },
     });
@@ -124,6 +125,15 @@ const actionBody = ({ proposalId, carSunat, reason }: SireRecordActionRequest) =
   carSunat,
   reason,
 });
+
+const fileRequest = (payload: SireWorkflowRequest & { file: File }) => {
+  const formData = new FormData();
+  formData.append('file', payload.file);
+  formData.append('ruc', payload.ruc);
+  formData.append('period', payload.period);
+  formData.append('bookType', payload.bookType);
+  return formData;
+};
 
 interface BackendReconciliation {
   period: string;
@@ -207,12 +217,33 @@ const readResponse = async <T>(response: Response, message: (status: number, det
     }
   }
   if (!response.ok) {
+    if (response.status === 401) {
+      useAuthStore.getState().logout();
+      if (typeof window !== 'undefined') {
+        window.history.pushState({}, '', '/login?reason=session-expired');
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      }
+    }
     throw new SireApiError(message(response.status, getBackendMessage(body)), response.status);
   }
   return body as T;
 };
 
 export const sireApi = {
+  async submitProposal(payload: SireWorkflowRequest & { file: File }) {
+    return workflowRequest<SireWorkflowResponse>('/sire/proposal', {
+      method: 'POST',
+      body: fileRequest(payload),
+    });
+  },
+
+  async uploadReport(payload: SireReportUploadRequest) {
+    return workflowRequest<SireWorkflowResponse>('/sire/upload', {
+      method: 'POST',
+      body: fileRequest(payload),
+    });
+  },
+
   async getProposal(payload: SireWorkflowRequest) {
     return workflowRequest<SireWorkflowResponse>(`/sire/propuesta?${workflowQuery(payload)}`, { method: 'GET' });
   },
@@ -250,9 +281,12 @@ export const sireApi = {
   },
 
   async removePreliminaryRecord(payload: SireRecordActionRequest) {
-    return workflowRequest<SireWorkflowResponse>(`/sire/preliminar/comprobante?${workflowQuery(payload)}`, {
+    return workflowRequest<SireWorkflowResponse>(`/sire/proposal/${encodeURIComponent(payload.proposalId)}?${workflowQuery(payload)}`, {
       method: 'DELETE',
-      body: JSON.stringify(actionBody(payload)),
+      body: JSON.stringify({
+        carSunat: payload.carSunat,
+        reason: payload.reason,
+      }),
     });
   },
 
@@ -290,7 +324,7 @@ export const sireApi = {
 
     let response: Response;
     try {
-      response = await fetch(`${ENV.VITE_API_URL}/sire/import`, {
+      response = await fetch(`${API_BASE_URL}/sire/import`, {
         method: 'POST',
         headers: authenticatedHeaders(token),
         body: formData,
@@ -316,7 +350,7 @@ export const sireApi = {
 
     let response: Response;
     try {
-      response = await fetch(`${ENV.VITE_API_URL}/sire/reconcile`, {
+      response = await fetch(`${API_BASE_URL}/sire/reconcile`, {
         method: 'POST',
         headers: authenticatedHeaders(token, true),
         body: JSON.stringify({
@@ -354,7 +388,7 @@ export const sireApi = {
     }
     let response: Response;
     try {
-      response = await fetch(`${ENV.VITE_API_URL}/sire/close`, {
+      response = await fetch(`${API_BASE_URL}/sire/close`, {
         method: 'POST',
         headers: authenticatedHeaders(token, true),
         body: JSON.stringify({ period, bookType }),
@@ -375,7 +409,7 @@ export const sireApi = {
     }
     let response: Response;
     try {
-      response = await fetch(`${ENV.VITE_API_URL}/sire/history?page=${page}&limit=${limit}`, {
+      response = await fetch(`${API_BASE_URL}/sire/history?page=${page}&limit=${limit}`, {
         method: 'GET',
         headers: authenticatedHeaders(token),
       });
