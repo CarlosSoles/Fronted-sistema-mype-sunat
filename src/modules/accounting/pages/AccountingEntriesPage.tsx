@@ -8,7 +8,6 @@
  */
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
 import { apiClient } from '@/lib/axios';
 import { DoubleEntryBalanceCard } from '../components/DoubleEntryBalanceCard';
 import {
@@ -30,7 +29,6 @@ import { formatCurrency, formatDateToPeru } from '@/lib/formatters';
 import {
   BookOpen,
   Download,
-  FilePlus,
   PlusCircle,
   RefreshCw,
 } from 'lucide-react';
@@ -160,7 +158,6 @@ const etiquetaOrigen = (source: string): string => {
 };
 
 export default function AccountingEntriesPage() {
-  const navigate = useNavigate();
   const { canCreateAccountingEntry, isAuditor } = useRolePermissions();
   const { activeCompany, user } = useAuthStore();
   const companyId = activeCompany?.tenantId ?? user?.companyId ?? '';
@@ -264,15 +261,6 @@ export default function AccountingEntriesPage() {
         title="Libro Diario (PCGE)"
         description="Asientos del período, origen del movimiento y validación de partida doble"
       >
-        <Button
-          variant="default"
-          size="sm"
-          onClick={() => navigate('/invoices/emision')}
-        >
-          <FilePlus aria-hidden="true" className="w-4 h-4 mr-1" />
-          Emitir Comprobante
-        </Button>
-
         <Button
           variant="outline"
           size="sm"
