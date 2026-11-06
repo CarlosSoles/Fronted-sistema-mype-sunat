@@ -7,7 +7,8 @@
  * cuotas ya repartido y el monto en letras.
  */
 import { PageText } from '@/components/ui';
-import { liquidarComprobante } from '../lib/invoiceRetentions';
+import { calcularRetencion, liquidarComprobante } from '../lib/invoiceRetentions';
+import { round2 } from '../lib/invoiceTaxes';
 import {
   buscarDetraccion,
   montoDetraccionPara,
@@ -38,7 +39,6 @@ export const InvoiceEmitResumen = ({ borrador }: InvoiceEmitResumenProps) => {
     // El ICBPER de la grilla ya vive en su propia línea; `bolsasPlasticas`
     // solo cubre el campo suelto, que no debe contarse dos veces.
     bolsasPlasticas: 0,
-    esAgenteRetencion: !esNota && borrador.agenteRetencion,
     detraccionPorcentaje: porcentaje,
   });
 
@@ -51,7 +51,8 @@ export const InvoiceEmitResumen = ({ borrador }: InvoiceEmitResumenProps) => {
   const resumenGlobal = liquidarDescuentoGlobal(borrador.items, borrador.descuentoGlobal);
   const importeTotal = resumenGlobal.total;
   const detraccion = montoDetraccionPara(importeTotal, codigo);
-  const neto = importeTotal - detraccion - liquidacion.montoRetencion;
+  const retencion = calcularRetencion(importeTotal, !esNota && borrador.agenteRetencion);
+  const neto = round2(importeTotal - detraccion - retencion);
 
   return (
     <div className="space-y-1 rounded-lg border bg-muted/40 p-3">
@@ -88,9 +89,9 @@ export const InvoiceEmitResumen = ({ borrador }: InvoiceEmitResumenProps) => {
           Detracción SPOT {soles(detraccion)} (depósito en el Banco de la Nación)
         </PageText>
       )}
-      {liquidacion.montoRetencion > 0 && (
+      {retencion > 0 && (
         <PageText variant="caption">
-          Retención 3% {soles(liquidacion.montoRetencion)}
+          Retención 3% {soles(retencion)}
         </PageText>
       )}
 
