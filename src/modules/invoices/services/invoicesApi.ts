@@ -1,4 +1,5 @@
 import { apiClient } from '@/lib/axios';
+import { cachedGet } from '@/lib/offlineCache';
 import { type Invoice } from '../types/invoice.types';
 import { type CreateInvoiceDto } from '../types/invoice.types';
 import {
@@ -84,15 +85,19 @@ export const invoicesApi = {
       }
     }
 
-    const response = await apiClient.get<PaginaBackend>('/invoices', { params });
-    return aPaginaInvoices(response.data);
+    return cachedGet(`invoices:${JSON.stringify(params)}`, async () => {
+      const response = await apiClient.get<PaginaBackend>('/invoices', { params });
+      return aPaginaInvoices(response.data);
+    });
   },
 
   getInvoiceById: async (id: string): Promise<Invoice> => {
-    const response = await apiClient.get<ComprobanteDetalleBackend>(
-      `/invoices/${id}`,
-    );
-    return aInvoiceDetalle(response.data);
+    return cachedGet(`invoice:${id}`, async () => {
+      const response = await apiClient.get<ComprobanteDetalleBackend>(
+        `/invoices/${id}`,
+      );
+      return aInvoiceDetalle(response.data);
+    });
   },
 
   createInvoice: async (dto: CreateInvoiceDto): Promise<Invoice> => {
@@ -205,22 +210,28 @@ export const invoicesApi = {
    * con `q` filtra por documento o razón social en el servidor.
    */
   buscarClientes: async (q?: string): Promise<ClienteBuscado[]> => {
-    const params: Record<string, string> = {};
-    if (q && q.trim() !== '') params.q = q.trim();
+    const todos = await cachedGet('invoice-customers-all', async () => {
+      const response = await apiClient.get<
+        Array<{
+          tipoDocumento?: string;
+          numeroDocumento?: string;
+          razonSocial?: string;
+        }>
+      >('/invoices/customers/lookup');
 
-    const response = await apiClient.get<
-      Array<{
-        tipoDocumento?: string;
-        numeroDocumento?: string;
-        razonSocial?: string;
-      }>
-    >('/invoices/customers/lookup', { params });
+      return (response.data ?? []).map((c) => ({
+        tipoDocumento: (c.tipoDocumento ?? '6').trim(),
+        numeroDocumento: (c.numeroDocumento ?? '').trim(),
+        razonSocial: (c.razonSocial ?? '').trim(),
+      }));
+    });
 
-    return (response.data ?? []).map((c) => ({
-      tipoDocumento: (c.tipoDocumento ?? '6').trim(),
-      numeroDocumento: (c.numeroDocumento ?? '').trim(),
-      razonSocial: (c.razonSocial ?? '').trim(),
-    }));
+    const term = (q ?? '').trim().toLowerCase();
+    if (!term) return todos;
+    const normalizar = (texto: string) => texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return todos.filter((c) =>
+      c.numeroDocumento.includes(term) || normalizar(c.razonSocial).includes(normalizar(term)),
+    );
   },
 
   /**
