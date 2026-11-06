@@ -68,6 +68,7 @@ export interface BorradorEmision {
   /** Código del Catálogo 54; vacío = la operación no está sujeta a SPOT. */
   codigoDetraccion: string;
   agenteRetencion: boolean;
+  correccionRetencion?: boolean;
   bolsas: number;
   documentoAfectado: string;
   /** Tipo del documento afectado, para heredar el tipo de operación. */
