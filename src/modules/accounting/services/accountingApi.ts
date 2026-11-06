@@ -6,6 +6,7 @@ import {
   type CreateAccountingEntryInput,
   type LedgerResponse,
   type TrialBalanceResponse,
+  type BalanceSheetResponse,
   type PleExportConfig,
 } from '../types/accounting.types';
 
@@ -51,6 +52,13 @@ export const accountingApi = {
 
   getTrialBalance: async (period: string): Promise<TrialBalanceResponse> => {
     const response = await apiClient.get<TrialBalanceResponse>('/accounting/trial-balance', {
+      params: { period },
+    });
+    return response.data;
+  },
+
+  getBalanceSheet: async (period: string): Promise<BalanceSheetResponse> => {
+    const response = await apiClient.get<BalanceSheetResponse>('/accounting/balance-sheet', {
       params: { period },
     });
     return response.data;
