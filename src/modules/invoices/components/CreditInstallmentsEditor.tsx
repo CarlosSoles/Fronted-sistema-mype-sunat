@@ -84,6 +84,7 @@ export const CreditInstallmentsEditor = ({
 
   return (
     <div className="space-y-2 sm:col-span-2">
+      <PageText variant="caption">Pago a crédito en {cuotas.length} {cuotas.length === 1 ? 'cuota' : 'cuotas'} · Neto pendiente S/ {netoPendiente.toFixed(2)}</PageText>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <PageText variant="label">Cronograma de cuotas</PageText>
         <div className="flex gap-1">
