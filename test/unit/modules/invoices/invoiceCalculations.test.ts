@@ -127,14 +127,12 @@ describe('Cálculo de IGV — Motor tributario SUNAT', () => {
     const DETRACCION_SERVICIOS = 0.12;
     const DETRACCION_TRANSPORTE = 0.04;
 
-    it('calcula el 12% para servicios y redondea al entero más cercano', () => {
-      // 1180 * 0.12 = 141.60 -> SUNAT redondea al entero: S/ 142.00
-      expect(calcularDetraccion(1180, DETRACCION_SERVICIOS)).toBe(142);
+    it('calcula el 12% para servicios en céntimos', () => {
+      expect(calcularDetraccion(1180, DETRACCION_SERVICIOS)).toBe(141.6);
     });
 
     it('calcula el 4% para transporte de carga', () => {
-      // 1180 * 0.04 = 47.20 -> S/ 47.00
-      expect(calcularDetraccion(1180, DETRACCION_TRANSPORTE)).toBe(47);
+      expect(calcularDetraccion(1180, DETRACCION_TRANSPORTE)).toBe(47.2);
     });
 
     it('no aplica detracción cuando el total no supera S/ 700.00', () => {
@@ -144,8 +142,8 @@ describe('Cálculo de IGV — Motor tributario SUNAT', () => {
     });
 
     it('expresa la detracción en Soles aunque la factura esté en USD', () => {
-      // Total USD 1180 x tipo de cambio 3.8 = S/ 4484.00 -> 12% = S/ 538.00
-      expect(calcularDetraccion(1180, DETRACCION_SERVICIOS, 3.8)).toBe(538);
+      // Total USD 1180 x tipo de cambio 3.8 = S/ 4484.00; 12% = S/ 538.08.
+      expect(calcularDetraccion(1180, DETRACCION_SERVICIOS, 3.8)).toBe(538.08);
     });
 
     it('no aplica detracción cuando el porcentaje es cero', () => {

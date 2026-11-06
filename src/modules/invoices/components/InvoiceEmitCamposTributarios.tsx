@@ -23,8 +23,8 @@ import {
 import {
   CODIGOS_DETRACCION,
   esDetraccionDadaDeBaja,
-  montoDetraccionPara,
 } from '../lib/invoiceDetraccion';
+import { detraccionConDescuento } from '../lib/invoiceDetraccionGlobal';
 import type { BorradorEmision } from '../lib/invoiceEmitDraft';
 
 interface InvoiceEmitCamposTributariosProps {
@@ -38,16 +38,15 @@ interface InvoiceEmitCamposTributariosProps {
 export const InvoiceEmitCamposTributarios = ({
   borrador: b,
   actualizar,
-  total,
 }: InvoiceEmitCamposTributariosProps) => {
-  const montoDetraccion = montoDetraccionPara(total, b.codigoDetraccion);
+  const detraccion = detraccionConDescuento(b.items, b.descuentoGlobal ?? null);
   const dadaDeBaja = b.codigoDetraccion
     ? esDetraccionDadaDeBaja(b.codigoDetraccion)
     : false;
 
   return (
     <>
-      <PageField label="Código de detracción (Catálogo 54)" htmlFor="detrac">
+      <PageField label="Código de detracción para todas las líneas (Catálogo 54)" htmlFor="detrac">
         <Select
           value={b.codigoDetraccion || '00'}
           onValueChange={(v) =>
@@ -68,9 +67,9 @@ export const InvoiceEmitCamposTributarios = ({
         </Select>
         {b.codigoDetraccion && (
           <PageText variant="caption">
-            {montoDetraccion > 0
-              ? `Detracción estimada: S/ ${montoDetraccion.toFixed(2)}`
-              : 'El total no supera S/ 700.00, así que no se aplica detracción.'}
+            {detraccion.aplica
+              ? `Detracción estimada: S/ ${detraccion.monto.toFixed(2)}`
+              : detraccion.motivoNoAplica}
           </PageText>
         )}
         {dadaDeBaja && (
