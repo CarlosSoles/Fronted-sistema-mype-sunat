@@ -36,13 +36,13 @@ const validateMetrics = (value: unknown): SireDashboardMetrics => {
     !isNumber(value.successfulCalls) ||
     !isNumber(value.failedCalls) ||
     !isNumber(value.totalRetries) ||
-    typeof value.lastStateChange !== 'string' ||
-    !isNullableNumber(value.mttd) ||
-    !isNullableNumber(value.mttr) ||
-    !isNullableNumber(value.mtbf)
+    typeof value.lastStateChange !== 'string'
   ) {
     throw new SireApiError('El servidor devolvió métricas SIRE con un formato inválido.', null);
   }
+  const mttd = isNullableNumber(value.mttd) ? value.mttd : isNullableNumber(value.mttdSeconds) ? value.mttdSeconds : null;
+  const mttr = isNullableNumber(value.mttr) ? value.mttr : isNullableNumber(value.mttrSeconds) ? value.mttrSeconds : null;
+  const mtbf = isNullableNumber(value.mtbf) ? value.mtbf : isNullableNumber(value.mtbfSeconds) ? value.mtbfSeconds : null;
   return {
     state: value.state,
     recentFailedCalls: value.recentFailedCalls,
@@ -54,27 +54,38 @@ const validateMetrics = (value: unknown): SireDashboardMetrics => {
     failedCalls: value.failedCalls,
     totalRetries: value.totalRetries,
     lastStateChange: value.lastStateChange,
-    mttd: value.mttd,
-    mttr: value.mttr,
-    mtbf: value.mtbf,
+    mttd,
+    mttr,
+    mtbf,
   };
 };
 
 const validateHistory = (value: unknown): SireDashboardHistoryResponse => {
-  const points = isRecord(value) && Array.isArray(value.points)
-    ? value.points.filter(isHistoryPoint)
-    : [];
+  if (!isRecord(value)) {
+    throw new SireApiError('El servidor devolvió un historial SIRE con un formato inválido.', null);
+  }
+  const rawPoints = Array.isArray(value.points)
+    ? value.points
+    : Array.isArray(value.data)
+      ? value.data
+      : null;
+  const pagination = isRecord(value.pagination) ? value.pagination : value;
+  const points = rawPoints ? rawPoints.filter(isHistoryPoint) : [];
   if (
-    !isRecord(value) ||
-    !Array.isArray(value.points) ||
-    points.length !== value.points.length ||
-    !isNumber(value.limit) ||
-    !isNumber(value.offset) ||
-    typeof value.hasMore !== 'boolean'
+    !rawPoints ||
+    points.length !== rawPoints.length ||
+    !isNumber(pagination.limit) ||
+    !isNumber(pagination.offset) ||
+    typeof pagination.hasMore !== 'boolean'
   ) {
     throw new SireApiError('El servidor devolvió un historial SIRE con un formato inválido.', null);
   }
-  return { points, limit: value.limit, offset: value.offset, hasMore: value.hasMore };
+  return {
+    points,
+    limit: pagination.limit,
+    offset: pagination.offset,
+    hasMore: pagination.hasMore,
+  };
 };
 
 const request = async (path: string): Promise<unknown> => {
