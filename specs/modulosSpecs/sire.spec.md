@@ -4,33 +4,36 @@
 
 La pantalla permite enviar comprobantes locales al endpoint de conciliación y mostrar la respuesta calculada y persistida por el backend. El `companyId` se obtiene del usuario autenticado y no forma parte del cuerpo de la petición.
 
-La importación de propuestas TXT está habilitada usando el formato interno provisional de nueve columnas descrito abajo. Este formato no es el layout oficial SUNAT y la pantalla debe advertirlo antes de cargar archivos. La generación de archivos planos RVIE/RCE de reemplazo sigue sin estar disponible.
+La importación de propuestas TXT está habilitada usando el formato interno provisional de nueve columnas descrito abajo. Este formato no es el layout oficial SUNAT y la pantalla debe advertirlo antes de cargar archivos. La generación, el reemplazo y la exportación se solicitan mediante las rutas del backend; el modo `mock` simula el flujo y no envía operaciones a SUNAT real.
 
 ## Flujo de propuesta, preliminar y generado
 
-La pantalla de conciliación incluye la interfaz para seleccionar RUC, periodo y libro,
-y las pestañas Propuesta, Excluidos, Preliminar y Generado. También incluye el monitor
-visual de tickets y el estado inicial `Borrador`.
+La pantalla comparte los selectores de periodo y libro con la conciliación, y ofrece las
+pestañas Propuesta, Excluidos, Preliminar y Generado. Las propuestas se consultan con
+`POST /api/v1/sire/proposal` y un JSON con `period` y `bookType`; cada elemento de
+`proposals` se identifica por `id`, que el cliente conserva como `proposalId` para las
+acciones posteriores. No se envía `companyId` ni RUC para estas operaciones: la empresa
+se obtiene de la sesión autenticada.
 
-Las operaciones de consulta de propuesta, exclusión/restauración, aceptación completa,
-consulta y registro de preliminar, eliminación de filas de origen `USUARIO`, reemplazo
-TXT, consulta de registros generados y polling de tickets están bloqueadas hasta que
-el backend confirme sus URL, payloads, respuestas, autenticación, códigos HTTP y estados
-oficiales de SUNAT. La interfaz no envía solicitudes ficticias ni presenta datos
-simulados como reales.
+Las lecturas provisionales usan `GET /api/v1/sire/preliminar?periodo=<YYYYMM>&libro=<bookType>`
+y `GET /api/v1/sire/generado?periodo=<YYYYMM>&libro=<bookType>`. Las acciones de
+aceptación, exclusión, restauración y registro de preliminar envían `period` y `bookType`
+en JSON; las acciones de registro identifican la propuesta mediante `proposalId`.
+La eliminación usa `DELETE /api/v1/sire/preliminary`, la generación usa
+`POST /api/v1/sire/generate`, el reemplazo TXT usa `POST /api/v1/sire/proposal/replace`,
+el reporte usa `POST /api/v1/sire/upload` y la exportación usa `POST /api/v1/sire/export`.
 
-La Fase 1 añade un cliente provisional para `/sire/propuesta`, `/sire/excluir`,
-`/sire/restaurar`, `/sire/aceptar`, `/sire/preliminar`, `/sire/reemplazo`,
-`/sire/generado` y `/sire/status`. Todos reciben `ruc`, `period` y `bookType`;
-las respuestas usan `state`, `ticket`, `status`, `records` y `error` según el DTO
-provisional. Un `503` se presenta como “Módulo en modo mantenimiento. Contacte a sistemas.”
-El polling consulta cada tres segundos y termina en `CON_PRELIMINAR`, `GENERADO` o `ERROR`.
-El adaptador `createSireMockApi` solo sirve para pruebas y no se activa mediante variables
-de entorno ni sustituye el gateway oficial de SUNAT.
+El monitor consulta `POST /api/v1/sire/tickets/<period>/poll?bookType=<bookType>` cada
+tres segundos mientras el ticket esté pendiente. Al terminar con `TERMINADO` o `ERROR`,
+el frontend vuelve a consultar el estado y los registros. No informa éxito para respuestas
+de error o tickets pendientes. Todas las rutas requieren Bearer JWT y una respuesta 401
+cierra la sesión y redirige al inicio de sesión.
 
 ## Importación de propuestas
 
-`POST /api/v1/sire/import` requiere `multipart/form-data` con los campos `file` (`.txt`, máximo 5 MiB), `period` (`YYYYMM`) y `bookType` (`RVIE_VENTAS` o `RCE_COMPRAS`). El backend autentica al usuario y determina la empresa desde su JWT.
+`POST /api/v1/sire/import` requiere `multipart/form-data` con los campos `file` (`.txt`, máximo 5 MiB), `period` (`YYYYMM`) y `bookType` (`RVIE_VENTAS` o `RCE_COMPRAS`). `POST /api/v1/sire/proposal/replace` usa los mismos campos para reemplazar la propuesta. El backend autentica al usuario y determina la empresa desde su JWT.
+
+`POST /api/v1/sire/upload` recibe un reporte `.csv` o `.xlsx` de máximo 5 MiB y los campos `period` y `bookType`. El navegador asigna el `Content-Type` multipart con su boundary; el frontend no debe establecerlo manualmente. El frontend valida la extensión y el tamaño y muestra el nombre y peso del archivo antes de enviar.
 
 El parser provisional espera una fila por comprobante, separada por `|`, en este orden:
 
@@ -90,14 +93,15 @@ La pantalla de conciliación SIRE obtiene las métricas de `GET /api/v1/sire/das
 con `GET /api/v1/sire/dashboard/history?start=<ISO>&end=<ISO>&granularity=minute|hour|day&limit=<n>&offset=<n>`.
 Ambas solicitudes usan `Authorization: Bearer <token>` y no envían `companyId`.
 
-Las métricas incluyen `state`, `recentFailedCalls`, `failureRate`, `slowCallRate`, `bufferedInvoicesCount`,
-`totalCalls`, `successfulCalls`, `failedCalls`, `totalRetries`, `lastStateChange`, `mttd`, `mttr` y `mtbf`.
+Las métricas incluyen `state`, `lastStateChange`, `circuitBreakerScope`, `failureRate`, `slowCallRate`,
+`bufferedInvoicesCount`, `totalCalls`, `successfulCalls`, `failedCalls`, `totalRetries`,
+`recentFailedCalls`, `mttdSeconds`, `mttrSeconds`, `mtbfSeconds` y `activityScope`.
 El semáforo es verde para cero fallos recientes, ámbar para uno a cuatro, y rojo para cinco o más o circuito `OPEN`.
 Los valores nulos de MTTD, MTTR o MTBF se presentan como “No disponible”.
 
-El endpoint histórico pagina con `limit`, `offset` y `hasMore` y devuelve `points` con `timestamp`, `retries` y
-`availabilityPercent`. Una disponibilidad nula significa que no hubo llamadas observadas en ese intervalo; no se
-dibuja como cero. Los errores y estados de carga de ambas consultas se presentan sin bloquear el formulario ni
+El endpoint histórico pagina con `limit`, `offset` y `hasMore` y devuelve puntos dentro de `data`, con `timestamp`,
+`retries`, `availabilityPercent`, `observedCalls`, `successfulCalls` y `failedCalls`. Una disponibilidad nula
+significa que no hubo llamadas observadas en ese intervalo; no se dibuja como cero. Los errores y estados de carga de ambas consultas se presentan sin bloquear el formulario ni
 reemplazar el historial de conciliaciones de `GET /api/v1/sire/history`.
 
 No se generan datos simulados en producción. Si el historial no contiene puntos, las gráficas muestran un estado vacío.

@@ -10,8 +10,8 @@ describe('SireHealthHistoryCharts', () => {
     render(
       <SireHealthHistoryCharts
         history={[
-          { timestamp: '10:00', retries: 1, availabilityPercent: 99 },
-          { timestamp: '10:05', retries: 2, availabilityPercent: 97 },
+          { timestamp: '10:00', retries: 1, availabilityPercent: 99, observedCalls: 1, successfulCalls: 1, failedCalls: 0 },
+          { timestamp: '10:05', retries: 2, availabilityPercent: 97, observedCalls: 1, successfulCalls: 1, failedCalls: 0 },
         ]}
       />,
     );
@@ -29,7 +29,7 @@ describe('SireHealthHistoryCharts', () => {
   it('labels null availability as no calls observed instead of plotting zero', () => {
     render(
       <SireHealthHistoryCharts
-        history={[{ timestamp: '10:00', retries: 0, availabilityPercent: null }]}
+        history={[{ timestamp: '10:00', retries: 0, availabilityPercent: null, observedCalls: 0, successfulCalls: 0, failedCalls: 0 }]}
       />,
     );
     expect(screen.getByText('10:00: Sin llamadas observadas')).toBeInTheDocument();

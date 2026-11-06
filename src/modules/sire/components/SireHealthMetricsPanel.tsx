@@ -50,9 +50,9 @@ export function SireHealthMetricsPanel({ metrics }: { metrics?: SireDashboardMet
           <Metric label="Errores en 5 minutos" value={metrics?.recentFailedCalls} />
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Metric label="MTTD" value={formatNullableMetric(metrics?.mttd)} />
-          <Metric label="MTTR" value={formatNullableMetric(metrics?.mttr)} />
-          <Metric label="MTBF" value={formatNullableMetric(metrics?.mtbf)} />
+          <Metric label="MTTD" value={formatNullableMetric(metrics?.mttdSeconds)} />
+          <Metric label="MTTR" value={formatNullableMetric(metrics?.mttrSeconds)} />
+          <Metric label="MTBF" value={formatNullableMetric(metrics?.mtbfSeconds)} />
         </div>
       </CardContent>
     </Card>

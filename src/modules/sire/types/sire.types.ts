@@ -31,30 +31,50 @@ export interface SireWorkflowRecord {
   igvAmount: number;
   totalAmount: number;
   origin: SireRecordOrigin;
-  status: string;
+  status?: string;
+  excluded?: boolean;
+}
+
+export interface SireProposalDto {
+  id: string;
+  period: string;
+  bookType: 'RVIE' | 'RCE' | SireBookType;
+  carSunat: string;
+  emitterRuc: string;
+  documentType: TipoComprobante;
+  series: string;
+  correlative: string;
+  issueDate: string;
+  taxableBase: number;
+  igvAmount: number;
+  totalAmount: number;
+  origin: SireRecordOrigin;
+  status?: string;
+  excluded?: boolean;
 }
 
 export interface SireWorkflowResponse {
   ruc?: string;
   period: string;
-  bookType: SireBookType;
+  bookType: SireBookType | 'RVIE' | 'RCE';
   state: SireWorkflowState;
-  ticket: string | null;
+  ticket?: string | null;
   status?: SireTicketStatus;
+  count?: number;
+  proposals?: SireProposalDto[];
   records?: SireWorkflowRecord[];
-  error: { code: string; message: string; details?: string } | null;
+  error?: { code: string; message: string; details?: string } | null;
 }
 
 export interface SireWorkflowRequest {
-  ruc: string;
+  ruc?: string;
   period: string;
   bookType: SireBookType;
 }
 
 export interface SireRecordActionRequest extends SireWorkflowRequest {
-  carSunat: string;
   proposalId: string;
-  reason: string;
+  reason?: string;
 }
 
 export interface SireAcceptRequest extends SireWorkflowRequest {
@@ -65,9 +85,22 @@ export interface SirePreliminaryRequest extends SireWorkflowRequest {
   records: SireWorkflowRecord[];
 }
 
+export interface SireTicketPollRequest {
+  period: string;
+  bookType: SireBookType;
+}
+
 export interface SireReplacementRequest extends SireWorkflowRequest {
   file: File;
 }
+
+export interface SireReportUploadRequest extends SireWorkflowRequest {
+  file: File;
+}
+
+export type SireExportResult =
+  | { kind: 'file'; blob: Blob; filename: string }
+  | { kind: 'response'; body: unknown };
 
 export interface ImportSireProposalRequest {
   period: string;
@@ -161,9 +194,14 @@ export interface SireDashboardMetrics {
   failedCalls: number;
   totalRetries: number;
   lastStateChange: string;
-  mttd: number | null;
-  mttr: number | null;
-  mtbf: number | null;
+  circuitBreakerScope: string;
+  activityScope: string;
+  mttdSeconds: number | null;
+  mttrSeconds: number | null;
+  mtbfSeconds: number | null;
+  mttd?: number | null;
+  mttr?: number | null;
+  mtbf?: number | null;
 }
 
 export type SireDashboardGranularity = 'minute' | 'hour' | 'day';
@@ -172,6 +210,9 @@ export interface SireDashboardHistoryPoint {
   timestamp: string;
   retries: number;
   availabilityPercent: number | null;
+  observedCalls: number;
+  successfulCalls: number;
+  failedCalls: number;
 }
 
 export interface SireDashboardHistoryResponse {

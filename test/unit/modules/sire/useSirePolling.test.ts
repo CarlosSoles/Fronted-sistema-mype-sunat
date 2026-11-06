@@ -4,17 +4,15 @@ import { useSirePolling } from '@/modules/sire/hooks/useSirePolling';
 import { sireApi } from '@/modules/sire/services/sireApi';
 
 const request = {
-  ruc: '20123456789',
   period: '202611',
   bookType: 'RCE_COMPRAS' as const,
-  ticket: 'TICKET-MOCK-001',
 };
 
 const pending = {
   period: request.period,
   bookType: request.bookType,
   state: 'PROCESANDO_PRELIMINAR' as const,
-  ticket: request.ticket,
+  ticket: 'TICKET-MOCK-001',
   status: 'PENDIENTE' as const,
   records: [],
   error: null,
@@ -29,7 +27,7 @@ afterEach(() => {
 describe('useSirePolling', () => {
   it('polls every three seconds and stops after TERMINADO', async () => {
     vi.useFakeTimers();
-    const statusSpy = vi.spyOn(sireApi, 'getStatus').mockResolvedValue({
+    const statusSpy = vi.spyOn(sireApi, 'pollTicket').mockResolvedValue({
       ...pending,
       state: 'CON_PRELIMINAR',
       status: 'TERMINADO',
@@ -55,7 +53,7 @@ describe('useSirePolling', () => {
 
   it('stops polling and exposes ERROR responses', async () => {
     vi.useFakeTimers();
-    vi.spyOn(sireApi, 'getStatus').mockResolvedValue({
+    vi.spyOn(sireApi, 'pollTicket').mockResolvedValue({
       ...pending,
       state: 'ERROR',
       status: 'ERROR',

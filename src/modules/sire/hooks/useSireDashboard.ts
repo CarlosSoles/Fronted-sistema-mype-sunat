@@ -9,8 +9,9 @@ export const useSireDashboardMetrics = () =>
     refetchInterval: 5000,
   });
 
-export const useSireDashboardHistory = (params: SireDashboardHistoryRequest) =>
+export const useSireDashboardHistory = (params: SireDashboardHistoryRequest, enabled = true) =>
   useQuery({
     queryKey: ['sire-dashboard-history', params],
     queryFn: () => sireDashboardApi.getHistory(params),
+    enabled,
   });

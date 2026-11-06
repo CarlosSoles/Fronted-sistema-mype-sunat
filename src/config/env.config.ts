@@ -30,3 +30,7 @@ if (!parsedEnv.success) {
  * Constante inmutable tipada de variables de entorno disponibles en toda la app.
  */
 export const ENV = Object.freeze(parsedEnv.data);
+
+export const API_BASE_URL = ENV.VITE_API_URL.replace(/\/+$/, '').endsWith('/api/v1')
+  ? ENV.VITE_API_URL.replace(/\/+$/, '')
+  : `${ENV.VITE_API_URL.replace(/\/+$/, '')}/api/v1`;

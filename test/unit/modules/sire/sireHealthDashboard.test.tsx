@@ -25,6 +25,11 @@ const metrics = {
   mttd: null,
   mttr: 120,
   mtbf: null,
+  circuitBreakerScope: 'global',
+  activityScope: 'company',
+  mttdSeconds: null,
+  mttrSeconds: 120,
+  mtbfSeconds: null,
 };
 
 const emptyHistory = { points: [], limit: 24, offset: 0, hasMore: false };

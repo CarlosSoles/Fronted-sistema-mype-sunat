@@ -1,10 +1,10 @@
-import { ENV } from '@/config/env.config';
+import { API_BASE_URL } from '@/config/env.config';
 import { useAuthStore } from '@/stores/authStore';
 import { SireApiError } from './sireApi';
 import type {
+  SireDashboardHistoryPoint,
   SireDashboardHistoryRequest,
   SireDashboardHistoryResponse,
-  SireDashboardHistoryPoint,
   SireDashboardMetrics,
 } from '../types/sire.types';
 
@@ -16,13 +16,16 @@ const isNumber = (value: unknown): value is number =>
 
 const isNullableNumber = (value: unknown): value is number | null => value === null || isNumber(value);
 
-const apiUrl = ENV.VITE_API_URL.replace(/\/+$/, '');
+const apiUrl = API_BASE_URL;
 
 const isHistoryPoint = (value: unknown): value is SireDashboardHistoryPoint =>
   isRecord(value) &&
   typeof value.timestamp === 'string' &&
   isNumber(value.retries) &&
-  isNullableNumber(value.availabilityPercent);
+  isNullableNumber(value.availabilityPercent) &&
+  isNumber(value.observedCalls) &&
+  isNumber(value.successfulCalls) &&
+  isNumber(value.failedCalls);
 
 const validateMetrics = (value: unknown): SireDashboardMetrics => {
   if (
@@ -36,13 +39,23 @@ const validateMetrics = (value: unknown): SireDashboardMetrics => {
     !isNumber(value.successfulCalls) ||
     !isNumber(value.failedCalls) ||
     !isNumber(value.totalRetries) ||
-    typeof value.lastStateChange !== 'string'
+    typeof value.lastStateChange !== 'string' ||
+    typeof value.circuitBreakerScope !== 'string' ||
+    typeof value.activityScope !== 'string' ||
+    !isNullableNumber(value.mttdSeconds) ||
+    !isNullableNumber(value.mttrSeconds) ||
+    !isNullableNumber(value.mtbfSeconds)
   ) {
     throw new SireApiError('El servidor devolvió métricas SIRE con un formato inválido.', null);
   }
-  const mttd = isNullableNumber(value.mttd) ? value.mttd : isNullableNumber(value.mttdSeconds) ? value.mttdSeconds : null;
-  const mttr = isNullableNumber(value.mttr) ? value.mttr : isNullableNumber(value.mttrSeconds) ? value.mttrSeconds : null;
-  const mtbf = isNullableNumber(value.mtbf) ? value.mtbf : isNullableNumber(value.mtbfSeconds) ? value.mtbfSeconds : null;
+
+  const mttd =
+    isNullableNumber(value.mttd) ? value.mttd : isNullableNumber(value.mttdSeconds) ? value.mttdSeconds : null;
+  const mttr =
+    isNullableNumber(value.mttr) ? value.mttr : isNullableNumber(value.mttrSeconds) ? value.mttrSeconds : null;
+  const mtbf =
+    isNullableNumber(value.mtbf) ? value.mtbf : isNullableNumber(value.mtbfSeconds) ? value.mtbfSeconds : null;
+
   return {
     state: value.state,
     recentFailedCalls: value.recentFailedCalls,
@@ -54,6 +67,11 @@ const validateMetrics = (value: unknown): SireDashboardMetrics => {
     failedCalls: value.failedCalls,
     totalRetries: value.totalRetries,
     lastStateChange: value.lastStateChange,
+    circuitBreakerScope: value.circuitBreakerScope,
+    activityScope: value.activityScope,
+    mttdSeconds: value.mttdSeconds,
+    mttrSeconds: value.mttrSeconds,
+    mtbfSeconds: value.mtbfSeconds,
     mttd,
     mttr,
     mtbf,
@@ -64,22 +82,22 @@ const validateHistory = (value: unknown): SireDashboardHistoryResponse => {
   if (!isRecord(value)) {
     throw new SireApiError('El servidor devolvió un historial SIRE con un formato inválido.', null);
   }
-  const rawPoints = Array.isArray(value.points)
-    ? value.points
-    : Array.isArray(value.data)
-      ? value.data
-      : null;
-  const pagination = isRecord(value.pagination) ? value.pagination : value;
-  const points = rawPoints ? rawPoints.filter(isHistoryPoint) : [];
+
+  const rawPoints = Array.isArray(value.data) ? value.data : Array.isArray(value.points) ? value.points : [];
+  const pagination = isRecord(value.pagination) ? value.pagination : isRecord(value) ? value : null;
+  const points = rawPoints.filter(isHistoryPoint);
+
   if (
-    !rawPoints ||
+    (!Array.isArray(value.data) && !Array.isArray(value.points)) ||
     points.length !== rawPoints.length ||
+    !pagination ||
     !isNumber(pagination.limit) ||
     !isNumber(pagination.offset) ||
     typeof pagination.hasMore !== 'boolean'
   ) {
     throw new SireApiError('El servidor devolvió un historial SIRE con un formato inválido.', null);
   }
+
   return {
     points,
     limit: pagination.limit,
@@ -121,14 +139,32 @@ const request = async (path: string): Promise<unknown> => {
   }
 
   if (!response.ok) {
+    if (response.status === 401) {
+      useAuthStore.getState().logout();
+      if (typeof window !== 'undefined') {
+        window.history.pushState({}, '', '/login?reason=session-expired');
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      }
+    }
     if (response.status === 404 && import.meta.env.DEV) {
       console.warn(`[SIRE dashboard] Endpoint no disponible: ${apiUrl}${path}`);
     }
-    const detail =
+    const rootMessage =
       typeof body === 'object' && body !== null && 'message' in body && typeof body.message === 'string'
-        ? ` ${body.message}`
-        : '';
-    throw new SireApiError(`No se pudo consultar el dashboard SIRE (HTTP ${response.status}).${detail}`, response.status);
+        ? body.message
+        : null;
+    const nestedMessage =
+      typeof body === 'object' &&
+      body !== null &&
+      'error' in body &&
+      typeof body.error === 'object' &&
+      body.error !== null &&
+      'message' in body.error &&
+      typeof body.error.message === 'string'
+        ? body.error.message
+        : null;
+    const detail = rootMessage ?? nestedMessage;
+    throw new SireApiError(`No se pudo consultar el dashboard SIRE (HTTP ${response.status}).${detail ? ` ${detail}` : ''}`, response.status);
   }
 
   return body;
