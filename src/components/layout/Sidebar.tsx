@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { Fragment, useState, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useUiStore } from '@/stores/uiStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -42,6 +42,8 @@ interface SubNavItem {
    * ADMIN pero aparecería a un operador y lo llevaría a "sin acceso".
    */
   allowedRoles?: Role[];
+  /** Agrupador visual dentro del módulo (ej. Registros / Reportes). */
+  group?: string;
 }
 
 interface NavItem {
@@ -147,14 +149,14 @@ const NAV_ITEMS: NavItem[] = [
     developer: 'Michael Velásquez',
     allowedRoles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
     subItems: [
-      { title: 'Libro Diario (PCGE)', path: '/accounting', icon: FileText },
-      { title: 'Libro Mayor', path: '/accounting/ledger', icon: BookOpen },
-      { title: 'Balance de Comprobación', path: '/accounting/trial-balance', icon: ClipboardCheck },
-      { title: 'Estado de Resultados', path: '/accounting/income-statement', icon: FileText },
-      { title: 'Balance General', path: '/accounting/balance-sheet', icon: ClipboardCheck },
-      { title: 'Plan de Cuentas (PCGE)', path: '/accounting/plan-cuentas', icon: BookOpen },
-      { title: 'Períodos Contables', path: '/accounting/periods', icon: CalendarDays },
-      { title: 'Libros Electrónicos (PLE/SIRE)', path: '/accounting/ple', icon: FileCheck2 },
+      { title: 'Libro Diario (PCGE)', path: '/accounting', icon: FileText, group: 'Registros' },
+      { title: 'Plan de Cuentas (PCGE)', path: '/accounting/plan-cuentas', icon: BookOpen, group: 'Registros' },
+      { title: 'Períodos Contables', path: '/accounting/periods', icon: CalendarDays, group: 'Registros' },
+      { title: 'Libro Mayor', path: '/accounting/ledger', icon: BookOpen, group: 'Reportes' },
+      { title: 'Balance de Comprobación', path: '/accounting/trial-balance', icon: ClipboardCheck, group: 'Reportes' },
+      { title: 'Estado de Resultados', path: '/accounting/income-statement', icon: FileText, group: 'Reportes' },
+      { title: 'Balance General', path: '/accounting/balance-sheet', icon: ClipboardCheck, group: 'Reportes' },
+      { title: 'Libros Electrónicos (PLE/SIRE)', path: '/accounting/ple', icon: FileCheck2, group: 'Reportes' },
     ],
   },
   {
@@ -337,23 +339,29 @@ export const Sidebar = () => {
 
               {!isSidebarCollapsed && item.subItems && isExpanded && (
                 <div className="pl-3 ml-3 border-l-2 border-border/80 space-y-0.5 py-0.5">
-                  {subItemsVisibles(item).map((sub) => (
-                    <NavLink
-                      key={sub.path}
-                      to={sub.path}
-                      end={true}
-                      className={({ isActive }) =>
-                        cn(
-                          'flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all',
-                          isActive
-                            ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
-                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                        )
-                      }
-                    >
-                      <sub.icon className="h-3.5 w-3.5 shrink-0" />
-                      <span className="truncate">{sub.title}</span>
-                    </NavLink>
+                  {subItemsVisibles(item).map((sub, index, visibles) => (
+                    <Fragment key={sub.path}>
+                      {sub.group && sub.group !== visibles[index - 1]?.group && (
+                        <p className="px-2.5 pt-2 pb-1 text-[9px] font-bold uppercase tracking-wider text-muted-foreground/70">
+                          {sub.group}
+                        </p>
+                      )}
+                      <NavLink
+                        to={sub.path}
+                        end={true}
+                        className={({ isActive }) =>
+                          cn(
+                            'flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all',
+                            isActive
+                              ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
+                              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                          )
+                        }
+                      >
+                        <sub.icon className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">{sub.title}</span>
+                      </NavLink>
+                    </Fragment>
                   ))}
                 </div>
               )}
