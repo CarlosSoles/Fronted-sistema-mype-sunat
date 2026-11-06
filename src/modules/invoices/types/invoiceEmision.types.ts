@@ -60,6 +60,7 @@ export interface EmitirComprobantePayload {
   /** YYYY-MM-DD; si falta, el backend usa la fecha del servidor. */
   fecha_emision?: string;
   agente_retencion?: boolean;
+  correccion_retencion?: boolean;
   forma_pago?: 'Contado' | 'Credito';
   /**
    * Cronograma de la venta al crédito (HU-10). Obligatorio cuando

@@ -63,6 +63,7 @@ import { liquidarDescuentoGlobal } from '../lib/invoiceDescuentoGlobal';
 import { InvoiceEmitCampos } from './InvoiceEmitCampos';
 import { lineasParaNota } from '../lib/invoiceLineasOrigen';
 import { InvoiceEmitResumen } from './InvoiceEmitResumen';
+import { RetencionMaestro } from './RetencionMaestro';
 import { CreditInstallmentsEditor } from './CreditInstallmentsEditor';
 import { problemasDeNota } from '../lib/invoiceNotaOrigen';
 
@@ -420,15 +421,8 @@ export const InvoiceEmitModal = ({
           />
         )}
 
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={b.agenteRetencion}
-            disabled={esTipoNota(b.tipo)}
-            onChange={(e) => actualizar({ agenteRetencion: e.target.checked })}
-          />
-          Cliente es Agente de Retención del IGV (3%)
-        </label>
+        <RetencionMaestro documento={b.clienteDoc} razonSocial={b.clienteRazonSocial} valor={b.agenteRetencion}
+          disabled={esTipoNota(b.tipo)} onChange={(agenteRetencion, correccionRetencion) => actualizar({ agenteRetencion, correccionRetencion })} />
 
         <InvoiceEmitResumen borrador={b} />
 
