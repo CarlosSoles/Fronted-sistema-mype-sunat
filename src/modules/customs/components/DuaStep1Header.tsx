@@ -48,6 +48,7 @@ export const DuaStep1Header: React.FC<DuaStep1HeaderProps> = ({ data, onChange }
               maxLength={6}
               className="h-8 text-xs font-mono font-bold"
             />
+            <p className="text-[10px] text-muted-foreground mt-0.5">Correlativo único anual de 6 dígitos ante SUNAT.</p>
           </div>
         </div>
 
@@ -63,6 +64,7 @@ export const DuaStep1Header: React.FC<DuaStep1HeaderProps> = ({ data, onChange }
               <option value="00">00 - Despacho Diferido</option>
               <option value="01">01 - Despacho Urgente</option>
             </select>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Numeración previa a la llegada de la nave.</p>
           </div>
 
           <div>
@@ -73,6 +75,7 @@ export const DuaStep1Header: React.FC<DuaStep1HeaderProps> = ({ data, onChange }
               onChange={(e) => onChange({ numeration_date: e.target.value })}
               className="h-8 text-xs"
             />
+            <p className="text-[10px] text-muted-foreground mt-0.5">Fecha oficial de transmisión del teledespacho.</p>
           </div>
 
           <div>
@@ -82,8 +85,9 @@ export const DuaStep1Header: React.FC<DuaStep1HeaderProps> = ({ data, onChange }
               step="0.001"
               value={data.exchange_rate || 3.82}
               onChange={(e) => onChange({ exchange_rate: parseFloat(e.target.value) || 3.82 })}
-              className="h-8 text-xs font-mono"
+              className="h-8 text-xs font-mono font-bold"
             />
+            <p className="text-[10px] text-muted-foreground mt-0.5">Tipo de cambio oficial para liquidar tributos en PEN.</p>
           </div>
         </div>
 
@@ -94,8 +98,9 @@ export const DuaStep1Header: React.FC<DuaStep1HeaderProps> = ({ data, onChange }
               value={data.transport_doc_number || ''}
               onChange={(e) => onChange({ transport_doc_number: e.target.value })}
               placeholder="BL-MSK-2026-9912"
-              className="h-8 text-xs font-mono"
+              className="h-8 text-xs font-mono font-bold text-primary"
             />
+            <p className="text-[10px] text-muted-foreground mt-0.5">Conocimiento de embarque marítimo o carta de porte aéreo.</p>
           </div>
 
           <div className="flex items-center gap-2 pt-5">

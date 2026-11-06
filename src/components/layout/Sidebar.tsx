@@ -6,13 +6,14 @@ import { type Role } from '@/modules/auth/types/auth.types';
 import { cn } from '@/lib/utils';
 import {
   Activity,
+  ArrowLeftRight,
   BookOpen,
   Boxes,
+  Building2,
   Calculator,
   CalendarDays,
   CheckSquare,
   ChevronDown,
-  CreditCard,
   FileCheck2,
   FilePlus,
   FileMinus2,
@@ -92,25 +93,38 @@ const NAV_ITEMS: NavItem[] = [
     allowedRoles: ['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
     subItems: [
       { title: 'Panel general', path: '/customs/dashboard', icon: LayoutDashboard },
-      { title: 'Expedientes y embarques', path: '/customs/shipments', icon: FolderGit2 },
-      { title: 'DAM y valoración', path: '/customs/declarations', icon: FilePlus },
-      { title: 'Tributos y pagos aduaneros', path: '/customs/settlements', icon: CreditCard },
-      { title: 'Recepción, diferencias y costo', path: '/customs/landed-cost', icon: Calculator },
-
-      { title: 'Registro de compras de importación — SIRE', path: '/customs/sire-purchases', icon: FileCheck2 },
+      { title: '1. Pedidos al exterior', path: '/customs/orders', icon: FilePlus },
+      { title: '2. Tránsito y arribo', path: '/customs/shipments', icon: FolderGit2 },
+      { title: '3. Despacho y DAM', path: '/customs/declarations', icon: FileCheck2 },
+      { title: '4. Recojo y almacén (Kardex)', path: '/customs/landed-cost', icon: Calculator },
+      { title: 'Proveedores internacionales', path: '/customs/partners', icon: Building2, allowedRoles: ['ADMIN', 'OPERADOR_ADUANAS'] },
+      { title: 'Configuración aduanera', path: '/customs/config', icon: Settings, allowedRoles: ['ADMIN'] },
     ],
   },
   {
-    title: 'Inventario y Kardex',
+    title: 'Inventario',
     path: '/inventory',
     icon: Boxes,
     developer: 'Carlos Ahumada',
     allowedRoles: ['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
     subItems: [
-      { title: 'Existencias', path: '/inventory/stocks', icon: LayoutDashboard },
+      { title: 'Existencias y Catálogo', path: '/inventory/stocks', icon: LayoutDashboard },
       { title: 'Movimientos', path: '/inventory/movements', icon: GitCompareArrows },
-      { title: 'Kardex por producto', path: '/inventory/kardex', icon: BookOpen },
-      { title: 'Libros PLE 12.1 y 13.1', path: '/inventory/books', icon: FileCheck2 },
+      { title: 'Transferencias', path: '/inventory/transfers', icon: ArrowLeftRight, allowedRoles: ['ADMIN'] },
+      { title: 'Ajustes y toma física', path: '/inventory/adjustments', icon: ClipboardCheck, allowedRoles: ['ADMIN'] },
+      { title: 'Saldo inicial', path: '/inventory/opening', icon: FileUp, allowedRoles: ['ADMIN'] },
+    ],
+  },
+  {
+    title: 'Kardex',
+    path: '/kardex',
+    icon: BookOpen,
+    developer: 'Carlos Ahumada',
+    allowedRoles: ['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
+    subItems: [
+      { title: 'Kardex general', path: '/kardex/general', icon: BookOpen },
+      { title: 'Kardex por producto', path: '/kardex/producto', icon: BookOpen },
+      { title: 'Libros PLE 12.1 / 13.1', path: '/kardex/ple', icon: FileCheck2 },
     ],
   },
   {
@@ -161,8 +175,10 @@ export const Sidebar = () => {
 
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({
     '/customs': true,
-    '/sire': true,
-    '/accounting': true,
+    '/inventory': true,
+    '/kardex': true,
+    '/sire': false,
+    '/accounting': false,
   });
 
   useEffect(() => {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
+import { useQuery } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Dialog,
@@ -15,8 +16,10 @@ import { shipmentSchema, type ShipmentFormData } from '../validators';
 import { CUSTOMS_OFFICES, getStoredCountries, getStoredSuppliers, type CountryItem } from '../services/catalogsApi';
 import { SupplierSelector } from './SupplierSelector';
 import { CountrySelector } from './CountrySelector';
+import { FALLBACK_CURRENCIES, FALLBACK_INCOTERMS } from '../lib/customsConstants';
+import { masterDataApi } from '../services/masterDataApi';
 import { type ForeignSupplierSummary } from '../types';
-import { FolderPlus, Globe, Ship } from 'lucide-react';
+import { Globe, Ship } from 'lucide-react';
 
 interface NewShipmentModalProps {
   isOpen: boolean;
@@ -34,6 +37,28 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
 }) => {
   const [suppliers, setSuppliers] = useState<ForeignSupplierSummary[]>(getStoredSuppliers());
   const [countries, setCountries] = useState<CountryItem[]>(getStoredCountries());
+
+  // Catálogos configurables: si la API no responde, se usa el respaldo local.
+  const incotermsQuery = useQuery({
+    queryKey: ['master-data', 'incoterms'],
+    queryFn: masterDataApi.getIncoterms,
+    staleTime: 1000 * 60 * 10,
+    retry: 0,
+  });
+  const currenciesQuery = useQuery({
+    queryKey: ['master-data', 'currencies'],
+    queryFn: masterDataApi.getCurrencies,
+    staleTime: 1000 * 60 * 10,
+    retry: 0,
+  });
+  const incotermOptions =
+    incotermsQuery.data && incotermsQuery.data.length > 0
+      ? incotermsQuery.data
+      : FALLBACK_INCOTERMS;
+  const currencyOptions =
+    currenciesQuery.data && currenciesQuery.data.length > 0
+      ? currenciesQuery.data
+      : FALLBACK_CURRENCIES;
 
   const {
     register,
@@ -76,11 +101,11 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
       <DialogContent className="sm:max-w-2xl max-w-[95vw] p-6 text-xs max-h-[90vh] overflow-y-auto">
         <DialogHeader className="pb-3 border-b border-border">
           <DialogTitle className="flex items-center gap-2 text-base font-bold text-primary">
-            <FolderPlus className="h-5 w-5" />
-            Aperturar Expediente de Importación Comercial
+            <Ship className="h-5 w-5" />
+            Registrar Embarque Internacional y Documento de Transporte (BL / Guía Aérea)
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
-            Registro formal del embarque para control logístico, tributario (DAM) y costeo NIC 2.
+            Vinculación del medio de transporte, naviera/aerolínea, conocimiento de embarque y fechas estimadas de travesía (ETD / ETA).
           </DialogDescription>
         </DialogHeader>
 
@@ -120,12 +145,11 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
                   {...register('incoterm')}
                   className="w-full h-8 px-2 text-xs rounded-md border border-input bg-background font-medium"
                 >
-                  <option value="FOB">FOB — Free on Board</option>
-                  <option value="CIF">CIF — Cost, Insurance & Freight</option>
-                  <option value="CFR">CFR — Cost and Freight</option>
-                  <option value="EXW">EXW — Ex Works</option>
-                  <option value="FCA">FCA — Free Carrier</option>
-                  <option value="DAP">DAP — Delivered at Place</option>
+                  {incotermOptions.map((item) => (
+                    <option key={item.code} value={item.code}>
+                      {item.code} — {item.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -135,9 +159,11 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
                   {...register('currency_code')}
                   className="w-full h-8 px-2 text-xs rounded-md border border-input bg-background font-medium"
                 >
-                  <option value="USD">USD ($) — Dólar</option>
-                  <option value="EUR">EUR (€) — Euro</option>
-                  <option value="CNY">CNY (¥) — Yuan</option>
+                  {currencyOptions.map((item) => (
+                    <option key={item.code} value={item.code}>
+                      {item.code} ({item.symbol}) — {item.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 

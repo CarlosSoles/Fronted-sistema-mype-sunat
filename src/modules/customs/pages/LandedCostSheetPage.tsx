@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Page, PageHeader, Button, Alert, AlertTitle, AlertDescription } from '@/components/ui';
 import {
   LocalExpensesTable,
@@ -9,6 +10,7 @@ import {
   GoodsReceiptTabContent,
 } from '../components';
 import { useLandedCost } from '../hooks/useLandedCost';
+import { customsDeclarationsApi } from '../services/customsDeclarationsApi';
 import { useRolePermissions } from '@/hooks/useRolePermissions';
 import { Calculator, ArrowLeft, Layers, CheckCircle2, ClipboardCheck, DollarSign } from 'lucide-react';
 
@@ -16,11 +18,34 @@ export default function LandedCostSheetPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { isReadOnly } = useRolePermissions();
-  const shipmentId = id || 'demo-shipment-001';
+  const shipmentId = id || 'EXP-2026-00042';
 
   const [activeTab, setActiveTab] = useState<'RECEIPT' | 'COSTING'>('RECEIPT');
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
   const [successBanner, setSuccessBanner] = useState<string | null>(null);
+
+  const declarationsQuery = useQuery({
+    queryKey: ['customs-declarations-list'],
+    queryFn: customsDeclarationsApi.getDeclarations,
+  });
+
+  const activeDec =
+    declarationsQuery.data?.find((d) => d.shipment_id === shipmentId) ||
+    declarationsQuery.data?.[0];
+
+  const receiptItems = activeDec?.series && activeDec.series.length > 0
+    ? activeDec.series.map((s) => ({
+        seriesOrder: s.series_order,
+        productCode: s.product_code,
+        description: s.commercial_description,
+        destinationType: (s.destination_type as 'MERCADERIA' | 'ACTIVO_FIJO') || 'MERCADERIA',
+        declaredQty: s.physical_quantity,
+        receivedQty: s.physical_quantity,
+        conformingQty: s.physical_quantity,
+        damagedQty: 0,
+        discrepancyReason: '',
+      }))
+    : undefined;
 
   const {
     expenses,
@@ -48,18 +73,18 @@ export default function LandedCostSheetPage() {
   return (
     <Page>
       <PageHeader
-        title="Recepción, Diferencias y Costo"
-        description="Inspección física en rampa de almacén, control de mermas/averías y prorrateo de costos nacionalizados (Landed Cost NIC 2)."
+        title="4. Recojo y Almacén (Hoja de Costos Landed Cost NIC 2 y Kardex)"
+        description="Inspección física en rampa de almacén, control de mermas/averías, prorrateo de costos nacionalizados (NIC 2) e ingreso valorizado al inventario permanente."
       >
         <div className="flex gap-2">
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => navigate(`/customs/shipments/${shipmentId}`)}
+            onClick={() => navigate('/customs/declarations')}
             className="text-xs gap-1.5 h-8"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            Volver
+            Volver a Paso 3
           </Button>
 
           {activeTab === 'COSTING' && !isReadOnly && (
@@ -79,10 +104,10 @@ export default function LandedCostSheetPage() {
             size="sm"
             variant="default"
             onClick={() => navigate('/inventory/kardex')}
-            className="text-xs gap-1.5 h-8"
+            className="text-xs gap-1.5 h-8 bg-primary text-primary-foreground hover:bg-primary/90"
           >
             <Layers className="h-3.5 w-3.5" />
-            Ir a Kardex PLE
+            Ver Kardex Valorizado (Libro 13.1)
           </Button>
         </div>
       </PageHeader>
@@ -100,7 +125,7 @@ export default function LandedCostSheetPage() {
           </Alert>
         )}
 
-        {/* Selector de Sub-Pestañas Oficiales */}
+        {/* Selector de Pestañas de Trabajo */}
         <div className="flex border-b border-border gap-2 text-xs font-semibold">
           <Button
             size="sm"
@@ -109,7 +134,7 @@ export default function LandedCostSheetPage() {
             className="h-8 gap-1.5 text-xs"
           >
             <ClipboardCheck className="h-3.5 w-3.5" />
-            Sub-Pestaña A: Acta de Recepción Física en Rampa y Diferencias
+            1. Acta de Recepción en Rampa (Control Físico y Mermas)
           </Button>
 
           <Button
@@ -119,7 +144,7 @@ export default function LandedCostSheetPage() {
             className="h-8 gap-1.5 text-xs"
           >
             <DollarSign className="h-3.5 w-3.5" />
-            Sub-Pestaña B: Hoja de Costos Landed Cost (NIC 2)
+            2. Hoja de Costeo Landed Cost (NIC 2 e Ingreso a Kardex)
           </Button>
         </div>
 
@@ -127,7 +152,8 @@ export default function LandedCostSheetPage() {
         {activeTab === 'RECEIPT' && (
           <GoodsReceiptTabContent
             shipmentId={shipmentId}
-            declarationId="DAM-2026-001"
+            declarationId={activeDec?.dua_number || '118-2026-10-045892'}
+            initialItems={receiptItems}
             onReceiptConfirmed={() => {
               setSuccessBanner('Acta de recepción física en rampa confirmada conforme. La mercancía está lista para costeo.');
             }}
@@ -145,14 +171,17 @@ export default function LandedCostSheetPage() {
 
             {/* Sección 2: Simulador Reactivo de Prorrateo NIC 2 */}
             <ProrationSimulator
-              totalExpensePen={totalExpensePen || 1920}
-              totalWeightKg={280}
-              totalFobUsd={50000}
+              totalExpensePen={totalExpensePen}
+              totalWeightKg={activeDec?.series?.reduce((acc, s) => acc + (s.gross_weight_kg || 0), 0) || 0}
+              totalFobUsd={activeDec?.fob_total_usd || 0}
             />
 
             {/* Sección 3: Matriz Comparativa y Aprobación de Costos */}
             <LandedCostComparisonTable
               sheet={sheet}
+              activeDeclaration={activeDec}
+              totalLocalExpensesPen={totalExpensePen}
+              fallbackDescription={activeDec?.series?.[0]?.commercial_description}
               onApplyKardex={handleApproveCost}
               isApplying={isApproving}
             />

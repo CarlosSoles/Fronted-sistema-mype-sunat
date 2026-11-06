@@ -16,6 +16,14 @@ export interface InventoryProduct {
   sunatTypeCode: string;
   sunatUnitCode: string;
   minStockAlert: number;
+  brand?: string | null;
+  model?: string | null;
+  category?: string | null;
+  barcode?: string | null;
+  hsCode?: string | null;
+  weightKg?: number | null;
+  volumeM3?: number | null;
+  taxAffectation?: string | null;
   isActive: boolean;
 }
 
@@ -27,7 +35,16 @@ export interface InventoryBalance {
   currentStock: number;
   averageUnitCost: number;
   totalInventoryValue: number;
+  sunatTypeCode?: string;
   sunatUnitCode?: string;
+  minStockAlert?: number;
+  brand?: string | null;
+  model?: string | null;
+  category?: string | null;
+  barcode?: string | null;
+  hsCode?: string | null;
+  weightKg?: number | null;
+  volumeM3?: number | null;
   lastMovementAt?: string | null;
 }
 
@@ -79,6 +96,18 @@ export interface KardexLedgerResponse {
     description: string;
     sunatTypeCode: string;
     sunatUnitCode: string;
+  };
+  summary?: {
+    totalStock: number;
+    averageCost: number;
+    totalValuation: number;
+    warehouseBalances?: Array<{
+      warehouseCode: string;
+      warehouseDescription?: string;
+      stock: number;
+      averageCost: number;
+      totalValue: number;
+    }>;
   };
   movements: InventoryMovement[];
 }

@@ -9,11 +9,10 @@ import {
   AddDocumentModal,
   CustomsTimelineWidget,
   AddEventModal,
-  GoodsReceiptModal,
 } from '../components';
 import { useShipmentDetail } from '../hooks/useShipmentDetail';
 import { useRolePermissions } from '@/hooks/useRolePermissions';
-import { ArrowLeft, FileText, Calculator, RefreshCw, PackageCheck } from 'lucide-react';
+import { ArrowLeft, FileText, Calculator, RefreshCw, ArrowRight } from 'lucide-react';
 
 export default function ShipmentDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -22,7 +21,6 @@ export default function ShipmentDetailPage() {
 
   const [isDocModalOpen, setIsDocModalOpen] = useState(false);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
-  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
 
   const {
     shipment,
@@ -44,16 +42,6 @@ export default function ShipmentDetailPage() {
     );
   }
 
-  const primaryDeclaration = shipment.declarations?.[0] as any;
-  const itemsForReceipt = ((primaryDeclaration?.items || primaryDeclaration?.series || []) as any[]).map((it: any) => ({
-    id: it.id,
-    productCode: it.product_code || it.hs_code || 'PROD',
-    commercialDescription: it.commercial_description || 'Mercancía importada',
-    quantity: Number(it.physical_quantity || it.quantity || 1),
-    unitCode: it.physical_unit || it.unit_code || 'NIU',
-    destinationType: it.destination_type || 'MERCADERIA',
-  }));
-
   return (
     <Page>
       <CustomsSubNav />
@@ -69,36 +57,41 @@ export default function ShipmentDetailPage() {
           Volver a Expedientes
         </Button>
 
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {!isReadOnly && (
             <>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => navigate(`/customs/declarations/new?shipmentId=${shipment.id}`)}
-                className="text-xs gap-1.5 h-8"
-              >
-                <FileText className="h-3.5 w-3.5 text-primary" />
-                Registrar DAM
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setIsReceiptModalOpen(true)}
-                className="text-xs gap-1.5 h-8"
-              >
-                <PackageCheck className="h-3.5 w-3.5 text-blue-500" />
-                Recepción Rampa
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => navigate(`/customs/shipments/${shipment.id}/landed-cost`)}
-                className="text-xs gap-1.5 h-8"
-              >
-                <Calculator className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                Hoja Landed Cost (NIC 2)
-              </Button>
+              {shipment.status === 'CON_LEVANTE' || shipment.status === 'COSTEADO' ? (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => navigate(`/customs/declarations`)}
+                    className="text-xs gap-1.5 h-8"
+                  >
+                    <FileText className="h-3.5 w-3.5 text-primary" />
+                    Ver DAM Numerada (Paso 3)
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => navigate(`/customs/landed-cost`)}
+                    className="text-xs gap-1.5 h-8 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs"
+                  >
+                    <Calculator className="h-3.5 w-3.5" />
+                    Continuar a Recojo y Kardex (Paso 4)
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={() => navigate(`/customs/declarations/new?shipmentId=${shipment.id}`)}
+                  className="text-xs gap-1.5 h-8 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-xs"
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  Numerar DAM y Pasar a Despacho (Paso 3)
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Button>
+              )}
             </>
           )}
           <Button
@@ -106,8 +99,9 @@ export default function ShipmentDetailPage() {
             variant="ghost"
             onClick={() => refetch()}
             className="h-8 text-xs"
+            title="Actualizar datos"
           >
-            <RefreshCw className="h-3 w-3" />
+            <RefreshCw className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>
@@ -154,15 +148,6 @@ export default function ShipmentDetailPage() {
           await addEvent(event);
           setIsEventModalOpen(false);
         }}
-      />
-
-      <GoodsReceiptModal
-        isOpen={isReceiptModalOpen}
-        onClose={() => setIsReceiptModalOpen(false)}
-        declarationId={primaryDeclaration?.id || shipment.id}
-        shipmentId={shipment.id}
-        initialItems={itemsForReceipt}
-        onSuccess={() => refetch()}
       />
     </Page>
   );
