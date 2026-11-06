@@ -92,10 +92,33 @@ export interface TrialBalanceResponse {
   totalCredit: number;
 }
 
+export interface IncomeStatementLine {
+  accountCode: string;
+  accountName: string;
+  amount: number;
+}
+
 export interface BalanceSheetLine {
   accountCode: string;
   accountName: string;
   amount: number;
+}
+
+export interface IncomeStatementGroup {
+  key: 'ingresos' | 'costoVentas' | 'gastosOperativos';
+  label: string;
+  lines: IncomeStatementLine[];
+  total: number;
+}
+
+export interface IncomeStatementResponse {
+  period: string;
+  groups: IncomeStatementGroup[];
+  ingresos: number;
+  costoVentas: number;
+  gastosOperativos: number;
+  resultadoBruto: number;
+  resultadoOperativo: number;
 }
 
 export interface BalanceSheetGroup {
