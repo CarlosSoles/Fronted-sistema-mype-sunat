@@ -34,6 +34,7 @@ export interface InvoiceItem {
 }
 
 export interface Invoice {
+  lineasOrigen?: readonly LineaOrigen[];
   historial?: readonly { id: string; fecha: string; mensaje: string | null }[];
   id: string;
   serie: string;
@@ -114,6 +115,13 @@ export interface Invoice {
   documentoAfectado?: string;
   /** Motivo de la nota (Catálogo 09) tal como se guardó: `06`. */
   motivoNota?: { codigo: string; descripcion: string };
+}
+
+export interface LineaOrigen {
+  codigo: string | null; descripcion: string | null; unidad: string | null;
+  cantidad: number | null; valor_unitario: number | null; precio_unitario: number | null;
+  afectacion: string | null; icbper?: number | null;
+  descuentos?: readonly { codigo: string | null; monto: number | null }[];
 }
 
 export interface CreateInvoiceDto {
