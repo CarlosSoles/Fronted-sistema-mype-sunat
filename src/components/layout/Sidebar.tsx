@@ -151,6 +151,7 @@ const NAV_ITEMS: NavItem[] = [
       { title: 'Libro Mayor', path: '/accounting/ledger', icon: BookOpen },
       { title: 'Balance de Comprobación', path: '/accounting/trial-balance', icon: ClipboardCheck },
       { title: 'Estado de Resultados', path: '/accounting/income-statement', icon: FileText },
+      { title: 'Balance General', path: '/accounting/balance-sheet', icon: ClipboardCheck },
       { title: 'Plan de Cuentas (PCGE)', path: '/accounting/plan-cuentas', icon: BookOpen },
       { title: 'Períodos Contables', path: '/accounting/periods', icon: CalendarDays },
       { title: 'Libros Electrónicos (PLE/SIRE)', path: '/accounting/ple', icon: FileCheck2 },

@@ -98,6 +98,12 @@ export interface IncomeStatementLine {
   amount: number;
 }
 
+export interface BalanceSheetLine {
+  accountCode: string;
+  accountName: string;
+  amount: number;
+}
+
 export interface IncomeStatementGroup {
   key: 'ingresos' | 'costoVentas' | 'gastosOperativos';
   label: string;
@@ -113,6 +119,25 @@ export interface IncomeStatementResponse {
   gastosOperativos: number;
   resultadoBruto: number;
   resultadoOperativo: number;
+}
+
+export interface BalanceSheetGroup {
+  key: 'activo' | 'pasivo' | 'patrimonio';
+  label: string;
+  lines: BalanceSheetLine[];
+  total: number;
+}
+
+export interface BalanceSheetResponse {
+  period: string;
+  activo: BalanceSheetGroup;
+  pasivo: BalanceSheetGroup;
+  patrimonio: BalanceSheetGroup;
+  resultadoEjercicio: number;
+  totalActivo: number;
+  totalPatrimonio: number;
+  totalPasivoPatrimonio: number;
+  cuadra: boolean;
 }
 
 export interface PleExportConfig {
