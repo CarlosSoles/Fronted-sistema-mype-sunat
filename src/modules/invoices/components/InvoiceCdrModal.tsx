@@ -32,6 +32,8 @@ import {
 } from '../lib/invoiceDescarga';
 import { InvoiceStatusBadge } from './InvoiceStatusBadge';
 import { InvoiceAuditTrail } from './InvoiceAuditTrail';
+import { invoicesApi } from '../services/invoicesApi';
+import type { Invoice } from '../types/invoice.types';
 import { leerTributosXml, NOMBRES_AFECTACION, NOMBRES_TRIBUTO, requiereRevisionContableXml, rotularCodigo } from '../lib/invoiceTributosXml';
 
 interface InvoiceCdrModalProps {
@@ -58,8 +60,18 @@ export const InvoiceCdrModal = ({
    * dentro del efecto, que dispara renders en cascada.
    */
   const [xmlReal, setXmlReal] = useState<string | null | undefined>(undefined);
+  const [historialCargado, setHistorialCargado] = useState<{ id: string; eventos?: Invoice['historial']; error?: boolean } | null>(null);
 
   const idComprobante = comprobante?.id ?? null;
+
+  useEffect(() => {
+    if (!idComprobante) return;
+    let vigente = true;
+    void Promise.resolve().then(() => invoicesApi.getInvoiceById(idComprobante)).then((detalle) => {
+      if (vigente) setHistorialCargado({ id: idComprobante, eventos: detalle.historial ?? [] });
+    }).catch(() => { if (vigente) setHistorialCargado({ id: idComprobante, error: true }); });
+    return () => { vigente = false; };
+  }, [idComprobante]);
 
   /**
    * Trae el XML firmado del backend.
@@ -288,7 +300,7 @@ export const InvoiceCdrModal = ({
             {xmlReal && requiereRevisionContableXml(xmlReal) && (
               <PageText variant="caption" className="text-amber-700">Descuento 01/03: revisar si el asiento automático está pendiente de revisión contable.</PageText>
             )}
-            <InvoiceAuditTrail comprobante={c} digest={xmlReal === undefined ? undefined : digest} />
+            <InvoiceAuditTrail comprobante={c} digest={xmlReal === undefined ? undefined : digest} historial={historialCargado?.id === idComprobante ? historialCargado.eventos : undefined} errorHistorial={historialCargado?.id === idComprobante && historialCargado.error} />
           </TabsContent>
 
           <TabsContent value="xml">

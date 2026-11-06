@@ -24,6 +24,14 @@ beforeEach(() => vi.mocked(apiClient.get).mockImplementation(async (url, config)
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
 
 describe('búsqueda real del formulario de emisión', () => {
+  it('limpia la razón social al editar el documento de un cliente seleccionado', async () => {
+    const usuario = userEvent.setup(); montar();
+    await usuario.type(screen.getByLabelText('RUC del cliente'), '20100070970');
+    await usuario.click(await screen.findByRole('button', { name: /FERRETERÍA LOS ANDES S.A.C./i }));
+    expect((screen.getByLabelText('Razón social / nombre') as HTMLInputElement).value).toBe(cliente.razonSocial);
+    await usuario.type(screen.getByLabelText('RUC del cliente'), '{backspace}');
+    expect((screen.getByLabelText('Razón social / nombre') as HTMLInputElement).value).toBe('');
+  });
   it.each(['FERRETERIA', 'FERRETERÍA'])('busca %s por razón social y llena el documento al elegir', async (nombre) => {
     const usuario = userEvent.setup(); montar();
     await usuario.type(screen.getByLabelText('Razón social / nombre'), nombre);
@@ -57,5 +65,17 @@ it('también busca por nombre desde el formulario de notas', async () => {
   await usuario.type(screen.getByLabelText('Razón social / nombre'), 'FERRETERIA');
   expect(await screen.findByRole('button', { name: /FERRETERÍA LOS ANDES S.A.C./i })).toBeTruthy();
   expect(apiClient.get).toHaveBeenCalledWith('/invoices/customers/lookup', { params: { q: 'FERRETERIA' } });
+  cleanup(); client.clear();
+});
+
+it('también limpia la razón social en notas al editar el documento elegido', async () => {
+  const usuario = userEvent.setup();
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(<QueryClientProvider client={client}><InvoiceEmitModal tipoInicial="07" fecha="2026-11-05" existentes={[]} onEmitir={vi.fn()} onCerrar={vi.fn()} /></QueryClientProvider>);
+  await usuario.type(screen.getByLabelText('Razón social / nombre'), 'FERRETERIA');
+  await usuario.click(await screen.findByRole('button', { name: /FERRETERÍA LOS ANDES S.A.C./i }));
+  const doc = screen.getByLabelText('RUC / DNI del cliente');
+  await usuario.type(doc, '{backspace}');
+  expect((screen.getByLabelText('Razón social / nombre') as HTMLInputElement).value).toBe('');
   cleanup(); client.clear();
 });

@@ -27,6 +27,8 @@ import {
 interface InvoiceAuditTrailProps {
   comprobante: ComprobanteDemo;
   digest?: string | null;
+  historial?: readonly { id: string; fecha: string; mensaje: string | null }[];
+  errorHistorial?: boolean;
 }
 
 /** Estados que el sistema reconoce, con su lectura en lenguaje claro. */
@@ -43,7 +45,7 @@ const LECTURA_DEL_ESTADO: Record<string, string> = {
 };
 
 /** Bitácora con los datos reales del comprobante. */
-export const InvoiceAuditTrail = ({ comprobante, digest }: InvoiceAuditTrailProps) => {
+export const InvoiceAuditTrail = ({ comprobante, digest, historial, errorHistorial }: InvoiceAuditTrailProps) => {
   const aceptado =
     comprobante.estado === 'ACEPTADO' || comprobante.estado === 'OBSERVADO';
   // Desde que ERROR_RED llega como SIN_CONFIRMAR, el estado se basta a sí
@@ -119,6 +121,16 @@ export const InvoiceAuditTrail = ({ comprobante, digest }: InvoiceAuditTrailProp
           </PageText>
         </div>
       ))}
+
+      <div className="space-y-1 border-t pt-2">
+        <PageText variant="label">Historial de auditoría</PageText>
+        {errorHistorial ? <PageText variant="caption">No se pudo cargar el historial.</PageText>
+          : historial === undefined ? <PageText variant="caption">Cargando historial…</PageText>
+          : historial.length === 0 ? <PageText variant="caption">No hay eventos de auditoría registrados.</PageText>
+          : historial.map((evento) => <div key={evento.id}>
+              <PageText variant="caption">{evento.fecha || 'Fecha no disponible'} · {evento.mensaje || 'Sin mensaje registrado'}</PageText>
+            </div>)}
+      </div>
 
       {/*
         Cierre de la Bitácora.
