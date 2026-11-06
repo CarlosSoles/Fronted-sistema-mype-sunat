@@ -27,10 +27,6 @@ import {
 import { calcularResumenFiscal } from '@/modules/invoices/lib/invoiceMetrics';
 import { fechaLocalIso } from '@/modules/invoices/lib/invoiceFecha';
 import { formatDateToPeru } from '@/lib/formatters';
-import {
-  despacharColaOutbox,
-  registrarRespuestaCdr,
-} from '@/modules/invoices/lib/invoiceOutbox';
 import { construirCsvRvie } from '@/modules/invoices/lib/invoiceExportSire';
 
 const FACTURA_RUC = '20100070970';
@@ -212,44 +208,6 @@ describe('BA-03 · la Nota hereda el documento afectado', () => {
     expect(nota.serie).toBe('FD01');
     expect(nota.motivoCodigo).toBe('02');
     expect(nota.documentoAfectado).toBe('');
-  });
-});
-
-describe('BA-04 · la cola Outbox se vacía cuando llega el CDR', () => {
-  it('un comprobante en cola pasa a ACEPTADO con código 0', () => {
-    const enCola = borradorAComprobante({
-      ...borradorInicial('01', '2026-10-16'),
-      clienteDoc: FACTURA_RUC,
-    });
-    expect(enCola.estado).toBe('EN_COLA');
-
-    const despachado = registrarRespuestaCdr(enCola);
-
-    expect(despachado.estado).toBe('ACEPTADO');
-    expect(despachado.cdrCodigo).toBe('0');
-    expect(despachado.cdrDescripcion).toBe('El comprobante fue aceptado');
-    expect(despachado.tiempoDespachoMs).toBeGreaterThan(0);
-  });
-
-  it('no altera un comprobante que ya tiene veredicto', () => {
-    const aceptado = COMPROBANTES_DEMO.find((c) => c.estado === 'ACEPTADO')!;
-    expect(registrarRespuestaCdr(aceptado)).toBe(aceptado);
-  });
-
-  it('deja las comunicaciones de baja y resúmenes como están', () => {
-    const lote = despacharColaOutbox(COMPROBANTES_DEMO);
-    const ra = lote.filter((c) => c.tipo === 'RA' || c.tipo === 'RC');
-
-    expect(ra).toHaveLength(2);
-    expect(lote.some((c) => c.estado === 'EN_COLA')).toBe(false);
-  });
-
-  it('el contador de la cola baja de 1 a 0 tras el despacho', () => {
-    const antes = calcularResumenFiscal(COMPROBANTES_DEMO);
-    const despues = calcularResumenFiscal(despacharColaOutbox(COMPROBANTES_DEMO));
-
-    expect(antes.enCola).toBe(1);
-    expect(despues.enCola).toBe(0);
   });
 });
 

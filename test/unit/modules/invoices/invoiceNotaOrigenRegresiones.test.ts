@@ -119,7 +119,7 @@ describe('el origen de la nota tiene que encontrar la factura', () => {
     expect(buscarAfectado(soloNotas, 'F001-00000045')).toBeUndefined();
 
     // Y con la lista de la EMPRESA sí se encuentra. Es lo que ahora alimenta el
-    // modal: `useComprobantesDeEmpresa` en lugar de la grilla del apartado.
+    // modal: se consulta el listado real en lugar de la grilla del apartado.
     const deLaEmpresa = [...soloNotas, comprobanteCompleto()];
     expect(buscarAfectado(deLaEmpresa, 'F001-00000045')?.numero).toBe(
       'F001-00000045',
