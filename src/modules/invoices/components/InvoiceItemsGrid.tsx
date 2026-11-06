@@ -211,7 +211,7 @@ export const InvoiceItemsGrid = ({
                     </select>
                     {item.descuento && <input aria-label={`Monto de descuento de la línea ${i + 1}`} type="number" min="0" step="0.01" className={`${CLASE_CELDA} text-right`} value={item.descuento.monto} onChange={(e) => onCambiar(i, { descuento: { ...item.descuento!, monto: Number(e.target.value) } })} />}
                     {item.descuento && item.descuento.monto > item.cantidad * item.valorUnitario && <p role="alert" className="text-xs text-destructive">El descuento no puede superar el valor de la línea.</p>}
-                    {item.descuento?.codigo === '01' && <p className="text-xs text-amber-700">El asiento automático se bloqueará; requiere revisión contable.</p>}
+                    {item.descuento?.codigo === '01' && <p className="text-xs text-amber-700">El asiento automático utiliza la cuenta 74. Podría quedar pendiente de revisión si la cuenta no está activa en el plan de la empresa o los importes no concuerdan.</p>}
                   </td>
                   <td className="px-1 py-1">
                     <input

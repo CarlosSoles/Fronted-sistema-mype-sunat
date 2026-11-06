@@ -28,4 +28,11 @@ describe('descuentos globales 02 y 03', () => {
     expect(onChange).toHaveBeenCalledWith({ codigo: '02', monto: 0 });
     expect(screen.queryByRole('option', { name: /04/ })).toBeNull();
   });
+  it('muestra el aviso condicional de cuenta 74 solo para 03', () => {
+    const { rerender } = render(<InvoiceDescuentoGlobal valor={{ codigo: '03', monto: 100 }} onChange={vi.fn()} />);
+    expect(screen.getByText(/cuenta 74.*Podría quedar pendiente de revisión/)).toBeTruthy();
+    expect(screen.getByText(/cuenta no está activa.*importes no concuerdan/)).toBeTruthy();
+    rerender(<InvoiceDescuentoGlobal valor={{ codigo: '02', monto: 100 }} onChange={vi.fn()} />);
+    expect(screen.queryByText(/cuenta 74/)).toBeNull();
+  });
 });
