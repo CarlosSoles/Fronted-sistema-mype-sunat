@@ -60,6 +60,8 @@ import {
   validarCronograma,
 } from '../lib/invoiceDetraccion';
 import { liquidarDescuentoGlobal } from '../lib/invoiceDescuentoGlobal';
+import { calcularRetencion } from '../lib/invoiceRetentions';
+import { round2 } from '../lib/invoiceTaxes';
 import { InvoiceEmitCampos } from './InvoiceEmitCampos';
 import { lineasParaNota } from '../lib/invoiceLineasOrigen';
 import { InvoiceEmitResumen } from './InvoiceEmitResumen';
@@ -89,13 +91,14 @@ interface InvoiceEmitModalProps {
 }
 
 /** Totales que necesita el flujo: importe total y neto pendiente de pago. */
-const calcularFlujo = (b: BorradorEmision) => {
+export const calcularFlujo = (b: BorradorEmision) => {
   const totales = liquidarDescuentoGlobal(b.items, b.descuentoGlobal);
   const esNota = esTipoNota(b.tipo);
   const codigo = esNota ? undefined : b.codigoDetraccion;
   const detraccion = montoDetraccionPara(totales.total, codigo);
   const importeTotal = totales.total;
-  return { importeTotal, detraccion, neto: importeTotal - detraccion };
+  const retencion = calcularRetencion(importeTotal, !esNota && b.agenteRetencion);
+  return { importeTotal, detraccion, neto: round2(importeTotal - detraccion - retencion) };
 };
 
 /** Motivos por los que todavía no se puede emitir el comprobante. */
