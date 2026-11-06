@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Card, Button, Badge, Alert, AlertTitle, AlertDescription } from '@/components/ui';
 import { CheckCircle2, ShieldCheck, FileCheck, Truck, UserCheck } from 'lucide-react';
 import { goodsReceiptApi } from '../services/goodsReceiptApi';
+import { useAuthStore } from '@/stores/authStore';
 
 interface ReceiptItemState {
   seriesOrder: number;
@@ -18,31 +19,44 @@ interface ReceiptItemState {
 interface GoodsReceiptTabContentProps {
   shipmentId: string;
   declarationId?: string;
+  initialItems?: ReceiptItemState[];
   onReceiptConfirmed?: () => void;
 }
 
 export const GoodsReceiptTabContent: React.FC<GoodsReceiptTabContentProps> = ({
   shipmentId,
-  declarationId = 'DAM-2026-001',
+  declarationId = '118-2026-10-045892',
+  initialItems,
   onReceiptConfirmed,
 }) => {
+  const user = useAuthStore((s) => s.user);
+  const userName = user?.fullName || user?.name || 'Responsable de Almacén Central';
+
   const [isSigned, setIsSigned] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sealStatus, setSealStatus] = useState<'INTACTO' | 'VIOLADO' | 'SIN_PRECINTO'>('INTACTO');
 
-  const [items, setItems] = useState<ReceiptItemState[]>([
-    {
-      seriesOrder: 1,
-      productCode: 'LAP-GAMER-01',
-      description: 'Laptop Gamer Intel Core i7 16GB RAM 512GB SSD',
-      destinationType: 'MERCADERIA',
-      declaredQty: 100,
-      receivedQty: 100,
-      conformingQty: 98,
-      damagedQty: 2,
-      discrepancyReason: '2 cajas con esquinas aplastadas por estiba en rampa',
-    },
-  ]);
+  const defaultItem: ReceiptItemState = {
+    seriesOrder: 1,
+    productCode: 'PROD-01',
+    description: 'Mercancía de importación nacionalizada',
+    destinationType: 'MERCADERIA',
+    declaredQty: 100,
+    receivedQty: 100,
+    conformingQty: 100,
+    damagedQty: 0,
+    discrepancyReason: '',
+  };
+
+  const [items, setItems] = useState<ReceiptItemState[]>(
+    initialItems && initialItems.length > 0 ? initialItems : [defaultItem]
+  );
+
+  React.useEffect(() => {
+    if (initialItems && initialItems.length > 0) {
+      setItems(initialItems);
+    }
+  }, [initialItems]);
 
   const handleUpdateItem = (index: number, field: keyof ReceiptItemState, value: any) => {
     setItems((prev) => {
@@ -52,15 +66,17 @@ export const GoodsReceiptTabContent: React.FC<GoodsReceiptTabContentProps> = ({
     });
   };
 
+  const receiptNumberOfficial = `REC-${new Date().getFullYear()}-${String(shipmentId.replace(/\D/g, '') || '00089').padStart(5, '0')}`;
+
   const handleConfirm = async () => {
     setIsSubmitting(true);
     try {
       await goodsReceiptApi.confirmReceipt({
-        receiptNumber: 'REC-2026-00089',
+        receiptNumber: receiptNumberOfficial,
         shipmentId,
         declarationId,
         warehouseCode: '0000',
-        responsibleName: 'Carlos Ahumada (Almacenero)',
+        responsibleName: `${userName} (Almacén Central)`,
         sealNumber: 'SEAL-984512',
         receptionType: 'TOTAL',
         observations: `Precinto: ${sealStatus}`,
@@ -102,11 +118,11 @@ export const GoodsReceiptTabContent: React.FC<GoodsReceiptTabContentProps> = ({
       <Card className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-card border-border">
         <div>
           <span className="text-[10px] text-muted-foreground uppercase font-semibold block">N° Acta Oficial:</span>
-          <span className="font-mono font-bold text-primary text-sm">REC-2026-00089</span>
+          <span className="font-mono font-bold text-primary text-sm">{receiptNumberOfficial}</span>
         </div>
         <div>
           <span className="text-[10px] text-muted-foreground uppercase font-semibold block">DAM / DUA Vinculada:</span>
-          <span className="font-mono font-semibold">118-2026-10-045892</span>
+          <span className="font-mono font-semibold">{declarationId}</span>
         </div>
         <div>
           <span className="text-[10px] text-muted-foreground uppercase font-semibold block">Almacén Receptor:</span>
@@ -228,7 +244,7 @@ export const GoodsReceiptTabContent: React.FC<GoodsReceiptTabContentProps> = ({
         <div className="flex items-center gap-2">
           <UserCheck className="h-4 w-4 text-muted-foreground" />
           <span className="text-[11px] text-muted-foreground">
-            Responsable: <strong>Carlos Ahumada (Almacén Central)</strong> · Fecha: {new Date().toLocaleDateString()}
+            Responsable: <strong>{userName} (Almacén Central)</strong> · Fecha: {new Date().toLocaleDateString('es-PE')}
           </span>
         </div>
 

@@ -92,6 +92,31 @@ export interface TrialBalanceResponse {
   totalCredit: number;
 }
 
+export interface BalanceSheetLine {
+  accountCode: string;
+  accountName: string;
+  amount: number;
+}
+
+export interface BalanceSheetGroup {
+  key: 'activo' | 'pasivo' | 'patrimonio';
+  label: string;
+  lines: BalanceSheetLine[];
+  total: number;
+}
+
+export interface BalanceSheetResponse {
+  period: string;
+  activo: BalanceSheetGroup;
+  pasivo: BalanceSheetGroup;
+  patrimonio: BalanceSheetGroup;
+  resultadoEjercicio: number;
+  totalActivo: number;
+  totalPatrimonio: number;
+  totalPasivoPatrimonio: number;
+  cuadra: boolean;
+}
+
 export interface PleExportConfig {
   periodo: string; // AAAAMM
   libro: '5.1_DIARIO' | '6.1_MAYOR' | '8.1_COMPRAS' | '14.1_VENTAS';
