@@ -2,8 +2,8 @@
  * Detracción SPOT (Catálogo 54), Retención del IGV (3%) y liquidación integral.
  *
  * Reglas según el informe técnico del proyecto:
- *  - La detracción aplica cuando el total en Soles supera S/ 700.00 y su monto
- *    se redondea al entero más cercano (norma SUNAT). Aunque la factura se emita
+ *  - La detracción aplica cuando el total en Soles supera S/ 700.00 y el monto
+ *    del comprobante se expresa a céntimos. Aunque la factura se emita
  *    en USD, se expresa siempre en Soles usando el tipo de cambio venta SBS.
  *  - La retención del 3% aplica a clientes Agentes de Retención sobre el
  *    importe total cuando la operación supera el umbral.
@@ -28,7 +28,7 @@ export const RETENCION_IGV_RATE = 0.03;
 export const UMBRAL_SOLES = 700;
 
 /**
- * Redondea la detracción al entero más cercano, según la norma de SUNAT.
+ * Redondea el depósito de detracción al entero más cercano.
  * Ej.: S/ 141.60 -> S/ 142.00.
  */
 export const roundDetraccion = (num: number): number => {
@@ -68,7 +68,7 @@ export interface OpcionesLiquidacion {
  * Calcula el monto de la detracción SPOT.
  *
  * El requisito de umbral se evalúa sobre el total expresado en Soles. El monto
- * resultante se redondea al entero más cercano según la norma de SUNAT.
+ * del comprobante se expresa a céntimos; el depósito se redondea aparte.
  */
 export const calcularDetraccion = (
   importeTotal: number,
@@ -80,7 +80,7 @@ export const calcularDetraccion = (
   const totalEnSoles = round2(importeTotal * tipoCambio);
   if (totalEnSoles <= UMBRAL_SOLES) return 0;
 
-  return roundDetraccion(totalEnSoles * porcentaje);
+  return round2(totalEnSoles * porcentaje);
 };
 
 /**

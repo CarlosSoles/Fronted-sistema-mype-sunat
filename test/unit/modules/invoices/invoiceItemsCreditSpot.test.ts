@@ -394,9 +394,8 @@ describe('TA-64 · detracción por código del Catálogo 54', () => {
     expect(servicios?.porcentaje).toBe(0.12);
   });
 
-  it('el importe se redondea a soles enteros (regla 3208)', () => {
-    // 12 % de 1180 = 141.60 → 142.
-    expect(montoDetraccionPara(1180, '012')).toBe(142);
+  it('el importe del comprobante conserva céntimos', () => {
+    expect(montoDetraccionPara(1180, '012')).toBe(141.6);
     // 4 % de 1000 = 40.
     expect(montoDetraccionPara(1000, '027')).toBe(40);
   });
