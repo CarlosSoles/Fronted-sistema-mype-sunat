@@ -70,7 +70,12 @@ export default function SireReconciliationPage() {
         description="Compara los comprobantes del ERP con la información fiscal de SUNAT."
       />
       <SireHealthDashboard />
-      <SireWorkflowPanel initialRuc={ruc} />
+      <SireWorkflowPanel
+        period={period}
+        bookType={bookType}
+        onPeriodChange={setPeriod}
+        onBookTypeChange={setBookType}
+      />
       <form onSubmit={handleSubmit} className="space-y-6">
         <label className="block max-w-xs space-y-1.5 text-sm font-medium">
           Libro a conciliar

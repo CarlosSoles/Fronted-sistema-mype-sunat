@@ -120,6 +120,7 @@ export default function SireImportPage() {
             </label>
             <Input
               aria-label="Archivo TXT provisional"
+              key={file?.name ?? 'no-file'}
               type="file"
               accept=".txt,text/plain"
               disabled={loading}
@@ -129,6 +130,14 @@ export default function SireImportPage() {
                 setResult(null);
               }}
             />
+            {file && (
+              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                <span>{file.name} · {(file.size / 1024).toFixed(1)} KB</span>
+                <Button type="button" variant="link" className="px-1" disabled={loading} onClick={() => setFile(null)}>
+                  Cancelar selección
+                </Button>
+              </div>
+            )}
             <Button type="submit" disabled={loading || !file}>
               {loading ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Upload aria-hidden="true" />}
               {loading ? 'Importando…' : 'Importar propuesta'}

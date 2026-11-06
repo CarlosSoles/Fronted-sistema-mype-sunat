@@ -149,11 +149,22 @@ const request = async (path: string): Promise<unknown> => {
     if (response.status === 404 && import.meta.env.DEV) {
       console.warn(`[SIRE dashboard] Endpoint no disponible: ${apiUrl}${path}`);
     }
-    const detail =
+    const rootMessage =
       typeof body === 'object' && body !== null && 'message' in body && typeof body.message === 'string'
-        ? ` ${body.message}`
-        : '';
-    throw new SireApiError(`No se pudo consultar el dashboard SIRE (HTTP ${response.status}).${detail}`, response.status);
+        ? body.message
+        : null;
+    const nestedMessage =
+      typeof body === 'object' &&
+      body !== null &&
+      'error' in body &&
+      typeof body.error === 'object' &&
+      body.error !== null &&
+      'message' in body.error &&
+      typeof body.error.message === 'string'
+        ? body.error.message
+        : null;
+    const detail = rootMessage ?? nestedMessage;
+    throw new SireApiError(`No se pudo consultar el dashboard SIRE (HTTP ${response.status}).${detail ? ` ${detail}` : ''}`, response.status);
   }
 
   return body;

@@ -62,7 +62,7 @@ describe('sireApi.importProposal', () => {
     await expect(
       sireApi.importProposal(
         { period: '202610', bookType: 'RCE_COMPRAS' },
-        new File(['row'], 'proposal.csv', { type: 'text/csv' }),
+        new File(['row'], 'proposal.txt', { type: 'text/plain' }),
       ),
     ).rejects.toMatchObject({
       name: 'SireApiError',
@@ -86,7 +86,7 @@ describe('sireApi.importProposal', () => {
         { period: '202610', bookType: 'RVIE_VENTAS' },
         new File(['row'], 'proposal.txt', { type: 'text/plain' }),
       ),
-    ).rejects.toThrow('El backend no encontró la ruta de importación SIRE.');
+    ).rejects.toThrow('No se encontró el recurso o periodo SIRE solicitado.');
   });
 
   it('no hace la petición si no hay sesión autenticada', async () => {

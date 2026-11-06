@@ -16,6 +16,8 @@ import type {
   SireReportUploadRequest,
   SireWorkflowRequest,
   SireWorkflowResponse,
+  SireProposalDto,
+  SireExportResult,
 } from '../types/sire.types';
 
 export class SireApiError extends Error {
@@ -30,7 +32,7 @@ export class SireApiError extends Error {
 
 const getBackendMessage = (body: unknown): string | undefined => {
   if (typeof body !== 'object' || body === null) return undefined;
-  const response = body as { message?: unknown; detail?: unknown };
+  const response = body as { message?: unknown; detail?: unknown; error?: unknown };
   const formatItem = (item: unknown): string => {
     if (typeof item === 'string') return item;
     if (typeof item !== 'object' || item === null) return '';
@@ -66,23 +68,12 @@ const getBackendMessage = (body: unknown): string | undefined => {
     if (message) return message;
   }
   if (typeof response.detail === 'string') return response.detail;
+  if (typeof response.error === 'string') return response.error;
+  if (typeof response.error === 'object' && response.error !== null) {
+    const message = formatItem(response.error);
+    if (message) return message;
+  }
   return undefined;
-};
-
-const getImportStatusMessage = (status: number, detail?: string): string => {
-  const messages: Record<number, string> = {
-    400: 'No se pudo importar la propuesta. Revisa el periodo, el libro y el formato del archivo.',
-    401: 'Tu sesión venció o no es válida. Inicia sesión nuevamente.',
-    403: 'No tienes permisos para importar propuestas SIRE.',
-    404: 'El backend no encontró la ruta de importación SIRE. Verifica que esté desplegada la versión correcta del API.',
-    409: 'El periodo fiscal está cerrado y no admite nuevas importaciones.',
-    413: 'El archivo supera el límite de 5 MiB.',
-    500: 'Ocurrió un error en el servidor al importar la propuesta. Inténtalo nuevamente.',
-    502: 'El servidor del frontend no pudo comunicarse con el backend. Verifica que esté iniciado y accesible.',
-    503: 'El backend no está disponible en este momento. Verifica que esté iniciado e inténtalo nuevamente.',
-  };
-  const message = messages[status] ?? 'No se pudo importar la propuesta SIRE.';
-  return detail ? `${message} ${detail}` : message;
 };
 
 const getSireStatusMessage = (status: number, detail?: string): string => {
@@ -90,8 +81,9 @@ const getSireStatusMessage = (status: number, detail?: string): string => {
     400: 'Los datos enviados no son válidos. Revisa el periodo y la información del libro.',
     401: 'Tu sesión venció o no es válida. Inicia sesión nuevamente.',
     403: 'No tienes permisos para realizar esta operación SIRE.',
-    404: 'No se encontró la conciliación del periodo y libro indicados.',
+    404: 'No se encontró el recurso o periodo SIRE solicitado.',
     409: 'El periodo ya está cerrado y no admite cambios.',
+    422: 'El backend rechazó la operación por una regla de negocio.',
     500: 'Ocurrió un error en el servidor al procesar la operación SIRE.',
     503: 'Módulo en modo mantenimiento. Contacte a sistemas.',
   };
@@ -100,8 +92,72 @@ const getSireStatusMessage = (status: number, detail?: string): string => {
   return detail ? `${message} ${detail}` : message;
 };
 
-const workflowQuery = ({ ruc, period, bookType }: SireWorkflowRequest) =>
-  new URLSearchParams({ ruc, period, bookType }).toString();
+const workflowQuery = ({ period, bookType }: SireWorkflowRequest) =>
+  new URLSearchParams({ periodo: period, libro: bookType }).toString();
+
+const assertValidPeriod = (period: string) => {
+  if (!/^\d{4}(0[1-9]|1[0-2])$/.test(period)) {
+    throw new SireApiError('Ingresa un periodo válido con formato YYYYMM.', 400);
+  }
+};
+
+const assertAllowedFile = (file: File, extensions: RegExp, label: string) => {
+  if (!extensions.test(file.name) || file.size === 0 || file.size > 5 * 1024 * 1024) {
+    throw new SireApiError(`Selecciona un archivo ${label} no vacío de máximo 5 MiB.`, 400);
+  }
+};
+
+const proposalToRecord = (proposal: SireProposalDto) => ({
+  proposalId: proposal.id,
+  carSunat: proposal.carSunat,
+  emitterRuc: proposal.emitterRuc,
+  documentType: proposal.documentType,
+  series: proposal.series,
+  correlative: proposal.correlative,
+  issueDate: proposal.issueDate,
+  taxableBase: proposal.taxableBase,
+  igvAmount: proposal.igvAmount,
+  totalAmount: proposal.totalAmount,
+  origin: proposal.origin,
+  status: proposal.status,
+  excluded: proposal.excluded,
+});
+
+const isProposalDto = (value: unknown): value is SireProposalDto =>
+  typeof value === 'object' &&
+  value !== null &&
+  'id' in value &&
+  typeof value.id === 'string' &&
+  'carSunat' in value &&
+  typeof value.carSunat === 'string' &&
+  'emitterRuc' in value &&
+  typeof value.emitterRuc === 'string' &&
+  'documentType' in value &&
+  typeof value.documentType === 'string' &&
+  'series' in value &&
+  typeof value.series === 'string' &&
+  'correlative' in value &&
+  typeof value.correlative === 'string' &&
+  'issueDate' in value &&
+  typeof value.issueDate === 'string' &&
+  'taxableBase' in value &&
+  typeof value.taxableBase === 'number' &&
+  'igvAmount' in value &&
+  typeof value.igvAmount === 'number' &&
+  'totalAmount' in value &&
+  typeof value.totalAmount === 'number' &&
+  'origin' in value &&
+  (value.origin === 'SUNAT' || value.origin === 'USUARIO');
+
+const normalizeWorkflow = (value: SireWorkflowResponse): SireWorkflowResponse => {
+  if (Array.isArray(value.proposals)) {
+    if (!value.proposals.every(isProposalDto)) {
+      throw new SireApiError('El servidor devolvió propuestas SIRE con un formato inválido.', null);
+    }
+    return { ...value, records: value.proposals.map(proposalToRecord) };
+  }
+  return value;
+};
 
 const workflowRequest = async <T>(path: string, init: RequestInit): Promise<T> => {
   const token = useAuthStore.getState().token;
@@ -109,9 +165,13 @@ const workflowRequest = async <T>(path: string, init: RequestInit): Promise<T> =
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
       ...init,
-      headers: { ...authenticatedHeaders(token, Boolean(init.body)), ...init.headers },
+      headers: {
+        ...authenticatedHeaders(token, Boolean(init.body) && !(init.body instanceof FormData)),
+        ...init.headers,
+      },
     });
-    return await readResponse<T>(response, getSireStatusMessage);
+    const body = await readResponse<T>(response, getSireStatusMessage);
+    return isWorkflowResponse(body) ? (normalizeWorkflow(body) as T) : body;
   } catch (error) {
     if (error instanceof TypeError) {
       throw new SireApiError('No fue posible conectar con el servidor. Verifica tu conexión e inténtalo nuevamente.', null);
@@ -120,16 +180,19 @@ const workflowRequest = async <T>(path: string, init: RequestInit): Promise<T> =
   }
 };
 
-const actionBody = ({ proposalId, carSunat, reason }: SireRecordActionRequest) => ({
+const isWorkflowResponse = (value: unknown): value is SireWorkflowResponse =>
+  typeof value === 'object' && value !== null && 'state' in value;
+
+const actionBody = ({ proposalId, reason, period, bookType }: SireRecordActionRequest) => ({
   proposalId,
-  carSunat,
+  period,
+  bookType,
   reason,
 });
 
 const fileRequest = (payload: SireWorkflowRequest & { file: File }) => {
   const formData = new FormData();
   formData.append('file', payload.file);
-  formData.append('ruc', payload.ruc);
   formData.append('period', payload.period);
   formData.append('bookType', payload.bookType);
   return formData;
@@ -230,116 +293,153 @@ const readResponse = async <T>(response: Response, message: (status: number, det
 };
 
 export const sireApi = {
-  async submitProposal(payload: SireWorkflowRequest & { file: File }) {
-    return workflowRequest<SireWorkflowResponse>('/sire/proposal', {
+  async getProposal(payload: SireWorkflowRequest) {
+    assertValidPeriod(payload.period);
+    const response = await workflowRequest<SireWorkflowResponse>('/sire/proposal', {
       method: 'POST',
-      body: fileRequest(payload),
+      body: JSON.stringify({ period: payload.period, bookType: payload.bookType }),
+    });
+    if (!Array.isArray(response.proposals)) {
+      throw new SireApiError('El servidor devolvió una respuesta de propuesta sin la lista de comprobantes.', null);
+    }
+    return response;
+  },
+
+  async importProposal(payload: ImportSireProposalRequest, file: File): Promise<ImportSireProposalResponse> {
+    assertValidPeriod(payload.period);
+    assertAllowedFile(file, /\.txt$/i, 'TXT');
+    return workflowRequest<ImportSireProposalResponse>('/sire/import', {
+      method: 'POST',
+      body: fileRequest({ ...payload, file }),
     });
   },
 
   async uploadReport(payload: SireReportUploadRequest) {
+    assertValidPeriod(payload.period);
+    assertAllowedFile(payload.file, /\.(csv|xlsx)$/i, 'CSV o XLSX');
     return workflowRequest<SireWorkflowResponse>('/sire/upload', {
       method: 'POST',
       body: fileRequest(payload),
     });
   },
 
-  async getProposal(payload: SireWorkflowRequest) {
-    return workflowRequest<SireWorkflowResponse>(`/sire/propuesta?${workflowQuery(payload)}`, { method: 'GET' });
-  },
-
   async exclude(payload: SireRecordActionRequest) {
-    return workflowRequest<SireWorkflowResponse>(`/sire/excluir?${workflowQuery(payload)}`, {
+    assertValidPeriod(payload.period);
+    return workflowRequest<SireWorkflowResponse>('/sire/excluir', {
       method: 'POST',
       body: JSON.stringify(actionBody(payload)),
     });
   },
 
   async restore(payload: SireRecordActionRequest) {
-    return workflowRequest<SireWorkflowResponse>(`/sire/restaurar?${workflowQuery(payload)}`, {
+    assertValidPeriod(payload.period);
+    return workflowRequest<SireWorkflowResponse>('/sire/restaurar', {
       method: 'POST',
       body: JSON.stringify(actionBody(payload)),
     });
   },
 
   async acceptProposal(payload: SireAcceptRequest) {
+    assertValidPeriod(payload.period);
     return workflowRequest<SireWorkflowResponse>('/sire/aceptar', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ period: payload.period, bookType: payload.bookType, confirmed: true }),
     });
   },
 
   async getPreliminary(payload: SireWorkflowRequest) {
+    assertValidPeriod(payload.period);
     return workflowRequest<SireWorkflowResponse>(`/sire/preliminar?${workflowQuery(payload)}`, { method: 'GET' });
   },
 
   async registerPreliminary(payload: SirePreliminaryRequest) {
+    assertValidPeriod(payload.period);
     return workflowRequest<SireWorkflowResponse>('/sire/preliminar', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ period: payload.period, bookType: payload.bookType, records: payload.records }),
     });
   },
 
   async removePreliminaryRecord(payload: SireRecordActionRequest) {
-    return workflowRequest<SireWorkflowResponse>(`/sire/proposal/${encodeURIComponent(payload.proposalId)}?${workflowQuery(payload)}`, {
+    assertValidPeriod(payload.period);
+    return workflowRequest<SireWorkflowResponse>('/sire/preliminary', {
       method: 'DELETE',
-      body: JSON.stringify({
-        carSunat: payload.carSunat,
-        reason: payload.reason,
-      }),
+      body: JSON.stringify({ period: payload.period, bookType: payload.bookType, proposalId: payload.proposalId }),
     });
   },
 
   async replaceProposal(payload: SireReplacementRequest) {
-    const formData = new FormData();
-    formData.append('file', payload.file);
-    formData.append('ruc', payload.ruc);
-    formData.append('period', payload.period);
-    formData.append('bookType', payload.bookType);
-    return workflowRequest<SireWorkflowResponse>('/sire/reemplazo', { method: 'POST', body: formData });
+    assertValidPeriod(payload.period);
+    assertAllowedFile(payload.file, /\.txt$/i, 'TXT');
+    return workflowRequest<SireWorkflowResponse>('/sire/proposal/replace', {
+      method: 'POST',
+      body: fileRequest(payload),
+    });
   },
 
   async getGenerated(payload: SireWorkflowRequest) {
+    assertValidPeriod(payload.period);
     return workflowRequest<SireWorkflowResponse>(`/sire/generado?${workflowQuery(payload)}`, { method: 'GET' });
   },
 
-  async getStatus(payload: SireWorkflowRequest & { ticket?: string }) {
-    const query = new URLSearchParams({
-      ...payload,
-      ...(payload.ticket ? { ticket: payload.ticket } : {}),
+  async pollTicket(payload: SireWorkflowRequest) {
+    assertValidPeriod(payload.period);
+    return workflowRequest<SireWorkflowResponse>(`/sire/tickets/${encodeURIComponent(payload.period)}/poll?${new URLSearchParams({ bookType: payload.bookType })}`, {
+      method: 'POST',
     });
-    return workflowRequest<SireWorkflowResponse>(`/sire/status?${query.toString()}`, { method: 'GET' });
   },
 
-  async importProposal(payload: ImportSireProposalRequest, file: File): Promise<ImportSireProposalResponse> {
+  async getStatus(payload: SireWorkflowRequest) {
+    return this.pollTicket(payload);
+  },
+
+  async generate(payload: SireWorkflowRequest) {
+    assertValidPeriod(payload.period);
+    return workflowRequest<SireWorkflowResponse>('/sire/generate', {
+      method: 'POST',
+      body: JSON.stringify({ period: payload.period, bookType: payload.bookType }),
+    });
+  },
+
+  async export(payload: SireWorkflowRequest): Promise<SireExportResult> {
+    assertValidPeriod(payload.period);
     const token = useAuthStore.getState().token;
-    if (!token) {
-      throw new SireApiError('Tu sesión venció o no es válida. Inicia sesión nuevamente.', 401);
-    }
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('period', payload.period);
-    formData.append('bookType', payload.bookType);
-
+    if (!token) throw new SireApiError('Tu sesión venció o no es válida. Inicia sesión nuevamente.', 401);
     let response: Response;
     try {
-      response = await fetch(`${API_BASE_URL}/sire/import`, {
+      response = await fetch(`${API_BASE_URL}/sire/export`, {
         method: 'POST',
-        headers: authenticatedHeaders(token),
-        body: formData,
+        headers: authenticatedHeaders(token, true),
+        body: JSON.stringify({ period: payload.period, bookType: payload.bookType }),
       });
     } catch (error) {
       if (error instanceof TypeError) {
-        throw new SireApiError(
-          'No fue posible conectar con el servidor. Verifica tu conexión e inténtalo nuevamente.',
-          null,
-        );
+        throw new SireApiError('No fue posible conectar con el servidor. Verifica tu conexión e inténtalo nuevamente.', null);
       }
       throw error;
     }
 
-    return readResponse<ImportSireProposalResponse>(response, getImportStatusMessage);
+    if (!response.ok) {
+      await readResponse<unknown>(response, getSireStatusMessage);
+    }
+    if (response.headers.get('content-type')?.toLowerCase().includes('application/json')) {
+      return { kind: 'response', body: await readResponse<unknown>(response, getSireStatusMessage) };
+    }
+
+    const blob = await response.blob();
+    if (!blob.size) throw new SireApiError('El servidor devolvió un archivo de exportación vacío.', response.status);
+    const disposition = response.headers.get('content-disposition') ?? '';
+    const filename = disposition.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i)?.[1]?.replace(/"/g, '')
+      ?? `sire-export-${payload.period}-${payload.bookType}`;
+    return { kind: 'file', blob, filename };
+  },
+
+  async closePeriod(period: string, bookType: 'RVIE_VENTAS' | 'RCE_COMPRAS'): Promise<CloseSirePeriodResponse> {
+    assertValidPeriod(period);
+    return workflowRequest<CloseSirePeriodResponse>('/sire/close', {
+      method: 'POST',
+      body: JSON.stringify({ period, bookType }),
+    });
   },
 
   async reconcile(payload: ReconcileRequest): Promise<ReconcileResponse> {
@@ -379,27 +479,6 @@ export const sireApi = {
 
     const body = await readResponse<BackendReconciliation>(response, getSireStatusMessage);
     return mapReconciliation(body);
-  },
-
-  async closePeriod(period: string, bookType: 'RVIE_VENTAS' | 'RCE_COMPRAS'): Promise<CloseSirePeriodResponse> {
-    const token = useAuthStore.getState().token;
-    if (!token) {
-      throw new SireApiError('Tu sesión venció o no es válida. Inicia sesión nuevamente.', 401);
-    }
-    let response: Response;
-    try {
-      response = await fetch(`${API_BASE_URL}/sire/close`, {
-        method: 'POST',
-        headers: authenticatedHeaders(token, true),
-        body: JSON.stringify({ period, bookType }),
-      });
-    } catch (error) {
-      if (error instanceof TypeError) {
-        throw new SireApiError('No fue posible conectar con el servidor. Verifica tu conexión e inténtalo nuevamente.', null);
-      }
-      throw error;
-    }
-    return readResponse<CloseSirePeriodResponse>(response, getSireStatusMessage);
   },
 
   async getHistory(page = 1, limit = 20): Promise<SireHistoryResponse> {
