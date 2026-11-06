@@ -1,4 +1,5 @@
 import { apiClient } from '@/lib/axios';
+import { cachedGet } from '@/lib/offlineCache';
 import {
   type AccountingAccount,
   type AccountingEntry,
@@ -13,10 +14,12 @@ import {
 
 export const accountingApi = {
   getEntries: async (period?: string): Promise<AccountingEntry[]> => {
-    const response = await apiClient.get<AccountingEntry[]>('/accounting/entries', {
-      params: { period },
+    return cachedGet(`accounting-entries:${period ?? 'actual'}`, async () => {
+      const response = await apiClient.get<AccountingEntry[]>('/accounting/entries', {
+        params: { period },
+      });
+      return response.data;
     });
-    return response.data;
   },
 
   createEntry: async (entry: CreateAccountingEntryInput): Promise<AccountingEntry> => {
@@ -25,13 +28,17 @@ export const accountingApi = {
   },
 
   getAccounts: async (): Promise<AccountingAccount[]> => {
-    const response = await apiClient.get<AccountingAccount[]>('/accounting/accounts');
-    return response.data;
+    return cachedGet('accounting-accounts', async () => {
+      const response = await apiClient.get<AccountingAccount[]>('/accounting/accounts');
+      return response.data;
+    });
   },
 
   getPeriods: async (): Promise<AccountingPeriod[]> => {
-    const response = await apiClient.get<AccountingPeriod[]>('/accounting/periods');
-    return response.data;
+    return cachedGet('accounting-periods', async () => {
+      const response = await apiClient.get<AccountingPeriod[]>('/accounting/periods');
+      return response.data;
+    });
   },
 
   openPeriod: async (year: number, month: number): Promise<AccountingPeriod> => {
@@ -45,31 +52,39 @@ export const accountingApi = {
   },
 
   getLedger: async (period: string, accountCode: string): Promise<LedgerResponse> => {
-    const response = await apiClient.get<LedgerResponse>('/accounting/ledger', {
-      params: { period, accountCode },
+    return cachedGet(`accounting-ledger:${period}:${accountCode}`, async () => {
+      const response = await apiClient.get<LedgerResponse>('/accounting/ledger', {
+        params: { period, accountCode },
+      });
+      return response.data;
     });
-    return response.data;
   },
 
   getTrialBalance: async (period: string): Promise<TrialBalanceResponse> => {
-    const response = await apiClient.get<TrialBalanceResponse>('/accounting/trial-balance', {
-      params: { period },
+    return cachedGet(`accounting-trial-balance:${period}`, async () => {
+      const response = await apiClient.get<TrialBalanceResponse>('/accounting/trial-balance', {
+        params: { period },
+      });
+      return response.data;
     });
-    return response.data;
   },
 
   getIncomeStatement: async (period: string): Promise<IncomeStatementResponse> => {
-    const response = await apiClient.get<IncomeStatementResponse>('/accounting/income-statement', {
-      params: { period },
+    return cachedGet(`accounting-income-statement:${period}`, async () => {
+      const response = await apiClient.get<IncomeStatementResponse>('/accounting/income-statement', {
+        params: { period },
+      });
+      return response.data;
     });
-    return response.data;
   },
 
   getBalanceSheet: async (period: string): Promise<BalanceSheetResponse> => {
-    const response = await apiClient.get<BalanceSheetResponse>('/accounting/balance-sheet', {
-      params: { period },
+    return cachedGet(`accounting-balance-sheet:${period}`, async () => {
+      const response = await apiClient.get<BalanceSheetResponse>('/accounting/balance-sheet', {
+        params: { period },
+      });
+      return response.data;
     });
-    return response.data;
   },
 
   exportPleBook: async (config: PleExportConfig): Promise<Blob> => {
