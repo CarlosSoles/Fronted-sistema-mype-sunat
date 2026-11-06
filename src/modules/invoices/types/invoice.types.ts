@@ -34,6 +34,7 @@ export interface InvoiceItem {
 }
 
 export interface Invoice {
+  historial?: readonly { id: string; fecha: string; mensaje: string | null }[];
   id: string;
   serie: string;
   /** Número completo que asigna el backend: F001-00000007. */
