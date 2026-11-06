@@ -56,12 +56,11 @@ import { revisarGrilla } from '../lib/invoiceStockLinea';
 import {
   buscarDetraccion,
   esDetraccionDadaDeBaja,
-  montoDetraccionPara,
   validarCronograma,
 } from '../lib/invoiceDetraccion';
 import { liquidarDescuentoGlobal } from '../lib/invoiceDescuentoGlobal';
-import { calcularRetencion } from '../lib/invoiceRetentions';
-import { round2 } from '../lib/invoiceTaxes';
+import { calcularFlujo } from '../lib/invoiceFlujoPago';
+export { calcularFlujo } from '../lib/invoiceFlujoPago';
 import { InvoiceEmitCampos } from './InvoiceEmitCampos';
 import { lineasParaNota } from '../lib/invoiceLineasOrigen';
 import { InvoiceEmitResumen } from './InvoiceEmitResumen';
@@ -89,17 +88,6 @@ interface InvoiceEmitModalProps {
   onEmitir: (resultado: ResultadoEmisionBackend) => void;
   onCerrar: () => void;
 }
-
-/** Totales que necesita el flujo: importe total y neto pendiente de pago. */
-export const calcularFlujo = (b: BorradorEmision) => {
-  const totales = liquidarDescuentoGlobal(b.items, b.descuentoGlobal);
-  const esNota = esTipoNota(b.tipo);
-  const codigo = esNota ? undefined : b.codigoDetraccion;
-  const detraccion = montoDetraccionPara(totales.total, codigo);
-  const importeTotal = totales.total;
-  const retencion = calcularRetencion(importeTotal, !esNota && b.agenteRetencion);
-  return { importeTotal, detraccion, neto: round2(importeTotal - detraccion - retencion) };
-};
 
 /** Motivos por los que todavía no se puede emitir el comprobante. */
 const motivosPendientes = (
@@ -256,6 +244,9 @@ export const InvoiceEmitModal = ({
   const actualizar = (parcial: Partial<BorradorEmision>) =>
     setB((previo) => {
       const siguiente = { ...previo, ...parcial };
+      if (parcial.codigoDetraccion !== undefined && parcial.codigoDetraccion !== previo.codigoDetraccion) {
+        siguiente.items = previo.items.map((item) => ({ ...item, codigoDetraccion: parcial.codigoDetraccion || undefined }));
+      }
       if (parcial.documentoAfectado !== undefined && parcial.documentoAfectado !== previo.documentoAfectado) {
         siguiente.items = [itemVacio(nuevaClave())];
       }
