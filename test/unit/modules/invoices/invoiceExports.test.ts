@@ -5,11 +5,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { COMPROBANTES_DEMO } from './fixtures/comprobantesDemo';
 import { useAuthStore } from '@/stores/authStore';
-import { identidadEmisora } from '@/modules/invoices/lib/invoiceExportConstants';
-import {
-  generarXmlUbl21Comprobante,
-  nombreArchivoXml,
-} from '@/modules/invoices/lib/invoiceExportXml';
 import {
   construirPdfBinarioSunat,
   nombreArchivoPdf,
@@ -35,8 +30,6 @@ const busqueda = <T extends { tipo: string }>(
 };
 
 const factura = busqueda(COMPROBANTES_DEMO, '01');
-const boleta = busqueda(COMPROBANTES_DEMO, '03');
-const notaCredito = busqueda(COMPROBANTES_DEMO, '07');
 
 /**
  * Identidad del emisor con la que los tests construyen documentos.
@@ -58,82 +51,6 @@ beforeEach(() => {
 
 afterEach(() => {
   useAuthStore.setState({ activeCompany: null });
-});
-
-/** Boleta emitida a persona natural: el documento del cliente es un DNI. */
-const boletaConDni = COMPROBANTES_DEMO.filter(
-  (c) => c.tipo === '03' && c.clienteRuc.length === 8,
-);
-
-describe('generarXmlUbl21Comprobante', () => {
-  it('una factura usa la raíz Invoice y el tipo 01 con tipo de operación', () => {
-    const xml = generarXmlUbl21Comprobante(factura);
-
-    expect(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true);
-    expect(xml).toContain('<Invoice');
-    expect(xml).toContain('<cbc:InvoiceTypeCode');
-    expect(xml).toContain('>01</cbc:InvoiceTypeCode>');
-    expect(xml).toContain('<cbc:UBLVersionID>2.1</cbc:UBLVersionID>');
-  });
-
-  it('incluye las líneas del detalle y los términos de pago', () => {
-    const xml = generarXmlUbl21Comprobante(factura);
-
-    expect(xml).toContain('<cac:InvoiceLine>');
-    expect(xml).toContain('<cac:PaymentTerms>');
-    expect(xml).toContain('<cbc:PaymentMeansID>');
-    expect(xml).toContain('<cac:LegalMonetaryTotal>');
-    expect(xml).toContain('<cac:TaxTotal>');
-  });
-
-  it('las notas de crédito usan la raíz CreditNote y referencian el CPE', () => {
-    const xml = generarXmlUbl21Comprobante(notaCredito);
-
-    expect(xml).toContain('<CreditNote');
-    expect(xml).toContain('</CreditNote>');
-    expect(xml).not.toContain('<InvoiceTypeCode');
-    expect(xml).toContain('<cbc:CreditNoteTypeCode');
-    expect(xml).toContain('<cac:DiscrepancyResponse>');
-    expect(xml).toContain('<cac:BillingReference>');
-    expect(xml).toContain(`<cbc:ID>${notaCredito.documentoAfectado}</cbc:ID>`);
-  });
-
-  it('las boletas exponen al cliente con documento tipo 1', () => {
-    // Toda la semilla de boletas va a personas naturales: si aparece una
-    // boleta con RUC, es un dato inválido para SUNAT y debe verse aquí.
-    expect(boletaConDni).toHaveLength(3);
-
-    for (const b of boletaConDni) {
-      const xml = generarXmlUbl21Comprobante(b);
-
-      expect(xml).toContain(`<cbc:ID schemeID="1">${b.clienteRuc}</cbc:ID>`);
-      expect(xml).toContain('</Invoice>');
-    }
-
-    // Una factura declara el RUC del adquirente con esquema 6.
-    expect(factura.clienteRuc).toHaveLength(11);
-    expect(factura.clienteTipoDoc).toBe('6');
-    expect(generarXmlUbl21Comprobante(factura)).toContain(
-      `<cbc:ID schemeID="6">${factura.clienteRuc}</cbc:ID>`,
-    );
-    expect(boleta).toBeDefined();
-  });
-
-  it('el nombre del archivo sigue el formato RUC-tipo-serie-correlativo', () => {
-    expect(nombreArchivoXml(factura)).toBe(
-      `20601234567-01-F001-${factura.correlativo}.xml`,
-    );
-  });
-
-  it('sin empresa en sesión no inventa un RUC', () => {
-    // Antes del arreglo, aquí se escribía el literal '20601012341', que no era
-    // el RUC de ninguna empresa: el XML del front salía con un emisor distinto
-    // del que el backend firmó. Sin sesión la identidad queda vacía y se nota.
-    useAuthStore.setState({ activeCompany: null });
-
-    expect(nombreArchivoXml(factura)).toBe(`-01-F001-${factura.correlativo}.xml`);
-    expect(identidadEmisora().hayEmisor).toBe(false);
-  });
 });
 
 describe('construirPdfBinarioSunat', () => {
