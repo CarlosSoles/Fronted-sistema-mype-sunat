@@ -179,7 +179,7 @@ export const esTipoNota = (tipo: string): boolean =>
  * Convierte el borrador a un comprobante listo para la grilla.
  *
  * El resultado entra como `EN_COLA`: la cola Outbox lo despacha y el CDR llega
- * después (ver `registrarRespuestaCdr` en `./invoiceOutbox`).
+ * después.
  *
  * TA-64: el comprobante se arma con las LÍNEAS de la grilla, no con una base
  * única. La `base` y la `afectacion` que recibe `construir` son solo el
