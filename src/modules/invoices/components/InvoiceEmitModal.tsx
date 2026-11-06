@@ -11,7 +11,7 @@
  * botón: el usuario ve el motivo en pantalla y el envío nunca pasa por alto una
  * regla del Catálogo 01/03/06/07/09/10/54.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { buscarAfectado } from '../lib/invoiceNotaOrigen';
 import {
@@ -61,6 +61,7 @@ import {
 } from '../lib/invoiceDetraccion';
 import { liquidarDescuentoGlobal } from '../lib/invoiceDescuentoGlobal';
 import { InvoiceEmitCampos } from './InvoiceEmitCampos';
+import { lineasParaNota } from '../lib/invoiceLineasOrigen';
 import { InvoiceEmitResumen } from './InvoiceEmitResumen';
 import { CreditInstallmentsEditor } from './CreditInstallmentsEditor';
 import { problemasDeNota } from '../lib/invoiceNotaOrigen';
@@ -209,8 +210,25 @@ export const InvoiceEmitModal = ({
   const [enviando, setEnviando] = useState(false);
   /** Motivo por el que el backend rechazó, o por el que no se llegó a enviar. */
   const [errorEmision, setErrorEmision] = useState<string | null>(null);
+  const [avisoLineas, setAvisoLineas] = useState('');
 
   const afectado = buscarAfectado(existentes, b.documentoAfectado);
+  useEffect(() => {
+    if (!esTipoNota(b.tipo) || !afectado) return;
+    let vigente = true;
+    const itemsIniciales = b.items;
+    void Promise.resolve().then(() => invoicesApi.getInvoiceById(afectado.id)).then((detalle) => {
+      if (!vigente) return;
+      const lineas = lineasParaNota(detalle.lineasOrigen ?? []);
+      if (lineas === null) {
+        setAvisoLineas('Las líneas del origen contienen datos incompletos o no compatibles; ingréselas manualmente.');
+        return;
+      }
+      setAvisoLineas('');
+      if (lineas.length) setB((previo) => previo.items === itemsIniciales ? { ...previo, items: lineas } : previo);
+    }).catch(() => { if (vigente) setAvisoLineas('No se pudieron cargar las líneas del origen; ingréselas manualmente.'); });
+    return () => { vigente = false; };
+  }, [afectado?.id, b.tipo]);
   const saldoNota = useQuery({
     queryKey: ['invoice-saldo-nota', afectado?.id],
     queryFn: () => invoicesApi.getSaldoNota(afectado!.id),
@@ -234,6 +252,9 @@ export const InvoiceEmitModal = ({
   const actualizar = (parcial: Partial<BorradorEmision>) =>
     setB((previo) => {
       const siguiente = { ...previo, ...parcial };
+      if (parcial.documentoAfectado !== undefined && parcial.documentoAfectado !== previo.documentoAfectado) {
+        siguiente.items = [itemVacio(nuevaClave())];
+      }
       // El correlativo se recalcula cuando cambia la serie elegida.
       if (parcial.serie && parcial.serie !== previo.serie) {
         siguiente.correlativo = siguienteCorrelativo(
@@ -356,6 +377,7 @@ export const InvoiceEmitModal = ({
           </PageText>
         </DialogHeader>
 
+        {avisoLineas && <p role="status">{avisoLineas}</p>}
         <InvoiceEmitCampos
           borrador={b}
           actualizar={actualizar}

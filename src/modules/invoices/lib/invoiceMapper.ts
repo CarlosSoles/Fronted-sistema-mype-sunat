@@ -44,6 +44,7 @@ export interface ComprobanteBackend {
 
 /** Detalle del backend: la fila más la ficha. */
 export interface ComprobanteDetalleBackend extends ComprobanteBackend {
+  lineas_origen?: Invoice['lineasOrigen'] | null;
   historial?: readonly { id: string; created_at: string; mensaje_error: string | null }[] | null;
   ruc_emisor: string;
   base_imponible: number;
@@ -217,6 +218,7 @@ export const aInvoiceDetalle = (fila: ComprobanteDetalleBackend): Invoice => {
 
   return {
     ...base,
+    lineasOrigen: fila.lineas_origen ?? [],
     historial: (fila.historial ?? []).map((evento) => ({ id: evento.id, fecha: evento.created_at, mensaje: evento.mensaje_error })),
     igv,
     subtotal: numero(fila.base_imponible),
