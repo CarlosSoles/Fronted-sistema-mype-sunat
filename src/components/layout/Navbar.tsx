@@ -1,4 +1,5 @@
 import { useAuth } from '@/hooks/useAuth';
+import { OfflineBadge } from './OfflineBadge';
 import { useTheme } from '@/hooks/useTheme';
 import { useUiStore } from '@/stores/uiStore';
 import { Button } from '@/components/ui/button';
@@ -41,6 +42,7 @@ export const Navbar = () => {
               Sin empresa seleccionada
             </span>
           )}
+          <OfflineBadge />
         </div>
 
         {/* Lado derecho: Tema Claro/Oscuro, Usuario y Salir */}
