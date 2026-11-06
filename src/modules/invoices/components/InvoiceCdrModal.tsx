@@ -298,7 +298,7 @@ export const InvoiceCdrModal = ({
               )) : <PageText variant="caption">{xmlReal === undefined ? 'Consultando XML…' : 'Datos de afectación y tributo no disponibles en el XML.'}</PageText>}
             </div>
             {xmlReal && requiereRevisionContableXml(xmlReal) && (
-              <PageText variant="caption" className="text-amber-700">Descuento 01/03: revisar si el asiento automático está pendiente de revisión contable.</PageText>
+              <PageText variant="caption" className="text-amber-700">Descuento 01/03: el asiento automático utiliza la cuenta 74. Podría quedar pendiente de revisión si la cuenta no está activa en el plan de la empresa o los importes no concuerdan.</PageText>
             )}
             <InvoiceAuditTrail comprobante={c} digest={xmlReal === undefined ? undefined : digest} historial={historialCargado?.id === idComprobante ? historialCargado.eventos : undefined} errorHistorial={historialCargado?.id === idComprobante && historialCargado.error} />
           </TabsContent>

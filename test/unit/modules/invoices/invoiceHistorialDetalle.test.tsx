@@ -3,6 +3,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { InvoiceCdrModal } from '@/modules/invoices/components/InvoiceCdrModal';
 import { construir } from '@/modules/invoices/data/invoiceDemoTypes';
 import { apiClient } from '@/lib/axios';
+import { obtenerXmlDesdeBackend } from '@/modules/invoices/lib/invoiceDescarga';
 
 vi.mock('@/lib/axios', () => ({ apiClient: { get: vi.fn() } }));
 vi.mock('@/modules/invoices/lib/invoiceDescarga', () => ({
@@ -28,4 +29,12 @@ it('mantiene el detalle cuando el historial está ausente', async () => {
   render(<InvoiceCdrModal comprobante={comprobante} onCerrar={vi.fn()} />);
   expect(await screen.findByText('No hay eventos de auditoría registrados.')).toBeTruthy();
   expect(screen.getByText('Código CDR')).toBeTruthy();
+});
+
+it('muestra el aviso condicional de cuenta 74 en un comprobante con descuento 01', async () => {
+  vi.mocked(apiClient.get).mockResolvedValue({ data: detalle } as never);
+  vi.mocked(obtenerXmlDesdeBackend).mockResolvedValue('<Invoice xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2"><cac:AllowanceCharge><cbc:AllowanceChargeReasonCode>01</cbc:AllowanceChargeReasonCode></cac:AllowanceCharge></Invoice>');
+  render(<InvoiceCdrModal comprobante={comprobante} onCerrar={vi.fn()} />);
+  expect(await screen.findByText(/cuenta 74.*Podría quedar pendiente de revisión/)).toBeTruthy();
+  expect(screen.getByText(/cuenta no está activa.*importes no concuerdan/)).toBeTruthy();
 });
