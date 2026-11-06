@@ -3,7 +3,7 @@
  * de fechas. Se separa del componente para mantener el orquestador bajo el
  * límite de líneas y poder probarse de forma aislada.
  */
-import type { ComprobanteDemo } from '../data/invoiceDemoData';
+import type { ComprobanteDemo } from '../data/invoiceDemoSchema';
 import {
   INVOICE_TABS,
   type InvoiceTabId,
@@ -31,11 +31,16 @@ export const aplicarFiltros = (
 
   return comprobantes.filter((c) => {
     const documento = `${c.serie}-${c.correlativo}`;
+    const terminoNumero = termino.replace(/^(\w+)-0*(\d+)$/, '$1-$2');
+    const correlativoNumerico = /^\d+$/.test(termino)
+      ? termino.replace(/^0+(?=\d)/, '')
+      : null;
     const coincideTexto =
       !termino ||
       `${documento} ${c.clienteRuc} ${c.clienteRazonSocial}`
         .toLowerCase()
-        .includes(termino);
+        .includes(termino) || documento.toLowerCase().includes(terminoNumero) ||
+      (correlativoNumerico !== null && String(c.correlativo) === correlativoNumerico);
 
     const coincideEstado =
       filtros.estado === 'TODOS' || c.estado === filtros.estado;

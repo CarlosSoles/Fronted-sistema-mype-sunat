@@ -6,12 +6,14 @@ import { type Role } from '@/modules/auth/types/auth.types';
 import { cn } from '@/lib/utils';
 import {
   Activity,
+  ArrowLeftRight,
   BookOpen,
   Boxes,
+  Building2,
   Calculator,
+  CalendarDays,
   CheckSquare,
   ChevronDown,
-  CreditCard,
   FileCheck2,
   FilePlus,
   FileMinus2,
@@ -23,6 +25,7 @@ import {
   LayoutDashboard,
   FileUp,
   ClipboardCheck,
+  Settings,
   Ship,
   Sparkles,
 } from 'lucide-react';
@@ -31,6 +34,14 @@ interface SubNavItem {
   title: string;
   path: string;
   icon: React.ComponentType<{ className?: string }>;
+  /**
+   * Roles que pueden ver este subítem dentro del módulo.
+   *
+   * Sin esto heredaría los roles del padre y ofrecería entradas que la propia
+   * ruta rechaza: el caso de Configuración de Facturación, que solo admite
+   * ADMIN pero aparecería a un operador y lo llevaría a "sin acceso".
+   */
+  allowedRoles?: Role[];
 }
 
 interface NavItem {
@@ -52,9 +63,26 @@ const NAV_ITEMS: NavItem[] = [
     allowedRoles: ['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT'],
     subItems: [
       { title: 'Facturas y Boletas', path: '/invoices/facturas', icon: FileText },
+      // La pantalla de emisión existía y funcionaba desde el Sprint 1, pero
+      // ninguna entrada del menú llevaba a ella: solo se llegaba por URL o
+      // desde el botón de asientos contables. El docente juzga lo que ve en el
+      // menú, así que si no está aquí, para él el módulo no sabe emitir.
+      { title: 'Emitir Comprobante', path: '/invoices/emision', icon: FilePlus },
       { title: 'Notas de Crédito y Débito', path: '/invoices/notas', icon: FileMinus2 },
       { title: 'Bajas y Resúmenes Diarios', path: '/invoices/bajas', icon: FileX2 },
       { title: 'Monitor Outbox y CDR', path: '/invoices/monitor', icon: Activity },
+      // La ruta `/invoices/configuracion` (TA-61) existía desde el Sprint 2 y
+      // responde con `GET /invoices/config`, pero no figuraba en el menú: una
+      // auditoría del 1 de noviembre recorrió todo el módulo y concluyó que la
+      // pantalla "no existía", señalándola como el pedido repetido del docente.
+      // El docente también juzga por el menú, así que la entrada es obligatoria.
+      // Solo ADMIN porque así lo exige `RoleProtectedRoute` en la ruta.
+      {
+        title: 'Configuración',
+        path: '/invoices/configuracion',
+        icon: Settings,
+        allowedRoles: ['ADMIN'],
+      },
     ],
   },
   {
@@ -65,25 +93,38 @@ const NAV_ITEMS: NavItem[] = [
     allowedRoles: ['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
     subItems: [
       { title: 'Panel general', path: '/customs/dashboard', icon: LayoutDashboard },
-      { title: 'Expedientes y embarques', path: '/customs/shipments', icon: FolderGit2 },
-      { title: 'DAM y valoración', path: '/customs/declarations', icon: FilePlus },
-      { title: 'Tributos y pagos aduaneros', path: '/customs/settlements', icon: CreditCard },
-      { title: 'Recepción, diferencias y costo', path: '/customs/landed-cost', icon: Calculator },
-
-      { title: 'Registro de compras de importación — SIRE', path: '/customs/sire-purchases', icon: FileCheck2 },
+      { title: '1. Pedidos al exterior', path: '/customs/orders', icon: FilePlus },
+      { title: '2. Tránsito y arribo', path: '/customs/shipments', icon: FolderGit2 },
+      { title: '3. Despacho y DAM', path: '/customs/declarations', icon: FileCheck2 },
+      { title: '4. Recojo y almacén (Kardex)', path: '/customs/landed-cost', icon: Calculator },
+      { title: 'Proveedores internacionales', path: '/customs/partners', icon: Building2, allowedRoles: ['ADMIN', 'OPERADOR_ADUANAS'] },
+      { title: 'Configuración aduanera', path: '/customs/config', icon: Settings, allowedRoles: ['ADMIN'] },
     ],
   },
   {
-    title: 'Inventario y Kardex',
+    title: 'Inventario',
     path: '/inventory',
     icon: Boxes,
     developer: 'Carlos Ahumada',
     allowedRoles: ['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
     subItems: [
-      { title: 'Existencias', path: '/inventory/stocks', icon: LayoutDashboard },
+      { title: 'Existencias y Catálogo', path: '/inventory/stocks', icon: LayoutDashboard },
       { title: 'Movimientos', path: '/inventory/movements', icon: GitCompareArrows },
-      { title: 'Kardex por producto', path: '/inventory/kardex', icon: BookOpen },
-      { title: 'Libros PLE 12.1 y 13.1', path: '/inventory/books', icon: FileCheck2 },
+      { title: 'Transferencias', path: '/inventory/transfers', icon: ArrowLeftRight, allowedRoles: ['ADMIN'] },
+      { title: 'Ajustes y toma física', path: '/inventory/adjustments', icon: ClipboardCheck, allowedRoles: ['ADMIN'] },
+      { title: 'Saldo inicial', path: '/inventory/opening', icon: FileUp, allowedRoles: ['ADMIN'] },
+    ],
+  },
+  {
+    title: 'Kardex',
+    path: '/kardex',
+    icon: BookOpen,
+    developer: 'Carlos Ahumada',
+    allowedRoles: ['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
+    subItems: [
+      { title: 'Kardex general', path: '/kardex/general', icon: BookOpen },
+      { title: 'Kardex por producto', path: '/kardex/producto', icon: BookOpen },
+      { title: 'Libros PLE 12.1 / 13.1', path: '/kardex/ple', icon: FileCheck2 },
     ],
   },
   {
@@ -107,7 +148,12 @@ const NAV_ITEMS: NavItem[] = [
     allowedRoles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
     subItems: [
       { title: 'Libro Diario (PCGE)', path: '/accounting', icon: FileText },
+      { title: 'Libro Mayor', path: '/accounting/ledger', icon: BookOpen },
+      { title: 'Balance de Comprobación', path: '/accounting/trial-balance', icon: ClipboardCheck },
+      { title: 'Estado de Resultados', path: '/accounting/income-statement', icon: FileText },
+      { title: 'Balance General', path: '/accounting/balance-sheet', icon: ClipboardCheck },
       { title: 'Plan de Cuentas (PCGE)', path: '/accounting/plan-cuentas', icon: BookOpen },
+      { title: 'Períodos Contables', path: '/accounting/periods', icon: CalendarDays },
       { title: 'Libros Electrónicos (PLE/SIRE)', path: '/accounting/ple', icon: FileCheck2 },
     ],
   },
@@ -130,8 +176,10 @@ export const Sidebar = () => {
 
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({
     '/customs': true,
-    '/sire': true,
-    '/accounting': true,
+    '/inventory': true,
+    '/kardex': true,
+    '/sire': false,
+    '/accounting': false,
   });
 
   useEffect(() => {
@@ -153,10 +201,25 @@ export const Sidebar = () => {
         location.pathname !== item.path &&
         !location.pathname.startsWith(`${item.path}/`)
       ) {
-        navigate(item.subItems?.[0]?.path ?? item.path);
+        // Se navega al primer subítem que el rol SÍ puede abrir; si ninguno lo
+        // es, al índice del módulo en lugar de a una ruta protegida.
+        navigate(subItemsVisibles(item)[0]?.path ?? item.path);
       }
       return { ...prev, [item.path]: willExpand };
     });
+  };
+
+  /**
+   * Subítems que el rol actual puede abrir.
+   *
+   * ADMIN ve todos. Un subítem sin `allowedRoles` hereda el del padre, que ya
+   * pasó el filtro de módulo; uno con roles se comprueba aparte para no ofrecer
+   * entradas que la ruta rechazaría con "sin acceso".
+   */
+  const subItemsVisibles = (item: NavItem): SubNavItem[] => {
+    const subs = item.subItems ?? [];
+    if (!currentRole || currentRole === 'ADMIN') return subs;
+    return subs.filter((sub) => !sub.allowedRoles || sub.allowedRoles.includes(currentRole));
   };
 
   const visibleNavItems = NAV_ITEMS.filter((item) => {
@@ -274,7 +337,7 @@ export const Sidebar = () => {
 
               {!isSidebarCollapsed && item.subItems && isExpanded && (
                 <div className="pl-3 ml-3 border-l-2 border-border/80 space-y-0.5 py-0.5">
-                  {item.subItems.map((sub) => (
+                  {subItemsVisibles(item).map((sub) => (
                     <NavLink
                       key={sub.path}
                       to={sub.path}

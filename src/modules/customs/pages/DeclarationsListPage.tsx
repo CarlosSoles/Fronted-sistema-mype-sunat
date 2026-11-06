@@ -1,85 +1,29 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Page, PageHeader, Button, Card, Badge, FilterBar, FilterSearch } from '@/components/ui';
-import { PlusCircle, RefreshCw, Eye, CheckCircle2, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { PlusCircle, RefreshCw, Eye, CheckCircle2, AlertTriangle, ShieldAlert, ArrowRight, CreditCard, Ship } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
 import { type CustomsDeclarationRecord, type CustomsChannel } from '../types';
 import { DamFormatsViewerModal } from '../components/DamFormatsViewerModal';
 import { customsDeclarationsApi } from '../services/customsDeclarationsApi';
 import { useQuery } from '@tanstack/react-query';
 
-const DEMO_DECLARATIONS: CustomsDeclarationRecord[] = [
-  {
-    id: 'dam-001',
-    company_id: 'demo-company',
-    shipment_id: 'EXP-2026-00042',
-    dua_number: '118-2026-10-045892',
-    customs_code: '118',
-    declaration_year: 2026,
-    regime_code: '10',
-    correlative_number: '045892',
-    numeration_date: '2026-10-24 10:30',
-    dispatch_mode: '10',
-    channel: 'VERDE',
-    transport_doc_number: 'B/L MAEU20268712',
-    fob_total_usd: 50000,
-    freight_total_usd: 1200,
-    insurance_total_usd: 375,
-    cif_total_usd: 51575,
-    exchange_rate: 3.82,
-    cif_total_pen: 197016.5,
-    total_ad_valorem_pen: 0,
-    total_igv_pen: 31522.64,
-    total_ipm_pen: 3940.33,
-    total_perception_pen: 8136.78,
-    has_article_160_guarantee: false,
-    version: 1,
-    created_at: '2026-10-24T10:30:00Z',
-    series: [
-      {
-        series_order: 1,
-        product_code: 'LAP-GAMER-01',
-        hs_code: '8471300000',
-        commercial_description: 'Laptop Gamer Intel Core i7 16GB RAM 512GB SSD',
-        destination_type: 'MERCADERIA',
-        physical_quantity: 100,
-        physical_unit: 'NIU',
-        net_weight_kg: 250,
-        gross_weight_kg: 280,
-        fob_usd: 50000,
-        ad_valorem_rate: 0,
-      },
-    ],
-  },
-  {
-    id: 'dam-002',
-    company_id: 'demo-company',
-    shipment_id: 'EXP-2026-00043',
-    dua_number: '118-2026-10-048123',
-    customs_code: '118',
-    declaration_year: 2026,
-    regime_code: '10',
-    correlative_number: '048123',
-    numeration_date: '2026-10-27 15:45',
-    dispatch_mode: '10',
-    channel: 'NARANJA',
-    transport_doc_number: 'B/L MSCU98124570',
-    fob_total_usd: 32000,
-    freight_total_usd: 950,
-    insurance_total_usd: 240,
-    cif_total_usd: 33190,
-    exchange_rate: 3.82,
-    cif_total_pen: 126785.8,
-    total_ad_valorem_pen: 7607.15,
-    total_igv_pen: 20830.9,
-    total_ipm_pen: 3359.8,
-    total_perception_pen: 5549.7,
-    has_article_160_guarantee: true,
-    version: 1,
-    created_at: '2026-10-27T15:45:00Z',
-    series: [],
-  },
-];
+const formatNumerationDate = (dateVal: string | undefined) => {
+  if (!dateVal) return '26 oct. 2026, 10:30 a. m.';
+  try {
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return dateVal;
+    return d.toLocaleDateString('es-PE', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return dateVal;
+  }
+};
 
 export default function DeclarationsListPage() {
   const navigate = useNavigate();
@@ -87,11 +31,11 @@ export default function DeclarationsListPage() {
   const [channelFilter, setChannelFilter] = useState<string>('ALL');
   const [selectedDam, setSelectedDam] = useState<CustomsDeclarationRecord | null>(null);
 
-  const { data: declarations = DEMO_DECLARATIONS, refetch } = useQuery<CustomsDeclarationRecord[]>({
+  const { data: declarations = [], refetch } = useQuery<CustomsDeclarationRecord[]>({
     queryKey: ['customs-declarations-list'],
     queryFn: async () => {
       const res = await customsDeclarationsApi.getDeclarations();
-      return res.length > 0 ? res : DEMO_DECLARATIONS;
+      return Array.isArray(res) ? res : [];
     },
   });
 
@@ -103,6 +47,14 @@ export default function DeclarationsListPage() {
     const matchesChannel = channelFilter === 'ALL' || d.channel === channelFilter;
     return matchesSearch && matchesChannel;
   });
+
+  const activeDam = filteredDams[0] || declarations[0] || null;
+  const totalCdaDeudaPen = activeDam
+    ? (activeDam.total_ad_valorem_pen || 0) +
+      (activeDam.total_igv_pen || 0) +
+      (activeDam.total_ipm_pen || 0) +
+      (activeDam.total_perception_pen || 0)
+    : 0;
 
   const getChannelBadge = (ch: CustomsChannel) => {
     switch (ch) {
@@ -132,22 +84,91 @@ export default function DeclarationsListPage() {
   return (
     <Page>
       <PageHeader
-        title="DAM y Valoración Aduanera"
-        description="Gestión oficial de declaraciones aduaneras (DUA/DAM), asignación de canales de control y revisión de Formatos A, B y C."
+        title="3. Despacho y Declaración Aduanera (DAM / DUA)"
+        description="Gestión oficial de declaraciones aduaneras (DUA/DAM), asignación de canales de control SUNAT, formatos oficiales A, B y C, y liquidación de tributos (CDA)."
       >
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={() => refetch()} className="text-xs gap-1.5 h-8">
             <RefreshCw className="h-3.5 w-3.5" />
             Actualizar
           </Button>
-          <Button size="sm" onClick={() => navigate('/customs/declarations/new')} className="text-xs gap-1.5 h-8 font-semibold">
+          <Button
+            size="sm"
+            onClick={() => navigate(activeDam?.shipment_id ? `/customs/declarations/new?shipmentId=${activeDam.shipment_id}` : '/customs/declarations/new')}
+            className="text-xs gap-1.5 h-8 font-semibold bg-primary text-primary-foreground hover:bg-primary/90"
+          >
             <PlusCircle className="h-3.5 w-3.5" />
-            + Nueva DAM (Asistente Wizard)
+            + Numerar DAM (desde Expediente)
           </Button>
         </div>
       </PageHeader>
 
       <div className="space-y-4">
+        {/* Banner de Estado Oficial SUNAT - Expediente Activo o Estado Inicial */}
+        {activeDam ? (
+          <Card className="p-4 border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 via-background to-background">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1 text-xs font-semibold">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Canal {activeDam.channel} — {activeDam.channel === 'VERDE' ? 'Levante Inmediato Autorizado' : 'En Control SUNAT'}
+                  </Badge>
+                  <span className="text-xs font-mono font-bold text-foreground">
+                    DAM Oficial: {activeDam.dua_number}
+                  </span>
+                  <span className="text-xs text-muted-foreground">·</span>
+                  <span className="text-xs font-mono text-muted-foreground">
+                    Expediente: <strong className="text-foreground">{activeDam.shipment_id}</strong>
+                  </span>
+                </div>
+
+                <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1">
+                  <span><strong>Proveedor:</strong> {activeDam.supplier_name || 'Proveedor Registrado'}</span>
+                  <span><strong>Transporte:</strong> {activeDam.transport_doc_number || 'B/L Registrado'}</span>
+                  <span><strong>Mercancía:</strong> {activeDam.series?.[0]?.commercial_description || 'Mercancía Declarada'}</span>
+                  <span><strong>Valor CIF:</strong> <strong className="text-foreground font-mono">{formatCurrency(activeDam.cif_total_usd, 'USD')}</strong></span>
+                  <span><strong>Deuda CDA:</strong> <strong className="text-emerald-600 dark:text-emerald-400 font-mono font-bold">{formatCurrency(totalCdaDeudaPen, 'PEN')}</strong></span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setSelectedDam(activeDam)}
+                  className="text-xs gap-1.5 h-8 font-semibold text-primary"
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                  Formatos A / B / C
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => navigate('/customs/landed-cost')}
+                  className="text-xs gap-1.5 h-8 font-semibold bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  Continuar a Paso 4: Recojo y Almacén
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          </Card>
+        ) : (
+          <Card className="p-6 text-center border-dashed">
+            <h3 className="text-sm font-semibold text-foreground">No hay declaraciones DAM registradas</h3>
+            <p className="text-xs text-muted-foreground mt-1 max-w-md mx-auto">
+              Las declaraciones aduaneras (Formatos A, B y C) se generan en este Paso 3 una vez completado el embarque en el Paso 2.
+            </p>
+            <Button
+              size="sm"
+              onClick={() => navigate('/customs/declarations/new')}
+              className="mt-3 text-xs gap-1.5 font-semibold"
+            >
+              <PlusCircle className="h-3.5 w-3.5" />
+              Numerar Nueva Declaración DAM
+            </Button>
+          </Card>
+        )}
+
         {/* Barra de Filtros */}
         <FilterBar>
           <FilterSearch
@@ -178,57 +199,83 @@ export default function DeclarationsListPage() {
               <thead className="bg-muted text-[11px] font-semibold text-muted-foreground border-b uppercase tracking-wider">
                 <tr>
                   <th className="p-3">N° DAM Oficial</th>
-                  <th className="p-3">Expediente</th>
+                  <th className="p-3">Expediente / Ref.</th>
                   <th className="p-3">Modalidad</th>
-                  <th className="p-3">Fecha Registro</th>
-                  <th className="p-3">Canal</th>
+                  <th className="p-3">Fecha Numeración</th>
+                  <th className="p-3">Canal SUNAT</th>
                   <th className="p-3 text-right">CIF (USD)</th>
-                  <th className="p-3 text-right">Deuda (PEN)</th>
+                  <th className="p-3 text-right">Deuda CDA (PEN)</th>
                   <th className="p-3 text-center">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filteredDams.map((dam) => {
-                  const totalTaxPen = (dam.total_ad_valorem_pen || 0) + (dam.total_igv_pen || 0) + (dam.total_ipm_pen || 0) + (dam.total_perception_pen || 0);
-                  return (
-                    <tr key={dam.id} className="hover:bg-muted/40 transition-colors">
-                      <td className="p-3 font-mono font-bold text-primary">{dam.dua_number}</td>
-                      <td className="p-3 font-mono">{dam.shipment_id}</td>
-                      <td className="p-3">
-                        <Badge variant="outline" className="text-[10px]">
-                          {dam.dispatch_mode === '10' ? 'Anticipado 01' : 'Diferido 02'}
-                        </Badge>
-                      </td>
-                      <td className="p-3 text-muted-foreground">{dam.numeration_date}</td>
-                      <td className="p-3">{getChannelBadge(dam.channel)}</td>
-                      <td className="p-3 text-right font-mono font-bold">{formatCurrency(dam.cif_total_usd, 'USD')}</td>
-                      <td className="p-3 text-right font-mono font-bold text-foreground">
-                        {formatCurrency(totalTaxPen || 43599.75, 'PEN')}
-                      </td>
-                      <td className="p-3 text-center">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setSelectedDam(dam)}
-                            className="h-7 text-[11px] gap-1 px-2 text-primary"
-                          >
-                            <Eye className="h-3 w-3" />
-                            Formatos A/B/C
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => navigate(`/customs/declarations/new?edit=${dam.id}`)}
-                            className="h-7 text-[11px] px-2 text-muted-foreground"
-                          >
-                            Asistente
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {filteredDams.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="p-8 text-center text-xs text-muted-foreground">
+                      No se encontraron declaraciones aduaneras registradas.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredDams.map((dam) => {
+                    const totalTaxPen = (dam.total_ad_valorem_pen || 0) + (dam.total_igv_pen || 0) + (dam.total_ipm_pen || 0) + (dam.total_perception_pen || 0);
+                    return (
+                      <tr key={dam.id} className="hover:bg-muted/40 transition-colors">
+                        <td className="p-3">
+                          <span className="font-mono font-bold text-primary block">{dam.dua_number}</span>
+                          <span className="text-[10px] text-muted-foreground">Aduana {dam.customs_code || '118'} · Régimen {dam.regime_code || '10'}</span>
+                        </td>
+                        <td className="p-3">
+                          <span className="font-mono font-semibold block">{dam.shipment_id}</span>
+                          <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                            <Ship className="h-3 w-3" /> {dam.transport_doc_number || 'B/L'}
+                          </span>
+                        </td>
+                        <td className="p-3">
+                          <Badge variant="outline" className="text-[10px]">
+                            {dam.dispatch_mode === '10' ? 'Anticipado 01' : 'Diferido 02'}
+                          </Badge>
+                        </td>
+                        <td className="p-3 text-muted-foreground font-medium">
+                          {formatNumerationDate(dam.numeration_date)}
+                        </td>
+                        <td className="p-3">{getChannelBadge(dam.channel)}</td>
+                        <td className="p-3 text-right font-mono font-bold">
+                          {formatCurrency(dam.cif_total_usd, 'USD')}
+                        </td>
+                        <td className="p-3 text-right font-mono font-bold text-foreground">
+                          {formatCurrency(totalTaxPen, 'PEN')}
+                          {totalTaxPen > 0 && (
+                            <span className="block text-[10px] text-emerald-600 dark:text-emerald-400 font-normal">
+                              CDA {(dam as any).cda_number || `CDA-${dam.correlative_number || 'SUNAT'}`}
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setSelectedDam(dam)}
+                              className="h-7 text-[11px] gap-1 px-2 text-primary"
+                            >
+                              <Eye className="h-3 w-3" />
+                              Formatos A/B/C
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => navigate('/customs/settlements')}
+                              className="h-7 text-[11px] gap-1 px-2 text-muted-foreground hover:text-foreground"
+                            >
+                              <CreditCard className="h-3 w-3" />
+                              Ver CDA
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>

@@ -13,20 +13,36 @@ const RegisterPage = React.lazy(() => import('@/modules/auth/pages/RegisterPage'
 const ProfilePage = React.lazy(() => import('@/modules/auth/pages/ProfilePage'));
 const SecurityPage = React.lazy(() => import('@/modules/auth/pages/SecurityPage'));
 
+// La bandeja oficial es InvoiceList: en dev la rehizo Oliver para que la
+// grilla se alimente del backend (GET /invoices), con reintento de CDR desde
+// la fila. La alternativa pages/InvoicesListPage se retiró en la fusión del
+// M1 para no dejar dos bandejas paralelas apuntando al mismo endpoint.
 const InvoicesListPage = React.lazy(() => import('@/modules/invoices/InvoiceList'));
 const InvoiceEmissionPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceEmissionPage'));
+// TA-61: pestaña de configuración de FE. Se carga aparte porque casi nadie la
+// abre a diario y no debe pesar en la primera carga del módulo.
+const InvoiceSettingsPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceSettingsPage'));
+const InvoiceBajasPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceBajasPage'));
+const InvoiceMonitorPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceMonitorPage'));
 const ResilienceDashboardPage = React.lazy(() => import('@/modules/resilience/pages/ResilienceDashboardPage'));
 const CustomsDashboardPage = React.lazy(() => import('@/modules/customs/pages/CustomsDashboardPage'));
+const ImportOrdersPage = React.lazy(() => import('@/modules/customs/pages/ImportOrdersPage'));
 const ShipmentsListPage = React.lazy(() => import('@/modules/customs/pages/ShipmentsListPage'));
 const ShipmentDetailPage = React.lazy(() => import('@/modules/customs/pages/ShipmentDetailPage'));
 const DeclarationsListPage = React.lazy(() => import('@/modules/customs/pages/DeclarationsListPage'));
 const DuaRegistrationWizardPage = React.lazy(() => import('@/modules/customs/pages/DuaRegistrationWizardPage'));
 const CustomsLiquidationPage = React.lazy(() => import('@/modules/customs/pages/CustomsLiquidationPage'));
 const LandedCostSheetPage = React.lazy(() => import('@/modules/customs/pages/LandedCostSheetPage'));
+const PartnersPage = React.lazy(() => import('@/modules/customs/pages/PartnersPage'));
+const MasterDataPage = React.lazy(() => import('@/modules/customs/pages/MasterDataPage'));
 
 const SireExportAuditPage = React.lazy(() => import('@/modules/customs/pages/SireExportAuditPage'));
 const DuaCalculatorPage = React.lazy(() => import('@/modules/customs/pages/DuaCalculatorPage'));
 const InventoryStocksPage = React.lazy(() => import('@/modules/inventory/pages/InventoryStocksPage'));
+const InventoryTransfersPage = React.lazy(() => import('@/modules/inventory/pages/InventoryTransfersPage'));
+const InventoryAdjustmentsPage = React.lazy(() => import('@/modules/inventory/pages/InventoryAdjustmentsPage'));
+const InventoryKardexPage = React.lazy(() => import('@/modules/inventory/pages/InventoryKardexPage'));
+const InventoryOpeningPage = React.lazy(() => import('@/modules/inventory/pages/InventoryOpeningPage'));
 const InventoryMovementsPage = React.lazy(() => import('@/modules/inventory/pages/InventoryMovementsPage'));
 const ProductKardexPage = React.lazy(() => import('@/modules/inventory/pages/ProductKardexPage'));
 const ElectronicBooksPage = React.lazy(() => import('@/modules/inventory/pages/ElectronicBooksPage'));
@@ -39,6 +55,11 @@ const SireHistoryPage = React.lazy(() => import('@/modules/sire/pages/SireHistor
 const AccountingEntriesPage = React.lazy(() => import('@/modules/accounting/pages/AccountingEntriesPage'));
 const AccountingPlanCuentasPage = React.lazy(() => import('@/modules/accounting/pages/AccountingPlanCuentasPage'));
 const AccountingPlePage = React.lazy(() => import('@/modules/accounting/pages/AccountingPlePage'));
+const AccountingPeriodsPage = React.lazy(() => import('@/modules/accounting/pages/AccountingPeriodsPage'));
+const AccountingLedgerPage = React.lazy(() => import('@/modules/accounting/pages/AccountingLedgerPage'));
+const AccountingTrialBalancePage = React.lazy(() => import('@/modules/accounting/pages/AccountingTrialBalancePage'));
+const AccountingIncomeStatementPage = React.lazy(() => import('@/modules/accounting/pages/AccountingIncomeStatementPage'));
+const AccountingBalanceSheetPage = React.lazy(() => import('@/modules/accounting/pages/AccountingBalanceSheetPage'));
 
 // Fallback de carga durante la descarga del chunk
 const PageLoadingFallback = () => (
@@ -110,7 +131,7 @@ export const AppRoutes = () => {
                 <RoleProtectedRoute
                   allowedRoles={['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT']}
                 >
-                  <InvoicesListPage />
+                  <InvoiceBajasPage />
                 </RoleProtectedRoute>
               }
             />
@@ -120,7 +141,21 @@ export const AppRoutes = () => {
                 <RoleProtectedRoute
                   allowedRoles={['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT']}
                 >
-                  <InvoicesListPage />
+                  <InvoiceMonitorPage />
+                </RoleProtectedRoute>
+              }
+            />
+            {/*
+              TA-61: configuración de Facturación Electrónica (entorno, series y
+              checklist previo a emitir). Solo ADMIN: la pantalla muestra el
+              estado del certificado y de las credenciales SOL, que es
+              información de administración, no de operación diaria.
+            */}
+            <Route
+              path="/invoices/configuracion"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN']}>
+                  <InvoiceSettingsPage />
                 </RoleProtectedRoute>
               }
             />
@@ -153,6 +188,32 @@ export const AppRoutes = () => {
                   allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
                 >
                   <CustomsDashboardPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/customs/orders"
+              element={
+                <RoleProtectedRoute
+                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
+                >
+                  <ImportOrdersPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/customs/partners"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN']}>
+                  <PartnersPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/customs/config"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN']}>
+                  <MasterDataPage />
                 </RoleProtectedRoute>
               }
             />
@@ -268,7 +329,7 @@ export const AppRoutes = () => {
               }
             />
 
-            {/* [Módulo de Inventario y Kardex Autónomo] */}
+            {/* [Módulo de Inventario Autónomo - Fase 3.0] */}
             <Route path="/inventory" element={<Navigate to="/inventory/stocks" replace />} />
             <Route
               path="/inventory/stocks"
@@ -280,6 +341,8 @@ export const AppRoutes = () => {
                 </RoleProtectedRoute>
               }
             />
+            <Route path="/inventory/products" element={<Navigate to="/inventory/stocks" replace />} />
+            <Route path="/inventory/warehouses" element={<Navigate to="/inventory/stocks" replace />} />
             <Route
               path="/inventory/movements"
               element={
@@ -291,7 +354,49 @@ export const AppRoutes = () => {
               }
             />
             <Route
-              path="/inventory/kardex"
+              path="/inventory/transfers"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN']}>
+                  <InventoryTransfersPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/inventory/adjustments"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN']}>
+                  <InventoryAdjustmentsPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/inventory/opening"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN']}>
+                  <InventoryOpeningPage />
+                </RoleProtectedRoute>
+              }
+            />
+
+            {/* Redirecciones de retrocompatibilidad hacia el nuevo módulo Kardex */}
+            <Route path="/inventory/kardex-general" element={<Navigate to="/kardex/general" replace />} />
+            <Route path="/inventory/kardex" element={<Navigate to="/kardex/producto" replace />} />
+            <Route path="/inventory/books" element={<Navigate to="/kardex/ple" replace />} />
+
+            {/* [Módulo de Kardex Autónomo - Fase 3.0] */}
+            <Route path="/kardex" element={<Navigate to="/kardex/general" replace />} />
+            <Route
+              path="/kardex/general"
+              element={
+                <RoleProtectedRoute
+                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT']}
+                >
+                  <InventoryKardexPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/kardex/producto"
               element={
                 <RoleProtectedRoute
                   allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT']}
@@ -301,10 +406,20 @@ export const AppRoutes = () => {
               }
             />
             <Route
-              path="/inventory/books"
+              path="/kardex/ple"
               element={
                 <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
                   <ElectronicBooksPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/kardex/sire"
+              element={
+                <RoleProtectedRoute
+                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
+                >
+                  <SireExportAuditPage />
                 </RoleProtectedRoute>
               }
             />
@@ -357,10 +472,50 @@ export const AppRoutes = () => {
               }
             />
             <Route
+              path="/accounting/ledger"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <AccountingLedgerPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/accounting/income-statement"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <AccountingIncomeStatementPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/accounting/trial-balance"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <AccountingTrialBalancePage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/accounting/balance-sheet"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <AccountingBalanceSheetPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
               path="/accounting/plan-cuentas"
               element={
                 <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
                   <AccountingPlanCuentasPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/accounting/periods"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <AccountingPeriodsPage />
                 </RoleProtectedRoute>
               }
             />

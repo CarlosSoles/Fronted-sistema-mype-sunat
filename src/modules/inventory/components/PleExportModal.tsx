@@ -95,33 +95,106 @@ export const PleExportModal = ({ isOpen, onClose }: PleExportModalProps) => {
     }
   };
 
-  const handleExportExcelAudit = () => {
-    const is13_1 = selectedBook === '13.1';
-    const cols = is13_1
-      ? ['Periodo', 'CUO', 'Correlativo', 'Establecimiento', 'Catalogo', 'Tipo_Existencia', 'SKU', 'Cod_SUNAT', 'Fecha', 'Tipo_Doc', 'Serie', 'Numero', 'Tipo_Operacion', 'Descripcion', 'Unidad', 'Metodo', 'Entrada_Cant', 'Entrada_Costo_Unit', 'Entrada_Total', 'Salida_Cant', 'Salida_Costo_Unit', 'Salida_Total', 'Saldo_Cant', 'Saldo_Costo_Prom', 'Saldo_Total', 'Estado']
-      : ['Periodo', 'CUO', 'Correlativo', 'Establecimiento', 'Catalogo', 'Tipo_Existencia', 'SKU', 'Cod_SUNAT', 'Fecha', 'Tipo_Doc', 'Serie', 'Numero', 'Tipo_Operacion', 'Descripcion', 'Unidad', 'Entrada_Cant', 'Salida_Cant', 'Saldo_Cant', 'Estado'];
+  const handleExportExcelAudit = async () => {
+    try {
+      setIsExporting(true);
+      const is13_1 = selectedBook === '13.1';
+      const cols = is13_1
+        ? ['Periodo', 'CUO', 'Correlativo', 'Establecimiento', 'Catalogo', 'Tipo_Existencia', 'SKU', 'Cod_SUNAT', 'Fecha', 'Tipo_Doc', 'Serie', 'Numero', 'Tipo_Operacion', 'Descripcion', 'Unidad', 'Metodo', 'Entrada_Cant', 'Entrada_Costo_Unit', 'Entrada_Total', 'Salida_Cant', 'Salida_Costo_Unit', 'Salida_Total', 'Saldo_Cant', 'Saldo_Costo_Prom', 'Saldo_Total', 'Estado']
+        : ['Periodo', 'CUO', 'Correlativo', 'Establecimiento', 'Catalogo', 'Tipo_Existencia', 'SKU', 'Cod_SUNAT', 'Fecha', 'Tipo_Doc', 'Serie', 'Numero', 'Tipo_Operacion', 'Descripcion', 'Unidad', 'Entrada_Cant', 'Salida_Cant', 'Saldo_Cant', 'Estado'];
 
-    const rows = is13_1
-      ? [
-          [`${selectedYear}${selectedMonth}00`, 'CUO-001', 'M00001', '0000', '9', '01', 'LAP-001', '', `15/10/${selectedYear}`, '50', '118', '2026-10-048291', '18', 'Laptop Intel i7 16GB SSD', 'NIU', '2 - CPP', '100.00', '2078.9250', '207892.50', '0.00', '0.0000', '0.00', '100.00', '2078.9250', '207892.50', '1'],
-          [`${selectedYear}${selectedMonth}00`, 'CUO-002', 'M00002', '0000', '9', '01', 'LAP-001', '', `19/10/${selectedYear}`, '01', 'F001', '00001245', '01', 'Laptop Intel i7 16GB SSD', 'NIU', '2 - CPP', '0.00', '0.0000', '0.00', '20.00', '2078.9250', '41578.50', '80.00', '2078.9250', '166314.00', '1']
-        ]
-      : [
-          [`${selectedYear}${selectedMonth}00`, 'CUO-001', 'M00001', '0000', '9', '01', 'LAP-001', '', `15/10/${selectedYear}`, '50', '118', '2026-10-048291', '18', 'Laptop Intel i7 16GB SSD', 'NIU', '100.00', '0.00', '100.00', '1'],
-          [`${selectedYear}${selectedMonth}00`, 'CUO-002', 'M00002', '0000', '9', '01', 'LAP-001', '', `19/10/${selectedYear}`, '01', 'F001', '00001245', '01', 'Laptop Intel i7 16GB SSD', 'NIU', '0.00', '20.00', '80.00', '1']
-        ];
+      const movData = await inventoryApi.listMovements();
+      const realMovements = movData.items || [];
 
-    const csvContent = '\uFEFF' + [cols.join(';'), ...rows.map((r) => r.join(';'))].join('\r\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Auditoria_Kardex_${selectedBook.replace('.', '_')}_${selectedYear}${selectedMonth}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(url);
-    setSuccessInfo(`Reporte de auditoría generado en formato Excel/CSV para conciliación.`);
+      const rows = realMovements.map((m, idx) => {
+        const isEntry = m.direction === 'ENTRADA';
+        const inQty = isEntry ? m.quantity.toFixed(2) : '0.00';
+        const inCost = isEntry ? m.unitCost.toFixed(4) : '0.0000';
+        const inTotal = isEntry ? m.totalCost.toFixed(2) : '0.00';
+
+        const outQty = !isEntry ? m.quantity.toFixed(2) : '0.00';
+        const outCost = !isEntry ? m.unitCost.toFixed(4) : '0.0000';
+        const outTotal = !isEntry ? m.totalCost.toFixed(2) : '0.00';
+
+        const period = `${selectedYear}${selectedMonth}00`;
+        const cuo = `CUO-${String(idx + 1).padStart(4, '0')}`;
+        const correlative = `M${String(idx + 1).padStart(5, '0')}`;
+        const wh = m.warehouseCode || '0000';
+        const dateFormatted = new Date(m.movementDate).toLocaleDateString('es-PE');
+        const docParts = (m.documentNumber || '').split('-');
+        const docSerie = docParts[0] || '0001';
+        const docNum = docParts.slice(1).join('-') || m.documentNumber || '00000001';
+
+        if (is13_1) {
+          return [
+            period,
+            cuo,
+            correlative,
+            wh,
+            '9',
+            '01',
+            m.sku,
+            '',
+            dateFormatted,
+            m.documentTypeCode || '00',
+            docSerie,
+            docNum,
+            m.operationTypeCode,
+            m.description || m.sku,
+            'NIU',
+            '2 - CPP',
+            inQty,
+            inCost,
+            inTotal,
+            outQty,
+            outCost,
+            outTotal,
+            m.resultingStock.toFixed(2),
+            m.unitCost.toFixed(4),
+            (m.resultingStock * m.unitCost).toFixed(2),
+            '1',
+          ];
+        } else {
+          return [
+            period,
+            cuo,
+            correlative,
+            wh,
+            '9',
+            '01',
+            m.sku,
+            '',
+            dateFormatted,
+            m.documentTypeCode || '00',
+            docSerie,
+            docNum,
+            m.operationTypeCode,
+            m.description || m.sku,
+            'NIU',
+            inQty,
+            outQty,
+            m.resultingStock.toFixed(2),
+            '1',
+          ];
+        }
+      });
+
+      const csvContent = '\uFEFF' + [cols.join(';'), ...rows.map((r) => r.join(';'))].join('\r\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Auditoria_Kardex_${selectedBook.replace('.', '_')}_${selectedYear}${selectedMonth}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      setSuccessInfo(`Reporte de auditoría real generado con ${realMovements.length} movimientos de BD.`);
+    } catch (err: any) {
+      setServerError(err.message || 'Error al obtener movimientos de base de datos para la auditoría.');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (

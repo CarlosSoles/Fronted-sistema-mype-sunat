@@ -15,7 +15,7 @@ import {
   PageText,
 } from '@/components/ui';
 import { Download, Layers, ShieldCheck } from 'lucide-react';
-import type { ComprobanteDemo } from '../data/invoiceDemoData';
+import type { ComprobanteDemo } from '../data/invoiceDemoSchema';
 import type { ResumenFiscal } from '../lib/invoiceMetrics';
 
 interface InvoiceOutboxMonitorProps {

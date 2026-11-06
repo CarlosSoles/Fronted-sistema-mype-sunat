@@ -10,9 +10,9 @@ import {
   TableCell,
   TableRow,
 } from '@/components/ui';
-import { Download, FileCode2, FileCheck2 } from 'lucide-react';
+import { Download, FileCode2, FileCheck2, RefreshCw } from 'lucide-react';
 import { formatCurrency, formatDateToPeru } from '@/lib/formatters';
-import type { ComprobanteDemo } from '../data/invoiceDemoData';
+import type { ComprobanteDemo } from '../data/invoiceDemoSchema';
 import { InvoiceStatusBadge } from './InvoiceStatusBadge';
 
 /** Etiqueta legible del tipo de comprobante (Catálogo 01). */
@@ -30,6 +30,7 @@ interface InvoiceTableRowProps {
   onVerXml: (c: ComprobanteDemo) => void;
   onVerCdr: (c: ComprobanteDemo) => void;
   onDescargarPdf: (c: ComprobanteDemo) => void;
+  onReintentarCdr: (c: ComprobanteDemo) => void;
 }
 
 export const InvoiceTableRow = ({
@@ -37,11 +38,23 @@ export const InvoiceTableRow = ({
   onVerXml,
   onVerCdr,
   onDescargarPdf,
+  onReintentarCdr,
 }: InvoiceTableRowProps) => {
   const descuento = c.detraccion + c.retencion;
 
   return (
-    <TableRow>
+    <TableRow
+      className="cursor-pointer"
+      tabIndex={0}
+      aria-label={`Ver detalle XML de ${c.serie}-${c.correlativo}`}
+      onClick={() => onVerXml(c)}
+      onKeyDown={(e) => {
+        if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault();
+          onVerXml(c);
+        }
+      }}
+    >
       <TableCell>
         <PageText variant="label">{TIPO_LABEL[c.tipo]}</PageText>
         <PageText variant="caption">
@@ -103,7 +116,7 @@ export const InvoiceTableRow = ({
         <InvoiceStatusBadge estado={c.estado} codigo={c.cdrCodigo} />
       </TableCell>
 
-      <TableCell align="right">
+      <TableCell align="right" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-end gap-1">
           <Button
             variant="ghost"
@@ -132,6 +145,17 @@ export const InvoiceTableRow = ({
           >
             <Download aria-hidden="true" />
           </Button>
+          {(c.estado === 'RECHAZADO' || c.estado === 'EN_COLA') && (
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-label={`Reintentar CDR de ${c.serie}-${c.correlativo}`}
+              title="Reintentar CDR (reencola el comprobante)"
+              onClick={() => onReintentarCdr(c)}
+            >
+              <RefreshCw aria-hidden="true" />
+            </Button>
+          )}
         </div>
       </TableCell>
     </TableRow>

@@ -1,32 +1,44 @@
 import { useState } from 'react';
-import { Button, Card, Page, PageHeader } from '@/components/ui';
+import { Button, Card, Input, Page, PageHeader } from '@/components/ui';
 import { Download, FileCheck2, Loader2 } from 'lucide-react';
-import axios from 'axios';
+import { useAuthStore } from '@/stores/authStore';
+import { apiClient } from '@/lib/axios';
 
 export default function AccountingPlePage() {
+  const { activeCompany, user } = useAuthStore();
+  const companyId = activeCompany?.tenantId ?? user?.companyId ?? '';
+  const companyRuc = activeCompany?.ruc ?? user?.companyRuc ?? '';
   const [isDownloadingDiario, setIsDownloadingDiario] = useState(false);
   const [isDownloadingMayor, setIsDownloadingMayor] = useState(false);
+  const [period, setPeriod] = useState(() => {
+    const hoy = new Date();
+    return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [error, setError] = useState<string | null>(null);
 
   // Función unificada para consultar al Backend y descargar la trama real
-  const handleExportPle = async (bookCode: '5.1' | '6.1') => {
-    const setLoader = bookCode === '5.1' ? setIsDownloadingDiario : setIsDownloadingMayor;
+  const handleExportPle = async (bookCode: '050100' | '060100') => {
+    const setLoader = bookCode === '050100' ? setIsDownloadingDiario : setIsDownloadingMayor;
     setLoader(true);
+    setError(null);
 
     try {
-      // Petición al endpoint real de NestJS
-      const response = await axios.post('http://localhost:3000/api/v1/accounting/ple/export', {
-        companyId: '5eaccb4e-a6ec-4f23-9909-85fe7fc9e879',
-        companyRuc: '20601012341',
-        year: 2026,
-        month: 10,
-        bookCode: bookCode, // Pasa '5.1' o '6.1' dinámicamente
+      const response = await apiClient.post('/accounting/ple/export', {
+        companyId,
+        companyRuc,
+        year: Number(period.slice(0, 4)),
+        month: Number(period.slice(5, 7)),
+        bookCode,
       });
 
       const { fileName, content } = response.data;
+      if (!fileName || !content) {
+        throw new Error('El backend no devolvió una trama PLE válida');
+      }
       downloadTxtFile(fileName, content);
     } catch (error) {
       console.error('Error al exportar trama PLE:', error);
-      alert('Error al conectar con el servidor para exportar la trama.');
+      setError('No se pudo generar el PLE del período seleccionado.');
     } finally {
       setLoader(false);
     }
@@ -50,6 +62,35 @@ export default function AccountingPlePage() {
         title="Libros Electrónicos (PLE / SIRE)"
         description="Generación de estructuras y tramas oficiales PLE 5.1 / SIRE para presentación tributaria ante SUNAT"
       />
+      <Card className="p-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="space-y-1">
+            <label
+              className="text-xs font-medium text-foreground"
+              htmlFor="periodo-ple"
+            >
+              Período a exportar
+            </label>
+            <Input
+              id="periodo-ple"
+              type="month"
+              value={period}
+              onChange={(event) => setPeriod(event.target.value)}
+              className="w-44"
+            />
+          </div>
+          <p className="text-xs text-muted-foreground pb-2">
+            La trama se genera con los asientos del período seleccionado.
+          </p>
+        </div>
+      </Card>
+
+      {error && (
+        <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          {error}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Libro Diario 5.1 */}
         <Card className="p-5 space-y-3 border">
@@ -64,7 +105,7 @@ export default function AccountingPlePage() {
             variant="outline"
             size="sm"
             className="w-full"
-            onClick={() => handleExportPle('5.1')}
+            onClick={() => handleExportPle('050100')}
             disabled={isDownloadingDiario}
           >
             {isDownloadingDiario ? (
@@ -72,7 +113,7 @@ export default function AccountingPlePage() {
             ) : (
               <Download className="w-4 h-4 mr-2" />
             )}
-            {isDownloadingDiario ? 'Generando Trama...' : 'Descargar LE2060101234120261000050100.txt'}
+            {isDownloadingDiario ? 'Generando Trama...' : 'Descargar Libro Diario 5.1'}
           </Button>
         </Card>
 
@@ -89,7 +130,7 @@ export default function AccountingPlePage() {
             variant="outline"
             size="sm"
             className="w-full"
-            onClick={() => handleExportPle('6.1')}
+            onClick={() => handleExportPle('060100')}
             disabled={isDownloadingMayor}
           >
             {isDownloadingMayor ? (
@@ -97,7 +138,7 @@ export default function AccountingPlePage() {
             ) : (
               <Download className="w-4 h-4 mr-2" />
             )}
-            {isDownloadingMayor ? 'Generando Trama...' : 'Descargar LE2060101234120261000060100.txt'}
+            {isDownloadingMayor ? 'Generando Trama...' : 'Descargar Libro Mayor 6.1'}
           </Button>
         </Card>
       </div>

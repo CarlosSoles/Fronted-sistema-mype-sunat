@@ -1,5 +1,30 @@
 import { type RegisterDuaPayload } from '../types/customs.types';
 
+/**
+ * Catálogos de respaldo del formulario de importación.
+ * La fuente principal es /api/v1/master-data; esto se usa si la API no responde.
+ */
+export const FALLBACK_INCOTERMS = [
+  { code: 'FOB', name: 'Free on Board' },
+  { code: 'CIF', name: 'Cost, Insurance & Freight' },
+  { code: 'CFR', name: 'Cost and Freight' },
+  { code: 'EXW', name: 'Ex Works' },
+  { code: 'FCA', name: 'Free Carrier' },
+  { code: 'DAP', name: 'Delivered at Place' },
+  { code: 'CPT', name: 'Carriage Paid To' },
+  { code: 'CIP', name: 'Carriage and Insurance Paid To' },
+  { code: 'DPU', name: 'Delivered at Place Unloaded' },
+  { code: 'DDP', name: 'Delivered Duty Paid' },
+  { code: 'FAS', name: 'Free Alongside Ship' },
+] as const;
+
+export const FALLBACK_CURRENCIES = [
+  { code: 'USD', name: 'Dólar', symbol: '$' },
+  { code: 'EUR', name: 'Euro', symbol: '€' },
+  { code: 'CNY', name: 'Yuan', symbol: '¥' },
+  { code: 'PEN', name: 'Sol', symbol: 'S/' },
+] as const;
+
 export const INITIAL_DUA_FORM: RegisterDuaPayload = {
   dua_number: '',
   customs_agency_code: '118',

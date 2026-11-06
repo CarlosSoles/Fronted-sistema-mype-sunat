@@ -2,9 +2,9 @@ import { API_BASE_URL } from '@/config/env.config';
 import { useAuthStore } from '@/stores/authStore';
 import { SireApiError } from './sireApi';
 import type {
+  SireDashboardHistoryPoint,
   SireDashboardHistoryRequest,
   SireDashboardHistoryResponse,
-  SireDashboardHistoryPoint,
   SireDashboardMetrics,
 } from '../types/sire.types';
 
@@ -48,6 +48,14 @@ const validateMetrics = (value: unknown): SireDashboardMetrics => {
   ) {
     throw new SireApiError('El servidor devolvió métricas SIRE con un formato inválido.', null);
   }
+
+  const mttd =
+    isNullableNumber(value.mttd) ? value.mttd : isNullableNumber(value.mttdSeconds) ? value.mttdSeconds : null;
+  const mttr =
+    isNullableNumber(value.mttr) ? value.mttr : isNullableNumber(value.mttrSeconds) ? value.mttrSeconds : null;
+  const mtbf =
+    isNullableNumber(value.mtbf) ? value.mtbf : isNullableNumber(value.mtbfSeconds) ? value.mtbfSeconds : null;
+
   return {
     state: value.state,
     recentFailedCalls: value.recentFailedCalls,
@@ -64,19 +72,23 @@ const validateMetrics = (value: unknown): SireDashboardMetrics => {
     mttdSeconds: value.mttdSeconds,
     mttrSeconds: value.mttrSeconds,
     mtbfSeconds: value.mtbfSeconds,
-    mttd: value.mttdSeconds,
-    mttr: value.mttrSeconds,
-    mtbf: value.mtbfSeconds,
+    mttd,
+    mttr,
+    mtbf,
   };
 };
 
 const validateHistory = (value: unknown): SireDashboardHistoryResponse => {
-  const rawPoints = isRecord(value) && Array.isArray(value.data) ? value.data : [];
-  const pagination = isRecord(value) && isRecord(value.pagination) ? value.pagination : null;
+  if (!isRecord(value)) {
+    throw new SireApiError('El servidor devolvió un historial SIRE con un formato inválido.', null);
+  }
+
+  const rawPoints = Array.isArray(value.data) ? value.data : Array.isArray(value.points) ? value.points : [];
+  const pagination = isRecord(value.pagination) ? value.pagination : isRecord(value) ? value : null;
   const points = rawPoints.filter(isHistoryPoint);
+
   if (
-    !isRecord(value) ||
-    !Array.isArray(value.data) ||
+    (!Array.isArray(value.data) && !Array.isArray(value.points)) ||
     points.length !== rawPoints.length ||
     !pagination ||
     !isNumber(pagination.limit) ||
@@ -85,6 +97,7 @@ const validateHistory = (value: unknown): SireDashboardHistoryResponse => {
   ) {
     throw new SireApiError('El servidor devolvió un historial SIRE con un formato inválido.', null);
   }
+
   return {
     points,
     limit: pagination.limit,

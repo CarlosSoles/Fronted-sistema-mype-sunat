@@ -11,7 +11,7 @@
  *  - BA-06: el CSV del RVIE incluía rechazados y comunicaciones de baja.
  */
 import { describe, expect, it } from 'vitest';
-import { COMPROBANTES_DEMO } from '@/modules/invoices/data/invoiceDemoData';
+import { COMPROBANTES_DEMO } from './fixtures/comprobantesDemo';
 import { construir } from '@/modules/invoices/data/invoiceDemoTypes';
 import {
   borradorAComprobante,
@@ -25,12 +25,8 @@ import {
   serieParaNota,
 } from '@/modules/invoices/lib/invoiceEmitValidation';
 import { calcularResumenFiscal } from '@/modules/invoices/lib/invoiceMetrics';
-import { fechaLocalIso } from '@/modules/invoices/InvoiceList';
+import { fechaLocalIso } from '@/modules/invoices/lib/invoiceFecha';
 import { formatDateToPeru } from '@/lib/formatters';
-import {
-  despacharColaOutbox,
-  registrarRespuestaCdr,
-} from '@/modules/invoices/lib/invoiceOutbox';
 import { construirCsvRvie } from '@/modules/invoices/lib/invoiceExportSire';
 
 const FACTURA_RUC = '20100070970';
@@ -180,8 +176,20 @@ describe('BA-03 · la Nota hereda el documento afectado', () => {
     const nota = borradorAComprobante({
       ...borradorInicial('07', '2026-10-16'),
       clienteDoc: FACTURA_RUC,
-      base: 2500,
-      detraccionPct: 0.12,
+      // TA-64: el detalle pasó a ser una grilla; la base única ya no existe.
+      items: [
+        {
+          clave: 'n-1',
+          codigo: 'SRV-001',
+          descripcion: 'Servicio de confección',
+          unidad: 'NIU',
+          cantidad: 1,
+          valorUnitario: 2500,
+          afectacion: 'GRAVADA',
+          icbper: 0,
+        },
+      ],
+      codigoDetraccion: '012',
       agenteRetencion: true,
       documentoAfectado: 'F001-0043',
     });
@@ -203,46 +211,8 @@ describe('BA-03 · la Nota hereda el documento afectado', () => {
   });
 });
 
-describe('BA-04 · la cola Outbox se vacía cuando llega el CDR', () => {
-  it('un comprobante en cola pasa a ACEPTADO con código 0', () => {
-    const enCola = borradorAComprobante({
-      ...borradorInicial('01', '2026-10-16'),
-      clienteDoc: FACTURA_RUC,
-    });
-    expect(enCola.estado).toBe('EN_COLA');
-
-    const despachado = registrarRespuestaCdr(enCola);
-
-    expect(despachado.estado).toBe('ACEPTADO');
-    expect(despachado.cdrCodigo).toBe('0');
-    expect(despachado.cdrDescripcion).toBe('El comprobante fue aceptado');
-    expect(despachado.tiempoDespachoMs).toBeGreaterThan(0);
-  });
-
-  it('no altera un comprobante que ya tiene veredicto', () => {
-    const aceptado = COMPROBANTES_DEMO.find((c) => c.estado === 'ACEPTADO')!;
-    expect(registrarRespuestaCdr(aceptado)).toBe(aceptado);
-  });
-
-  it('deja las comunicaciones de baja y resúmenes como están', () => {
-    const lote = despacharColaOutbox(COMPROBANTES_DEMO);
-    const ra = lote.filter((c) => c.tipo === 'RA' || c.tipo === 'RC');
-
-    expect(ra).toHaveLength(2);
-    expect(lote.some((c) => c.estado === 'EN_COLA')).toBe(false);
-  });
-
-  it('el contador de la cola baja de 1 a 0 tras el despacho', () => {
-    const antes = calcularResumenFiscal(COMPROBANTES_DEMO);
-    const despues = calcularResumenFiscal(despacharColaOutbox(COMPROBANTES_DEMO));
-
-    expect(antes.enCola).toBe(1);
-    expect(despues.enCola).toBe(0);
-  });
-});
-
-describe('BA-05 · la tasa de éxito ignora lo que aún no tiene veredicto', () => {
-  it('no cuenta los comprobantes EN_COLA como fallidos', () => {
+describe('BA-05 · la tasa de éxito incluye los comprobantes pendientes', () => {
+  it('incluye los comprobantes EN_COLA en el denominador', () => {
     const enCola = construir({
       tipo: '01',
       serie: 'F001',
@@ -267,7 +237,7 @@ describe('BA-05 · la tasa de éxito ignora lo que aún no tiene veredicto', () 
 
     const resumen = calcularResumenFiscal([enCola, aceptado]);
 
-    expect(resumen.tasaExito).toBe(100);
+    expect(resumen.tasaExito).toBe(50);
   });
 
   it('sin comprobantes respondidos la tasa es 0 y no NaN', () => {

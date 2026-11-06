@@ -11,11 +11,20 @@
  * El aviso de la consola fiscal deja constancia de que la emisión real contra
  * el backend está planificada para el Sprint 2.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Page, PageHeader, Tabs, TabsContent } from '@/components/ui';
-import { COMPROBANTES_DEMO } from './data/invoiceDemoData';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Page,
+  PageHeader,
+  Tabs,
+  TabsContent,
+} from '@/components/ui';
 import type { ComprobanteDemo } from './data/invoiceDemoTypes';
+import { InvoiceCombinedSummary } from './components/InvoiceCombinedSummary';
 import { InvoiceKpiCards } from './components/InvoiceKpiCards';
 import { InvoiceDemoNotice } from './components/InvoiceDemoNotice';
 import {
@@ -36,13 +45,12 @@ import { InvoiceEmitModal } from './components/InvoiceEmitModal';
 import type { TipoEmision } from './components/InvoiceEmitMenu';
 import { TIPO_POR_OPCION } from './lib/invoiceEmitTipos';
 import { calcularResumenFiscal } from './lib/invoiceMetrics';
+import { aComprobanteDemo } from './lib/invoiceApiMapper';
+import { invoicesApi } from './services/invoicesApi';
 import { aplicarFiltros, porApartado } from './lib/invoiceFilters';
 import { descargarPdfComprobante } from './lib/invoiceExportPdf';
 import { exportarReporteSireCsv } from './lib/invoiceExportSire';
-import {
-  DESPACHO_SIMULADO_MS,
-  registrarRespuestaCdr,
-} from './lib/invoiceOutbox';
+import { useInvoiceFiltros } from './lib/useInvoiceFiltros';
 
 const FILTROS_INICIALES: InvoiceFiltros = {
   busqueda: '',
@@ -83,11 +91,39 @@ export const InvoiceList = () => {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const activeTab = tabDesdeRuta(pathname);
-  const [filtros, setFiltros] = useState<InvoiceFiltros>(FILTROS_INICIALES);
-  const [comprobantes, setComprobantes] =
-    useState<readonly ComprobanteDemo[]>(COMPROBANTES_DEMO);
+  const [filtros, setFiltros] = useInvoiceFiltros();
   const [modalEmision, setModalEmision] = useState<TipoEmision | null>(null);
   const [visor, setVisor] = useState<VisorState | null>(null);
+  // El modal de emisión muestra su propio error si el backend niega la emisión
+  // (ya emite contra `POST /invoices/emitir`); este aviso queda para un fallo
+  // anterior a esa llamada.
+  const [errorEmision] = useState<string | null>(null);
+  const [avisoCdr, setAvisoCdr] = useState<string | null>(null);
+
+  const {
+    data: pagina,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
+    queryKey: ['invoices', 1],
+    queryFn: async () => {
+      const primera = await invoicesApi.getInvoices(1, { page_size: 100 });
+      const paginas = await Promise.all(
+        Array.from({ length: Math.max(0, primera.totalPages - 1) }, (_, i) =>
+          invoicesApi.getInvoices(i + 2, { page_size: 100 }),
+        ),
+      );
+      return { ...primera, data: [ ...primera.data, ...paginas.flatMap((p) => p.data) ] };
+    },
+    staleTime: 1000 * 60 * 3,
+  });
+
+  /** Listado real del tenant; se refresca tras cada emisión. */
+  const comprobantes = useMemo<readonly ComprobanteDemo[]>(
+    () => pagina?.data.map(aComprobanteDemo) ?? [],
+    [pagina],
+  );
 
   const conteo = useMemo(() => contarPorTab(comprobantes), [comprobantes]);
 
@@ -102,46 +138,65 @@ export const InvoiceList = () => {
     [visibles],
   );
 
-  const hayEnCola = comprobantes.some((c) => c.estado === 'EN_COLA');
+  const resumenCombinado = useMemo(
+    () => calcularResumenFiscal(aplicarFiltros(comprobantes, filtros)),
+    [comprobantes, filtros],
+  );
 
   /**
-   * Despacho simulado de la cola: cada comprobante en cola recibe su CDR a
-   * los pocos segundos, como lo haría el worker Outbox contra el billService.
+   * Alta real del comprobante: se persiste en el backend y se refresca la
+   * grilla. Si falla, se avisa en pantalla en vez de fingir que se emitió.
    */
-  useEffect(() => {
-    if (!hayEnCola) return;
+  /**
+   * Alta real del comprobante. El modal ya emite contra
+   * `POST /invoices/emitir` y devuelve el número que asignó la serie; aquí solo
+   * se refresca la grilla para que aparezca. Si el backend negó la emisión, el
+   * modal lo muestra y esta devolución de llamada no llega.
+   */
+  const agregarComprobante = useCallback(
+    () => {
+      setModalEmision(null);
+      void refetch();
+      navigate(RUTA_POR_TAB.comprobantes);
+      setFiltros({ ...FILTROS_INICIALES });
+    },
+    [navigate, refetch],
+  );
 
-    const temporizador = window.setTimeout(() => {
-      setComprobantes((previos) =>
-        previos.map((c) => registrarRespuestaCdr(c)),
-      );
-    }, DESPACHO_SIMULADO_MS);
+  /** Reencola un comprobante en error para que el worker vuelva a pedir su CDR. */
+  const reintentarCdr = useCallback(
+    async (comprobante: ComprobanteDemo) => {
+      try {
+        const resultado = await invoicesApi.retryCdr(comprobante.id);
+        setAvisoCdr(resultado.mensaje);
+        if (resultado.encolado) await refetch();
+      } catch {
+        setAvisoCdr('No se pudo reencolar el comprobante en la cola.');
+      }
+    },
+    [refetch],
+  );
 
-    return () => window.clearTimeout(temporizador);
-  }, [hayEnCola]);
-
-  const agregarComprobante = useCallback((nuevo: ComprobanteDemo) => {
-    setComprobantes((previos) => [nuevo, ...previos]);
-    setModalEmision(null);
-    navigate(RUTA_POR_TAB.comprobantes);
-    setFiltros({ ...FILTROS_INICIALES });
-  }, [navigate]);
-
-  /** Reproduce el ciclo del worker cuando el usuario pulsa "Refrescar". */
+  /** Vuelve a consultar el listado cuando el usuario pulsa "Actualizar". */
   const refrescarCola = useCallback(() => {
-    setComprobantes((previos) =>
-      previos.map((c) => registrarRespuestaCdr(c)),
-    );
-  }, []);
+    void refetch();
+  }, [refetch]);
 
   /** Grilla de comprobantes con los visores XML/CDR y la descarga PDF. */
   const grilla = (mensajeVacio?: string) => (
     <InvoiceTable
       comprobantes={visibles}
-      mensajeVacio={mensajeVacio}
+      mensajeVacio={
+        isLoading
+          ? 'Cargando comprobantes…'
+          : isError
+            ? 'No se pudieron cargar los comprobantes del backend.'
+            : mensajeVacio
+      }
       onVerXml={(c) => setVisor({ comprobante: c, modo: 'xml' })}
       onVerCdr={(c) => setVisor({ comprobante: c, modo: 'cdr' })}
       onDescargarPdf={descargarPdfComprobante}
+      onReintentarCdr={reintentarCdr}
     />
   );
 
@@ -156,9 +211,38 @@ export const InvoiceList = () => {
         description="Emisión, consulta y seguimiento de comprobantes electrónicos sincronizados con SUNAT"
       />
 
+      {errorEmision && (
+        <Alert variant="destructive">
+          <AlertTitle>No se pudo emitir</AlertTitle>
+          <AlertDescription>{errorEmision}</AlertDescription>
+        </Alert>
+      )}
+
+      {avisoCdr && (
+        <Alert variant="info">
+          <AlertTitle>Reintento de CDR</AlertTitle>
+          <AlertDescription>{avisoCdr}</AlertDescription>
+        </Alert>
+      )}
+
       <InvoiceDemoNotice />
 
-      <InvoiceKpiCards resumen={resumen} filtrado={hayFiltrosActivos(filtros, activeTab)} />
+      {isLoading ? (
+        <div role="status">Cargando indicadores…</div>
+      ) : !isError && activeTab !== 'notas' ? (
+        <InvoiceKpiCards resumen={resumen} filtrado={hayFiltrosActivos(filtros, activeTab)} />
+      ) : null}
+
+      {activeTab === 'comprobantes' && !isLoading && !isError && (
+        <InvoiceCombinedSummary resumen={resumenCombinado} />
+      )}
+
+      {filtros.desde && filtros.hasta && filtros.desde > filtros.hasta && (
+        <Alert variant="destructive" role="alert">
+          <AlertTitle>Rango de fechas inválido</AlertTitle>
+          <AlertDescription>La fecha Desde debe ser anterior o igual a Hasta.</AlertDescription>
+        </Alert>
+      )}
 
       <Tabs
         value={activeTab}
@@ -171,11 +255,14 @@ export const InvoiceList = () => {
         <InvoiceFiltersBar
           filtros={filtros}
           onFiltrosChange={setFiltros}
-          onActualizar={() => {
-            refrescarCola();
-            setFiltros({ ...FILTROS_INICIALES });
+          onActualizar={refrescarCola}
+          onEmitir={(tipo) => {
+            if (tipo === 'Nota') {
+              setModalEmision(tipo);
+              return;
+            }
+            navigate(`/invoices/emision?tipo=${tipo === 'Factura' ? '01' : '03'}`);
           }}
-          onEmitir={(tipo) => setModalEmision(tipo)}
         />
 
         <TabsContent value="monitor">

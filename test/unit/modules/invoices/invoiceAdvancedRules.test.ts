@@ -4,7 +4,7 @@ import {
 } from '@/modules/invoices/lib/invoiceMetrics';
 import {
   COMPROBANTES_DEMO,
-} from '@/modules/invoices/data/invoiceDemoData';
+} from './fixtures/comprobantesDemo';
 import { construir } from '@/modules/invoices/data/invoiceDemoTypes';
 
 describe('calcularResumenFiscal', () => {
@@ -78,9 +78,7 @@ describe('calcularResumenFiscal', () => {
 
     expect(resumen.observados).toBe(1);
     expect(typeof resumen.netoTotalCobrar).toBe('number');
-    expect(resumen.netoTotalCobrar).toBeLessThanOrEqual(
-      resumen.totalFacturado,
-    );
+    expect(resumen.netoTotalCobrar).toBeCloseTo(COMPROBANTES_DEMO.filter((c) => ['ACEPTADO', 'OBSERVADO'].includes(c.estado) && ['01', '03', '07', '08'].includes(c.tipo)).reduce((sum, c) => sum + (c.tipo === '07' ? -c.totalNeto : c.totalNeto), 0), 2);
   });
 });
 

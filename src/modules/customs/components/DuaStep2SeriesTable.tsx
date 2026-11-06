@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Trash2, Sparkles } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { type RegisterDuaWizardItemPayload } from '../types';
 
 interface DuaStep2SeriesTableProps {
@@ -20,16 +20,16 @@ export const DuaStep2SeriesTable: React.FC<DuaStep2SeriesTableProps> = ({
       ...items,
       {
         series_order: nextOrder,
-        product_code: `PROD-${nextOrder}`,
+        product_code: `ITEM-${nextOrder}`,
         hs_code: '8471300000',
-        commercial_description: 'LAPTOPS PORTÁTILES CON WI-FI Y BLUETOOTH',
+        commercial_description: '',
         goods_state: 'NUEVO',
         tpi_code: '800',
-        physical_quantity: 100,
+        physical_quantity: 1,
         physical_unit: 'NIU',
-        net_weight_kg: 250,
-        gross_weight_kg: 280,
-        fob_usd: 50000,
+        net_weight_kg: 10,
+        gross_weight_kg: 12,
+        fob_usd: 0,
         ad_valorem_rate: 0,
       },
     ]);
@@ -54,33 +54,36 @@ export const DuaStep2SeriesTable: React.FC<DuaStep2SeriesTableProps> = ({
           <div>
             <h4 className="font-semibold text-foreground">Series Arancelarias Declaradas (Formato B)</h4>
             <p className="text-[11px] text-muted-foreground">
-              Total FOB acumulado: <span className="font-bold text-primary">${totalFob.toLocaleString()}</span>
+              Total FOB acumulado: <span className="font-bold text-primary">${totalFob.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </p>
           </div>
           <div className="flex gap-2">
             <Button
               type="button"
               size="sm"
-              variant="outline"
               onClick={handleAddItem}
-              className="h-7 text-xs gap-1"
-            >
-              <Sparkles className="h-3.5 w-3.5 text-primary" />
-              Cargar Laptops de Juan
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              onClick={handleAddItem}
-              className="h-7 text-xs gap-1"
+              className="h-7 text-xs gap-1 font-semibold"
             >
               <Plus className="h-3.5 w-3.5" />
-              Nueva Serie
+              + Nueva Serie Arancelaria
             </Button>
           </div>
         </div>
 
-        <div className="space-y-2.5">
+        {items.length === 0 ? (
+          <div className="p-6 text-center border border-dashed rounded-lg text-muted-foreground space-y-2">
+            <p className="font-medium text-foreground">No hay series arancelarias cargadas para esta declaración.</p>
+            <p className="text-[11px]">
+              Al iniciar el trámite desde una Orden de Compra Internacional o Expediente, los productos se cargan automáticamente.
+              También puedes agregar una serie de forma manual.
+            </p>
+            <Button size="sm" variant="outline" onClick={handleAddItem} className="gap-1.5 h-7 text-xs">
+              <Plus className="h-3.5 w-3.5" />
+              Agregar primera serie
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-2.5">
           {items.map((item, index) => (
             <div
               key={index}
@@ -197,6 +200,7 @@ export const DuaStep2SeriesTable: React.FC<DuaStep2SeriesTableProps> = ({
             </div>
           ))}
         </div>
+        )}
       </CardContent>
     </Card>
   );

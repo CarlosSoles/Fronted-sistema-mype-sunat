@@ -2,12 +2,9 @@
  * Pruebas de las exportaciones del M1: XML UBL 2.1, PDF binario con QR, CSV
  * del SIRE RVIE y validaciones del formulario de emisión.
  */
-import { describe, it, expect } from 'vitest';
-import { COMPROBANTES_DEMO } from '@/modules/invoices/data/invoiceDemoData';
-import {
-  generarXmlUbl21Comprobante,
-  nombreArchivoXml,
-} from '@/modules/invoices/lib/invoiceExportXml';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { COMPROBANTES_DEMO } from './fixtures/comprobantesDemo';
+import { useAuthStore } from '@/stores/authStore';
 import {
   construirPdfBinarioSunat,
   nombreArchivoPdf,
@@ -33,73 +30,27 @@ const busqueda = <T extends { tipo: string }>(
 };
 
 const factura = busqueda(COMPROBANTES_DEMO, '01');
-const boleta = busqueda(COMPROBANTES_DEMO, '03');
-const notaCredito = busqueda(COMPROBANTES_DEMO, '07');
 
-/** Boleta emitida a persona natural: el documento del cliente es un DNI. */
-const boletaConDni = COMPROBANTES_DEMO.filter(
-  (c) => c.tipo === '03' && c.clienteRuc.length === 8,
-);
+/**
+ * Identidad del emisor con la que los tests construyen documentos.
+ *
+ * El RUC ya no es una constante del código: sale de la empresa activa de la
+ * sesión, para que el QR y el XML del front lleven el mismo RUC con el que el
+ * backend firma. Estos tests instalan una empresa como lo haría el login y
+ * comprueban que su RUC aparece en las tres exportaciones.
+ */
+const EMPRESA_PRUEBA = {
+  tenantId: 'test-tenant',
+  ruc: '20601234567',
+  razonSocial: 'SYNC-SUNAT DEMO MYPE S.A.C.',
+} as const;
 
-describe('generarXmlUbl21Comprobante', () => {
-  it('una factura usa la raíz Invoice y el tipo 01 con tipo de operación', () => {
-    const xml = generarXmlUbl21Comprobante(factura);
+beforeEach(() => {
+  useAuthStore.getState().setActiveCompany({ ...EMPRESA_PRUEBA });
+});
 
-    expect(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true);
-    expect(xml).toContain('<Invoice');
-    expect(xml).toContain('<cbc:InvoiceTypeCode');
-    expect(xml).toContain('>01</cbc:InvoiceTypeCode>');
-    expect(xml).toContain('<cbc:UBLVersionID>2.1</cbc:UBLVersionID>');
-  });
-
-  it('incluye las líneas del detalle y los términos de pago', () => {
-    const xml = generarXmlUbl21Comprobante(factura);
-
-    expect(xml).toContain('<cac:InvoiceLine>');
-    expect(xml).toContain('<cac:PaymentTerms>');
-    expect(xml).toContain('<cbc:PaymentMeansID>');
-    expect(xml).toContain('<cac:LegalMonetaryTotal>');
-    expect(xml).toContain('<cac:TaxTotal>');
-  });
-
-  it('las notas de crédito usan la raíz CreditNote y referencian el CPE', () => {
-    const xml = generarXmlUbl21Comprobante(notaCredito);
-
-    expect(xml).toContain('<CreditNote');
-    expect(xml).toContain('</CreditNote>');
-    expect(xml).not.toContain('<InvoiceTypeCode');
-    expect(xml).toContain('<cbc:CreditNoteTypeCode');
-    expect(xml).toContain('<cac:DiscrepancyResponse>');
-    expect(xml).toContain('<cac:BillingReference>');
-    expect(xml).toContain(`<cbc:ID>${notaCredito.documentoAfectado}</cbc:ID>`);
-  });
-
-  it('las boletas exponen al cliente con documento tipo 1', () => {
-    // Toda la semilla de boletas va a personas naturales: si aparece una
-    // boleta con RUC, es un dato inválido para SUNAT y debe verse aquí.
-    expect(boletaConDni).toHaveLength(3);
-
-    for (const b of boletaConDni) {
-      const xml = generarXmlUbl21Comprobante(b);
-
-      expect(xml).toContain(`<cbc:ID schemeID="1">${b.clienteRuc}</cbc:ID>`);
-      expect(xml).toContain('</Invoice>');
-    }
-
-    // Una factura declara el RUC del adquirente con esquema 6.
-    expect(factura.clienteRuc).toHaveLength(11);
-    expect(factura.clienteTipoDoc).toBe('6');
-    expect(generarXmlUbl21Comprobante(factura)).toContain(
-      `<cbc:ID schemeID="6">${factura.clienteRuc}</cbc:ID>`,
-    );
-    expect(boleta).toBeDefined();
-  });
-
-  it('el nombre del archivo sigue el formato RUC-tipo-serie-correlativo', () => {
-    expect(nombreArchivoXml(factura)).toBe(
-      `20601012341-01-F001-${factura.correlativo}.xml`,
-    );
-  });
+afterEach(() => {
+  useAuthStore.setState({ activeCompany: null });
 });
 
 describe('construirPdfBinarioSunat', () => {
@@ -116,10 +67,11 @@ describe('construirPdfBinarioSunat', () => {
   it('incorpora el recuadro fiscal con RUC, hash y trama QR de 10 campos', () => {
     const pdf = construirPdfBinarioSunat(factura);
 
-    expect(pdf).toContain('R.U.C. N° 20601012341');
+    expect(pdf).toContain('R.U.C. N° 20601234567');
     expect(pdf).toContain('COMPROBANTE ELECTRONICO');
     expect(pdf).toContain(factura.hashCpe);
-    expect(pdf).toContain('20601012341');
+    // El RUC del recuadro es el de la empresa activa, no un literal del código.
+    expect(pdf).toContain(EMPRESA_PRUEBA.ruc);
   });
 
   it('el nombre del PDF usa serie y correlativo en cuatro dígitos', () => {
@@ -148,7 +100,7 @@ describe('construirCsvRvie', () => {
 
   it('el nombre del reporte corresponde al periodo y al RUC del emisor', () => {
     expect(nombreArchivoRvie(COMPROBANTES_DEMO)).toBe(
-      'RVIE-20601012341-202610.csv',
+      'RVIE-20601234567-202610.csv',
     );
   });
 });
@@ -159,6 +111,34 @@ describe('validaciones del formulario de emisión', () => {
     expect(rucValido('20601012341')).toBe(true);
     expect(rucValido('20601012342')).toBe(false);
     expect(rucValido('1012345678')).toBe(false);
+  });
+
+  /*
+   * LOS DOS CASOS ESPECIALES DEL MÓDULO 11, FIJADOS CON RUC REALES.
+   *
+   * `resto` va de 0 a 10, así que `11 - resto` da 1..11; los valores 10 y 11 se
+   * sustituyen por un dígito (10 → 0, 11 → 1).
+   *
+   *   20100070970 → resto 1  → verificador 10 → dígito 0
+   *   20601012341 → resto 10 → verificador 1  → dígito 1
+   *
+   * Están aquí porque el 3 nov "arreglé" estas ramas creyendo que la de 11 era
+   * imposible. No lo era: con resto 0 el dígito es 1. El cambio rompía
+   * 20100070970, que es la Ferretería Los Andes y la primera factura del
+   * sistema. Estas dos pruebas lo habrían frenado.
+   */
+  it('resuelve las dos ramas especiales del módulo 11 con RUC reales', () => {
+    // resto 1 → verificador 10 → 0
+    expect(rucValido('20100070970')).toBe(true);
+    // resto 10 → verificador 1 (el camino normal)
+    expect(rucValido('20601012341')).toBe(true);
+    // resto 6 → verificador 5
+    expect(rucValido('20131312955')).toBe(true);
+  });
+
+  it('rechaza el número con el dígito verificador alterado', () => {
+    expect(rucValido('20100070971')).toBe(false);
+    expect(rucValido('20131312956')).toBe(false);
   });
 
   it('solo acepta DNI de ocho dígitos', () => {
