@@ -4,6 +4,8 @@ import {
   Input, Tabs, TabsContent, TabsList, TabsTrigger, Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui';
 import { Bell, FileDown, FileUp, LoaderCircle, RefreshCw } from 'lucide-react';
+import { useAuthStore } from '@/stores/authStore';
+import { validateRucModulo11 } from '@/modules/auth/validators/rucValidator';
 import { useSirePolling } from '../hooks/useSirePolling';
 import { sireApi } from '../services/sireApi';
 import type { SireBookType, SireWorkflowRecord, SireWorkflowRequest, SireWorkflowResponse } from '../types/sire.types';
@@ -69,8 +71,10 @@ export const SireWorkflowPanel = ({ period, bookType, onPeriodChange, onBookType
   const [reportFile, setReportFile] = useState<File | null>(null);
   const [periodError, setPeriodError] = useState<string | null>(null);
   const operationLock = useRef(false);
+  const activeRuc = useAuthStore((state) => state.activeCompany?.ruc ?? null);
   const request = useMemo<SireWorkflowRequest>(() => ({ period, bookType }), [bookType, period]);
   const validRequest = isPeriodValid(period);
+  const validActiveRuc = activeRuc !== null && validateRucModulo11(activeRuc);
 
   const workflowForRequest = workflow?.period === period && isSameBook(workflow.bookType, bookType) ? workflow : null;
 
@@ -110,8 +114,13 @@ export const SireWorkflowPanel = ({ period, bookType, onPeriodChange, onBookType
   const excludedRecords = records.filter(isExcluded);
 
   const run = async (operation: () => Promise<SireWorkflowResponse>, success?: string, refresh = false) => {
-    if (operationLock.current || !validRequest) {
+    if (operationLock.current || !validRequest || !validActiveRuc) {
       if (!validRequest) setPeriodError('Ingresa un periodo válido con formato YYYYMM.');
+      if (!validActiveRuc) {
+        setError(activeRuc
+          ? 'El RUC asociado a la sesión no es válido. Corrige los datos de la empresa.'
+          : 'No se encontró un RUC de empresa en la sesión. Inicia sesión nuevamente o selecciona una empresa.');
+      }
       return;
     }
     operationLock.current = true;
@@ -169,6 +178,12 @@ export const SireWorkflowPanel = ({ period, bookType, onPeriodChange, onBookType
 
   const importTxt = async () => {
     if (operationLock.current) return;
+    if (!validActiveRuc) {
+      setError(activeRuc
+        ? 'El RUC asociado a la sesión no es válido. Corrige los datos de la empresa.'
+        : 'No se encontró un RUC de empresa en la sesión. Inicia sesión nuevamente o selecciona una empresa.');
+      return;
+    }
     if (!proposalFile || !isAllowedTextFile(proposalFile)) {
       setError('Selecciona un archivo TXT no vacío de máximo 5 MiB.');
       return;
@@ -200,7 +215,7 @@ export const SireWorkflowPanel = ({ period, bookType, onPeriodChange, onBookType
   };
 
   const exportRecords = async () => {
-    if (operationLock.current || !validRequest) return;
+    if (operationLock.current || !validRequest || !validActiveRuc) return;
     operationLock.current = true;
     setLoading(true);
     setError(null);
@@ -283,6 +298,14 @@ export const SireWorkflowPanel = ({ period, bookType, onPeriodChange, onBookType
             </select>
           </label>
         </div>
+        <div className="rounded-lg border bg-muted/30 p-3 text-sm" aria-label="RUC asociado a la sesión">
+          <span className="font-medium">RUC de la empresa autenticada: </span>
+          {activeRuc ?? 'No disponible'}
+          <p className="mt-1 text-xs text-muted-foreground">
+            La propuesta se consulta para la empresa asociada a tu sesión; el RUC no se envía en el payload.
+          </p>
+        </div>
+        {activeRuc && !validActiveRuc && <p role="alert" className="text-sm text-destructive">El RUC asociado a la sesión no supera la validación del dígito verificador Módulo 11. Verifica los datos de la empresa antes de operar.</p>}
         {!validRequest && <p role="alert" className="text-sm text-destructive">Ingresa un periodo válido con formato YYYYMM.</p>}
         {periodError && <p role="alert" className="text-sm text-destructive">{periodError}</p>}
         {error && <Alert variant="destructive"><AlertTitle>No se pudo completar la operación SIRE</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}
@@ -294,7 +317,7 @@ export const SireWorkflowPanel = ({ period, bookType, onPeriodChange, onBookType
         <Tabs value={tab} onValueChange={changeTab}>
           <TabsList className="h-auto w-full flex-wrap justify-start"><TabsTrigger value="proposal">Propuesta</TabsTrigger><TabsTrigger value="excluded">Excluidos</TabsTrigger><TabsTrigger value="preliminary">Preliminar</TabsTrigger><TabsTrigger value="generated">Generado</TabsTrigger></TabsList>
           <TabsContent value="proposal" forceMount className="mt-4 space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2"><div><h3 className="font-semibold">Comprobantes propuestos</h3><p className="text-sm text-muted-foreground">Periodo {period} · {bookType}</p></div><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" disabled={loading || generated || !validRequest} onClick={consultProposal}>{loading && <LoaderCircle className="animate-spin" />}Consultar propuesta</Button><Button type="button" variant="outline" disabled={loading || generated || !proposalFile} onClick={() => void importTxt()}>{loading && <LoaderCircle className="animate-spin" />}Importar TXT</Button><Button type="button" disabled={loading || generated || !proposalRecords.length} onClick={() => confirmAction('¿Aceptar la propuesta completa?', () => void run(() => sireApi.acceptProposal({ ...request, confirmed: true }), 'Propuesta aceptada.', true))}>Aceptar Propuesta Completa</Button></div></div>
+            <div className="flex flex-wrap items-center justify-between gap-2"><div><h3 className="font-semibold">Comprobantes propuestos</h3><p className="text-sm text-muted-foreground">Periodo {period} · {bookType}</p></div><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" disabled={loading || generated || !validRequest || !validActiveRuc} onClick={consultProposal}>{loading && <LoaderCircle className="animate-spin" />}Consultar propuesta</Button><Button type="button" variant="outline" disabled={loading || generated || !proposalFile} onClick={() => void importTxt()}>{loading && <LoaderCircle className="animate-spin" />}Importar TXT</Button><Button type="button" disabled={loading || generated || !proposalRecords.length} onClick={() => confirmAction('¿Aceptar la propuesta completa?', () => void run(() => sireApi.acceptProposal({ ...request, confirmed: true }), 'Propuesta aceptada.', true))}>Aceptar Propuesta Completa</Button></div></div>
             <FileSelection label="Archivo TXT de importación" file={proposalFile} accept=".txt,text/plain" disabled={loading || generated} onChange={setProposalFile} onCancel={() => setProposalFile(null)} />
             <FileSelection label="Reporte local CSV/XLSX" file={reportFile} accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled={loading || generated} onChange={setReportFile} onCancel={() => setReportFile(null)} action={<Button type="button" variant="outline" size="sm" disabled={loading || generated || !reportFile} onClick={uploadReport}>Cargar reporte</Button>} />
             <div className="overflow-x-auto rounded-xl border"><Table><TableHeader><TableRow><TableHead>RUC emisor</TableHead><TableHead>Comprobante</TableHead><TableHead>Fecha</TableHead><TableHead>Base</TableHead><TableHead>IGV</TableHead><TableHead>Total</TableHead><TableHead>Origen</TableHead><TableHead>Estado</TableHead><TableHead>Acción</TableHead></TableRow></TableHeader><TableBody>{proposalRecords.length ? proposalRecords.map((record) => <WorkflowRow key={record.proposalId} record={record} actionLabel="Excluir" disabled={loading || generated} onAction={() => confirmAction('¿Excluir este registro?', () => exclude(record))} />) : <EmptyTable message={workflow ? 'No hay comprobantes en la propuesta.' : 'Consulta la propuesta para cargar comprobantes.'} />}</TableBody></Table></div>

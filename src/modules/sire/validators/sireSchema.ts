@@ -1,3 +1,5 @@
+import { validateRucModulo11 } from '@/modules/auth/validators/rucValidator';
+
 export const getPeriodFeedback = (period: string): string | null => {
   if (!period) return 'El período es obligatorio y debe tener formato YYYYMM.';
   if (!/^\d{6}$/.test(period)) return 'Use el formato YYYYMM, por ejemplo 202610.';
@@ -7,7 +9,8 @@ export const getPeriodFeedback = (period: string): string | null => {
 
 export const getRucFeedback = (ruc: string): string | null => {
   if (!ruc) return 'Ingrese el RUC de 11 dígitos.';
-  return /^\d{11}$/.test(ruc) ? null : 'El RUC debe contener 11 dígitos numéricos.';
+  if (!/^\d{11}$/.test(ruc)) return 'El RUC debe contener 11 dígitos numéricos.';
+  return validateRucModulo11(ruc) ? null : 'El RUC no supera la validación del dígito verificador Módulo 11.';
 };
 
 export const getAmountFeedback = (amount: string): string | null => {

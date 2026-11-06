@@ -2,8 +2,12 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import '@testing-library/jest-dom/vitest';
 import { afterEach, describe, expect, it } from 'vitest';
 import { SireWorkflowPanel } from '@/modules/sire/components/SireWorkflowPanel';
+import { useAuthStore } from '@/stores/authStore';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  useAuthStore.setState({ activeCompany: null });
+});
 
 const renderPanel = () => render(
   <SireWorkflowPanel
@@ -32,5 +36,20 @@ describe('SireWorkflowPanel', () => {
     fireEvent.click(getByRole('tab', { name: 'Preliminar' }));
     await waitFor(() => expect(screen.getByText(/No hay registros en el preliminar para este periodo\./)).toBeInTheDocument());
     expect(screen.getByRole('button', { name: 'Registrar Preliminar' })).toBeDisabled();
+  });
+
+  it('muestra el RUC de la empresa autenticada y bloquea consulta si el RUC no es válido', () => {
+    useAuthStore.setState({
+      activeCompany: {
+        tenantId: 'company-1',
+        ruc: '20601012340',
+        razonSocial: 'Empresa de prueba',
+      },
+    });
+    renderPanel();
+
+    expect(screen.getByLabelText('RUC asociado a la sesión')).toHaveTextContent('20601012340');
+    expect(screen.getByRole('alert')).toHaveTextContent('no supera la validación del dígito verificador');
+    expect(screen.getByRole('button', { name: 'Consultar propuesta' })).toBeDisabled();
   });
 });

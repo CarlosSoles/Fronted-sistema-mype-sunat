@@ -176,7 +176,8 @@ describe('retroalimentación de validación del formulario', () => {
     expect(getPeriodFeedback('202613')).toContain('01 y 12');
     expect(getPeriodFeedback('202610')).toBeNull();
     expect(getRucFeedback('123')).toContain('11 dígitos');
-    expect(getRucFeedback('20123456789')).toBeNull();
+    expect(getRucFeedback('20100070970')).toBeNull();
+    expect(getRucFeedback('20100070971')).toContain('dígito verificador');
   });
 
   it('advierte importes con más de dos decimales', () => {
