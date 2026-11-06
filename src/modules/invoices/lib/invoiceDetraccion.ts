@@ -69,7 +69,7 @@ export const esDetraccionDadaDeBaja = (codigo: string): boolean =>
   );
 
 /**
- * Importe de la detracción: porcentaje del total, en soles enteros (regla 3208).
+ * Importe de la detracción del comprobante: porcentaje del total, a céntimos.
  *
  * Devuelve 0 si no hay código, si el código no existe o si el total no supera
  * el umbral de S/ 700. El umbral se mide sobre el total del comprobante.
@@ -82,7 +82,7 @@ export const montoDetraccionPara = (
   const entrada = buscarDetraccion(codigo);
   if (!entrada) return 0;
   if (!(total > UMBRAL_DETRACCION)) return 0;
-  return Math.round(total * entrada.porcentaje);
+  return round2(total * entrada.porcentaje);
 };
 
 /** Referencia a una cuota tal como la edita el usuario. */

@@ -7,12 +7,10 @@
  * cuotas ya repartido y el monto en letras.
  */
 import { PageText } from '@/components/ui';
-import { calcularRetencion, liquidarComprobante } from '../lib/invoiceRetentions';
+import { calcularRetencion, liquidarComprobante, roundDetraccion } from '../lib/invoiceRetentions';
 import { round2 } from '../lib/invoiceTaxes';
-import {
-  buscarDetraccion,
-  montoDetraccionPara,
-} from '../lib/invoiceDetraccion';
+import { buscarDetraccion } from '../lib/invoiceDetraccion';
+import { calcularFlujo } from '../lib/invoiceFlujoPago';
 import { montoEnLetrasSunat } from '../lib/invoiceCreditAndRules';
 import { borradorALiquidar, esTipoNota } from '../lib/invoiceEmitDraft';
 import type { BorradorEmision } from '../lib/invoiceEmitDraft';
@@ -50,7 +48,7 @@ export const InvoiceEmitResumen = ({ borrador }: InvoiceEmitResumenProps) => {
   );
   const resumenGlobal = liquidarDescuentoGlobal(borrador.items, borrador.descuentoGlobal);
   const importeTotal = resumenGlobal.total;
-  const detraccion = montoDetraccionPara(importeTotal, codigo);
+  const detraccion = calcularFlujo(borrador).detraccion;
   const retencion = calcularRetencion(importeTotal, !esNota && borrador.agenteRetencion);
   const neto = round2(importeTotal - detraccion - retencion);
 
@@ -86,8 +84,11 @@ export const InvoiceEmitResumen = ({ borrador }: InvoiceEmitResumenProps) => {
 
       {detraccion > 0 && (
         <PageText variant="caption">
-          Detracción SPOT {soles(detraccion)} (depósito en el Banco de la Nación)
+          Detracción SPOT del comprobante {soles(detraccion)}
         </PageText>
+      )}
+      {detraccion > 0 && (
+        <PageText variant="caption">Depósito en el Banco de la Nación {soles(roundDetraccion(detraccion))}</PageText>
       )}
       {retencion > 0 && (
         <PageText variant="caption">

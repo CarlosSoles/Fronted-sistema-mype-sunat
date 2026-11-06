@@ -91,7 +91,7 @@ import {
   topeDeFechaEmision,
 } from '../lib/invoiceEmitFecha';
 import { hoyEnLima } from '../lib/invoiceFecha';
-import { calcularRetencion } from '../lib/invoiceRetentions';
+import { calcularRetencion, roundDetraccion } from '../lib/invoiceRetentions';
 import { RetencionMaestro } from '../components/RetencionMaestro';
 import { invoicesApi } from '../services/invoicesApi';
 import { cargarProductosAlmacen } from '../services/inventoryProductsApi';
@@ -674,7 +674,7 @@ export default function InvoiceEmissionPage() {
                     <span>S/ {detraccion.monto.toFixed(2)}</span>
                   </div>
                   <PageText variant="caption">
-                    Se deposita en el Banco de la Nación. Solo sobre la base de
+                    Depósito en el Banco de la Nación: S/ {roundDetraccion(detraccion.monto).toFixed(2)}. Solo sobre la base de
                     las líneas sujetas (S/ {detraccion.baseSujeta.toFixed(2)}).
                   </PageText>
                 </div>
