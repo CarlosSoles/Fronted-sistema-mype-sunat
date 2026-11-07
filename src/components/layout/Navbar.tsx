@@ -1,5 +1,6 @@
 import { useAuth } from '@/hooks/useAuth';
 import { OfflineBadge } from './OfflineBadge';
+import { OutboxBadge } from './OutboxBadge';
 import { useTheme } from '@/hooks/useTheme';
 import { useUiStore } from '@/stores/uiStore';
 import { Button } from '@/components/ui/button';
@@ -43,6 +44,7 @@ export const Navbar = () => {
             </span>
           )}
           <OfflineBadge />
+          <OutboxBadge />
         </div>
 
         {/* Lado derecho: Tema Claro/Oscuro, Usuario y Salir */}
