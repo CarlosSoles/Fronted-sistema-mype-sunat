@@ -4,7 +4,6 @@ import { cn } from '@/lib/utils';
 const TABS = [
   { title: 'Kardex general', path: '/kardex/general' },
   { title: 'Por producto', path: '/kardex/producto' },
-  { title: 'Libros PLE 12.1 / 13.1', path: '/kardex/ple' },
 ];
 
 /** Navegación única del módulo Kardex; las tres vistas son pestañas, no módulos. */

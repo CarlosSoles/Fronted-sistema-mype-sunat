@@ -116,7 +116,6 @@ const NAV_ITEMS: NavItem[] = [
       { title: 'Ajustes y toma física', path: '/inventory/adjustments', icon: ClipboardCheck, allowedRoles: ['ADMIN'], group: 'Inventario' },
       { title: 'Saldo inicial', path: '/inventory/opening', icon: FileUp, allowedRoles: ['ADMIN'], group: 'Inventario' },
       { title: 'Kardex valorizado', path: '/kardex/general', icon: BookOpen, group: 'Kardex' },
-      { title: 'Libros PLE 12.1 / 13.1', path: '/kardex/ple', icon: FileCheck2, group: 'Kardex' },
     ],
   },
   {
