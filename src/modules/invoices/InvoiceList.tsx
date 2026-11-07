@@ -23,6 +23,7 @@ import {
   Tabs,
   TabsContent,
 } from '@/components/ui';
+import { formatCurrency } from '@/lib/formatters';
 import type { ComprobanteDemo } from './data/invoiceDemoTypes';
 import { InvoiceCombinedSummary } from './components/InvoiceCombinedSummary';
 import { InvoiceKpiCards } from './components/InvoiceKpiCards';
@@ -183,9 +184,9 @@ export const InvoiceList = () => {
   }, [refetch]);
 
   /** Grilla de comprobantes con los visores XML/CDR y la descarga PDF. */
-  const grilla = (mensajeVacio?: string) => (
+  const grilla = (mensajeVacio?: string, documentos = visibles) => (
     <InvoiceTable
-      comprobantes={visibles}
+      comprobantes={documentos}
       mensajeVacio={
         isLoading
           ? 'Cargando comprobantes…'
@@ -276,7 +277,29 @@ export const InvoiceList = () => {
         <TabsContent value="comprobantes">{grilla()}</TabsContent>
 
         <TabsContent value="notas">
-          {grilla('No hay notas de crédito o débito en el periodo.')}
+          {([
+            {
+              tipo: '07', titulo: 'Notas de crédito',
+              total: 'Total de notas de crédito', importe: resumen.acreditado,
+              vacio: 'No hay notas de crédito con los filtros aplicados.',
+            },
+            {
+              tipo: '08', titulo: 'Notas de débito',
+              total: 'Total de notas de débito', importe: resumen.debitado,
+              vacio: 'No hay notas de débito con los filtros aplicados.',
+            },
+          ] as const).map(({ tipo, titulo, total, importe, vacio }) => {
+            // `tipo` procede de tipo_comprobante mediante aComprobanteDemo.
+            const documentos = visibles.filter((c) => c.tipo === tipo);
+            return (
+              <section key={tipo} aria-labelledby={`notas-${tipo}`} className="space-y-3 mb-6">
+                <h2 id={`notas-${tipo}`} className="text-lg font-semibold">{titulo}</h2>
+                <p>{documentos.length} {documentos.length === 1 ? 'documento' : 'documentos'}</p>
+                {grilla(vacio, documentos)}
+                <p className="font-semibold">{total}: {formatCurrency(importe, 'PEN')}</p>
+              </section>
+            );
+          })}
         </TabsContent>
 
         <TabsContent value="bajas">

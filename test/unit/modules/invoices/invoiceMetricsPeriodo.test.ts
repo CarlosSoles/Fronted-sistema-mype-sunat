@@ -31,7 +31,7 @@ function metricas(extra: Partial<MetricasFacturacion> = {}): MetricasFacturacion
     erroresRed: 0,
     facturadoBruto: 1180,
     acreditado: 118,
-    debitado: 0,
+    debitado: 236,
     facturado: 1062,
     tasaAceptacion: 88.9,
     periodo: '2026-10',
@@ -124,7 +124,7 @@ describe('TA-69 - métricas del periodo (front)', () => {
   });
 
   describe('metricasCuadran', () => {
-    it('bruto menos acreditado más debitado debe dar el neto', () => {
+    it('bruto (incluido débito) menos acreditado debe dar el neto', () => {
       expect(metricasCuadran(metricas())).toBe(true);
     });
 
@@ -134,6 +134,10 @@ describe('TA-69 - métricas del periodo (front)', () => {
 
     it('tolera menos de un céntimo de redondeo', () => {
       expect(metricasCuadran(metricas({ facturado: 1062.005 }))).toBe(true);
+    });
+
+    it('rechaza sumar el débito por segunda vez', () => {
+      expect(metricasCuadran(metricas({ facturado: 1298 }))).toBe(false);
     });
 
     it('las métricas vacías cuadran', () => {
