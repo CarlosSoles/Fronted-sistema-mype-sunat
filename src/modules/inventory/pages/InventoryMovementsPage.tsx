@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { inventoryApi } from '../services/inventoryApi';
 import { type InventoryMovement } from '../types/inventory.types';
 import { ManualMovementModal } from '../components/ManualMovementModal';
@@ -59,12 +60,19 @@ const DOCUMENT_NAMES: Record<string, string> = {
 };
 
 export default function InventoryMovementsPage() {
+  const [searchParams] = useSearchParams();
   const [movements, setMovements] = useState<InventoryMovement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshState, setRefreshState] = useState<'idle' | 'loading' | 'success'>('idle');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
   const [selectedMovement, setSelectedMovement] = useState<InventoryMovement | null>(null);
+
+  useEffect(() => {
+    if (searchParams.get('action') === 'purchase') {
+      setIsPurchaseModalOpen(true);
+    }
+  }, [searchParams]);
 
   // Filtros
   const [searchTerm, setSearchTerm] = useState('');

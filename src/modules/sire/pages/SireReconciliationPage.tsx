@@ -1,12 +1,13 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Alert, AlertDescription, AlertTitle, Button, Page, PageHeader } from '@/components/ui';
-import { LoaderCircle } from 'lucide-react';
+import { LoaderCircle, ArrowRightLeft, PenTool } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { SireComprobantesTable } from '../components/SireComprobantesTable';
 import { SireMetricsCards } from '../components/SireMetricsCards';
 import { SirePeriodFilter } from '../components/SirePeriodFilter';
 import { SireVouchersTable } from '../components/SireVouchersTable';
 import { SireProposalPanel } from '../components/SireProposalPanel';
+import { SireRceKardexReconciliation } from '../components/SireRceKardexReconciliation';
 import { useSireReconciliation } from '../hooks/useSireReconciliation';
 import type { ComprobanteDraft, SireBookType } from '../types/sire.types';
 import { getPeriodFeedback, getRucFeedback } from '../validators/sireSchema';
@@ -22,7 +23,8 @@ const currentPeriod = () => {
 
 export default function SireReconciliationPage() {
   const [period, setPeriod] = useState(currentPeriod);
-  const [bookType, setBookType] = useState<SireBookType>('RVIE_VENTAS');
+  const [bookType, setBookType] = useState<SireBookType>('RCE_COMPRAS');
+  const [rceMode, setRceMode] = useState<'kardex' | 'manual'>('kardex');
   const [comprobantes, setComprobantes] = useState<ComprobanteDraft[]>([emptyVoucher()]);
   const [inputError, setInputError] = useState<string | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -89,19 +91,17 @@ export default function SireReconciliationPage() {
   return (
     <Page>
       <PageHeader
-        title="Conciliación fiscal SIRE"
-        description="Compara comprobantes del ERP con la propuesta disponible en el backend. La conexión real SIRE/SUNAT aún no está habilitada."
+        title="Conciliación fiscal SIRE vs. Kardex"
+        description="Cruce y conciliación de propuestas RCE y RVIE de SUNAT contra las compras, ventas y existencias físicas del ERP."
       />
-      <SireProposalPanel
-        period={period}
-        bookType={bookType}
-      />
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <label className="block max-w-xs space-y-1.5 text-sm font-medium">
-          Libro a conciliar
+
+      {/* Selector de Libro y Modo de Conciliación */}
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between mb-6 pb-4 border-b border-border/50">
+        <label className="block w-full max-w-xs space-y-1.5 text-xs font-semibold text-foreground">
+          Libro Tributario SIRE
           <select
             aria-label="Libro a conciliar"
-            className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm"
+            className="h-9 w-full rounded-lg border border-input bg-background px-3 text-xs font-normal"
             value={bookType}
             disabled={loading}
             onChange={(event) => {
@@ -110,48 +110,91 @@ export default function SireReconciliationPage() {
               }
             }}
           >
-            <option value="RVIE_VENTAS">RVIE · Ventas</option>
-            <option value="RCE_COMPRAS">RCE · Compras</option>
+            <option value="RCE_COMPRAS">RCE · Registro de Compras e Importaciones (Fase 4)</option>
+            <option value="RVIE_VENTAS">RVIE · Registro de Ventas e Ingresos</option>
           </select>
         </label>
-        <SirePeriodFilter
-          period={period}
-          companyRuc={companyRuc}
-          disabled={loading}
-          showFeedback={showFeedback}
-          onPeriodChange={changePeriod}
-        />
-        <SireComprobantesTable
-          comprobantes={comprobantes}
-          showFeedback={showFeedback}
-          disabled={loading}
-          onChange={changeComprobantes}
-        />
-        <Button type="submit" disabled={loading}>
-          {loading && <LoaderCircle className="animate-spin" aria-hidden="true" />}
-          {loading ? 'Conciliando…' : 'Conciliar'}
-        </Button>
-      </form>
 
-      {(inputError || error) && (
-        <Alert variant="destructive" className="mt-4">
-          <AlertTitle>No se pudo completar la conciliación</AlertTitle>
-          <AlertDescription>{inputError ?? error}</AlertDescription>
-        </Alert>
-      )}
-      {data && (
-        <div className="mt-6 space-y-6">
-          <SireMetricsCards summary={data.summary} />
-          <SireVouchersTable results={data.results} />
-          {data.results.some((result) => result.escenario === 'DUPLICADO_LLAVE') && (
-            <Alert variant="warning">
-              <AlertTitle>Se requiere resolución manual</AlertTitle>
-              <AlertDescription>
-                Las llaves duplicadas no tienen un registro elegido automáticamente. Revisa el origen indicado en cada fila.
-              </AlertDescription>
+        {bookType === 'RCE_COMPRAS' && (
+          <div className="flex items-center gap-1.5 p-1 bg-muted/60 rounded-xl border border-border/50 text-xs self-stretch sm:self-auto">
+            <button
+              type="button"
+              onClick={() => setRceMode('kardex')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all ${
+                rceMode === 'kardex'
+                  ? 'bg-primary text-primary-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <ArrowRightLeft className="h-3.5 w-3.5" />
+              Cruce RCE vs. Kardex e Importaciones
+            </button>
+            <button
+              type="button"
+              onClick={() => setRceMode('manual')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all ${
+                rceMode === 'manual'
+                  ? 'bg-primary text-primary-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <PenTool className="h-3.5 w-3.5" />
+              Borrador Manual
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Renderizado condicional según modo */}
+      {bookType === 'RCE_COMPRAS' && rceMode === 'kardex' ? (
+        <SireRceKardexReconciliation period={period} />
+      ) : (
+        <>
+          <SireProposalPanel
+            period={period}
+            bookType={bookType}
+          />
+          <form onSubmit={handleSubmit} className="space-y-6 mt-6">
+            <SirePeriodFilter
+              period={period}
+              companyRuc={companyRuc}
+              disabled={loading}
+              showFeedback={showFeedback}
+              onPeriodChange={changePeriod}
+            />
+            <SireComprobantesTable
+              comprobantes={comprobantes}
+              showFeedback={showFeedback}
+              disabled={loading}
+              onChange={changeComprobantes}
+            />
+            <Button type="submit" disabled={loading}>
+              {loading && <LoaderCircle className="animate-spin" aria-hidden="true" />}
+              {loading ? 'Conciliando…' : 'Conciliar'}
+            </Button>
+          </form>
+
+          {(inputError || error) && (
+            <Alert variant="destructive" className="mt-4">
+              <AlertTitle>No se pudo completar la conciliación</AlertTitle>
+              <AlertDescription>{inputError ?? error}</AlertDescription>
             </Alert>
           )}
-        </div>
+          {data && (
+            <div className="mt-6 space-y-6">
+              <SireMetricsCards summary={data.summary} />
+              <SireVouchersTable results={data.results} />
+              {data.results.some((result) => result.escenario === 'DUPLICADO_LLAVE') && (
+                <Alert variant="warning">
+                  <AlertTitle>Se requiere resolución manual</AlertTitle>
+                  <AlertDescription>
+                    Las llaves duplicadas no tienen un registro elegido automáticamente. Revisa el origen indicado en cada fila.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
+        </>
       )}
     </Page>
   );

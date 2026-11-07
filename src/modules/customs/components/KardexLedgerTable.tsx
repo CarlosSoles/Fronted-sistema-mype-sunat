@@ -17,6 +17,15 @@ interface KardexLedgerTableProps {
 export const KardexLedgerTable: React.FC<KardexLedgerTableProps> = ({ movements }) => {
   return (
     <div className="rounded-lg border border-border/60 overflow-hidden bg-card">
+      <div className="bg-muted/40 px-3 py-2 border-b flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5 font-medium text-foreground text-[11px]">
+          <span className="h-2 w-2 rounded-full bg-emerald-500 inline-block" />
+          Kardex Permanente Valorizado (PLE 13.1 Oficial) · Valuación al Costo Neto sin IGV (NIC 2)
+        </span>
+        <span className="text-[10px] text-muted-foreground italic">
+          * Los impuestos recuperables (IGV 18%) constituyen crédito fiscal y no integran el costo de existencia.
+        </span>
+      </div>
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50 hover:bg-muted/50 text-[11px]">
