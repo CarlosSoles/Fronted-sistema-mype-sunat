@@ -115,12 +115,12 @@ export const normalizarMetricas = (
 /**
  * Comprueba una coherencia que delata un error del backend.
  *
- * El importe neto debe ser `bruto - acreditado` (más el débito, si lo hay). Si
- * no cuadra al céntimo, algo se calculó dos veces. Se devuelve el booleano y no
+ * El importe neto debe ser `bruto - acreditado`: el bruto del servidor ya
+ * incluye el débito. Si no cuadra al céntimo, algo se calculó dos veces. Se devuelve el booleano y no
  * se corrige la cifra: la pantalla debe mostrar lo que el servidor dijo, y esta
  * función existe para que una prueba lo detecte antes de la demostración.
  */
 export const metricasCuadran = (m: MetricasFacturacion): boolean => {
-  const esperado = Math.round((m.facturadoBruto - m.acreditado + m.debitado) * 100) / 100;
+  const esperado = Math.round((m.facturadoBruto - m.acreditado) * 100) / 100;
   return Math.abs(esperado - m.facturado) < 0.011;
 };
