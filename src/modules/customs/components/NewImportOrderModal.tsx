@@ -28,6 +28,8 @@ import {
   type CreateImportOrderPayload,
 } from '../services/importOrdersApi';
 import { masterDataApi, type BusinessPartnerRecord } from '../services/masterDataApi';
+import { inventoryApi } from '@/modules/inventory/services/inventoryApi';
+import type { InventoryBalance } from '@/modules/inventory/types/inventory.types';
 
 interface OrderItemRow {
   productCode: string;
@@ -59,6 +61,7 @@ export const NewImportOrderModal: React.FC<NewImportOrderModalProps> = ({
   const [isRelated, setIsRelated] = useState(false);
   const [supplierEmail, setSupplierEmail] = useState('');
   const [supplierPhone, setSupplierPhone] = useState('');
+  const [catalogo, setCatalogo] = useState<InventoryBalance[]>([]);
   const [incoterm, setIncoterm] = useState('FOB');
   const [currencyCode, setCurrencyCode] = useState('USD');
   const [transportMode, setTransportMode] = useState('MARITIMO');
@@ -81,6 +84,13 @@ export const NewImportOrderModal: React.FC<NewImportOrderModalProps> = ({
   const [partnerBankInfo, setPartnerBankInfo] = useState<{ swift?: string; iban?: string; bank_name?: string } | null>(null);
 
   // Cargar catálogo de proveedores registrados y monedas
+  useEffect(() => {
+    if (!isOpen) return;
+    void inventoryApi.getStockBalances()
+      .then((data) => setCatalogo(data.balances ?? []))
+      .catch(() => setCatalogo([]));
+  }, [isOpen]);
+
   useEffect(() => {
     if (isOpen) {
       masterDataApi
@@ -570,12 +580,26 @@ export const NewImportOrderModal: React.FC<NewImportOrderModalProps> = ({
                     return (
                       <tr key={idx} className="hover:bg-muted/20">
                         <td className="p-2">
-                          <Input
-                            placeholder="SKU-001"
+                          <select
                             value={it.productCode}
-                            onChange={(e) => handleItemChange(idx, 'productCode', e.target.value)}
-                            className="h-7 text-xs font-mono uppercase"
-                          />
+                            onChange={(e) => {
+                              const codigo = e.target.value;
+                              const producto = catalogo.find((p) => p.sku === codigo);
+                              handleItemChange(idx, 'productCode', codigo);
+                              if (producto) {
+                                handleItemChange(idx, 'description', producto.description);
+                                handleItemChange(idx, 'hsCode', producto.hsCode ?? '');
+                              }
+                            }}
+                            className="h-7 w-full rounded-md border border-input bg-background px-1 text-xs font-mono"
+                          >
+                            <option value="">Seleccionar SKU…</option>
+                            {catalogo.map((p) => (
+                              <option key={`${p.warehouseCode}-${p.sku}`} value={p.sku}>
+                                {p.sku} — {p.description}
+                              </option>
+                            ))}
+                          </select>
                         </td>
                         <td className="p-2">
                           <Input
