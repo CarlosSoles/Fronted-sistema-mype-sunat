@@ -3,7 +3,7 @@
  *
  * Pestañas accesibles (Radix Tabs) con badge de conteo por apartado:
  *  1. Facturas y Boletas (01 y 03).
- *  2. Notas de Crédito y Débito (07 y 08).
+ *  2. Notas (07 y 08).
  *  3. Bajas y Resúmenes Diarios (RA y RC).
  *  4. Monitor Outbox y Auditoría CDR.
  */
@@ -50,7 +50,7 @@ export const INVOICE_TABS: ReadonlyArray<{
   },
   {
     id: 'notas',
-    label: 'Notas de Crédito y Débito',
+    label: 'Notas',
     tipos: ['07', '08'],
   },
   {
