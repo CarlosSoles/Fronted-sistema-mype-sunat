@@ -21,7 +21,6 @@ import {
   FileX2,
   FolderGit2,
   GitCompareArrows,
-  History,
   LayoutDashboard,
   FileUp,
   ClipboardCheck,
@@ -136,8 +135,6 @@ const NAV_ITEMS: NavItem[] = [
     subItems: [
       { title: 'Importar Propuesta', path: '/sire/importar', icon: FileUp },
       { title: 'Conciliación y Cruce', path: '/sire/conciliacion', icon: GitCompareArrows },
-      { title: 'Resumen de Cierre', path: '/sire/cierre', icon: ClipboardCheck },
-      { title: 'Historial', path: '/sire/historial', icon: History },
     ],
   },
   {

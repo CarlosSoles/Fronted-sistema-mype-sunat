@@ -36,7 +36,6 @@ const LandedCostSheetPage = React.lazy(() => import('@/modules/customs/pages/Lan
 const PartnersPage = React.lazy(() => import('@/modules/customs/pages/PartnersPage'));
 const MasterDataPage = React.lazy(() => import('@/modules/customs/pages/MasterDataPage'));
 
-const SireExportAuditPage = React.lazy(() => import('@/modules/customs/pages/SireExportAuditPage'));
 const DuaCalculatorPage = React.lazy(() => import('@/modules/customs/pages/DuaCalculatorPage'));
 const InventoryStocksPage = React.lazy(() => import('@/modules/inventory/pages/InventoryStocksPage'));
 const InventoryTransfersPage = React.lazy(() => import('@/modules/inventory/pages/InventoryTransfersPage'));
@@ -48,8 +47,6 @@ const ProductKardexPage = React.lazy(() => import('@/modules/inventory/pages/Pro
 const ElectronicBooksPage = React.lazy(() => import('@/modules/inventory/pages/ElectronicBooksPage'));
 const SireReconciliationPage = React.lazy(() => import('@/modules/sire/pages/SireReconciliationPage'));
 const SireImportPage = React.lazy(() => import('@/modules/sire/pages/SireImportPage'));
-const SireClosurePage = React.lazy(() => import('@/modules/sire/pages/SireClosurePage'));
-const SireHistoryPage = React.lazy(() => import('@/modules/sire/pages/SireHistoryPage'));
 
 // Submódulos de Contabilidad PCGE (M4)
 const AccountingEntriesPage = React.lazy(() => import('@/modules/accounting/pages/AccountingEntriesPage'));
@@ -297,26 +294,8 @@ export const AppRoutes = () => {
                 </RoleProtectedRoute>
               }
             />
-            <Route
-              path="/customs/sire-purchases"
-              element={
-                <RoleProtectedRoute
-                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
-                >
-                  <SireExportAuditPage />
-                </RoleProtectedRoute>
-              }
-            />
-            <Route
-              path="/customs/reports/fiscal-sire"
-              element={
-                <RoleProtectedRoute
-                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
-                >
-                  <SireExportAuditPage />
-                </RoleProtectedRoute>
-              }
-            />
+            <Route path="/customs/sire-purchases" element={<Navigate to="/sire/conciliacion" replace />} />
+            <Route path="/customs/reports/fiscal-sire" element={<Navigate to="/sire/conciliacion" replace />} />
             {/* Ruta legacy de retrocompatibilidad */}
             <Route
               path="/customs/legacy"
@@ -413,16 +392,7 @@ export const AppRoutes = () => {
                 </RoleProtectedRoute>
               }
             />
-            <Route
-              path="/kardex/sire"
-              element={
-                <RoleProtectedRoute
-                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
-                >
-                  <SireExportAuditPage />
-                </RoleProtectedRoute>
-              }
-            />
+            <Route path="/kardex/sire" element={<Navigate to="/sire/conciliacion" replace />} />
 
             {/* [M4: SIRE] ADMIN, CONTADOR, AUDITOR */}
             <Route
@@ -445,22 +415,8 @@ export const AppRoutes = () => {
                 </RoleProtectedRoute>
               }
             />
-            <Route
-              path="/sire/cierre"
-              element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
-                  <SireClosurePage />
-                </RoleProtectedRoute>
-              }
-            />
-            <Route
-              path="/sire/historial"
-              element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
-                  <SireHistoryPage />
-                </RoleProtectedRoute>
-              }
-            />
+            <Route path="/sire/cierre" element={<Navigate to="/sire/conciliacion" replace />} />
+            <Route path="/sire/historial" element={<Navigate to="/sire/conciliacion" replace />} />
 
             {/* [M5: Contabilidad PCGE] ADMIN, CONTADOR, AUDITOR */}
             <Route

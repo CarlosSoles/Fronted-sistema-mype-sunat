@@ -12,9 +12,9 @@ import { useAuthStore } from '@/stores/authStore';
 import { getAmountFeedback, getPeriodFeedback, getRucFeedback } from '@/modules/sire/validators/sireSchema';
 import type { ReconcileRequest, ReconcileResponse, ReconcileScenario } from '@/modules/sire/types/sire.types';
 
+const sessionRuc = '20100070970';
 const payload: ReconcileRequest = {
   period: '202610',
-  ruc: '20123456789',
   bookType: 'RVIE_VENTAS',
   comprobantes: [{
     tipoComprobante: '01',
@@ -39,7 +39,7 @@ const response: ReconcileResponse = {
     porcentajeCumplimiento: 72.35,
   },
   results: [{
-    llave: '20123456789-01-F001-00001234',
+    llave: `${sessionRuc}-01-F001-00001234`,
     tipoComprobante: '01',
     serie: 'F001',
     correlativo: '00001234',
@@ -63,7 +63,7 @@ const backendResponse = {
   complianceRate: 72.35,
   discrepancies: [{
     discrepancyType: 'DUPLICADO_LLAVE',
-    emitterRuc: payload.ruc,
+    emitterRuc: sessionRuc,
     documentType: '01',
     series: 'F001',
     correlative: '00001234',
@@ -77,7 +77,10 @@ const backendResponse = {
 };
 
 beforeEach(() => {
-  useAuthStore.setState({ token: 'test-access-token' });
+  useAuthStore.setState({
+    token: 'test-access-token',
+    activeCompany: { tenantId: 'company-session', ruc: sessionRuc, razonSocial: 'Empresa de prueba' },
+  });
 });
 
 afterEach(() => {
@@ -105,7 +108,7 @@ describe('sireApi.reconcile', () => {
       period: '202610',
       bookType: 'RVIE_VENTAS',
       localRecords: [{
-        emitterRuc: '20123456789',
+        emitterRuc: sessionRuc,
         documentType: '01',
         series: 'F001',
         correlative: '00001234',
@@ -115,12 +118,15 @@ describe('sireApi.reconcile', () => {
       }],
     });
     expect(JSON.parse(request.body as string)).not.toHaveProperty('companyId');
+    expect(request.body).not.toContain('password');
+    expect(request.body).not.toContain('solPassword');
   });
 
   it.each([
     [400, 'Los datos enviados no son válidos'],
     [401, 'Tu sesión venció'],
     [403, 'No tienes permisos'],
+    [409, 'Conflicto al procesar'],
     [500, 'error en el servidor'],
   ])('muestra un mensaje en español para HTTP %s', async (status, expectedMessage) => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
@@ -143,6 +149,38 @@ describe('sireApi.reconcile', () => {
 
     await expect(sireApi.reconcile(payload)).rejects.toBeInstanceOf(SireApiError);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('uses the RUC from the authenticated company and refuses reconciliation without it', async () => {
+    useAuthStore.setState({ activeCompany: null });
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(sireApi.reconcile(payload)).rejects.toThrow('No se encontró el RUC de la empresa autenticada.');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('shows HTTP 409 as a CAR conflict without retrying', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 409,
+      json: vi.fn().mockResolvedValue({ message: 'CAR incompatible con la propuesta existente.' }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const error = await sireApi.reconcile(payload).then(
+      () => null,
+      (cause: unknown) => cause,
+    );
+    expect(error).toBeInstanceOf(SireApiError);
+    if (!(error instanceof SireApiError)) throw new Error('Se esperaba un conflicto HTTP 409.');
+    expect(error.status).toBe(409);
+    expect(error.message).toContain('Conflicto');
+    expect(error.message).toContain('CAR incompatible');
+    expect(error.message).not.toMatch(/borrar|reemplazar/i);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe(`${ENV.VITE_API_URL}/sire/reconcile`);
   });
 
   it('expone el detalle de errores de validación del backend', async () => {
@@ -190,11 +228,10 @@ describe('retroalimentación de validación del formulario', () => {
       <>
         <SirePeriodFilter
           period="202613"
-          ruc=""
+          companyRuc=""
           disabled={false}
           showFeedback={false}
           onPeriodChange={vi.fn()}
-          onRucChange={vi.fn()}
         />
         <SireComprobantesTable
           comprobantes={[{
@@ -220,11 +257,10 @@ describe('retroalimentación de validación del formulario', () => {
       <>
         <SirePeriodFilter
           period="202613"
-          ruc=""
+          companyRuc=""
           disabled={false}
           showFeedback
           onPeriodChange={vi.fn()}
-          onRucChange={vi.fn()}
         />
         <SireComprobantesTable
           comprobantes={[{

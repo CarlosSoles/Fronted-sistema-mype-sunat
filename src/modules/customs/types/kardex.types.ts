@@ -1,6 +1,5 @@
 /**
- * Tipos para el Libro de Inventario Permanente Valorizado (PLE 13.1 y 12.1)
- * y el Registro de Compras de Importaciones (SIRE RCE Anexo 8.4).
+ * Tipos para el Libro de Inventario Permanente Valorizado (PLE 13.1 y 12.1).
  */
 
 export type KardexOperationType =
@@ -41,25 +40,6 @@ export interface KardexMovementEntry {
   final_average_unit_cost?: number;
   final_total_value?: number;
   final_total_inventory_value?: number;
-}
-
-export interface SireAnnex8_4Record {
-  period: string; // AAAAMM00
-  cuo: string;
-  correlative_number: string;
-  customs_code: string; // 118
-  numeration_year: number; // 2026
-  regime_code: string; // 10
-  correlative_dua: string; // 6 dígitos
-  document_issue_date: string;
-  taxpayer_id: string;
-  supplier_name: string;
-  cif_value_pen: number;
-  ad_valorem_pen: number;
-  taxable_base_pen: number; // CIF + Ad-Valorem
-  igv_ipm_pen: number;
-  perception_pen: number;
-  total_import_cost_pen: number;
 }
 
 export interface KardexFilterParams {
