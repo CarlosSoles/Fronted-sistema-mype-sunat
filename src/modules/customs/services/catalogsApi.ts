@@ -182,10 +182,17 @@ export const catalogsApi = {
 
   getForeignSuppliers: async (): Promise<ForeignSupplierSummary[]> => {
     try {
-      const response = await apiClient.get<ForeignSupplierSummary[]>('/customs/catalogs/suppliers');
-      return Array.isArray(response.data) && response.data.length > 0 ? response.data : getStoredSuppliers();
+      const response = await apiClient.get<ForeignSupplierSummary[]>('/customs/suppliers');
+      return Array.isArray(response.data) ? response.data : [];
     } catch {
       return getStoredSuppliers();
     }
+  },
+
+  createForeignSupplier: async (
+    payload: Record<string, unknown>,
+  ): Promise<ForeignSupplierSummary> => {
+    const response = await apiClient.post<ForeignSupplierSummary>('/customs/suppliers', payload);
+    return response.data;
   },
 };

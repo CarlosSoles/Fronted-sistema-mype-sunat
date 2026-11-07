@@ -60,6 +60,18 @@ export interface ForeignSupplierSummary {
   country_code: string;
   tax_id?: string;
   is_related?: boolean;
+  address?: string;
+  email?: string;
+  phone?: string;
+  contact_name?: string;
+  payment_terms?: string;
+  bank_name?: string;
+  bank_account?: string;
+  swift_code?: string;
+  vessel_name?: string;
+  voyage_number?: string;
+  bl_number?: string;
+  port_origin?: string;
 }
 
 export interface CustomsBrokerSummary {
