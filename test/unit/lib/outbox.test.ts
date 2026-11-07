@@ -1,13 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { enqueueAccountingEntry, enqueueInvoiceEmission, flushOutbox, listPendingOperations } from '@/lib/outbox';
+import { enqueueAccountingEntry, enqueueInvoiceEmission, enqueuePartnerCreate, flushOutbox, listPendingOperations } from '@/lib/outbox';
 import { accountingApi } from '@/modules/accounting/services/accountingApi';
 import { invoicesApi } from '@/modules/invoices/services/invoicesApi';
+import { masterDataApi } from '@/modules/customs/services/masterDataApi';
 
 vi.mock('@/modules/accounting/services/accountingApi', () => ({
   accountingApi: { createEntry: vi.fn() },
 }));
 vi.mock('@/modules/invoices/services/invoicesApi', () => ({
   invoicesApi: { emitirComprobante: vi.fn() },
+}));
+vi.mock('@/modules/customs/services/masterDataApi', () => ({
+  masterDataApi: { createPartner: vi.fn() },
 }));
 
 const payload = {
@@ -110,5 +114,16 @@ describe('outbox de asientos', () => {
 
     await flushOutbox();
     expect(accountingApi.createEntry).toHaveBeenCalledTimes(1);
+  });
+
+  it('encola y sincroniza el alta de un cliente', async () => {
+    (masterDataApi.createPartner as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'p-1' });
+    await enqueuePartnerCreate({ docNumber: '20100070970', legalName: 'CLIENTE SAC' });
+
+    await expect(flushOutbox()).resolves.toEqual({ enviados: 1, fallidos: 0 });
+    expect(masterDataApi.createPartner).toHaveBeenCalledWith({
+      docNumber: '20100070970',
+      legalName: 'CLIENTE SAC',
+    });
   });
 });

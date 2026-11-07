@@ -15,6 +15,7 @@ import {
 } from '@/components/ui';
 import { Building2, Plus, RefreshCw, Search, Save, Edit2, Trash2, ExternalLink } from 'lucide-react';
 import { masterDataApi, type BusinessPartnerRecord, type PartnerRole } from '../services/masterDataApi';
+import { enqueuePartnerCreate } from '@/lib/outbox';
 import { PartnerDetailDrawer } from '../components/PartnerDetailDrawer';
 
 const ROLES: PartnerRole[] = ['CLIENTE', 'PROVEEDOR', 'IMPORTADOR', 'AGENTE', 'TRANSPORTISTA'];
@@ -86,8 +87,8 @@ export default function PartnersPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: () =>
-      masterDataApi.createPartner({
+    mutationFn: async () => {
+      const payload = {
         docType: form.docType,
         docNumber: form.docNumber.trim(),
         legalName: form.legalName.trim(),
@@ -99,11 +100,24 @@ export default function PartnersPage() {
         paymentTerms: form.paymentTerms,
         currencyCode: form.currencyCode,
         roles,
-      }),
-    onSuccess: () => {
+      };
+      try {
+        return await masterDataApi.createPartner(payload);
+      } catch (error) {
+        const sinRespuesta =
+          !navigator.onLine ||
+          (error instanceof Error && 'response' in error && !(error as { response?: unknown }).response);
+        if (sinRespuesta) {
+          await enqueuePartnerCreate(payload);
+          return { offline: true } as const;
+        }
+        throw error;
+      }
+    },
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['master-data', 'partners'] });
       setIsNewOpen(false);
-      setError(null);
+      setError(data && 'offline' in data ? 'Sin conexión: el cliente quedó en cola y se enviará al reconectar.' : null);
       setForm({
         docType: '6',
         docNumber: '',

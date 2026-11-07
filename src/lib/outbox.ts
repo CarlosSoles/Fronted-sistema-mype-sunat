@@ -1,5 +1,6 @@
 import { accountingApi } from '@/modules/accounting/services/accountingApi';
 import { invoicesApi } from '@/modules/invoices/services/invoicesApi';
+import { masterDataApi } from '@/modules/customs/services/masterDataApi';
 import type { CreateAccountingEntryInput } from '@/modules/accounting/types/accounting.types';
 import type { EmitirComprobantePayload } from '@/modules/invoices/types/invoiceEmision.types';
 
@@ -25,7 +26,18 @@ export interface PendingInvoiceEmission {
   lastError?: string;
 }
 
-export type PendingOperation = PendingAccountingEntry | PendingInvoiceEmission;
+export interface PendingPartnerCreate {
+  id: string;
+  type: 'PARTNER_CREATE';
+  payload: Record<string, unknown>;
+  createdAt: string;
+  attempts: number;
+  status?: 'PENDING' | 'FAILED';
+  nextAttemptAt?: string;
+  lastError?: string;
+}
+
+export type PendingOperation = PendingAccountingEntry | PendingInvoiceEmission | PendingPartnerCreate;
 
 const STORAGE_KEY = 'sync-sunat-outbox';
 
@@ -61,6 +73,26 @@ export async function enqueueAccountingEntry(
     status: 'PENDING',
   };
   escribir([...leer(), operacion]);
+  window.dispatchEvent(new Event('outbox:changed'));
+  return id;
+}
+
+/** Encola el alta de un cliente/proveedor cuando no hay red. */
+export async function enqueuePartnerCreate(
+  payload: Record<string, unknown>,
+): Promise<string> {
+  const id = uuid();
+  escribir([
+    ...leer(),
+    {
+      id,
+      type: 'PARTNER_CREATE',
+      payload,
+      createdAt: new Date().toISOString(),
+      attempts: 0,
+      status: 'PENDING',
+    },
+  ]);
   window.dispatchEvent(new Event('outbox:changed'));
   return id;
 }
@@ -119,8 +151,10 @@ export async function flushOutbox(
     try {
       if (operacion.type === 'ACCOUNTING_ENTRY') {
         await accountingApi.createEntry(operacion.payload);
-      } else {
+      } else if (operacion.type === 'INVOICE_EMISSION') {
         await invoicesApi.emitirComprobante(operacion.payload);
+      } else {
+        await masterDataApi.createPartner(operacion.payload);
       }
       escribir(leer().filter((item) => item.id !== operacion.id));
       enviados += 1;
