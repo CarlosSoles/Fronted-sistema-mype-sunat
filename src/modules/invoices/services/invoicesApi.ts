@@ -210,14 +210,17 @@ export const invoicesApi = {
    * con `q` filtra por documento o razón social en el servidor.
    */
   buscarClientes: async (q?: string): Promise<ClienteBuscado[]> => {
-    const todos = await cachedGet('invoice-customers-all', async () => {
+    const params: Record<string, string> = {};
+    if (q && q.trim() !== '') params.q = q.trim();
+
+    return cachedGet(`invoice-customers:${params.q ?? ''}`, async () => {
       const response = await apiClient.get<
         Array<{
           tipoDocumento?: string;
           numeroDocumento?: string;
           razonSocial?: string;
         }>
-      >('/invoices/customers/lookup');
+      >('/invoices/customers/lookup', { params });
 
       return (response.data ?? []).map((c) => ({
         tipoDocumento: (c.tipoDocumento ?? '6').trim(),
@@ -225,13 +228,6 @@ export const invoicesApi = {
         razonSocial: (c.razonSocial ?? '').trim(),
       }));
     });
-
-    const term = (q ?? '').trim().toLowerCase();
-    if (!term) return todos;
-    const normalizar = (texto: string) => texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    return todos.filter((c) =>
-      c.numeroDocumento.includes(term) || normalizar(c.razonSocial).includes(normalizar(term)),
-    );
   },
 
   /**
