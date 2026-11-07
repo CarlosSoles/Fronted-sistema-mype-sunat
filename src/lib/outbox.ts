@@ -150,6 +150,24 @@ export async function listPendingOperations(): Promise<PendingOperation[]> {
   return leer();
 }
 
+/** Quita una operación que el usuario decidió no enviar. */
+export async function discardOperation(id: string): Promise<void> {
+  escribir(leer().filter((item) => item.id !== id));
+  window.dispatchEvent(new Event('outbox:changed'));
+}
+
+/** Vuelve a habilitar una operación FAILED para el próximo intento. */
+export async function retryOperation(id: string): Promise<void> {
+  escribir(
+    leer().map((item) =>
+      item.id === id
+        ? { ...item, status: 'PENDING' as const, nextAttemptAt: undefined, lastError: undefined }
+        : item,
+    ),
+  );
+  window.dispatchEvent(new Event('outbox:changed'));
+}
+
 const esperaMs = (attempts: number): number =>
   Math.min(5 * 60_000, 2 ** attempts * 1_000);
 
@@ -213,4 +231,16 @@ export async function flushOutbox(
 
   window.dispatchEvent(new Event('outbox:changed'));
   return { enviados, fallidos };
+}
+
+/** Arranca la sincronización periódica y al recuperar la conexión. */
+export function startOutboxSync(intervalMs = 30_000): () => void {
+  if (typeof window === 'undefined') return () => undefined;
+  const sincronizar = () => void flushOutbox();
+  const timer = window.setInterval(sincronizar, intervalMs);
+  window.addEventListener('online', sincronizar);
+  return () => {
+    window.clearInterval(timer);
+    window.removeEventListener('online', sincronizar);
+  };
 }

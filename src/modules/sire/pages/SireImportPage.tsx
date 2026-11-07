@@ -1,4 +1,3 @@
-import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Alert,
@@ -14,70 +13,20 @@ import {
   PageHeader,
 } from '@/components/ui';
 import { ArrowRight, LoaderCircle, Upload } from 'lucide-react';
-import { sireApi } from '../services/sireApi';
-import type { ImportSireProposalResponse, SireBookType } from '../types/sire.types';
-
-const currentPeriod = () => {
-  const now = new Date();
-  return `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
-};
+import { useSireProposalImport } from '../hooks/useSireProposalImport';
 
 export default function SireImportPage() {
-  const [period, setPeriod] = useState(currentPeriod);
-  const [bookType, setBookType] = useState<SireBookType>('RVIE_VENTAS');
-  const [file, setFile] = useState<File | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<ImportSireProposalResponse | null>(null);
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError(null);
-    setResult(null);
-
-    if (!/^(?!0000)\d{4}(0[1-9]|1[0-2])$/.test(period)) {
-      setError('Ingresa un periodo válido con formato YYYYMM.');
-      return;
-    }
-    if (!file) {
-      setError('Selecciona el archivo TXT de la propuesta.');
-      return;
-    }
-    if (!/\.txt$/i.test(file.name)) {
-      setError('Solo se permiten archivos .txt.');
-      return;
-    }
-    if (file.size === 0) {
-      setError('El archivo está vacío.');
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      setError('El archivo no debe superar los 5 MiB.');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      setResult(await sireApi.importProposal({ period, bookType }, file));
-    } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : 'Ocurrió un error inesperado al importar la propuesta.',
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { period, bookType, file, loading, error, result, handleSubmit, changePeriod, changeBookType, selectFile } =
+    useSireProposalImport();
 
   return (
     <Page>
       <PageHeader
         title="Importar propuesta SIRE"
-        description="Selecciona el periodo fiscal y prepara la propuesta de SUNAT."
+        description="Importa una propuesta en el formato interno provisional y continúa con la conciliación."
       />
-      <Alert variant="info">
-        <AlertTitle>Formato provisional de pruebas</AlertTitle>
+      <Alert variant="warning">
+        <AlertTitle>Formato interno provisional — no oficial SUNAT</AlertTitle>
         <AlertDescription>
           La importación usa un formato interno provisional de 9 columnas y no el layout oficial SUNAT. No uses este
           flujo para cargar archivos oficiales. Formato sujeto a cambios según resolución oficial de SUNAT.
@@ -98,7 +47,9 @@ export default function SireImportPage() {
                 placeholder="202610"
                 value={period}
                 disabled={loading}
-                onChange={(event) => setPeriod(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                onChange={(event) => {
+                  changePeriod(event.target.value.replace(/\D/g, '').slice(0, 6));
+                }}
               />
             </label>
             <label className="block max-w-xs space-y-1.5 text-sm font-medium">
@@ -109,9 +60,7 @@ export default function SireImportPage() {
                 value={bookType}
                 disabled={loading}
                 onChange={(event) => {
-                  if (event.target.value === 'RVIE_VENTAS' || event.target.value === 'RCE_COMPRAS') {
-                    setBookType(event.target.value);
-                  }
+                  changeBookType(event.target.value);
                 }}
               >
                 <option value="RVIE_VENTAS">RVIE · Ventas</option>
@@ -125,15 +74,15 @@ export default function SireImportPage() {
               accept=".txt,text/plain"
               disabled={loading}
               onChange={(event) => {
-                setFile(event.target.files?.[0] ?? null);
-                setError(null);
-                setResult(null);
+                selectFile(event.target.files?.[0] ?? null);
               }}
             />
             {file && (
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 <span>{file.name} · {(file.size / 1024).toFixed(1)} KB</span>
-                <Button type="button" variant="link" className="px-1" disabled={loading} onClick={() => setFile(null)}>
+                <Button type="button" variant="link" className="px-1" disabled={loading} onClick={() => {
+                  selectFile(null);
+                }}>
                   Cancelar selección
                 </Button>
               </div>
@@ -143,6 +92,7 @@ export default function SireImportPage() {
               {loading ? 'Importando…' : 'Importar propuesta'}
             </Button>
           </form>
+          {loading && <p role="status">La importación está pendiente de respuesta del servidor.</p>}
           <p className="text-xs text-muted-foreground">
             Formato esperado: RUC|tipo|serie|correlativo|fecha (YYYY-MM-DD)|base|IGV|total|CAR. Máximo 5 MiB.
           </p>
@@ -153,8 +103,12 @@ export default function SireImportPage() {
             </Alert>
           )}
           {result && (
-            <Alert variant={result.rejected > 0 ? 'warning' : 'success'}>
-              <AlertTitle>Importación completada</AlertTitle>
+            <Alert variant={result.rejected > 0 || result.imported === 0 ? 'warning' : 'success'}>
+              <AlertTitle>
+                {result.rejected > 0
+                  ? result.imported > 0 ? 'Importación parcial' : 'No se importaron comprobantes'
+                  : result.imported > 0 ? 'Importación completada' : 'Importación sin comprobantes'}
+              </AlertTitle>
               <AlertDescription>
                 Se importaron {result.imported} filas y se rechazaron {result.rejected}.
                 {result.errors.length > 0 && (

@@ -3,23 +3,21 @@ import { getPeriodFeedback, getRucFeedback } from '../validators/sireSchema';
 
 interface Props {
   period: string;
-  ruc: string;
+  companyRuc: string;
   disabled: boolean;
   showFeedback: boolean;
   onPeriodChange: (value: string) => void;
-  onRucChange: (value: string) => void;
 }
 
 export const SirePeriodFilter = ({
   period,
-  ruc,
+  companyRuc,
   disabled,
   showFeedback,
   onPeriodChange,
-  onRucChange,
 }: Props) => {
   const periodFeedback = showFeedback ? getPeriodFeedback(period) : null;
-  const rucFeedback = showFeedback ? getRucFeedback(ruc) : null;
+  const rucFeedback = showFeedback ? getRucFeedback(companyRuc) : null;
 
   return (
     <div className="grid gap-4 rounded-xl border bg-card p-4 md:grid-cols-2">
@@ -37,20 +35,11 @@ export const SirePeriodFilter = ({
         />
         {periodFeedback && <span className="block text-xs text-amber-700">{periodFeedback}</span>}
       </label>
-      <label className="space-y-1.5 text-sm font-medium">
-        RUC
-        <Input
-          aria-label="RUC"
-          inputMode="numeric"
-          maxLength={11}
-          placeholder="20123456789"
-          value={ruc}
-          disabled={disabled}
-          onChange={(event) => onRucChange(event.target.value.replace(/\D/g, '').slice(0, 11))}
-          aria-invalid={!!rucFeedback}
-        />
-        {rucFeedback && <span className="block text-xs text-amber-700">{rucFeedback}</span>}
-      </label>
+      <div aria-label="RUC de la empresa autenticada" className="space-y-1.5 text-sm">
+        <p className="font-medium">RUC de la empresa autenticada</p>
+        <p className="rounded-lg border bg-muted/30 px-3 py-2">{companyRuc || 'No disponible en la sesión'}</p>
+        {rucFeedback && <p role="alert" className="text-xs text-destructive">{rucFeedback}</p>}
+      </div>
     </div>
   );
 };

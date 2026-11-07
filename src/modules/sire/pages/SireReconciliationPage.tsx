@@ -1,13 +1,12 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Alert, AlertDescription, AlertTitle, Button, Page, PageHeader } from '@/components/ui';
 import { LoaderCircle } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { SireComprobantesTable } from '../components/SireComprobantesTable';
-import { SireHealthDashboard } from '../components/SireHealthDashboard';
 import { SireMetricsCards } from '../components/SireMetricsCards';
 import { SirePeriodFilter } from '../components/SirePeriodFilter';
 import { SireVouchersTable } from '../components/SireVouchersTable';
-import { SireWorkflowPanel } from '../components/SireWorkflowPanel';
+import { SireProposalPanel } from '../components/SireProposalPanel';
 import { useSireReconciliation } from '../hooks/useSireReconciliation';
 import type { ComprobanteDraft, SireBookType } from '../types/sire.types';
 import { getPeriodFeedback, getRucFeedback } from '../validators/sireSchema';
@@ -24,11 +23,33 @@ const currentPeriod = () => {
 export default function SireReconciliationPage() {
   const [period, setPeriod] = useState(currentPeriod);
   const [bookType, setBookType] = useState<SireBookType>('RVIE_VENTAS');
-  const [ruc, setRuc] = useState(() => useAuthStore.getState().activeCompany?.ruc ?? '');
   const [comprobantes, setComprobantes] = useState<ComprobanteDraft[]>([emptyVoucher()]);
   const [inputError, setInputError] = useState<string | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
-  const { reconcile, loading, error, data } = useSireReconciliation();
+  const companyRuc = useAuthStore((state) => state.activeCompany?.ruc ?? '');
+  const { reconcile, loading, error, data, clear } = useSireReconciliation();
+
+  useEffect(() => {
+    clear();
+  }, [clear, companyRuc]);
+
+  const changePeriod = (value: string) => {
+    setPeriod(value);
+    setInputError(null);
+    clear();
+  };
+
+  const changeBookType = (value: SireBookType) => {
+    setBookType(value);
+    setInputError(null);
+    clear();
+  };
+
+  const changeComprobantes = (value: ComprobanteDraft[]) => {
+    setComprobantes(value);
+    setInputError(null);
+    clear();
+  };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -37,8 +58,8 @@ export default function SireReconciliationPage() {
       setInputError(getPeriodFeedback(period));
       return;
     }
-    if (getRucFeedback(ruc)) {
-      setInputError(getRucFeedback(ruc));
+    if (getRucFeedback(companyRuc)) {
+      setInputError(getRucFeedback(companyRuc));
       return;
     }
     if (comprobantes.some((row) => !row.serie.trim() || !row.correlativo.trim())) {
@@ -60,21 +81,20 @@ export default function SireReconciliationPage() {
       return;
     }
     setInputError(null);
-    void reconcile({ period, ruc, bookType, comprobantes: mapped }).catch(() => undefined);
+    void reconcile({ period, bookType, comprobantes: mapped }).catch((cause: unknown) => {
+      setInputError(cause instanceof Error ? cause.message : 'No se pudo completar la conciliación.');
+    });
   };
 
   return (
     <Page>
       <PageHeader
         title="Conciliación fiscal SIRE"
-        description="Compara los comprobantes del ERP con la información fiscal de SUNAT."
+        description="Compara comprobantes del ERP con la propuesta disponible en el backend. La conexión real SIRE/SUNAT aún no está habilitada."
       />
-      <SireHealthDashboard />
-      <SireWorkflowPanel
+      <SireProposalPanel
         period={period}
         bookType={bookType}
-        onPeriodChange={setPeriod}
-        onBookTypeChange={setBookType}
       />
       <form onSubmit={handleSubmit} className="space-y-6">
         <label className="block max-w-xs space-y-1.5 text-sm font-medium">
@@ -86,7 +106,7 @@ export default function SireReconciliationPage() {
             disabled={loading}
             onChange={(event) => {
               if (event.target.value === 'RVIE_VENTAS' || event.target.value === 'RCE_COMPRAS') {
-                setBookType(event.target.value);
+                changeBookType(event.target.value);
               }
             }}
           >
@@ -96,16 +116,16 @@ export default function SireReconciliationPage() {
         </label>
         <SirePeriodFilter
           period={period}
-          ruc={ruc}
+          companyRuc={companyRuc}
           disabled={loading}
           showFeedback={showFeedback}
-          onPeriodChange={setPeriod}
-          onRucChange={setRuc}
+          onPeriodChange={changePeriod}
         />
         <SireComprobantesTable
           comprobantes={comprobantes}
           showFeedback={showFeedback}
-          onChange={setComprobantes}
+          disabled={loading}
+          onChange={changeComprobantes}
         />
         <Button type="submit" disabled={loading}>
           {loading && <LoaderCircle className="animate-spin" aria-hidden="true" />}
