@@ -75,4 +75,40 @@ describe('outbox de asientos', () => {
     await expect(flushOutbox()).resolves.toEqual({ enviados: 1, fallidos: 0 });
     expect(invoicesApi.emitirComprobante).toHaveBeenCalled();
   });
+
+  it('marca FAILED un 4xx y no lo reintenta sin forzar', async () => {
+    (accountingApi.createEntry as ReturnType<typeof vi.fn>).mockRejectedValue({
+      response: { status: 400 },
+      message: 'datos inválidos',
+    });
+    await enqueueAccountingEntry(payload);
+
+    await flushOutbox();
+    const [fallida] = await listPendingOperations();
+    expect(fallida.status).toBe('FAILED');
+
+    await flushOutbox();
+    expect(accountingApi.createEntry).toHaveBeenCalledTimes(1);
+
+    (accountingApi.createEntry as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'ok' });
+    await flushOutbox(true);
+    expect(accountingApi.createEntry).toHaveBeenCalledTimes(2);
+  });
+
+  it('un 5xx queda PENDING con espera antes del próximo intento', async () => {
+    (accountingApi.createEntry as ReturnType<typeof vi.fn>).mockRejectedValue({
+      response: { status: 503 },
+      message: 'servicio no disponible',
+    });
+    await enqueueAccountingEntry(payload);
+
+    await flushOutbox();
+    const [pendiente] = await listPendingOperations();
+    expect(pendiente.status).toBe('PENDING');
+    expect(pendiente.nextAttemptAt).toBeTruthy();
+    expect(accountingApi.createEntry).toHaveBeenCalledTimes(1);
+
+    await flushOutbox();
+    expect(accountingApi.createEntry).toHaveBeenCalledTimes(1);
+  });
 });

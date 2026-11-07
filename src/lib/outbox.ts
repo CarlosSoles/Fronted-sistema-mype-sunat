@@ -9,6 +9,8 @@ export interface PendingAccountingEntry {
   payload: CreateAccountingEntryInput;
   createdAt: string;
   attempts: number;
+  status?: 'PENDING' | 'FAILED';
+  nextAttemptAt?: string;
   lastError?: string;
 }
 
@@ -18,6 +20,8 @@ export interface PendingInvoiceEmission {
   payload: EmitirComprobantePayload;
   createdAt: string;
   attempts: number;
+  status?: 'PENDING' | 'FAILED';
+  nextAttemptAt?: string;
   lastError?: string;
 }
 
@@ -54,6 +58,7 @@ export async function enqueueAccountingEntry(
     payload: { ...payload, idempotencyKey: payload.idempotencyKey ?? id },
     createdAt: new Date().toISOString(),
     attempts: 0,
+    status: 'PENDING',
   };
   escribir([...leer(), operacion]);
   window.dispatchEvent(new Event('outbox:changed'));
@@ -73,6 +78,7 @@ export async function enqueueInvoiceEmission(
       payload,
       createdAt: new Date().toISOString(),
       attempts: 0,
+      status: 'PENDING',
     },
   ]);
   window.dispatchEvent(new Event('outbox:changed'));
@@ -83,37 +89,63 @@ export async function listPendingOperations(): Promise<PendingOperation[]> {
   return leer();
 }
 
-/** Reintenta la cola; el idempotencyKey evita duplicados en el backend. */
-export async function flushOutbox(): Promise<{ enviados: number; fallidos: number }> {
+const esperaMs = (attempts: number): number =>
+  Math.min(5 * 60_000, 2 ** attempts * 1_000);
+
+const esConflictoPermanente = (error: unknown): boolean => {
+  const status = (error as { response?: { status?: number } })?.response?.status;
+  return typeof status === 'number' && status >= 400 && status < 500;
+};
+
+/**
+ * Reintenta la cola. Los errores 4xx se marcan FAILED porque reintentar no
+ * cambia el resultado; los 5xx/red quedan PENDING con backoff exponencial.
+ * `forzar` permite reintentar manualmente un FAILED desde la UI.
+ */
+export async function flushOutbox(
+  forzar = false,
+): Promise<{ enviados: number; fallidos: number }> {
   if (!navigator.onLine) return { enviados: 0, fallidos: 0 };
-  const pendientes = leer();
+  const ahora = Date.now();
   let enviados = 0;
   let fallidos = 0;
 
-  for (const operacion of pendientes) {
+  for (const operacion of leer()) {
+    if (!forzar) {
+      if (operacion.status === 'FAILED') continue;
+      if (operacion.nextAttemptAt && new Date(operacion.nextAttemptAt).getTime() > ahora) continue;
+    }
+
     try {
       if (operacion.type === 'ACCOUNTING_ENTRY') {
         await accountingApi.createEntry(operacion.payload);
       } else {
         await invoicesApi.emitirComprobante(operacion.payload);
       }
+      escribir(leer().filter((item) => item.id !== operacion.id));
       enviados += 1;
     } catch (error) {
-      fallidos += 1;
-      const actualizadas = leer().map((item) =>
-        item.id === operacion.id
-          ? {
-              ...item,
-              attempts: item.attempts + 1,
-              lastError: error instanceof Error ? error.message : 'Error desconocido',
-            }
-          : item,
+      const intentos = operacion.attempts + 1;
+      const permanente = esConflictoPermanente(error);
+      escribir(
+        leer().map((item) =>
+          item.id === operacion.id
+            ? {
+                ...item,
+                attempts: intentos,
+                status: permanente ? ('FAILED' as const) : ('PENDING' as const),
+                nextAttemptAt: permanente
+                  ? undefined
+                  : new Date(Date.now() + esperaMs(intentos)).toISOString(),
+                lastError: error instanceof Error ? error.message : 'Error desconocido',
+              }
+            : item,
+        ),
       );
-      escribir(actualizadas);
-      continue;
+      fallidos += 1;
     }
-    escribir(leer().filter((item) => item.id !== operacion.id));
   }
 
+  window.dispatchEvent(new Event('outbox:changed'));
   return { enviados, fallidos };
 }
