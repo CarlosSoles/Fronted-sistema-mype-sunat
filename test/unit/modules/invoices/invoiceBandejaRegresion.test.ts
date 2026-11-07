@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { aInvoice } from '@/modules/invoices/lib/invoiceMapper';
 import { aComprobanteDemo } from '@/modules/invoices/lib/invoiceApiMapper';
 import { calcularResumenFiscal } from '@/modules/invoices/lib/invoiceMetrics';
-import { aplicarFiltros } from '@/modules/invoices/lib/invoiceFilters';
+import { aplicarFiltros, porApartado } from '@/modules/invoices/lib/invoiceFilters';
 import { construir } from '@/modules/invoices/data/invoiceDemoTypes';
 
 describe('bandeja: datos guardados y métricas', () => {
@@ -23,5 +23,19 @@ describe('bandeja: datos guardados y métricas', () => {
     expect(resumen.erroresRed).toBe(1);
     expect(resumen.enCola).toBe(0);
     expect(aplicarFiltros([error], { busqueda: 'F001-0056', estado: 'TODOS', desde: '', hasta: '' })).toHaveLength(1);
+  });
+  it('mantiene el neto de una muestra mixta y filtra las notas por código', () => {
+    const base = { serie: 'F001', ruc: '20100070970', razonSocial: 'CLIENTE', fecha: '2026-11-01', estado: 'ACEPTADO' as const };
+    const lote = [
+      construir({ ...base, tipo: '01', correlativo: 1, base: 1000 }),
+      construir({ ...base, tipo: '07', serie: 'FD01', correlativo: 2, base: 100 }),
+      construir({ ...base, tipo: '08', serie: 'FC01', correlativo: 3, base: 50 }),
+    ];
+    const resumen = calcularResumenFiscal(lote);
+    expect(resumen.totalFacturado).toBe(1180);
+    expect(resumen.acreditado).toBe(118);
+    expect(resumen.debitado).toBe(59);
+    expect(resumen.netoTotalCobrar).toBe(1121);
+    expect(porApartado(lote, 'notas').map((c) => c.tipo)).toEqual(['07', '08']);
   });
 });
