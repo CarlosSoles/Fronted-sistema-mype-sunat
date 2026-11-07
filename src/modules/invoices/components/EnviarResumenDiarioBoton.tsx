@@ -25,6 +25,7 @@ import { useState } from 'react';
 import { Button, PageText } from '@/components/ui';
 import { Send } from 'lucide-react';
 import { invoicesApi } from '../services/invoicesApi';
+import { enqueueDailySummary } from '@/lib/outbox';
 import type { ResultadoEnvioAgregado } from '../types/invoiceEnvioAgregado.types';
 
 interface Props {
@@ -67,6 +68,15 @@ export const EnviarResumenDiarioBoton = ({
       // vista sigue siendo la misma y recargarla daría la impresión de cambio.
       if (r.enviado) onEnviado();
     } catch (e: unknown) {
+      const sinRespuesta =
+        !navigator.onLine ||
+        (e instanceof Error && 'response' in e && !(e as { response?: unknown }).response);
+      if (sinRespuesta) {
+        await enqueueDailySummary(fecha);
+        setConfirmando(false);
+        setError('Sin conexión: el resumen quedó en cola y se enviará al reconectar.');
+        return;
+      }
       setError(
         e instanceof Error
           ? e.message

@@ -26,6 +26,7 @@ import {
 import type { ComprobanteDemo } from '../data/invoiceDemoTypes';
 import type { ResultadoEmisionBackend } from '../types/invoiceEmision.types';
 import { invoicesApi } from '../services/invoicesApi';
+import { enqueueInvoiceEmission } from '@/lib/outbox';
 import { borradorAPayloadEmision, problemaDeCronograma } from '../lib/invoiceEmitPayload';
 import { problemaDeFechaEmision } from '../lib/invoiceEmitFecha';
 import {
@@ -354,6 +355,14 @@ export const InvoiceEmitModal = ({
       );
       onEmitir(resultado);
     } catch (error: unknown) {
+      const sinRespuesta =
+        !navigator.onLine ||
+        (error instanceof Error && 'response' in error && !(error as { response?: unknown }).response);
+      if (sinRespuesta) {
+        await enqueueInvoiceEmission(borradorAPayloadEmision(b));
+        onEmitir(null as never);
+        return;
+      }
       // NO se inventa un número ni un CDR: se muestra lo que dijo el backend.
       const mensaje =
         error instanceof Error ? error.message : 'Error desconocido';

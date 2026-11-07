@@ -96,6 +96,7 @@ import { hoyEnLima } from '../lib/invoiceFecha';
 import { calcularRetencion, roundDetraccion } from '../lib/invoiceRetentions';
 import { RetencionMaestro } from '../components/RetencionMaestro';
 import { invoicesApi } from '../services/invoicesApi';
+import { enqueueInvoiceEmission } from '@/lib/outbox';
 import { cargarProductosAlmacen } from '../services/inventoryProductsApi';
 import { revisarGrilla, primeraLineaConError } from '../lib/invoiceStockLinea';
 import type { ProductoBuscado } from '../lib/invoiceSearch';
@@ -369,6 +370,7 @@ export default function InvoiceEmissionPage() {
       }
     }
 
+    let payloadPendiente: ReturnType<typeof borradorAPayloadEmision> | null = null;
     setEnviando(true);
     try {
       /**
@@ -408,9 +410,8 @@ export default function InvoiceEmissionPage() {
         fecha: fechaEmision,
       };
 
-      const r: ResultadoEmisionBackend = await invoicesApi.emitirComprobante(
-        borradorAPayloadEmision(borradorCompleto),
-      );
+      payloadPendiente = borradorAPayloadEmision(borradorCompleto);
+      const r: ResultadoEmisionBackend = await invoicesApi.emitirComprobante(payloadPendiente);
 
       setResultado({
         ok: true,
@@ -426,6 +427,22 @@ export default function InvoiceEmissionPage() {
       setItems([itemVacio('1')]);
       setMedioPagoDetraccion('');
     } catch (error: unknown) {
+      const sinRespuesta =
+        !navigator.onLine ||
+        (error instanceof Error && 'response' in error && !(error as { response?: unknown }).response);
+      if (sinRespuesta) {
+        if (payloadPendiente) await enqueueInvoiceEmission(payloadPendiente);
+        setResultado({
+          ok: true,
+          numero: 'PENDIENTE',
+          mensaje:
+            'Sin conexión: el comprobante quedó en cola y se enviará al reconectar. ' +
+            'Todavía no tiene número ni CDR de SUNAT.',
+          avisos: [],
+        });
+        return;
+      }
+
       // NO se inventa un CDR ni un número. Si el backend rechaza, se dice por
       // qué: el mensaje del backend explica qué falta (stock, RUC, correlativo).
       const mensaje =
