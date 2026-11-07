@@ -37,7 +37,18 @@ export interface PendingPartnerCreate {
   lastError?: string;
 }
 
-export type PendingOperation = PendingAccountingEntry | PendingInvoiceEmission | PendingPartnerCreate;
+export interface PendingDailySummary {
+  id: string;
+  type: 'DAILY_SUMMARY';
+  payload: { fecha: string };
+  createdAt: string;
+  attempts: number;
+  status?: 'PENDING' | 'FAILED';
+  nextAttemptAt?: string;
+  lastError?: string;
+}
+
+export type PendingOperation = PendingAccountingEntry | PendingInvoiceEmission | PendingPartnerCreate | PendingDailySummary;
 
 const STORAGE_KEY = 'sync-sunat-outbox';
 
@@ -88,6 +99,24 @@ export async function enqueuePartnerCreate(
       id,
       type: 'PARTNER_CREATE',
       payload,
+      createdAt: new Date().toISOString(),
+      attempts: 0,
+      status: 'PENDING',
+    },
+  ]);
+  window.dispatchEvent(new Event('outbox:changed'));
+  return id;
+}
+
+/** Encola el resumen diario de boletas cuando no hay red. */
+export async function enqueueDailySummary(fecha: string): Promise<string> {
+  const id = uuid();
+  escribir([
+    ...leer(),
+    {
+      id,
+      type: 'DAILY_SUMMARY',
+      payload: { fecha },
       createdAt: new Date().toISOString(),
       attempts: 0,
       status: 'PENDING',
@@ -153,6 +182,8 @@ export async function flushOutbox(
         await accountingApi.createEntry(operacion.payload);
       } else if (operacion.type === 'INVOICE_EMISSION') {
         await invoicesApi.emitirComprobante(operacion.payload);
+      } else if (operacion.type === 'DAILY_SUMMARY') {
+        await invoicesApi.enviarResumenDiario(operacion.payload.fecha);
       } else {
         await masterDataApi.createPartner(operacion.payload);
       }

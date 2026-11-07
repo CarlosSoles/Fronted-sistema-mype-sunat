@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { enqueueAccountingEntry, enqueueInvoiceEmission, enqueuePartnerCreate, flushOutbox, listPendingOperations } from '@/lib/outbox';
+import { enqueueAccountingEntry, enqueueDailySummary, enqueueInvoiceEmission, enqueuePartnerCreate, flushOutbox, listPendingOperations } from '@/lib/outbox';
 import { accountingApi } from '@/modules/accounting/services/accountingApi';
 import { invoicesApi } from '@/modules/invoices/services/invoicesApi';
 import { masterDataApi } from '@/modules/customs/services/masterDataApi';
@@ -8,7 +8,7 @@ vi.mock('@/modules/accounting/services/accountingApi', () => ({
   accountingApi: { createEntry: vi.fn() },
 }));
 vi.mock('@/modules/invoices/services/invoicesApi', () => ({
-  invoicesApi: { emitirComprobante: vi.fn() },
+  invoicesApi: { emitirComprobante: vi.fn(), enviarResumenDiario: vi.fn() },
 }));
 vi.mock('@/modules/customs/services/masterDataApi', () => ({
   masterDataApi: { createPartner: vi.fn() },
@@ -125,5 +125,13 @@ describe('outbox de asientos', () => {
       docNumber: '20100070970',
       legalName: 'CLIENTE SAC',
     });
+  });
+
+  it('encola y sincroniza el resumen diario', async () => {
+    (invoicesApi.enviarResumenDiario as ReturnType<typeof vi.fn>).mockResolvedValue({ enviado: true });
+    await enqueueDailySummary('2026-11-06');
+
+    await expect(flushOutbox()).resolves.toEqual({ enviados: 1, fallidos: 0 });
+    expect(invoicesApi.enviarResumenDiario).toHaveBeenCalledWith('2026-11-06');
   });
 });
