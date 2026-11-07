@@ -21,7 +21,6 @@ import {
   FileX2,
   FolderGit2,
   GitCompareArrows,
-  History,
   LayoutDashboard,
   FileUp,
   ClipboardCheck,
@@ -65,6 +64,7 @@ const NAV_ITEMS: NavItem[] = [
     allowedRoles: ['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT'],
     subItems: [
       { title: 'Facturas y Boletas', path: '/invoices/facturas', icon: FileText },
+      { title: 'Clientes', path: '/invoices/clientes', icon: Building2 },
       // La pantalla de emisión existía y funcionaba desde el Sprint 1, pero
       // ninguna entrada del menú llevaba a ella: solo se llegaba por URL o
       // desde el botón de asientos contables. El docente juzga lo que ve en el
@@ -123,11 +123,6 @@ const NAV_ITEMS: NavItem[] = [
     icon: BookOpen,
     developer: 'Carlos Ahumada',
     allowedRoles: ['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
-    subItems: [
-      { title: 'Kardex general', path: '/kardex/general', icon: BookOpen },
-      { title: 'Kardex por producto', path: '/kardex/producto', icon: BookOpen },
-      { title: 'Libros PLE 12.1 / 13.1', path: '/kardex/ple', icon: FileCheck2 },
-    ],
   },
   {
     title: 'SIRE',
@@ -138,8 +133,6 @@ const NAV_ITEMS: NavItem[] = [
     subItems: [
       { title: 'Importar Propuesta', path: '/sire/importar', icon: FileUp },
       { title: 'Conciliación y Cruce', path: '/sire/conciliacion', icon: GitCompareArrows },
-      { title: 'Resumen de Cierre', path: '/sire/cierre', icon: ClipboardCheck },
-      { title: 'Historial', path: '/sire/historial', icon: History },
     ],
   },
   {
