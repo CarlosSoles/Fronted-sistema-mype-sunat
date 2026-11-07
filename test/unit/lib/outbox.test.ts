@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { enqueueAccountingEntry, enqueueDailySummary, enqueueInvoiceEmission, enqueuePartnerCreate, flushOutbox, listPendingOperations } from '@/lib/outbox';
+import { discardOperation, enqueueAccountingEntry, enqueueDailySummary, enqueueInvoiceEmission, enqueuePartnerCreate, flushOutbox, listPendingOperations, retryOperation } from '@/lib/outbox';
 import { accountingApi } from '@/modules/accounting/services/accountingApi';
 import { invoicesApi } from '@/modules/invoices/services/invoicesApi';
 import { masterDataApi } from '@/modules/customs/services/masterDataApi';
@@ -133,5 +133,25 @@ describe('outbox de asientos', () => {
 
     await expect(flushOutbox()).resolves.toEqual({ enviados: 1, fallidos: 0 });
     expect(invoicesApi.enviarResumenDiario).toHaveBeenCalledWith('2026-11-06');
+  });
+
+  it('descarta una operación pendiente', async () => {
+    const id = await enqueueAccountingEntry(payload);
+    await discardOperation(id);
+    expect(await listPendingOperations()).toHaveLength(0);
+  });
+
+  it('prepara una operación FAILED para reintento manual', async () => {
+    (accountingApi.createEntry as ReturnType<typeof vi.fn>).mockRejectedValue({
+      response: { status: 400 },
+      message: 'datos inválidos',
+    });
+    const id = await enqueueAccountingEntry(payload);
+    await flushOutbox();
+    await retryOperation(id);
+
+    const [operacion] = await listPendingOperations();
+    expect(operacion.status).toBe('PENDING');
+    expect(operacion.lastError).toBeUndefined();
   });
 });
