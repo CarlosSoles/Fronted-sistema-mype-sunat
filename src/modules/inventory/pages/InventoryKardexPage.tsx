@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { inventoryLedgerApi } from '../services/inventoryLedgerApi';
 import { inventoryApi } from '../services/inventoryApi';
+import { KardexTabs } from '../components/KardexTabs';
 
 const firstDay = () => {
   const d = new Date();
@@ -207,6 +208,7 @@ export default function InventoryKardexPage() {
 
   return (
     <Page>
+      <KardexTabs />
       <PageHeader
         title="Libro de Kardex e Inventario Integral"
         description="Gestión oficial PLE 13.1, control de flujos de dinero en tesorería y consolidado de existencias valorizadas."

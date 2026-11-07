@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { pleEvaluationSchema, type PleEvaluationFormData } from '../validators/pleExportSchema';
 import { inventoryApi } from '../services/inventoryApi';
+import { KardexTabs } from '../components/KardexTabs';
 import { type InventoryBookObligation, type InventoryMovement } from '../types/inventory.types';
 import { PleExportModal } from '../components/PleExportModal';
 import { useAuthStore } from '@/stores/authStore';
@@ -126,6 +127,7 @@ export default function ElectronicBooksPage() {
 
   return (
     <div className="space-y-6">
+      <KardexTabs />
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">

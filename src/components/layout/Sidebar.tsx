@@ -123,11 +123,6 @@ const NAV_ITEMS: NavItem[] = [
     icon: BookOpen,
     developer: 'Carlos Ahumada',
     allowedRoles: ['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
-    subItems: [
-      { title: 'Kardex general', path: '/kardex/general', icon: BookOpen },
-      { title: 'Kardex por producto', path: '/kardex/producto', icon: BookOpen },
-      { title: 'Libros PLE 12.1 / 13.1', path: '/kardex/ple', icon: FileCheck2 },
-    ],
   },
   {
     title: 'SIRE',
