@@ -94,6 +94,7 @@ export default function SireReconciliationPage() {
         title="Conciliación fiscal SIRE vs. Kardex"
         description="Cruce y conciliación de propuestas RCE y RVIE de SUNAT contra las compras, ventas y existencias físicas del ERP."
       />
+      <p className="text-xs text-muted-foreground">RUC de sesión: <span>{companyRuc}</span></p>
 
       {/* Selector de Libro y Modo de Conciliación */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between mb-6 pb-4 border-b border-border/50">
