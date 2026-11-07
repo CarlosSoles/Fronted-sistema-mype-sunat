@@ -5,9 +5,18 @@ import { flushOutbox, listPendingOperations } from '@/lib/outbox';
 
 export function OutboxBadge() {
   const [pendientes, setPendientes] = useState(0);
+  const [conflictos, setConflictos] = useState(0);
 
   const refrescar = () => {
-    void listPendingOperations().then((ops) => setPendientes(ops.length)).catch(() => setPendientes(0));
+    void listPendingOperations()
+      .then((ops) => {
+        setPendientes(ops.length);
+        setConflictos(ops.filter((op) => op.status === 'FAILED').length);
+      })
+      .catch(() => {
+        setPendientes(0);
+        setConflictos(0);
+      });
   };
 
   useEffect(() => {
@@ -25,13 +34,13 @@ export function OutboxBadge() {
   return (
     <button
       type="button"
-      onClick={() => void flushOutbox().then(refrescar)}
-      title="Sincronizar operaciones pendientes"
+      onClick={() => void flushOutbox(true).then(refrescar)}
+      title="Reintentar operaciones pendientes"
       className="inline-flex"
     >
-      <Badge variant="outline" className="gap-1 text-[10px]">
+      <Badge variant={conflictos > 0 ? 'destructive' : 'outline'} className="gap-1 text-[10px]">
         <CloudUpload className="h-3 w-3" />
-        {pendientes} pendiente(s)
+        {pendientes} pendiente(s){conflictos > 0 ? ` · ${conflictos} conflicto(s)` : ''}
       </Badge>
     </button>
   );
