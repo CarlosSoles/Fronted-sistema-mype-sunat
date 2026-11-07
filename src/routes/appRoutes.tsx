@@ -44,7 +44,6 @@ const InventoryKardexPage = React.lazy(() => import('@/modules/inventory/pages/I
 const InventoryOpeningPage = React.lazy(() => import('@/modules/inventory/pages/InventoryOpeningPage'));
 const InventoryMovementsPage = React.lazy(() => import('@/modules/inventory/pages/InventoryMovementsPage'));
 const ProductKardexPage = React.lazy(() => import('@/modules/inventory/pages/ProductKardexPage'));
-const ElectronicBooksPage = React.lazy(() => import('@/modules/inventory/pages/ElectronicBooksPage'));
 const SireReconciliationPage = React.lazy(() => import('@/modules/sire/pages/SireReconciliationPage'));
 const SireImportPage = React.lazy(() => import('@/modules/sire/pages/SireImportPage'));
 
@@ -365,7 +364,7 @@ export const AppRoutes = () => {
             {/* Redirecciones de retrocompatibilidad hacia el nuevo módulo Kardex */}
             <Route path="/inventory/kardex-general" element={<Navigate to="/kardex/general" replace />} />
             <Route path="/inventory/kardex" element={<Navigate to="/kardex/producto" replace />} />
-            <Route path="/inventory/books" element={<Navigate to="/kardex/ple" replace />} />
+            <Route path="/inventory/books" element={<Navigate to="/accounting/ple" replace />} />
 
             {/* [Módulo de Kardex Autónomo - Fase 3.0] */}
             <Route path="/kardex" element={<Navigate to="/kardex/general" replace />} />
@@ -389,14 +388,7 @@ export const AppRoutes = () => {
                 </RoleProtectedRoute>
               }
             />
-            <Route
-              path="/kardex/ple"
-              element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
-                  <ElectronicBooksPage />
-                </RoleProtectedRoute>
-              }
-            />
+            <Route path="/kardex/ple" element={<Navigate to="/accounting/ple" replace />} />
             <Route path="/kardex/sire" element={<Navigate to="/sire/conciliacion" replace />} />
 
             {/* [M4: SIRE] ADMIN, CONTADOR, AUDITOR */}
