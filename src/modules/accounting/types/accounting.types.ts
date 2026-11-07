@@ -49,6 +49,8 @@ export interface CreateAccountingEntryInput {
   entryDate: string;
   glosa: string;
   sourceModule: string;
+  /** Clave estable para que el reintento no duplique el asiento. */
+  idempotencyKey?: string;
   lines: AccountingLineInput[];
 }
 

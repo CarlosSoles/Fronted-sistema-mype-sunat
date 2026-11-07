@@ -11,6 +11,7 @@ interface CacheSchema extends DBSchema {
 const DB_NAME = 'sync-sunat-offline';
 const DB_VERSION = 1;
 let dbPromise: Promise<IDBPDatabase<CacheSchema>> | null = null;
+const cacheDisponible = (): boolean => typeof indexedDB !== 'undefined';
 
 function db(): Promise<IDBPDatabase<CacheSchema>> {
   if (!dbPromise) {
@@ -30,6 +31,7 @@ function tenantKey(key: string): string {
 
 /** Guarda la última respuesta buena de una lectura. */
 export async function guardarCache(key: string, data: unknown): Promise<void> {
+  if (!cacheDisponible()) return;
   const database = await db();
   await database.put('api-cache', {
     key: tenantKey(key),
@@ -40,6 +42,7 @@ export async function guardarCache(key: string, data: unknown): Promise<void> {
 
 /** Devuelve la última respuesta guardada, o null. */
 export async function leerCache<T>(key: string): Promise<{ data: T; savedAt: string } | null> {
+  if (!cacheDisponible()) return null;
   const database = await db();
   const row = await database.get('api-cache', tenantKey(key));
   return row ? { data: row.data as T, savedAt: row.savedAt } : null;
@@ -55,11 +58,19 @@ export async function cachedGet<T>(
 ): Promise<T> {
   try {
     const data = await fetcher();
-    await guardarCache(key, data);
+    try {
+      await guardarCache(key, data);
+    } catch {
+      // La lectura no debe fallar porque la caché no esté disponible.
+    }
     return data;
   } catch (error) {
-    const cache = await leerCache<T>(key);
-    if (cache) return cache.data;
+    try {
+      const cache = await leerCache<T>(key);
+      if (cache) return cache.data;
+    } catch {
+      // Sin caché disponible se propaga el error original de red.
+    }
     throw error;
   }
 }

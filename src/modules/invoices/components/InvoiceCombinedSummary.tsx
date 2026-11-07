@@ -8,7 +8,7 @@ export const InvoiceCombinedSummary = ({ resumen }: { resumen: ResumenFiscal }) 
     <CardHeader><CardTitle>Resumen combinado de comprobantes y notas</CardTitle></CardHeader>
     <CardContent>
       <PageText variant="caption">Los filtros activos se aplican a todas las clases de comprobante.</PageText>
-      <PageText>Bruto aceptado {formatCurrency(resumen.totalFacturado, 'PEN')} · Acreditado {formatCurrency(resumen.acreditado, 'PEN')}{resumen.debitado !== 0 && <> · Debitado {formatCurrency(resumen.debitado, 'PEN')}</>} · Neto {formatCurrency(resumen.netoTotalCobrar, 'PEN')}</PageText>
+      <PageText>Bruto aceptado {formatCurrency(resumen.totalFacturado, 'PEN')} · Notas de crédito {formatCurrency(resumen.acreditado, 'PEN')} · Notas de débito {formatCurrency(resumen.debitado, 'PEN')} · Neto {formatCurrency(resumen.netoTotalCobrar, 'PEN')}</PageText>
     </CardContent>
   </Card>
 );

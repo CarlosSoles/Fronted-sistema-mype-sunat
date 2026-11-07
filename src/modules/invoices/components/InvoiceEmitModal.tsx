@@ -26,6 +26,7 @@ import {
 import type { ComprobanteDemo } from '../data/invoiceDemoTypes';
 import type { ResultadoEmisionBackend } from '../types/invoiceEmision.types';
 import { invoicesApi } from '../services/invoicesApi';
+import { enqueueInvoiceEmission } from '@/lib/outbox';
 import { borradorAPayloadEmision, problemaDeCronograma } from '../lib/invoiceEmitPayload';
 import { problemaDeFechaEmision } from '../lib/invoiceEmitFecha';
 import {
@@ -59,6 +60,7 @@ import {
   validarCronograma,
 } from '../lib/invoiceDetraccion';
 import { liquidarDescuentoGlobal } from '../lib/invoiceDescuentoGlobal';
+import { MedioPagoDetraccionSelect } from './MedioPagoDetraccionSelect';
 import { calcularFlujo } from '../lib/invoiceFlujoPago';
 export { calcularFlujo } from '../lib/invoiceFlujoPago';
 import { InvoiceEmitCampos } from './InvoiceEmitCampos';
@@ -139,7 +141,8 @@ const motivosPendientes = (
   }
 
   const esNota = esTipoNota(b.tipo);
-  const { importeTotal, neto } = calcularFlujo(b);
+  const { importeTotal, neto, detraccion } = calcularFlujo(b);
+  if (detraccion > 0 && !b.medioPagoDetraccion) motivos.push('Seleccione el medio de pago de la detracción.');
 
   if (!esNota && b.codigoDetraccion) {
     if (esDetraccionDadaDeBaja(b.codigoDetraccion)) {
@@ -352,6 +355,14 @@ export const InvoiceEmitModal = ({
       );
       onEmitir(resultado);
     } catch (error: unknown) {
+      const sinRespuesta =
+        !navigator.onLine ||
+        (error instanceof Error && 'response' in error && !(error as { response?: unknown }).response);
+      if (sinRespuesta) {
+        await enqueueInvoiceEmission(borradorAPayloadEmision(b));
+        onEmitir(null as never);
+        return;
+      }
       // NO se inventa un número ni un CDR: se muestra lo que dijo el backend.
       const mensaje =
         error instanceof Error ? error.message : 'Error desconocido';
@@ -418,6 +429,8 @@ export const InvoiceEmitModal = ({
         <RetencionMaestro documento={b.clienteDoc} razonSocial={b.clienteRazonSocial} valor={b.agenteRetencion}
           disabled={esTipoNota(b.tipo)} onChange={(agenteRetencion, correccionRetencion) => actualizar({ agenteRetencion, correccionRetencion })} />
 
+        <MedioPagoDetraccionSelect aplica={flujo.detraccion > 0} value={b.medioPagoDetraccion}
+          onChange={(medioPagoDetraccion) => actualizar({ medioPagoDetraccion })} />
         <InvoiceEmitResumen borrador={b} />
 
         {pendientes.length > 0 && (

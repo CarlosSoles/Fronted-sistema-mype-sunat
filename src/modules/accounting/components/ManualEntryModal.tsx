@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui';
 import { accountingApi } from '../services/accountingApi';
+import { enqueueAccountingEntry } from '@/lib/outbox';
 import type { AccountingAccount } from '../types/accounting.types';
 
 interface LineDraft {
@@ -92,24 +93,26 @@ export default function ManualEntryModal({ open, period, onClose, onSaved }: Man
       return;
     }
 
+    const payload = {
+      period,
+      entryDate,
+      glosa: glosa.trim(),
+      sourceModule: 'MANUAL',
+      lines: lines.map((line, index) => {
+        const account = accountsByCode.get(line.accountCode);
+        return {
+          lineOrder: index + 1,
+          accountCode: line.accountCode,
+          accountName: account?.name ?? line.accountCode,
+          debitAmount: Number(line.debit) || 0,
+          creditAmount: Number(line.credit) || 0,
+        };
+      }),
+    };
+
     setSaving(true);
     try {
-      await accountingApi.createEntry({
-        period,
-        entryDate,
-        glosa: glosa.trim(),
-        sourceModule: 'MANUAL',
-        lines: lines.map((line, index) => {
-          const account = accountsByCode.get(line.accountCode);
-          return {
-            lineOrder: index + 1,
-            accountCode: line.accountCode,
-            accountName: account?.name ?? line.accountCode,
-            debitAmount: Number(line.debit) || 0,
-            creditAmount: Number(line.credit) || 0,
-          };
-        }),
-      });
+      await accountingApi.createEntry(payload);
       setGlosa('');
       setLines([
         { accountCode: '1211', debit: '', credit: '' },
@@ -117,7 +120,15 @@ export default function ManualEntryModal({ open, period, onClose, onSaved }: Man
       ]);
       onSaved();
       onClose();
-    } catch {
+    } catch (error) {
+      const sinRespuesta =
+        !navigator.onLine ||
+        (error instanceof Error && 'response' in error && !(error as { response?: unknown }).response);
+      if (sinRespuesta) {
+        await enqueueAccountingEntry(payload);
+        setError('Sin conexión: el asiento quedó guardado y se enviará al reconectar.');
+        return;
+      }
       setError('No se pudo registrar el asiento. Revisa el período y las cuentas.');
     } finally {
       setSaving(false);

@@ -9,6 +9,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/axios';
+import { cachedGet } from '@/lib/offlineCache';
 import { DoubleEntryBalanceCard } from '../components/DoubleEntryBalanceCard';
 import {
   Badge,
@@ -176,13 +177,14 @@ export default function AccountingEntriesPage() {
     refetch,
   } = useQuery({
     queryKey: ['accounting-entries', period],
-    queryFn: async () => {
-      const { data } = await apiClient.get<AsientoBackend[]>(
-        '/accounting/entries',
-        { params: { period } },
-      );
-      return data;
-    },
+    queryFn: () =>
+      cachedGet(`accounting-entries-page:${period}`, async () => {
+        const { data } = await apiClient.get<AsientoBackend[]>(
+          '/accounting/entries',
+          { params: { period } },
+        );
+        return data;
+      }),
     enabled: Boolean(companyId),
   });
 
@@ -404,8 +406,9 @@ export default function AccountingEntriesPage() {
                 <TableCell colSpan={7} align="center">
                   <BookOpen aria-hidden="true" />
                   <PageText variant="muted">
-                    No hay asientos contables en {period}. Las facturas
-                    aceptadas por SUNAT aparecerán aquí automáticamente.
+                    {loadError
+                      ? 'No se pudo cargar el período. Usa Refrescar para reintentar.'
+                      : `No hay asientos contables en ${period}. Las facturas aceptadas por SUNAT aparecerán aquí automáticamente.`}
                   </PageText>
                 </TableCell>
               </TableRow>
