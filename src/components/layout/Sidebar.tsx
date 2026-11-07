@@ -104,25 +104,20 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
-    title: 'Inventario',
+    title: 'Inventario y Kardex',
     path: '/inventory',
     icon: Boxes,
     developer: 'Carlos Ahumada',
     allowedRoles: ['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
     subItems: [
-      { title: 'Existencias y Catálogo', path: '/inventory/stocks', icon: LayoutDashboard },
-      { title: 'Movimientos', path: '/inventory/movements', icon: GitCompareArrows },
-      { title: 'Transferencias', path: '/inventory/transfers', icon: ArrowLeftRight, allowedRoles: ['ADMIN'] },
-      { title: 'Ajustes y toma física', path: '/inventory/adjustments', icon: ClipboardCheck, allowedRoles: ['ADMIN'] },
-      { title: 'Saldo inicial', path: '/inventory/opening', icon: FileUp, allowedRoles: ['ADMIN'] },
+      { title: 'Existencias y Catálogo', path: '/inventory/stocks', icon: LayoutDashboard, group: 'Inventario' },
+      { title: 'Movimientos', path: '/inventory/movements', icon: GitCompareArrows, group: 'Inventario' },
+      { title: 'Transferencias', path: '/inventory/transfers', icon: ArrowLeftRight, allowedRoles: ['ADMIN'], group: 'Inventario' },
+      { title: 'Ajustes y toma física', path: '/inventory/adjustments', icon: ClipboardCheck, allowedRoles: ['ADMIN'], group: 'Inventario' },
+      { title: 'Saldo inicial', path: '/inventory/opening', icon: FileUp, allowedRoles: ['ADMIN'], group: 'Inventario' },
+      { title: 'Kardex valorizado', path: '/kardex/general', icon: BookOpen, group: 'Kardex' },
+      { title: 'Libros PLE 12.1 / 13.1', path: '/kardex/ple', icon: FileCheck2, group: 'Kardex' },
     ],
-  },
-  {
-    title: 'Kardex',
-    path: '/kardex',
-    icon: BookOpen,
-    developer: 'Carlos Ahumada',
-    allowedRoles: ['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
   },
   {
     title: 'SIRE',
@@ -172,7 +167,6 @@ export const Sidebar = () => {
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({
     '/customs': true,
     '/inventory': true,
-    '/kardex': true,
     '/sire': false,
     '/accounting': false,
   });
@@ -181,7 +175,11 @@ export const Sidebar = () => {
     NAV_ITEMS.forEach((item) => {
       if (
         item.subItems &&
-        (location.pathname === item.path || location.pathname.startsWith(`${item.path}/`))
+        (location.pathname === item.path ||
+          location.pathname.startsWith(`${item.path}/`) ||
+          item.subItems.some((sub) =>
+            location.pathname === sub.path || location.pathname.startsWith(`${sub.path}/`),
+          ))
       ) {
         setExpandedItems((prev) => ({ ...prev, [item.path]: true }));
       }
@@ -246,7 +244,11 @@ export const Sidebar = () => {
       <nav className="flex-1 p-2 space-y-1.5 overflow-y-auto">
         {visibleNavItems.map((item) => {
           const isModuleActive =
-            location.pathname === item.path || location.pathname.startsWith(`${item.path}/`);
+            location.pathname === item.path ||
+            location.pathname.startsWith(`${item.path}/`) ||
+            Boolean(item.subItems?.some((sub) =>
+              location.pathname === sub.path || location.pathname.startsWith(`${sub.path}/`),
+            ));
           const isExpanded = Boolean(expandedItems[item.path]);
 
           return (
