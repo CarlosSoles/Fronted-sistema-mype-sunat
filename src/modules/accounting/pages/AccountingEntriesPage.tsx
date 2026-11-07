@@ -406,8 +406,9 @@ export default function AccountingEntriesPage() {
                 <TableCell colSpan={7} align="center">
                   <BookOpen aria-hidden="true" />
                   <PageText variant="muted">
-                    No hay asientos contables en {period}. Las facturas
-                    aceptadas por SUNAT aparecerán aquí automáticamente.
+                    {loadError
+                      ? 'No se pudo cargar el período. Usa Refrescar para reintentar.'
+                      : `No hay asientos contables en ${period}. Las facturas aceptadas por SUNAT aparecerán aquí automáticamente.`}
                   </PageText>
                 </TableCell>
               </TableRow>
