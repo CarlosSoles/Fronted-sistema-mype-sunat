@@ -27,6 +27,7 @@ export default function ProductKardexPage() {
   const [kardexData, setKardexData] = useState<KardexLedgerResponse | null>(null);
   const [catalog, setCatalog] = useState<InventoryBalance[]>([]);
   const [warehouseFilter, setWarehouseFilter] = useState('ALL');
+  const [metodo, setMetodo] = useState<'PROMEDIO' | 'FIFO'>('PROMEDIO');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -44,12 +45,12 @@ export default function ProductKardexPage() {
     }
   };
 
-  const fetchKardex = async (skuToSearch: string) => {
+  const fetchKardex = async (skuToSearch: string, metodoCosto: 'PROMEDIO' | 'FIFO' = metodo) => {
     if (!skuToSearch.trim()) return;
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const data = await inventoryApi.getKardexBySku(skuToSearch.trim().toUpperCase());
+      const data = await inventoryApi.getKardexBySku(skuToSearch.trim().toUpperCase(), { metodo: metodoCosto });
       setKardexData(data);
       setSearchParams({ sku: skuToSearch.trim().toUpperCase() });
     } catch (err: any) {
@@ -190,7 +191,7 @@ export default function ProductKardexPage() {
             </span>
           </h1>
           <p className="text-sm text-muted-foreground">
-            Control perpetuo por producto bajo el Método de Promedio Ponderado Móvil (CPP / NIC 2).
+            Control perpetuo por producto con método de costo promedio o FIFO (NIC 2).
           </p>
         </div>
 
@@ -234,6 +235,20 @@ export default function ProductKardexPage() {
               Consultar
             </Button>
           </div>
+
+          <select
+            aria-label="Método de costeo"
+            value={metodo}
+            onChange={(e) => {
+              const valor = e.target.value as 'PROMEDIO' | 'FIFO';
+              setMetodo(valor);
+              if (skuInput.trim()) void fetchKardex(skuInput, valor);
+            }}
+            className="h-9 rounded-md border border-input bg-background px-2.5 text-xs font-medium"
+          >
+            <option value="PROMEDIO">Costo promedio</option>
+            <option value="FIFO">Costo FIFO</option>
+          </select>
 
           {kardexData && (
             <Button
