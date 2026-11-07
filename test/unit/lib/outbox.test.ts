@@ -1,9 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { enqueueAccountingEntry, flushOutbox, listPendingOperations } from '@/lib/outbox';
+import { enqueueAccountingEntry, enqueueInvoiceEmission, flushOutbox, listPendingOperations } from '@/lib/outbox';
 import { accountingApi } from '@/modules/accounting/services/accountingApi';
+import { invoicesApi } from '@/modules/invoices/services/invoicesApi';
 
 vi.mock('@/modules/accounting/services/accountingApi', () => ({
   accountingApi: { createEntry: vi.fn() },
+}));
+vi.mock('@/modules/invoices/services/invoicesApi', () => ({
+  invoicesApi: { emitirComprobante: vi.fn() },
 }));
 
 const payload = {
@@ -29,7 +33,10 @@ describe('outbox de asientos', () => {
     const pendientes = await listPendingOperations();
 
     expect(pendientes).toHaveLength(1);
-    expect(pendientes[0].payload.idempotencyKey).toBe(id);
+    expect(pendientes[0].type).toBe('ACCOUNTING_ENTRY');
+    if (pendientes[0].type === 'ACCOUNTING_ENTRY') {
+      expect(pendientes[0].payload.idempotencyKey).toBe(id);
+    }
   });
 
   it('envía y elimina la operación al sincronizar', async () => {
@@ -59,5 +66,13 @@ describe('outbox de asientos', () => {
 
     await expect(flushOutbox()).resolves.toEqual({ enviados: 0, fallidos: 0 });
     expect(accountingApi.createEntry).not.toHaveBeenCalled();
+  });
+
+  it('encola y sincroniza una emisión de comprobante', async () => {
+    (invoicesApi.emitirComprobante as ReturnType<typeof vi.fn>).mockResolvedValue({ numero: 'F001-1' });
+    await enqueueInvoiceEmission({ tipo: '01' } as never);
+
+    await expect(flushOutbox()).resolves.toEqual({ enviados: 1, fallidos: 0 });
+    expect(invoicesApi.emitirComprobante).toHaveBeenCalled();
   });
 });
