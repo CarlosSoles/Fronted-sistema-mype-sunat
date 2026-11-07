@@ -3,6 +3,7 @@ import { inventoryApi } from '../services/inventoryApi';
 import { type InventoryMovement } from '../types/inventory.types';
 import { ManualMovementModal } from '../components/ManualMovementModal';
 import { NationalPurchaseModal } from '../components/NationalPurchaseModal';
+import { MovementDetailModal } from '../components/MovementDetailModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -63,6 +64,7 @@ export default function InventoryMovementsPage() {
   const [refreshState, setRefreshState] = useState<'idle' | 'loading' | 'success'>('idle');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
+  const [selectedMovement, setSelectedMovement] = useState<InventoryMovement | null>(null);
 
   // Filtros
   const [searchTerm, setSearchTerm] = useState('');
@@ -381,7 +383,7 @@ export default function InventoryMovementsPage() {
                 const isEntry = m.direction === 'ENTRADA';
                 const docLabel = DOCUMENT_NAMES[m.documentTypeCode || ''];
                 return (
-                  <tr key={m.id || m.movementNumber} className="border-b hover:bg-muted/30 transition-colors">
+                  <tr key={m.id || m.movementNumber} onClick={() => setSelectedMovement(m)} title="Ver detalle del movimiento" className="border-b hover:bg-muted/30 transition-colors cursor-pointer">
                     <td className="p-3 font-mono">
                       {new Date(m.movementDate).toLocaleDateString('es-PE')}
                     </td>
@@ -458,6 +460,8 @@ export default function InventoryMovementsPage() {
         onClose={() => setIsPurchaseModalOpen(false)}
         onSuccess={loadMovements}
       />
+
+      <MovementDetailModal movement={selectedMovement} onClose={() => setSelectedMovement(null)} />
     </div>
   );
 }
