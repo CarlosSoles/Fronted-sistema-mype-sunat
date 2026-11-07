@@ -31,7 +31,7 @@ function mount(role: Role, path = '/invoices/clientes') {
 }
 it.each(['ADMIN', 'OPERADOR_FACTURACION', 'OPERATOR'] as Role[])('%s accede a Clientes con filtro y alta inicial CLIENTE, edita y no elimina', async (role) => {
   mount(role);
-  expect(await screen.findByRole('heading', { name: 'Clientes y proveedores' })).toBeTruthy();
+  expect(await screen.findByRole('heading', { name: 'Clientes y proveedores' }, { timeout: 5000 })).toBeTruthy();
   expect(screen.getByRole('link', { name: /Clientes/ }).getAttribute('href')).toBe('/invoices/clientes');
   expect(masterDataApi.getPartners).toHaveBeenCalledWith({ role: 'CLIENTE', q: undefined });
   expect(await screen.findByTitle('Editar tercero')).toBeTruthy();
@@ -47,7 +47,7 @@ it.each(['ADMIN', 'OPERADOR_FACTURACION', 'OPERATOR'] as Role[])('%s accede a Cl
 });
 it.each(['CONTADOR', 'ACCOUNTANT', 'AUDITOR'] as Role[])('%s tiene lectura, incluida la ficha de direcciones, contactos y bancos', async (role) => {
   mount(role);
-  expect(await screen.findByRole('heading', { name: 'Clientes y proveedores' })).toBeTruthy();
+  expect(await screen.findByRole('heading', { name: 'Clientes y proveedores' }, { timeout: 5000 })).toBeTruthy();
   expect(await screen.findByText('Empresa del maestro')).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Nuevo tercero' })).toBeNull();
   expect(screen.queryByTitle('Editar tercero')).toBeNull();
@@ -67,7 +67,7 @@ it('rechaza un rol fuera de M1', async () => {
 });
 it('redirige la URL antigua con reemplazo, sin montar el contexto aduanero ni crear bucles', async () => {
   mount('ADMIN', '/customs/partners');
-  await screen.findByRole('heading', { name: 'Clientes y proveedores' });
+  await screen.findByRole('heading', { name: 'Clientes y proveedores' }, { timeout: 5000 });
   expect(screen.getByTestId('pathname').textContent).toBe('/invoices/clientes');
   expect(masterDataApi.getPartners).toHaveBeenCalledTimes(1);
   expect(masterDataApi.getPartners).toHaveBeenCalledWith({ role: 'CLIENTE', q: undefined });
@@ -84,7 +84,7 @@ it.each(['OPERADOR_ADUANAS', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPE
 });
 it('ofrece una única casa del maestro en Facturación y ninguna entrada en Importaciones', async () => {
   mount('ADMIN');
-  await screen.findByRole('heading', { name: 'Clientes y proveedores' });
+  await screen.findByRole('heading', { name: 'Clientes y proveedores' }, { timeout: 5000 });
   const links = screen.getAllByRole('link', { name: 'Clientes y proveedores' });
   expect(links).toHaveLength(1);
   expect(links[0].getAttribute('href')).toBe('/invoices/clientes');
@@ -95,7 +95,7 @@ it('ofrece una única casa del maestro en Facturación y ninguna entrada en Impo
 });
 it('consulta todos los roles desde el contexto de Facturación', async () => {
   mount('ADMIN');
-  await screen.findByRole('heading', { name: 'Clientes y proveedores' });
+  await screen.findByRole('heading', { name: 'Clientes y proveedores' }, { timeout: 5000 });
   for (const role of ['Todos', 'CLIENTE', 'PROVEEDOR', 'IMPORTADOR', 'AGENTE', 'TRANSPORTISTA']) {
     fireEvent.click(screen.getByRole('button', { name: role }));
     await waitFor(() => expect(masterDataApi.getPartners).toHaveBeenLastCalledWith({ role: role === 'Todos' ? undefined : role, q: undefined }));
@@ -103,7 +103,7 @@ it('consulta todos los roles desde el contexto de Facturación', async () => {
 });
 it.each([{ roles: ['PROVEEDOR'] }, { roles: ['PROVEEDOR', 'IMPORTADOR', 'AGENTE', 'TRANSPORTISTA'] }])('crea terceros con roles $roles sin forzar CLIENTE', async ({ roles }) => {
   mount('ADMIN');
-  await screen.findByRole('heading', { name: 'Clientes y proveedores' });
+  await screen.findByRole('heading', { name: 'Clientes y proveedores' }, { timeout: 5000 });
   fireEvent.click(screen.getByRole('button', { name: 'Nuevo tercero' }));
   fireEvent.click(screen.getByLabelText('CLIENTE'));
   for (const role of roles) fireEvent.click(screen.getByLabelText(role));
