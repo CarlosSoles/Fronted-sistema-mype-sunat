@@ -33,7 +33,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
 
   // URL del backend configurada en las variables de Cloudflare Pages (o fallback a Render)
-  const backendBase = env.BACKEND_URL || 'https://sistema-mype-sunat-back.onrender.com';
+  const rawBackend = env.BACKEND_URL || 'https://sistema-mype-sunat-back.onrender.com';
+  const backendBase = rawBackend.trim().replace(/\/+$/, '');
 
   const url = new URL(request.url);
 
