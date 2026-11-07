@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { CloudUpload } from 'lucide-react';
 import { Badge } from '@/components/ui';
-import { flushOutbox, listPendingOperations } from '@/lib/outbox';
+import { listPendingOperations } from '@/lib/outbox';
+import { OutboxPanel } from './OutboxPanel';
 
 export function OutboxBadge() {
   const [pendientes, setPendientes] = useState(0);
   const [conflictos, setConflictos] = useState(0);
+  const [abierto, setAbierto] = useState(false);
 
   const refrescar = () => {
     void listPendingOperations()
@@ -32,16 +34,14 @@ export function OutboxBadge() {
   if (pendientes === 0) return null;
 
   return (
-    <button
-      type="button"
-      onClick={() => void flushOutbox(true).then(refrescar)}
-      title="Reintentar operaciones pendientes"
-      className="inline-flex"
-    >
-      <Badge variant={conflictos > 0 ? 'destructive' : 'outline'} className="gap-1 text-[10px]">
-        <CloudUpload className="h-3 w-3" />
-        {pendientes} pendiente(s){conflictos > 0 ? ` · ${conflictos} conflicto(s)` : ''}
-      </Badge>
-    </button>
+    <>
+      <button type="button" onClick={() => setAbierto(true)} title="Ver operaciones pendientes" className="inline-flex">
+        <Badge variant={conflictos > 0 ? 'destructive' : 'outline'} className="gap-1 text-[10px]">
+          <CloudUpload className="h-3 w-3" />
+          {pendientes} pendiente(s){conflictos > 0 ? ` · ${conflictos} conflicto(s)` : ''}
+        </Badge>
+      </button>
+      <OutboxPanel open={abierto} onClose={() => { setAbierto(false); refrescar(); }} />
+    </>
   );
 }

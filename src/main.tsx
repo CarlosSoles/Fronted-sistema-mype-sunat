@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
-import { flushOutbox } from './lib/outbox';
+import { flushOutbox, startOutboxSync } from './lib/outbox';
 import './index.css';
 import { useAuthStore } from './stores/authStore';
 import {
@@ -137,4 +137,4 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 
 // Sincroniza asientos pendientes al volver la red.
 void flushOutbox();
-window.addEventListener('online', () => void flushOutbox());
+startOutboxSync();
