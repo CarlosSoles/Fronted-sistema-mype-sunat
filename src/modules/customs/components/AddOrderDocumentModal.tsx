@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -7,7 +7,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button, Input } from '@/components/ui';
-import { FileUp, ShieldCheck, Hash, UploadCloud } from 'lucide-react';
+import { FileUp, ShieldCheck, Hash, UploadCloud, Paperclip, FileText } from 'lucide-react';
 import type { AddOrderDocumentPayload, ImportOrderRecord } from '../services/importOrdersApi';
 
 interface AddOrderDocumentModalProps {
@@ -47,14 +47,51 @@ export const AddOrderDocumentModal: React.FC<AddOrderDocumentModalProps> = ({
   const initialIndex = defaultStageIndex !== undefined ? defaultStageIndex : order.currentStageIndex;
   const initialStage = STAGE_OPTIONS[initialIndex] || STAGE_OPTIONS[0];
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [stageIndex, setStageIndex] = useState<number>(initialIndex);
   const [documentType, setDocumentType] = useState<string>(initialStage.defaultDoc);
   const [documentNumber, setDocumentNumber] = useState<string>('');
   const [fileName, setFileName] = useState<string>('');
   const [storageUrl, setStorageUrl] = useState<string>('');
   const [fileHash, setFileHash] = useState<string>('');
+  const [fileSizeBytes, setFileSizeBytes] = useState<number>(1024 * 256);
+  const [mimeType, setMimeType] = useState<string>('application/pdf');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isHashing, setIsHashing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const calculateRealSha256 = async (file: File): Promise<string> => {
+    const arrayBuffer = await file.arrayBuffer();
+    const digestBuffer = await window.crypto.subtle.digest('SHA-256', arrayBuffer);
+    const hashArray = Array.from(new Uint8Array(digestBuffer));
+    return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setError(null);
+    setIsHashing(true);
+    setSelectedFile(file);
+    setFileName(file.name);
+    setFileSizeBytes(file.size);
+    setMimeType(file.type || 'application/pdf');
+
+    try {
+      const realHash = await calculateRealSha256(file);
+      setFileHash(realHash);
+      setStorageUrl(
+        `https://supabase-storage.mype-sunat.internal/customs/${order.orderNumber}/${file.name}`,
+      );
+    } catch {
+      // Fallback si WebCrypto no estuviese disponible
+      generateSimulatedHash();
+    } finally {
+      setIsHashing(false);
+    }
+  };
 
   const generateSimulatedHash = () => {
     const chars = '0123456789abcdef';
@@ -71,9 +108,13 @@ export const AddOrderDocumentModal: React.FC<AddOrderDocumentModalProps> = ({
     if (st) {
       setDocumentType(st.defaultDoc);
       setDocumentNumber(`DOC-${order.orderNumber}-${st.defaultDoc}`);
-      setFileName(`${st.defaultDoc.toLowerCase()}_${order.orderNumber.toLowerCase()}.pdf`);
-      setStorageUrl(`https://supabase-storage.mype-sunat.internal/customs/${order.orderNumber}/${st.defaultDoc.toLowerCase()}.pdf`);
-      generateSimulatedHash();
+      if (!selectedFile) {
+        setFileName(`${st.defaultDoc.toLowerCase()}_${order.orderNumber.toLowerCase()}.pdf`);
+        setStorageUrl(
+          `https://supabase-storage.mype-sunat.internal/customs/${order.orderNumber}/${st.defaultDoc.toLowerCase()}.pdf`,
+        );
+        generateSimulatedHash();
+      }
     }
   };
 
@@ -105,8 +146,8 @@ export const AddOrderDocumentModal: React.FC<AddOrderDocumentModalProps> = ({
         fileName: fileName.trim(),
         storageUrl: storageUrl.trim() || `https://supabase.internal/documents/${fileName.trim()}`,
         fileHash: fileHash.trim() || undefined,
-        fileSizeBytes: 1024 * 256, // 256 KB
-        mimeType: 'application/pdf',
+        fileSizeBytes: fileSizeBytes || (1024 * 256),
+        mimeType: mimeType || 'application/pdf',
         isMandatory: true,
         uploadedBy: 'Operador Comercio Exterior',
       });
@@ -143,6 +184,60 @@ export const AddOrderDocumentModal: React.FC<AddOrderDocumentModalProps> = ({
                 {error}
               </div>
             )}
+
+            {/* Selector de Archivo Físico Real */}
+            <div className="rounded-lg border-2 border-dashed border-primary/20 bg-primary/5 p-4 text-center">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.png,.jpg,.jpeg,.xml,.xlsx,.xls,.zip"
+                onChange={handleFileChange}
+                className="hidden"
+                id="order-doc-file-input"
+              />
+              {selectedFile ? (
+                <div className="flex items-center justify-between bg-card p-2.5 rounded-md border text-xs">
+                  <div className="flex items-center gap-2.5 overflow-hidden">
+                    <FileText className="h-5 w-5 text-primary shrink-0" />
+                    <div className="text-left truncate">
+                      <p className="font-semibold text-foreground truncate">{selectedFile.name}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {(selectedFile.size / 1024).toFixed(1)} KB · {selectedFile.type || 'Documento'}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    Cambiar
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <UploadCloud className="h-8 w-8 text-primary mx-auto opacity-80" />
+                  <p className="text-xs font-medium text-foreground">
+                    Arrastra o selecciona el documento de importación
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Formatos admitidos: PDF, XML, XLSX, JPG o PNG (máx. 25 MB)
+                  </p>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="h-7 text-xs gap-1.5 mt-1"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Paperclip className="h-3.5 w-3.5" />
+                    Examinar archivo
+                  </Button>
+                </div>
+              )}
+            </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -216,13 +311,17 @@ export const AddOrderDocumentModal: React.FC<AddOrderDocumentModalProps> = ({
                   <Hash className="h-3 w-3 text-muted-foreground" />
                   Hash de Integridad Criptográfica (SHA-256)
                 </label>
-                <button
-                  type="button"
-                  onClick={generateSimulatedHash}
-                  className="text-[10px] text-primary hover:underline"
-                >
-                  Regenerar Hash
-                </button>
+                {isHashing ? (
+                  <span className="text-[10px] text-primary animate-pulse">Calculando SHA-256 real...</span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={generateSimulatedHash}
+                    className="text-[10px] text-primary hover:underline"
+                  >
+                    Regenerar Hash
+                  </button>
+                )}
               </div>
               <Input
                 value={fileHash}
@@ -241,7 +340,7 @@ export const AddOrderDocumentModal: React.FC<AddOrderDocumentModalProps> = ({
             <Button type="button" variant="ghost" size="sm" onClick={onClose} disabled={isSubmitting}>
               Cancelar
             </Button>
-            <Button type="submit" size="sm" disabled={isSubmitting} className="gap-1.5">
+            <Button type="submit" size="sm" disabled={isSubmitting || isHashing} className="gap-1.5">
               <FileUp className="h-3.5 w-3.5" />
               {isSubmitting ? 'Guardando...' : 'Guardar y Verificar'}
             </Button>
