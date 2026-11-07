@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { inventoryApi } from '../services/inventoryApi';
+import { KardexTabs } from '../components/KardexTabs';
 import { type KardexLedgerResponse, type InventoryBalance } from '../types/inventory.types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -178,6 +179,7 @@ export default function ProductKardexPage() {
 
   return (
     <div className="space-y-6">
+      <KardexTabs />
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
