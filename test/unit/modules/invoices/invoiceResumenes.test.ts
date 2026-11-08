@@ -8,6 +8,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+  esLineaReenviable,
+  ETIQUETA_ESTADO_SUNAT,
   ETIQUETA_TIPO,
   hayAlgoQueEnviar,
   resumirVista,
@@ -132,5 +134,14 @@ describe('TA-67 · resumen de la vista previa', () => {
     expect(ETIQUETA_TIPO['01']).toBe('Factura');
     expect(ETIQUETA_TIPO['07']).toBe('Nota de crédito');
     expect(ETIQUETA_TIPO['08']).toBe('Nota de débito');
+  });
+
+  it('identifica filas que nunca llegaron a SUNAT como reenviables y rotula su estado', () => {
+    expect(esLineaReenviable({ estado: 'ERROR_RED' })).toBe(true);
+    expect(esLineaReenviable({ estado: 'PENDIENTE' })).toBe(true);
+    expect(esLineaReenviable({ estado: 'EN_COLA' })).toBe(true);
+    expect(esLineaReenviable({ estado: 'ACEPTADO' })).toBe(false);
+    expect(ETIQUETA_ESTADO_SUNAT.ERROR_RED).toContain('No llegó a SUNAT');
+    expect(ETIQUETA_ESTADO_SUNAT.ACEPTADO).toContain('Aceptado por SUNAT');
   });
 });

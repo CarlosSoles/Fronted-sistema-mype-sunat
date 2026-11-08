@@ -157,7 +157,7 @@ export const InvoiceTableRow = ({
           >
             <Download aria-hidden="true" />
           </Button>
-          {(c.estado === 'RECHAZADO' || c.estado === 'EN_COLA') && (
+          {(c.estado === 'RECHAZADO' || c.estado === 'EN_COLA' || c.estado === 'SIN_CONFIRMAR') && (
             <Button
               variant="ghost"
               size="icon-xs"
