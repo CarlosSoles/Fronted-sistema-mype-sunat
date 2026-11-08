@@ -13,7 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { shipmentSchema, type ShipmentFormData } from '../validators';
-import { CUSTOMS_OFFICES, getStoredCountries, getStoredSuppliers, type CountryItem } from '../services/catalogsApi';
+import { CUSTOMS_OFFICES, catalogsApi, getStoredCountries, type CountryItem } from '../services/catalogsApi';
 import { SupplierSelector } from './SupplierSelector';
 import { CountrySelector } from './CountrySelector';
 import { FALLBACK_CURRENCIES, FALLBACK_INCOTERMS } from '../lib/customsConstants';
@@ -35,7 +35,7 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
   onClose,
   onSubmit,
 }) => {
-  const [suppliers, setSuppliers] = useState<ForeignSupplierSummary[]>(getStoredSuppliers());
+  const [suppliers, setSuppliers] = useState<ForeignSupplierSummary[]>([]);
   const [countries, setCountries] = useState<CountryItem[]>(getStoredCountries());
 
   // Catálogos configurables: si la API no responde, se usa el respaldo local.
@@ -84,6 +84,10 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
   });
 
   const selectedSupplierId = watch('supplier_id');
+
+  useEffect(() => {
+    void catalogsApi.getForeignSuppliers().then(setSuppliers).catch(() => setSuppliers([]));
+  }, []);
 
   useEffect(() => {
     const supplier = suppliers.find((s) => s.id === selectedSupplierId);

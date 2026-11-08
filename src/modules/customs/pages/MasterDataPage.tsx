@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Page,
@@ -59,7 +60,16 @@ const TABS: Array<{ key: TabKey; label: string; icon: typeof Coins }> = [
 
 export default function MasterDataPage() {
   const queryClient = useQueryClient();
-  const [tab, setTab] = useState<TabKey>('currencies');
+  const [searchParams] = useSearchParams();
+  const initialTab = (searchParams.get('tab') as TabKey) || 'currencies';
+  const [tab, setTab] = useState<TabKey>(initialTab);
+
+  useEffect(() => {
+    const qTab = searchParams.get('tab') as TabKey;
+    if (qTab && ['currencies', 'rates', 'incoterms', 'documents', 'mappings'].includes(qTab)) {
+      setTab(qTab);
+    }
+  }, [searchParams]);
   const [dialog, setDialog] = useState<DialogKey>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);

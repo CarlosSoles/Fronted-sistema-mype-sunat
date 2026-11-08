@@ -22,6 +22,7 @@ const result: ReconcileResponse = {
 };
 
 const enterVoucher = () => {
+  fireEvent.change(screen.getByLabelText('Libro a conciliar'), { target: { value: 'RVIE_VENTAS' } });
   fireEvent.change(screen.getByLabelText('Serie 1'), { target: { value: 'F001' } });
   fireEvent.change(screen.getByLabelText('Correlativo 1'), { target: { value: '1' } });
   fireEvent.change(screen.getByLabelText('Base imponible 1'), { target: { value: '100' } });

@@ -60,7 +60,7 @@ export const inventoryApi = {
    */
   getKardexBySku: async (
     sku: string,
-    params?: { start_date?: string; end_date?: string }
+    params?: { start_date?: string; end_date?: string; metodo?: 'PROMEDIO' | 'FIFO' }
   ): Promise<KardexLedgerResponse> => {
     const response = await apiClient.get<KardexLedgerResponse>(
       `/inventory/stocks/kardex/${encodeURIComponent(sku.trim())}`,
@@ -81,7 +81,7 @@ export const inventoryApi = {
    * Lista el historial cronológico de movimientos reales de la empresa desde la BD.
    */
   listMovements: async (
-    params?: { start_date?: string; end_date?: string }
+    params?: { start_date?: string; end_date?: string; metodo?: 'PROMEDIO' | 'FIFO' }
   ): Promise<{ total: number; items: InventoryMovement[] }> => {
     const response = await apiClient.get<{ total: number; items: InventoryMovement[] }>(
       '/inventory/movements',

@@ -90,6 +90,7 @@ export interface StockSummaryResponse {
 }
 
 export interface KardexLedgerResponse {
+  costMethod?: 'PROMEDIO' | 'FIFO';
   product: {
     id: string;
     sku: string;
