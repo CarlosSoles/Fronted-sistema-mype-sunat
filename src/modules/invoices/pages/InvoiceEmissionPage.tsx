@@ -649,6 +649,10 @@ export default function InvoiceEmissionPage() {
                   setClienteSeleccionado(cliente);
                   setClienteDoc(cliente.numeroDocumento);
                   setClienteRazonSocial(cliente.razonSocial);
+                  // El tipo sugerido sigue al documento del cliente; el usuario
+                  // puede cambiarlo después si necesita una boleta con RUC.
+                  if (cliente.tipoDocumento === '6') setTipo('01');
+                  else if (cliente.tipoDocumento === '1') setTipo('03');
                   if (cliente.tieneCredito !== true) {
                     setFormaPago('Contado');
                     setCuotas([]);
