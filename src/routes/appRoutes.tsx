@@ -39,6 +39,7 @@ const MasterDataPage = React.lazy(() => import('@/modules/customs/pages/MasterDa
 
 const DuaCalculatorPage = React.lazy(() => import('@/modules/customs/pages/DuaCalculatorPage'));
 const InventoryStocksPage = React.lazy(() => import('@/modules/inventory/pages/InventoryStocksPage'));
+const InventoryDashboardPage = React.lazy(() => import('@/modules/inventory/pages/InventoryDashboardPage'));
 const InventoryTransfersPage = React.lazy(() => import('@/modules/inventory/pages/InventoryTransfersPage'));
 const InventoryAdjustmentsPage = React.lazy(() => import('@/modules/inventory/pages/InventoryAdjustmentsPage'));
 const InventoryKardexPage = React.lazy(() => import('@/modules/inventory/pages/InventoryKardexPage'));
@@ -323,7 +324,15 @@ export const AppRoutes = () => {
             />
 
             {/* [Módulo de Inventario Autónomo - Fase 3.0] */}
-            <Route path="/inventory" element={<Navigate to="/inventory/stocks" replace />} />
+            <Route path="/inventory" element={<Navigate to="/inventory/dashboard" replace />} />
+            <Route
+              path="/inventory/dashboard"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <InventoryDashboardPage />
+                </RoleProtectedRoute>
+              }
+            />
             <Route
               path="/inventory/stocks"
               element={
