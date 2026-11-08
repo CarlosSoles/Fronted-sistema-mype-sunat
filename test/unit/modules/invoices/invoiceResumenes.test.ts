@@ -7,6 +7,7 @@
  * pensar que el sistema perdió comprobantes.
  */
 import { describe, expect, it } from 'vitest';
+import { tipoComprobantePorPerfil } from '@/modules/invoices/hooks/useInvoiceConfig';
 import {
   esLineaReenviable,
   ETIQUETA_ESTADO_SUNAT,
@@ -143,5 +144,11 @@ describe('TA-67 · resumen de la vista previa', () => {
     expect(esLineaReenviable({ estado: 'ACEPTADO' })).toBe(false);
     expect(ETIQUETA_ESTADO_SUNAT.ERROR_RED).toContain('No llegó a SUNAT');
     expect(ETIQUETA_ESTADO_SUNAT.ACEPTADO).toContain('Aceptado por SUNAT');
+  });
+
+  it('preselecciona Factura (01) para perfil MAYORISTA y Boleta (03) para perfil MINORISTA', () => {
+    expect(tipoComprobantePorPerfil('MAYORISTA')).toBe('01');
+    expect(tipoComprobantePorPerfil('MINORISTA')).toBe('03');
+    expect(tipoComprobantePorPerfil(null)).toBeNull();
   });
 });

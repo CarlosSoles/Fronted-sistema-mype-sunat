@@ -54,6 +54,7 @@ import {
   type ItemBorrador,
 } from '../lib/invoiceItems';
 import type { ProductoBuscado } from '../lib/invoiceSearch';
+import { tipoComprobantePorPerfil, type PerfilComercial } from '../hooks/useInvoiceConfig';
 import { revisarGrilla } from '../lib/invoiceStockLinea';
 import {
   buscarDetraccion,
@@ -85,6 +86,8 @@ interface InvoiceEmitModalProps {
   productos?: readonly ProductoBuscado[];
   /** Precarga de crédito del cliente cuando el modal se abre con cliente ya habilitado. */
   clienteConCredito?: boolean;
+  /** Perfil comercial de la empresa (MAYORISTA -> Factura 01, MINORISTA -> Boleta 03). */
+  perfilComercial?: PerfilComercial | null;
   /**
    * Se llama con el resultado REAL del backend: número fiscal asignado, importe
    * liquidado y avisos. La emisión ocurre dentro del modal; el padre solo
@@ -208,11 +211,16 @@ export const InvoiceEmitModal = ({
   existentes,
   productos = [],
   clienteConCredito,
+  perfilComercial,
   onEmitir,
   onCerrar,
 }: InvoiceEmitModalProps) => {
   const [b, setB] = useState<BorradorEmision>(() => {
-    const inicial = borradorInicial(tipoInicial, fecha);
+    const tipoEfectivo: TipoEmisible =
+      tipoInicial === '07' || tipoInicial === '08'
+        ? tipoInicial
+        : tipoComprobantePorPerfil(perfilComercial) ?? tipoInicial;
+    const inicial = borradorInicial(tipoEfectivo, fecha);
     return {
       ...inicial,
       ...(clienteConCredito !== undefined

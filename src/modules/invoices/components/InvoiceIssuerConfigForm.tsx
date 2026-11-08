@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Alert, AlertDescription, Button, PageField } from '@/components/ui';
-import type { ConfiguracionBackend, ConfiguracionInput, EntornoFiscal } from '../hooks/useInvoiceConfig';
+import type { ConfiguracionBackend, ConfiguracionInput, EntornoFiscal, PerfilComercial } from '../hooks/useInvoiceConfig';
 import { invoiceConfigError } from '../lib/invoiceConfigError';
 
 const origen = (value?: string) => value === 'company' ? 'Configuración guardada de la empresa'
@@ -23,6 +23,7 @@ export const InvoiceIssuerConfigForm = ({ config, ruc, guardar }: {
   config: Omit<ConfiguracionBackend, 'series'>; ruc: string; guardar: (input: ConfiguracionInput) => Promise<void>;
 }) => {
   const [entorno, setEntorno] = useState(config.entorno ?? 'MOCK');
+  const [perfilComercial, setPerfilComercial] = useState<PerfilComercial | ''>(config.perfil_comercial ?? '');
   const [solUser, setSolUser] = useState('');
   const [solPassword, setSolPassword] = useState('');
   const [certPassword, setCertPassword] = useState('');
@@ -37,6 +38,10 @@ export const InvoiceIssuerConfigForm = ({ config, ruc, guardar }: {
     try {
       const input: ConfiguracionInput = {};
       if (entorno !== config.entorno) input.entorno = entorno as EntornoFiscal;
+      const perfilActual = config.perfil_comercial ?? '';
+      if (perfilComercial !== perfilActual) {
+        input.perfil_comercial = perfilComercial === '' ? null : perfilComercial;
+      }
       if (solUser.trim()) input.sol_user = solUser.trim();
       if (solPassword) input.sol_password = solPassword;
       if (certPassword) input.cert_password = certPassword;
@@ -58,6 +63,18 @@ export const InvoiceIssuerConfigForm = ({ config, ruc, guardar }: {
       <PageField label="Ambiente" htmlFor="cfg-entorno"><select id="cfg-entorno" className={clase} value={entorno} onChange={(e) => setEntorno(e.target.value)}>
         <option value="MOCK">MOCK (simulado)</option><option value="BETA">BETA (pruebas)</option><option value="PRODUCCION">PRODUCCIÓN</option>
       </select></PageField>
+      <PageField label="Perfil comercial de la empresa" htmlFor="cfg-perfil-comercial">
+        <select
+          id="cfg-perfil-comercial"
+          className={clase}
+          value={perfilComercial}
+          onChange={(e) => setPerfilComercial(e.target.value as PerfilComercial | '')}
+        >
+          <option value="">Sin definir</option>
+          <option value="MAYORISTA">Mayorista (preselecciona Factura 01)</option>
+          <option value="MINORISTA">Minorista (preselecciona Boleta 03)</option>
+        </select>
+      </PageField>
       <PageField label="Usuario SOL" htmlFor="cfg-sol-user"><input id="cfg-sol-user" className={clase} autoComplete="off" maxLength={64} value={solUser} onChange={(e) => setSolUser(e.target.value)} />
         <p>El usuario actual no se publica. Escriba solo para reemplazarlo.</p></PageField>
       <PageField label="Nueva contraseña SOL" htmlFor="cfg-sol-password"><input id="cfg-sol-password" className={clase} type="password" autoComplete="new-password" maxLength={256} value={solPassword} onChange={(e) => setSolPassword(e.target.value)} />

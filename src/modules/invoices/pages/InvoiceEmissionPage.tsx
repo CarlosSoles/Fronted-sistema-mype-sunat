@@ -96,6 +96,8 @@ import { hoyEnLima } from '../lib/invoiceFecha';
 import { calcularRetencion, roundDetraccion } from '../lib/invoiceRetentions';
 import { RetencionMaestro } from '../components/RetencionMaestro';
 import { invoicesApi } from '../services/invoicesApi';
+import { apiClient } from '@/lib/axios';
+import { tipoComprobantePorPerfil, type ConfiguracionBackend } from '../hooks/useInvoiceConfig';
 import { enqueueInvoiceEmission } from '@/lib/outbox';
 import { cargarProductosAlmacen } from '../services/inventoryProductsApi';
 import { revisarGrilla, primeraLineaConError } from '../lib/invoiceStockLinea';
@@ -115,9 +117,26 @@ const SERIES: Record<'01' | '03', string> = { '01': 'F001', '03': 'B001' };
 
 export default function InvoiceEmissionPage() {
   const [searchParams] = useSearchParams();
+  const tipoQuery = searchParams.get('tipo');
   const [tipo, setTipo] = useState<'01' | '03'>(
-    searchParams.get('tipo') === '03' ? '03' : '01',
+    tipoQuery === '03' ? '03' : '01',
   );
+
+  useEffect(() => {
+    if (tipoQuery === '01' || tipoQuery === '03') return;
+    let vivo = true;
+    apiClient
+      .get<ConfiguracionBackend>('/invoices/config')
+      .then(({ data }) => {
+        if (!vivo) return;
+        const sugerido = tipoComprobantePorPerfil(data?.perfil_comercial);
+        if (sugerido) setTipo(sugerido);
+      })
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
+  }, [tipoQuery]);
   const [clienteSeleccionado, setClienteSeleccionado] = useState<import('../lib/invoiceSearch').ClienteBuscado | null>(null);
   const [clienteDoc, setClienteDoc] = useState('');
   const [clienteRazonSocial, setClienteRazonSocial] = useState('');
