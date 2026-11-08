@@ -103,4 +103,16 @@ describe('TA-64 + TA-61 - producto elegido en el buscador -> línea de la grilla
     expect(a.clave).not.toBe(b.clave);
     expect(a.codigo).not.toBe(b.codigo);
   });
+
+  it('hereda la afectación tributaria configurada en el producto y la marca como heredada (no editable libremente)', () => {
+    const exo = itemDesdeProducto(producto({ afectacion: '20', valorUnitario: 50 }), 'k-exo');
+    expect(exo.afectacion).toBe('EXONERADA');
+    expect(exo.afectacionHeredada).toBe(true);
+    expect(calcularItem(exo)).toEqual({ base: 50, igv: 0, icbper: 0, total: 50 });
+
+    const inaf = itemDesdeProducto(producto({ afectacion: 'INAFECTA', valorUnitario: 80 }), 'k-ina');
+    expect(inaf.afectacion).toBe('INAFECTA');
+    expect(inaf.afectacionHeredada).toBe(true);
+    expect(calcularItem(inaf)).toEqual({ base: 80, igv: 0, icbper: 0, total: 80 });
+  });
 });

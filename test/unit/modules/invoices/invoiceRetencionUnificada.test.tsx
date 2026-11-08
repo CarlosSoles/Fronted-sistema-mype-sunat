@@ -24,7 +24,7 @@ it('cuadra el cronograma después de detracción y retención', () => {
 
 it('el modal distribuye el neto tras la retención al elegir crédito', () => {
   const query = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(<QueryClientProvider client={query}><InvoiceEmitModal tipoInicial="01" fecha="2026-11-06" existentes={[]} onEmitir={vi.fn()} onCerrar={vi.fn()} /></QueryClientProvider>);
+  render(<QueryClientProvider client={query}><InvoiceEmitModal tipoInicial="01" fecha="2026-11-06" existentes={[]} clienteConCredito onEmitir={vi.fn()} onCerrar={vi.fn()} /></QueryClientProvider>);
   fireEvent.change(screen.getByLabelText('Valor unitario de la línea 1'), { target: { value: '1000' } });
   fireEvent.click(screen.getByRole('checkbox', { name: /Agente de Retención/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Crédito' }));

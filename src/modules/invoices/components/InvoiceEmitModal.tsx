@@ -54,6 +54,7 @@ import {
   type ItemBorrador,
 } from '../lib/invoiceItems';
 import type { ProductoBuscado } from '../lib/invoiceSearch';
+import { tipoComprobantePorPerfil, type PerfilComercial } from '../hooks/useInvoiceConfig';
 import { revisarGrilla } from '../lib/invoiceStockLinea';
 import {
   buscarDetraccion,
@@ -83,6 +84,10 @@ interface InvoiceEmitModalProps {
    * montable en una prueba sin backend; quien lo abre decide de dónde salen.
    */
   productos?: readonly ProductoBuscado[];
+  /** Precarga de crédito del cliente cuando el modal se abre con cliente ya habilitado. */
+  clienteConCredito?: boolean;
+  /** Perfil comercial de la empresa (MAYORISTA -> Factura 01, MINORISTA -> Boleta 03). */
+  perfilComercial?: PerfilComercial | null;
   /**
    * Se llama con el resultado REAL del backend: número fiscal asignado, importe
    * liquidado y avisos. La emisión ocurre dentro del modal; el padre solo
@@ -164,7 +169,21 @@ const motivosPendientes = (
     }
   }
 
+  const tieneDescuento =
+    Boolean(b.descuentoGlobal) ||
+    b.items.some((item) => Boolean(item.descuento));
+  if (!esNota && tieneDescuento && b.clienteAdmiteDescuento !== true) {
+    motivos.push(
+      'El cliente seleccionado no admite descuentos según el maestro de terceros.',
+    );
+  }
+
   if (b.formaPago === 'Credito') {
+    if (!esNota && b.clienteTieneCredito !== true) {
+      motivos.push(
+        'La venta al crédito con cuotas solo está habilitada para clientes con crédito registrado en el maestro.',
+      );
+    }
     // Reglas 3319 y 3267, comprobadas antes de enviar.
     for (const error of validarCronograma(b.cuotas, neto, b.fecha).errores) {
       motivos.push(error);
@@ -191,13 +210,22 @@ export const InvoiceEmitModal = ({
   fecha,
   existentes,
   productos = [],
+  clienteConCredito,
+  perfilComercial,
   onEmitir,
   onCerrar,
 }: InvoiceEmitModalProps) => {
   const [b, setB] = useState<BorradorEmision>(() => {
-    const inicial = borradorInicial(tipoInicial, fecha);
+    const tipoEfectivo: TipoEmisible =
+      tipoInicial === '07' || tipoInicial === '08'
+        ? tipoInicial
+        : tipoComprobantePorPerfil(perfilComercial) ?? tipoInicial;
+    const inicial = borradorInicial(tipoEfectivo, fecha);
     return {
       ...inicial,
+      ...(clienteConCredito !== undefined
+        ? { clienteTieneCredito: clienteConCredito }
+        : {}),
       correlativo: siguienteCorrelativo(existentes, inicial.serie),
     };
   });
@@ -408,21 +436,33 @@ export const InvoiceEmitModal = ({
 
         <div className="flex flex-wrap items-center gap-2">
           <PageText variant="label">Forma de pago</PageText>
-          {(['Contado', 'Credito'] as const).map((forma) => (
-            <Button
-              key={forma}
-              type="button"
-              variant={b.formaPago === forma ? 'default' : 'outline'}
-              size="sm"
-              onClick={() =>
-                setB((previo) =>
-                  cambiarFormaPago(previo, forma, flujo.neto),
-                )
-              }
-            >
-              {forma === 'Credito' ? 'Crédito' : 'Contado'}
-            </Button>
-          ))}
+          {(['Contado', 'Credito'] as const).map((forma) => {
+            const creditoHabilitado =
+              esTipoNota(b.tipo) || b.clienteTieneCredito === true;
+            return (
+              <Button
+                key={forma}
+                type="button"
+                disabled={forma === 'Credito' && !creditoHabilitado}
+                variant={b.formaPago === forma ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  if (forma === 'Credito' && !creditoHabilitado) return;
+                  setB((previo) =>
+                    cambiarFormaPago(previo, forma, flujo.neto),
+                  );
+                }}
+              >
+                {forma === 'Credito' ? 'Crédito' : 'Contado'}
+              </Button>
+            );
+          })}
+          {!esTipoNota(b.tipo) && b.clienteTieneCredito !== true && (
+            <PageText variant="caption">
+              La venta al crédito con cuotas solo se habilita para clientes con
+              crédito registrado en el maestro.
+            </PageText>
+          )}
         </div>
 
         {b.formaPago === 'Credito' && (

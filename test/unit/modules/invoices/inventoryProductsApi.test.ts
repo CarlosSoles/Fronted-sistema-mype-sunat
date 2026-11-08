@@ -85,4 +85,15 @@ describe('TA-64 · productos desde el stock', () => {
     });
     expect(productos[0].valorUnitario).toBe(7.5);
   });
+
+  it('propaga la afectación tributaria configurada en el producto (Catálogo 07)', () => {
+    const productos = productosDesdeStocks({
+      balances: [
+        { sku: 'EXO-1', description: 'Libro', currentStock: 10, averageUnitCost: 30, taxAffectation: '20' },
+        { sku: 'INA-1', description: 'Fruta', currentStock: 5, averageUnitCost: 10, taxAffectation: '30' },
+      ],
+    });
+    expect(productos[0].afectacion).toBe('EXONERADA');
+    expect(productos[1].afectacion).toBe('INAFECTA');
+  });
 });

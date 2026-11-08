@@ -61,7 +61,7 @@ export const InvoiceCdrModal = ({
    * dentro del efecto, que dispara renders en cascada.
    */
   const [xmlReal, setXmlReal] = useState<string | null | undefined>(undefined);
-  const [historialCargado, setHistorialCargado] = useState<{ id: string; eventos?: Invoice['historial']; tieneCdr?: boolean; error?: boolean } | null>(null);
+  const [historialCargado, setHistorialCargado] = useState<{ id: string; eventos?: Invoice['historial']; tieneCdr?: boolean; comprobanteOrigen?: Invoice['comprobanteOrigen']; error?: boolean } | null>(null);
 
   const idComprobante = comprobante?.id ?? null;
 
@@ -69,7 +69,7 @@ export const InvoiceCdrModal = ({
     if (!idComprobante) return;
     let vigente = true;
     void Promise.resolve().then(() => invoicesApi.getInvoiceById(idComprobante)).then((detalle) => {
-      if (vigente) setHistorialCargado({ id: idComprobante, eventos: detalle.historial ?? [], tieneCdr: detalle.tieneCdr ?? Boolean(detalle.cdrCodigo) });
+      if (vigente) setHistorialCargado({ id: idComprobante, eventos: detalle.historial ?? [], tieneCdr: detalle.tieneCdr ?? Boolean(detalle.cdrCodigo), comprobanteOrigen: detalle.comprobanteOrigen ?? null });
     }).catch(() => { if (vigente) setHistorialCargado({ id: idComprobante, error: true }); });
     return () => { vigente = false; };
   }, [idComprobante]);
@@ -210,6 +210,31 @@ export const InvoiceCdrModal = ({
           </TabsList>
 
           <TabsContent value="cdr" className="space-y-4">
+            {(c.tipo === '07' || c.tipo === '08') && (c.comprobanteOrigen || c.documentoAfectado) && (() => {
+              const orig = (historialCargado?.id === c.id ? historialCargado.comprobanteOrigen : null) ?? c.comprobanteOrigen;
+              const tipoOrig = orig?.tipoComprobante === '03' ? 'Boleta (03)' : orig?.tipoComprobante === '01' ? 'Factura (01)' : c.serie.startsWith('B') ? 'Boleta (03)' : 'Factura (01)';
+              const numeroOrig = orig?.numero ?? c.documentoAfectado ?? 'No registrado';
+              const clienteOrig = orig?.clienteNombre ?? c.clienteRazonSocial;
+              const docOrig = orig?.clienteDocumento ?? c.clienteRuc;
+              const prefijoMoneda = orig?.moneda === 'USD' ? 'US$' : 'S/';
+              const importeOrig = orig?.montoTotal !== null && orig?.montoTotal !== undefined ? `${prefijoMoneda} ${orig.montoTotal.toFixed(2)}` : 'Importe no registrado';
+              return (
+                <div className="space-y-1 rounded-lg border bg-muted/30 p-3" data-testid="comprobante-origen-modal">
+                  <PageText variant="label">Comprobante origen afectado</PageText>
+                  <PageText variant="caption">
+                    Tipo: {tipoOrig} · Serie y número: {numeroOrig}
+                  </PageText>
+                  <PageText variant="caption">
+                    Cliente: {clienteOrig}{docOrig ? ` (${docOrig})` : ''} · Importe: {importeOrig}
+                  </PageText>
+                  {c.motivoNota && (
+                    <PageText variant="caption">
+                      Motivo: {c.motivoNota.codigo} - {c.motivoNota.descripcion}
+                    </PageText>
+                  )}
+                </div>
+              );
+            })()}
             {/*
               Cronograma del crédito.
 

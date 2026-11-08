@@ -48,6 +48,8 @@ interface InvoiceItemsGridProps {
   productos?: readonly ProductoBuscado[];
   /** TA-61: agrega una línea nueva con los datos del producto elegido. */
   onAgregarConProducto?: (producto: ProductoBuscado) => void;
+  /** Si el cliente admite descuentos según el maestro de terceros (true por defecto en uso aislado). */
+  admiteDescuento?: boolean;
 }
 
 /** Tabla editable de líneas del comprobante. */
@@ -59,6 +61,7 @@ export const InvoiceItemsGrid = ({
   onAgregarBolsa,
   productos = [],
   onAgregarConProducto,
+  admiteDescuento = true,
 }: InvoiceItemsGridProps) => {
   const [avisoMinimo, setAvisoMinimo] = useState(false);
   /**
@@ -116,7 +119,7 @@ export const InvoiceItemsGrid = ({
               <th className="px-2 py-1 text-left">Descripción</th>
               <th className="px-2 py-1 text-left">Und.</th>
               <th className="px-2 py-1 text-right">Cant.</th>
-              <th className="px-2 py-1 text-right">V. unit.</th>
+              <th className="px-2 py-1 text-right">Precio unitario (con IGV)</th>
               <th className="px-2 py-1 text-left">Descuento (Cat. 53)</th>
               <th className="px-2 py-1 text-right">ICBPER</th>
               <th className="px-2 py-1 text-left">Afectación (Cat. 07) / tributo (Cat. 05)</th>
@@ -200,25 +203,30 @@ export const InvoiceItemsGrid = ({
                   <td className="px-1 py-1">
                     <input
                       aria-label={`Valor unitario de la línea ${i + 1}`}
+                      title="Precio unitario final con IGV incluido"
                       type="number"
                       min="0"
                       step="0.01"
                       className={`${CLASE_CELDA} text-right`}
-                      value={item.valorUnitario}
+                      value={item.precioUnitario ?? item.valorUnitario}
                       onChange={(e) =>
                         onCambiar(i, { valorUnitario: Number(e.target.value) })
                       }
                     />
+                    <span className="block text-right text-[10px] text-muted-foreground">
+                      Precio final con IGV incluido
+                    </span>
                   </td>
                   <td className="px-1 py-1">
                     <select aria-label={`Tipo de descuento de la línea ${i + 1}`} className={CLASE_CELDA}
+                      disabled={!admiteDescuento}
                       value={item.descuento?.codigo ?? ''}
                       onChange={(e) => onCambiar(i, { descuento: e.target.value ? { codigo: e.target.value as '00' | '01', monto: item.descuento?.monto ?? 0 } : null })}>
                       <option value="">Sin descuento</option>
                       <option value="00">00 - Afecta base IGV</option>
                       <option value="01">01 - No afecta base IGV</option>
                     </select>
-                    {item.descuento && <input aria-label={`Monto de descuento de la línea ${i + 1}`} type="number" min="0" step="0.01" className={`${CLASE_CELDA} text-right`} value={item.descuento.monto} onChange={(e) => onCambiar(i, { descuento: { ...item.descuento!, monto: Number(e.target.value) } })} />}
+                    {item.descuento && <input aria-label={`Monto de descuento de la línea ${i + 1}`} disabled={!admiteDescuento} type="number" min="0" step="0.01" className={`${CLASE_CELDA} text-right`} value={item.descuento.monto} onChange={(e) => onCambiar(i, { descuento: { ...item.descuento!, monto: Number(e.target.value) } })} />}
                     {item.descuento && item.descuento.monto > item.cantidad * item.valorUnitario && <p role="alert" className="text-xs text-destructive">El descuento no puede superar el valor de la línea.</p>}
                     {item.descuento?.codigo === '01' && <p className="text-xs text-amber-700">El asiento automático utiliza la cuenta 74. Podría quedar pendiente de revisión si la cuenta no está activa en el plan de la empresa o los importes no concuerdan.</p>}
                   </td>
@@ -240,12 +248,19 @@ export const InvoiceItemsGrid = ({
                     <select
                       aria-label={`Afectación de la línea ${i + 1}`}
                       className={CLASE_CELDA}
+                      disabled={Boolean(item.afectacionHeredada)}
+                      title={
+                        item.afectacionHeredada
+                          ? 'Afectación heredada de la configuración del producto'
+                          : undefined
+                      }
                       value={item.afectacion}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        if (item.afectacionHeredada) return;
                         onCambiar(i, {
                           afectacion: e.target.value as AfectacionIgv,
-                        })
-                      }
+                        });
+                      }}
                     >
                       {OPCIONES_AFECTACION.map((o) => (
                         <option key={o.value} value={o.value}>

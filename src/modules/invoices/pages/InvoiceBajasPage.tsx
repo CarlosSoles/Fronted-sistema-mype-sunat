@@ -44,8 +44,11 @@ import { invoicesApi } from '../services/invoicesApi';
 import { hoyEnLima } from '../lib/invoiceFecha';
 import { EnviarResumenDiarioBoton } from '../components/EnviarResumenDiarioBoton';
 import {
+  esLineaReenviable,
+  ETIQUETA_ESTADO_SUNAT,
   ETIQUETA_TIPO,
   resumirVista,
+  type LineaResumen,
   type VistaPreviaResumen,
 } from '../lib/invoiceResumenes';
 
@@ -65,6 +68,8 @@ export default function InvoiceBajasPage() {
   const [vista, setVista] = useState<VistaPreviaResumen | null>(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reenviandoClave, setReenviandoClave] = useState<string | null>(null);
+  const [mensajeReenvio, setMensajeReenvio] = useState<string | null>(null);
 
   const cargar = useCallback(async (tipo: Pestana, dia: string) => {
     const actual = ++solicitud.current;
@@ -102,6 +107,32 @@ export default function InvoiceBajasPage() {
   }, [pestana, fecha, cargar]);
 
   const conteo = resumirVista(vista);
+
+  const reenviarFila = async (linea: LineaResumen) => {
+    const clave = linea.id ?? `${linea.serie}-${linea.correlativo}`;
+    setReenviandoClave(clave);
+    setMensajeReenvio(null);
+    setError(null);
+    try {
+      if (pestana === 'resumen' && (linea.tipoComprobante === '03' || linea.serie.startsWith('B'))) {
+        if (linea.id) {
+          const r = await invoicesApi.retryCdr(linea.id);
+          setMensajeReenvio(r.mensaje);
+        } else {
+          const r = await invoicesApi.enviarResumenDiario(fecha);
+          setMensajeReenvio(r.motivo ?? `Resumen ${r.identificador} encolado para envío a SUNAT.`);
+        }
+      } else if (linea.id) {
+        const r = await invoicesApi.retryCdr(linea.id);
+        setMensajeReenvio(r.mensaje);
+      }
+      await cargar(pestana, fecha);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'No se pudo reenviar el comprobante a SUNAT.');
+    } finally {
+      setReenviandoClave(null);
+    }
+  };
 
   return (
     <Page>
@@ -204,52 +235,84 @@ export default function InvoiceBajasPage() {
               </div>
             )}
 
-            <Table>
+            {mensajeReenvio && (
+                <div className="mb-3 rounded-md border bg-muted/40 p-2 text-xs" role="status">
+                  {mensajeReenvio}
+                </div>
+              )}
+              <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Comprobante</TableHead>
                   <TableHead>Tipo</TableHead>
+                  <TableHead>Estado SUNAT</TableHead>
                   <TableHead>Emisión</TableHead>
                   <TableHead align="right">Total</TableHead>
                   <TableHead>¿Entra?</TableHead>
+                  <TableHead align="right">Acción</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {vista.lineas.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} align="center">
+                    <TableCell colSpan={7} align="center">
                       {pestana === 'resumen'
                         ? 'No se emitieron boletas en esta fecha.'
                         : 'No hay facturas ni notas emitidas en esta fecha.'}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  vista.lineas.map((l) => (
-                    <TableRow key={`${l.serie}-${l.correlativo}`}>
-                      <TableCell>
-                        {l.serie}-{String(l.correlativo).padStart(8, '0')}
-                      </TableCell>
-                      <TableCell>
-                        {ETIQUETA_TIPO[l.tipoComprobante] ?? l.tipoComprobante}
-                      </TableCell>
-                      <TableCell>{l.fechaEmision}</TableCell>
-                      <TableCell align="right">
-                        S/ {l.total.toFixed(2)}
-                      </TableCell>
-                      <TableCell>
-                        {l.incluido ? (
-                          <Badge variant="outline">Sí</Badge>
-                        ) : (
-                          <div className="space-y-1">
-                            <Badge variant="destructive">No</Badge>
-                            <PageText variant="caption">
-                              {l.motivoExclusion}
-                            </PageText>
-                          </div>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  vista.lineas.map((l) => {
+                    const clave = l.id ?? `${l.serie}-${l.correlativo}`;
+                    const numeroFmt = `${l.serie}-${String(l.correlativo).padStart(8, '0')}`;
+                    const puedeReenviar = esLineaReenviable(l);
+                    return (
+                      <TableRow key={clave}>
+                        <TableCell>{numeroFmt}</TableCell>
+                        <TableCell>
+                          {ETIQUETA_TIPO[l.tipoComprobante] ?? l.tipoComprobante}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={l.estado === 'ACEPTADO' || l.estado === 'OBSERVADO' ? 'secondary' : 'outline'}>
+                            {ETIQUETA_ESTADO_SUNAT[l.estado] ?? l.estado}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{l.fechaEmision}</TableCell>
+                        <TableCell align="right">
+                          S/ {l.total.toFixed(2)}
+                        </TableCell>
+                        <TableCell>
+                          {l.incluido ? (
+                            <Badge variant="outline">Sí</Badge>
+                          ) : (
+                            <div className="space-y-1">
+                              <Badge variant="destructive">No</Badge>
+                              <PageText variant="caption">
+                                {l.motivoExclusion}
+                              </PageText>
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell align="right">
+                          {puedeReenviar ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={reenviandoClave === clave}
+                              aria-label={`Reenviar ${numeroFmt} a SUNAT`}
+                              onClick={() => void reenviarFila(l)}
+                            >
+                              <RefreshCw aria-hidden="true" />
+                              {reenviandoClave === clave ? 'Reenviando…' : 'Reenviar a SUNAT'}
+                            </Button>
+                          ) : (
+                            <PageText variant="caption">—</PageText>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>

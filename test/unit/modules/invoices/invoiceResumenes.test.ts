@@ -7,7 +7,10 @@
  * pensar que el sistema perdió comprobantes.
  */
 import { describe, expect, it } from 'vitest';
+import { tipoComprobantePorPerfil } from '@/modules/invoices/hooks/useInvoiceConfig';
 import {
+  esLineaReenviable,
+  ETIQUETA_ESTADO_SUNAT,
   ETIQUETA_TIPO,
   hayAlgoQueEnviar,
   resumirVista,
@@ -132,5 +135,20 @@ describe('TA-67 · resumen de la vista previa', () => {
     expect(ETIQUETA_TIPO['01']).toBe('Factura');
     expect(ETIQUETA_TIPO['07']).toBe('Nota de crédito');
     expect(ETIQUETA_TIPO['08']).toBe('Nota de débito');
+  });
+
+  it('identifica filas que nunca llegaron a SUNAT como reenviables y rotula su estado', () => {
+    expect(esLineaReenviable({ estado: 'ERROR_RED' })).toBe(true);
+    expect(esLineaReenviable({ estado: 'PENDIENTE' })).toBe(true);
+    expect(esLineaReenviable({ estado: 'EN_COLA' })).toBe(true);
+    expect(esLineaReenviable({ estado: 'ACEPTADO' })).toBe(false);
+    expect(ETIQUETA_ESTADO_SUNAT.ERROR_RED).toContain('No llegó a SUNAT');
+    expect(ETIQUETA_ESTADO_SUNAT.ACEPTADO).toContain('Aceptado por SUNAT');
+  });
+
+  it('preselecciona Factura (01) para perfil MAYORISTA y Boleta (03) para perfil MINORISTA', () => {
+    expect(tipoComprobantePorPerfil('MAYORISTA')).toBe('01');
+    expect(tipoComprobantePorPerfil('MINORISTA')).toBe('03');
+    expect(tipoComprobantePorPerfil(null)).toBeNull();
   });
 });

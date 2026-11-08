@@ -96,6 +96,8 @@ import { hoyEnLima } from '../lib/invoiceFecha';
 import { calcularRetencion, roundDetraccion } from '../lib/invoiceRetentions';
 import { RetencionMaestro } from '../components/RetencionMaestro';
 import { invoicesApi } from '../services/invoicesApi';
+import { apiClient } from '@/lib/axios';
+import { tipoComprobantePorPerfil, type ConfiguracionBackend } from '../hooks/useInvoiceConfig';
 import { enqueueInvoiceEmission } from '@/lib/outbox';
 import { cargarProductosAlmacen } from '../services/inventoryProductsApi';
 import { revisarGrilla, primeraLineaConError } from '../lib/invoiceStockLinea';
@@ -115,9 +117,26 @@ const SERIES: Record<'01' | '03', string> = { '01': 'F001', '03': 'B001' };
 
 export default function InvoiceEmissionPage() {
   const [searchParams] = useSearchParams();
+  const tipoQuery = searchParams.get('tipo');
   const [tipo, setTipo] = useState<'01' | '03'>(
-    searchParams.get('tipo') === '03' ? '03' : '01',
+    tipoQuery === '03' ? '03' : '01',
   );
+
+  useEffect(() => {
+    if (tipoQuery === '01' || tipoQuery === '03') return;
+    let vivo = true;
+    apiClient
+      .get<ConfiguracionBackend>('/invoices/config')
+      .then(({ data }) => {
+        if (!vivo) return;
+        const sugerido = tipoComprobantePorPerfil(data?.perfil_comercial);
+        if (sugerido) setTipo(sugerido);
+      })
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
+  }, [tipoQuery]);
   const [clienteSeleccionado, setClienteSeleccionado] = useState<import('../lib/invoiceSearch').ClienteBuscado | null>(null);
   const [clienteDoc, setClienteDoc] = useState('');
   const [clienteRazonSocial, setClienteRazonSocial] = useState('');
@@ -552,25 +571,37 @@ export default function InvoiceEmissionPage() {
                   Forma de pago
                 </span>
                 <div className="flex gap-2">
-                  {(['Contado', 'Credito'] as const).map((forma) => (
-                    <Button
-                      key={forma}
-                      type="button"
-                      size="sm"
-                      variant={formaPago === forma ? 'default' : 'outline'}
-                      onClick={() => {
-                        setFormaPago(forma);
-                        setCuotas(
-                          forma === 'Credito'
-                            ? repartirEnCuotas(netoPendiente, 1, fechaEmision)
-                            : [],
-                        );
-                      }}
-                    >
-                      {forma === 'Credito' ? 'Crédito' : 'Contado'}
-                    </Button>
-                  ))}
+                  {(['Contado', 'Credito'] as const).map((forma) => {
+                    const creditoHabilitado =
+                      clienteSeleccionado?.tieneCredito === true;
+                    return (
+                      <Button
+                        key={forma}
+                        type="button"
+                        size="sm"
+                        disabled={forma === 'Credito' && !creditoHabilitado}
+                        variant={formaPago === forma ? 'default' : 'outline'}
+                        onClick={() => {
+                          if (forma === 'Credito' && !creditoHabilitado) return;
+                          setFormaPago(forma);
+                          setCuotas(
+                            forma === 'Credito'
+                              ? repartirEnCuotas(netoPendiente, 1, fechaEmision)
+                              : [],
+                          );
+                        }}
+                      >
+                        {forma === 'Credito' ? 'Crédito' : 'Contado'}
+                      </Button>
+                    );
+                  })}
                 </div>
+                {clienteSeleccionado?.tieneCredito !== true && (
+                  <PageText variant="caption">
+                    La venta al crédito con cuotas solo se habilita para
+                    clientes con crédito registrado en el maestro.
+                  </PageText>
+                )}
               </div>
 
               {formaPago === 'Credito' && (
@@ -597,12 +628,35 @@ export default function InvoiceEmissionPage() {
                 }
                 placeholderDocumento={tipo === '01' ? '20100070970' : '70123456'}
                 errorDocumento={clienteDoc.length > 0 && !documentoValidoParaTipo(tipo, clienteDoc) ? mensajeErrorDocumento(tipo) : undefined}
-                onDocumentoChange={(valor) => { setClienteSeleccionado(null); setClienteDoc(valor); setClienteRazonSocial(''); }}
-                onRazonSocialChange={(valor) => { setClienteSeleccionado(null); setClienteRazonSocial(valor); }}
+                onDocumentoChange={(valor) => {
+                  setClienteSeleccionado(null);
+                  setClienteDoc(valor);
+                  setClienteRazonSocial('');
+                  setFormaPago('Contado');
+                  setCuotas([]);
+                  setDescuentoGlobal(null);
+                  setItems((prev) => prev.map((it) => ({ ...it, descuento: null })));
+                }}
+                onRazonSocialChange={(valor) => {
+                  setClienteSeleccionado(null);
+                  setClienteRazonSocial(valor);
+                  setFormaPago('Contado');
+                  setCuotas([]);
+                  setDescuentoGlobal(null);
+                  setItems((prev) => prev.map((it) => ({ ...it, descuento: null })));
+                }}
                 onElegir={(cliente) => {
                   setClienteSeleccionado(cliente);
                   setClienteDoc(cliente.numeroDocumento);
                   setClienteRazonSocial(cliente.razonSocial);
+                  if (cliente.tieneCredito !== true) {
+                    setFormaPago('Contado');
+                    setCuotas([]);
+                  }
+                  if (cliente.admiteDescuento !== true) {
+                    setDescuentoGlobal(null);
+                    setItems((prev) => prev.map((it) => ({ ...it, descuento: null })));
+                  }
                 }}
               />
 
@@ -641,8 +695,13 @@ export default function InvoiceEmissionPage() {
                 }
                 productos={productos}
                 onAgregarConProducto={agregarConProducto}
+                admiteDescuento={clienteSeleccionado?.admiteDescuento === true}
               />
-              <InvoiceDescuentoGlobal valor={descuentoGlobal} onChange={setDescuentoGlobal} />
+              <InvoiceDescuentoGlobal
+                valor={descuentoGlobal}
+                disabled={clienteSeleccionado?.admiteDescuento !== true}
+                onChange={setDescuentoGlobal}
+              />
             </CardContent>
           </Card>
 

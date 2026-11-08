@@ -17,6 +17,7 @@
  */
 import {
   ICBPER_POR_UNIDAD,
+  baseDesdeTotal,
   calcularLinea,
   round2,
   type AfectacionIgv,
@@ -62,7 +63,11 @@ export interface ItemBorrador {
   unidad: string;
   cantidad: number;
   valorUnitario: number;
+  /** Precio unitario final CON IGV incluido digitado en la venta. */
+  precioUnitario?: number;
   afectacion: AfectacionIgv;
+  /** True cuando la afectación proviene del producto elegido y no es editable como campo libre. */
+  afectacionHeredada?: boolean;
   descuento?: { codigo: '00' | '01'; monto: number } | null;
   /** Importe del ICBPER de la línea; > 0 la marca como bolsa plástica. */
   icbper: number;
@@ -94,21 +99,53 @@ export interface TotalesItem {
  * propagar `NaN`: un `NaN` dentro de un `<cbc:Amount>` rompe el XML entero y el
  * usuario no sabría qué línea lo causó.
  */
+/**
+ * Deriva el valor unitario sin IGV a partir del precio unitario final con IGV incluido.
+ * En operaciones gravadas desglosa el 18 %; en exoneradas e inafectas coincide con el precio.
+ */
+export const valorUnitarioDesdePrecioConIgv = (
+  precioConIgv: number,
+  afectacion: AfectacionIgv = 'GRAVADA',
+): number => {
+  if (!Number.isFinite(precioConIgv) || precioConIgv <= 0) return 0;
+  return afectacion === 'GRAVADA' ? baseDesdeTotal(precioConIgv) : round2(precioConIgv);
+};
+
 export const calcularItem = (item: ItemBorrador): TotalesItem => {
   const cantidad = Number.isFinite(item.cantidad) ? Math.max(0, item.cantidad) : 0;
-  const valor = Number.isFinite(item.valorUnitario)
-    ? Math.max(0, item.valorUnitario)
+  const tienePrecioConIgv =
+    typeof item.precioUnitario === 'number' && Number.isFinite(item.precioUnitario);
+  const precioFinalUnitario = tienePrecioConIgv
+    ? Math.max(0, item.precioUnitario!)
     : 0;
+  const valor = tienePrecioConIgv
+    ? valorUnitarioDesdePrecioConIgv(precioFinalUnitario, item.afectacion)
+    : Number.isFinite(item.valorUnitario)
+      ? Math.max(0, item.valorUnitario)
+      : 0;
+
+  const totalBrutoConIgv = tienePrecioConIgv
+    ? round2(cantidad * precioFinalUnitario)
+    : null;
+  const baseBruta =
+    tienePrecioConIgv && item.afectacion === 'GRAVADA'
+      ? baseDesdeTotal(totalBrutoConIgv!)
+      : round2(cantidad * valor);
 
   const linea = calcularLinea({
-    base: round2(Math.max(0, cantidad * valor - (item.descuento?.codigo === '00' ? item.descuento.monto : 0))),
+    base: round2(Math.max(0, baseBruta - (item.descuento?.codigo === '00' ? item.descuento.monto : 0))),
     afectacion: item.afectacion,
   });
 
   // Regla 3278: la gratuita se declara en cero aunque tenga valor referencial.
   const esGratuita = item.afectacion === 'GRATUITA';
   const base = esGratuita ? 0 : linea.base;
-  const igv = esGratuita ? 0 : linea.igv;
+  const sinDescuentoAfecto = !item.descuento || item.descuento.codigo !== '00';
+  const igv = esGratuita
+    ? 0
+    : tienePrecioConIgv && item.afectacion === 'GRAVADA' && sinDescuentoAfecto
+      ? round2(totalBrutoConIgv! - base)
+      : linea.igv;
   const icbper = Number.isFinite(item.icbper) ? Math.max(0, item.icbper) : 0;
 
   return { base, igv, icbper, total: round2(base + igv + icbper - (item.descuento?.codigo === '01' ? item.descuento.monto : 0)) };
@@ -251,18 +288,30 @@ export const itemVacio = (clave: string): ItemBorrador => ({
  * cambia en la fila, y así el valor por defecto nunca declara impuesto que no
  * corresponda.
  */
+export const normalizarAfectacionProducto = (
+  afectacion?: string | null,
+): AfectacionIgv => {
+  const limpio = (afectacion ?? '').trim().toUpperCase();
+  if (limpio === '20' || limpio === 'EXONERADA') return 'EXONERADA';
+  if (limpio === '30' || limpio === 'INAFECTA') return 'INAFECTA';
+  if (limpio === '11' || limpio === 'GRATUITA') return 'GRATUITA';
+  return 'GRAVADA';
+};
+
 export const itemDesdeProducto = (
   producto: {
     sku: string;
     descripcion: string;
     unidad: string;
     valorUnitario: number;
+    afectacion?: string | null;
   },
   clave: string,
 ): ItemBorrador => {
   const unidad = producto.unidad.trim().toUpperCase();
   const valida = UNIDADES_MEDIDA.some((u) => u.codigo === unidad);
   const valor = Number(producto.valorUnitario);
+  const afectacion = normalizarAfectacionProducto(producto.afectacion);
 
   return {
     clave,
@@ -271,7 +320,8 @@ export const itemDesdeProducto = (
     unidad: valida ? unidad : 'NIU',
     cantidad: 1,
     valorUnitario: Number.isFinite(valor) && valor > 0 ? valor : 0,
-    afectacion: 'GRAVADA',
+    afectacion,
+    afectacionHeredada: true,
     icbper: 0,
   };
 };
@@ -338,11 +388,28 @@ export const actualizarItem = (
   indice: number,
   parcial: Partial<ItemBorrador>,
 ): readonly ItemBorrador[] =>
-  items.map((item, i) =>
-    i === indice
-      ? sincronizarIcbper({ ...item, ...parcial })
-      : item,
-  );
+  items.map((item, i) => {
+    if (i !== indice) return item;
+    const combinado: ItemBorrador = { ...item, ...parcial };
+    if (
+      typeof parcial.precioUnitario === 'number' &&
+      parcial.valorUnitario === undefined
+    ) {
+      combinado.valorUnitario = valorUnitarioDesdePrecioConIgv(
+        parcial.precioUnitario,
+        combinado.afectacion,
+      );
+    } else if (
+      parcial.afectacion !== undefined &&
+      typeof combinado.precioUnitario === 'number'
+    ) {
+      combinado.valorUnitario = valorUnitarioDesdePrecioConIgv(
+        combinado.precioUnitario,
+        combinado.afectacion,
+      );
+    }
+    return sincronizarIcbper(combinado);
+  });
 
 /** Elimina una línea por índice. */
 export const eliminarItem = (
