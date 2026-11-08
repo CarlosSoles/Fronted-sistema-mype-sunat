@@ -244,12 +244,19 @@ export const InvoiceItemsGrid = ({
                     <select
                       aria-label={`Afectación de la línea ${i + 1}`}
                       className={CLASE_CELDA}
+                      disabled={Boolean(item.afectacionHeredada)}
+                      title={
+                        item.afectacionHeredada
+                          ? 'Afectación heredada de la configuración del producto'
+                          : undefined
+                      }
                       value={item.afectacion}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        if (item.afectacionHeredada) return;
                         onCambiar(i, {
                           afectacion: e.target.value as AfectacionIgv,
-                        })
-                      }
+                        });
+                      }}
                     >
                       {OPCIONES_AFECTACION.map((o) => (
                         <option key={o.value} value={o.value}>

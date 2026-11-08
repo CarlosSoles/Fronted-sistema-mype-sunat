@@ -28,10 +28,23 @@ interface RespuestaStocks {
     sku?: string;
     description?: string;
     sunatUnitCode?: string;
+    taxAffectation?: string | null;
+    tax_affectation?: string | null;
     currentStock?: number | string;
     averageUnitCost?: number | string;
   }>;
 }
+
+const traducirAfectacionProducto = (
+  codigo?: string | null,
+): 'GRAVADA' | 'EXONERADA' | 'INAFECTA' | 'GRATUITA' | null => {
+  const limpio = (codigo ?? '').trim().toUpperCase();
+  if (limpio === '10' || limpio === 'GRAVADA') return 'GRAVADA';
+  if (limpio === '20' || limpio === 'EXONERADA') return 'EXONERADA';
+  if (limpio === '30' || limpio === 'INAFECTA') return 'INAFECTA';
+  if (limpio === '11' || limpio === 'GRATUITA') return 'GRATUITA';
+  return null;
+};
 
 /** Redondeo a céntimos para el valor unitario sugerido. */
 const r2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -55,12 +68,17 @@ export const productosDesdeStocks = (
       const costo = Number(b.averageUnitCost ?? 0);
       const unidadRaw = (b.sunatUnitCode ?? '').trim().toUpperCase();
 
+      const afectacion = traducirAfectacionProducto(
+        b.taxAffectation ?? b.tax_affectation ?? null,
+      );
+
       return {
         sku,
         descripcion: (b.description ?? '').trim(),
         unidad: unidadRaw || 'NIU',
         valorUnitario: Number.isFinite(costo) ? r2(costo) : 0,
         stock: Number.isFinite(stock) ? stock : 0,
+        ...(afectacion ? { afectacion } : {}),
       };
     })
     // Un producto sin SKU no se puede rastrear en el Kardex: no se ofrece.
@@ -77,10 +95,17 @@ export const productosDesdeStocks = (
 export const cargarProductosAlmacen = async (): Promise<ProductoBuscado[]> => {
   try {
     const response = await apiClient.get<RespuestaStocks>(
-      '/inventory/stocks',
+      '/invoices/products',
     );
     return productosDesdeStocks(response.data);
   } catch {
-    return [];
+    try {
+      const fallback = await apiClient.get<RespuestaStocks>(
+        '/inventory/stocks',
+      );
+      return productosDesdeStocks(fallback.data);
+    } catch {
+      return [];
+    }
   }
 };

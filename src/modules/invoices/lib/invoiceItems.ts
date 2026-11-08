@@ -63,6 +63,8 @@ export interface ItemBorrador {
   cantidad: number;
   valorUnitario: number;
   afectacion: AfectacionIgv;
+  /** True cuando la afectación proviene del producto elegido y no es editable como campo libre. */
+  afectacionHeredada?: boolean;
   descuento?: { codigo: '00' | '01'; monto: number } | null;
   /** Importe del ICBPER de la línea; > 0 la marca como bolsa plástica. */
   icbper: number;
@@ -251,18 +253,30 @@ export const itemVacio = (clave: string): ItemBorrador => ({
  * cambia en la fila, y así el valor por defecto nunca declara impuesto que no
  * corresponda.
  */
+export const normalizarAfectacionProducto = (
+  afectacion?: string | null,
+): AfectacionIgv => {
+  const limpio = (afectacion ?? '').trim().toUpperCase();
+  if (limpio === '20' || limpio === 'EXONERADA') return 'EXONERADA';
+  if (limpio === '30' || limpio === 'INAFECTA') return 'INAFECTA';
+  if (limpio === '11' || limpio === 'GRATUITA') return 'GRATUITA';
+  return 'GRAVADA';
+};
+
 export const itemDesdeProducto = (
   producto: {
     sku: string;
     descripcion: string;
     unidad: string;
     valorUnitario: number;
+    afectacion?: string | null;
   },
   clave: string,
 ): ItemBorrador => {
   const unidad = producto.unidad.trim().toUpperCase();
   const valida = UNIDADES_MEDIDA.some((u) => u.codigo === unidad);
   const valor = Number(producto.valorUnitario);
+  const afectacion = normalizarAfectacionProducto(producto.afectacion);
 
   return {
     clave,
@@ -271,7 +285,8 @@ export const itemDesdeProducto = (
     unidad: valida ? unidad : 'NIU',
     cantidad: 1,
     valorUnitario: Number.isFinite(valor) && valor > 0 ? valor : 0,
-    afectacion: 'GRAVADA',
+    afectacion,
+    afectacionHeredada: true,
     icbper: 0,
   };
 };
