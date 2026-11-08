@@ -38,6 +38,12 @@ export default function AccountingPeriodsPage() {
     onError: () => setError('No se pudo abrir el año fiscal.'),
   });
 
+  const closeYear = useMutation({
+    mutationFn: (y: number) => accountingApi.closeFiscalYear(y),
+    onSuccess: async () => { setError(null); await invalidate(); },
+    onError: () => setError('No se pudo cerrar el año fiscal.'),
+  });
+
   const openPeriod = useMutation({
     mutationFn: ({ y, m }: { y: number; m: number }) => accountingApi.openPeriod(y, m),
     onSuccess: async () => {
@@ -94,6 +100,10 @@ export default function AccountingPeriodsPage() {
           <Button variant="outline" onClick={() => openYear.mutate(year)} disabled={openYear.isPending}>
             <CalendarDays className="w-4 h-4 mr-1" />
             {openYear.isPending ? 'Abriendo año…' : 'Abrir año fiscal'}
+          </Button>
+          <Button variant="outline" onClick={() => closeYear.mutate(year)} disabled={closeYear.isPending}>
+            <Lock className="w-4 h-4 mr-1" />
+            {closeYear.isPending ? 'Cerrando año…' : 'Cerrar año fiscal'}
           </Button>
         </div>
       </Card>
