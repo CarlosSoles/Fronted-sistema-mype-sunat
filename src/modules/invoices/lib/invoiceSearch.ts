@@ -29,6 +29,8 @@ export interface ClienteBuscado {
   direccion?: string;
   /** Si el cliente tiene crédito habilitado en el maestro de terceros. */
   tieneCredito?: boolean | null;
+  /** Si el cliente admite descuentos según el maestro de terceros. */
+  admiteDescuento?: boolean | null;
 }
 
 /** Producto que ofrece el buscador. */

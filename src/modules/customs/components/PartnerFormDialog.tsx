@@ -33,6 +33,7 @@ export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PR
     address: partner?.address ?? '', email: partner?.email ?? '', phone: partner?.phone ?? '',
     paymentTerms: partner?.payment_terms ?? 'CONTADO', currencyCode: partner?.currency_code ?? 'PEN',
     hasCredit: typeof partner?.has_credit === 'boolean' ? partner.has_credit : Boolean(partner?.payment_terms && partner.payment_terms !== 'CONTADO'),
+    allowsDiscount: typeof partner?.allows_discount === 'boolean' ? partner.allows_discount : false,
     isActive: partner?.is_active ?? true,
   });
   const [roles, setRoles] = useState<PartnerRole[]>(partner ? [...partner.roles] : [initialRole]);
@@ -51,7 +52,7 @@ export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PR
         legalName: form.legalName.trim(), tradeName: form.tradeName.trim() || undefined,
         countryCode: form.countryCode.trim().toUpperCase(), address: form.address.trim() || undefined,
         email: form.email.trim() || undefined, phone: form.phone.trim() || undefined,
-        paymentTerms: form.paymentTerms, hasCredit: form.hasCredit, currencyCode: form.currencyCode, roles,
+        paymentTerms: form.paymentTerms, hasCredit: form.hasCredit, allowsDiscount: form.allowsDiscount, currencyCode: form.currencyCode, roles,
       };
       if (partner) return masterDataApi.updatePartner(partner.id, { ...payload, isActive: form.isActive });
       if (requiredRole) {
@@ -149,6 +150,17 @@ export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PR
                   }
                 />
                 Habilitado para venta al crédito
+              </label>
+              <label className="mt-1.5 flex items-center gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  aria-label="Admite descuento en ventas"
+                  checked={form.allowsDiscount}
+                  onChange={(e) =>
+                    setForm({ ...form, allowsDiscount: e.target.checked })
+                  }
+                />
+                Admite descuento en ventas
               </label>
             </div>
             <div>

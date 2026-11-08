@@ -166,6 +166,15 @@ const motivosPendientes = (
     }
   }
 
+  const tieneDescuento =
+    Boolean(b.descuentoGlobal) ||
+    b.items.some((item) => Boolean(item.descuento));
+  if (!esNota && tieneDescuento && b.clienteAdmiteDescuento !== true) {
+    motivos.push(
+      'El cliente seleccionado no admite descuentos según el maestro de terceros.',
+    );
+  }
+
   if (b.formaPago === 'Credito') {
     if (!esNota && b.clienteTieneCredito !== true) {
       motivos.push(

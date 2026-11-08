@@ -615,12 +615,16 @@ export default function InvoiceEmissionPage() {
                   setClienteRazonSocial('');
                   setFormaPago('Contado');
                   setCuotas([]);
+                  setDescuentoGlobal(null);
+                  setItems((prev) => prev.map((it) => ({ ...it, descuento: null })));
                 }}
                 onRazonSocialChange={(valor) => {
                   setClienteSeleccionado(null);
                   setClienteRazonSocial(valor);
                   setFormaPago('Contado');
                   setCuotas([]);
+                  setDescuentoGlobal(null);
+                  setItems((prev) => prev.map((it) => ({ ...it, descuento: null })));
                 }}
                 onElegir={(cliente) => {
                   setClienteSeleccionado(cliente);
@@ -629,6 +633,10 @@ export default function InvoiceEmissionPage() {
                   if (cliente.tieneCredito !== true) {
                     setFormaPago('Contado');
                     setCuotas([]);
+                  }
+                  if (cliente.admiteDescuento !== true) {
+                    setDescuentoGlobal(null);
+                    setItems((prev) => prev.map((it) => ({ ...it, descuento: null })));
                   }
                 }}
               />
@@ -668,8 +676,13 @@ export default function InvoiceEmissionPage() {
                 }
                 productos={productos}
                 onAgregarConProducto={agregarConProducto}
+                admiteDescuento={clienteSeleccionado?.admiteDescuento === true}
               />
-              <InvoiceDescuentoGlobal valor={descuentoGlobal} onChange={setDescuentoGlobal} />
+              <InvoiceDescuentoGlobal
+                valor={descuentoGlobal}
+                disabled={clienteSeleccionado?.admiteDescuento !== true}
+                onChange={setDescuentoGlobal}
+              />
             </CardContent>
           </Card>
 

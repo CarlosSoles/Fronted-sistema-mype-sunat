@@ -13,6 +13,8 @@ export const partnerToCustomer = (p: BusinessPartnerRecord): ClienteBuscado => {
       : p.payment_terms
         ? p.payment_terms !== 'CONTADO'
         : undefined;
+  const admiteDescuento =
+    typeof p.allows_discount === 'boolean' ? p.allows_discount : undefined;
   return {
     id: p.id,
     tipoDocumento: p.doc_type,
@@ -20,6 +22,7 @@ export const partnerToCustomer = (p: BusinessPartnerRecord): ClienteBuscado => {
     razonSocial: p.legal_name,
     direccion: p.address ?? undefined,
     ...(tieneCredito !== undefined ? { tieneCredito } : {}),
+    ...(admiteDescuento !== undefined ? { admiteDescuento } : {}),
   };
 };
 

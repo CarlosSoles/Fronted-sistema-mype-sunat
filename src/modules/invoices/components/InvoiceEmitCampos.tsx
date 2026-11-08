@@ -159,19 +159,51 @@ export const InvoiceEmitCampos = ({
             ? mensajeErrorDocumento(b.tipo)
             : undefined
         }
-        onDocumentoChange={(clienteDoc) => actualizar({ clienteDoc, clienteRazonSocial: '', clienteId: undefined, clienteTipoDocumento: undefined, clienteDireccion: undefined, clienteTieneCredito: false, formaPago: 'Contado', cuotas: [] })}
-        onRazonSocialChange={(clienteRazonSocial) => actualizar({ clienteRazonSocial, clienteId: undefined, clienteTieneCredito: false, formaPago: 'Contado', cuotas: [] })}
+        onDocumentoChange={(clienteDoc) =>
+          actualizar({
+            clienteDoc,
+            clienteRazonSocial: '',
+            clienteId: undefined,
+            clienteTipoDocumento: undefined,
+            clienteDireccion: undefined,
+            clienteTieneCredito: false,
+            clienteAdmiteDescuento: false,
+            formaPago: 'Contado',
+            cuotas: [],
+            descuentoGlobal: null,
+            items: b.items.map((item) => ({ ...item, descuento: null })),
+          })
+        }
+        onRazonSocialChange={(clienteRazonSocial) =>
+          actualizar({
+            clienteRazonSocial,
+            clienteId: undefined,
+            clienteTieneCredito: false,
+            clienteAdmiteDescuento: false,
+            formaPago: 'Contado',
+            cuotas: [],
+            descuentoGlobal: null,
+            items: b.items.map((item) => ({ ...item, descuento: null })),
+          })
+        }
         onElegir={(cliente) =>
           actualizar({
             clienteId: cliente.id,
             clienteTipoDocumento: cliente.tipoDocumento,
             clienteDireccion: cliente.direccion,
             clienteTieneCredito: cliente.tieneCredito === true,
+            clienteAdmiteDescuento: cliente.admiteDescuento === true,
             clienteDoc: cliente.numeroDocumento,
             clienteRazonSocial: cliente.razonSocial,
             ...(cliente.tieneCredito === true
               ? {}
               : { formaPago: 'Contado', cuotas: [] }),
+            ...(cliente.admiteDescuento === true
+              ? {}
+              : {
+                  descuentoGlobal: null,
+                  items: b.items.map((item) => ({ ...item, descuento: null })),
+                }),
           })
         }
       />
@@ -185,9 +217,14 @@ export const InvoiceEmitCampos = ({
         onAgregarBolsa={onBolsaAgregada}
         productos={productos}
         onAgregarConProducto={onItemDesdeProducto}
+        admiteDescuento={b.clienteAdmiteDescuento === true}
       />
 
-      <InvoiceDescuentoGlobal valor={b.descuentoGlobal} onChange={(descuentoGlobal) => actualizar({ descuentoGlobal })} />
+      <InvoiceDescuentoGlobal
+        valor={b.descuentoGlobal}
+        disabled={b.clienteAdmiteDescuento !== true}
+        onChange={(descuentoGlobal) => actualizar({ descuentoGlobal })}
+      />
 
       <InvoiceEmitCamposTributarios
         borrador={b}

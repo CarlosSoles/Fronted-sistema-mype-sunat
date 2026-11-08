@@ -106,3 +106,23 @@ it('solo habilita la venta al crédito con cuotas para clientes con crédito reg
   fireEvent.click(btnCredito());
   expect(screen.getByText(/Pago a crédito en/i)).toBeTruthy();
 });
+it('solo habilita descuentos por línea y globales cuando el cliente admite descuento en el maestro', async () => {
+  const sinDesc: BusinessPartnerRecord = { ...partner, id: 'c-no-desc', legal_name: 'Cliente Sin Descuento', allows_discount: false };
+  const conDesc: BusinessPartnerRecord = { ...partner, id: 'c-si-desc', doc_number: '20555555551', legal_name: 'Cliente Con Descuento', allows_discount: true };
+  vi.mocked(masterDataApi.getPartners).mockResolvedValue([sinDesc, conDesc]);
+  render(<QueryClientProvider client={client}><InvoiceEmitModal tipoInicial="01" fecha="2026-11-06" existentes={[]} onEmitir={vi.fn()} onCerrar={vi.fn()} /></QueryClientProvider>);
+  const descLinea = () => screen.getByLabelText('Tipo de descuento de la línea 1') as HTMLSelectElement;
+  const descGlobal = () => screen.getByLabelText('Descuento global (Catálogo 53)') as HTMLSelectElement;
+  expect(descLinea().disabled).toBe(true);
+  expect(descGlobal().disabled).toBe(true);
+  fireEvent.change(screen.getByLabelText('Razón social / nombre'), { target: { value: 'Cliente' } });
+  fireEvent.click(await screen.findByRole('button', { name: /Cliente Con Descuento/ }));
+  expect(descLinea().disabled).toBe(false);
+  expect(descGlobal().disabled).toBe(false);
+  fireEvent.change(descGlobal(), { target: { value: '02' } });
+  fireEvent.change(screen.getByLabelText('Razón social / nombre'), { target: { value: 'Cliente' } });
+  fireEvent.click(await screen.findByRole('button', { name: /Cliente Sin Descuento/ }));
+  expect(descLinea().disabled).toBe(true);
+  expect(descGlobal().disabled).toBe(true);
+  expect(descGlobal().value).toBe('');
+});

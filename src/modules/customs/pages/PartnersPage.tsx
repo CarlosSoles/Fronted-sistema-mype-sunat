@@ -119,6 +119,7 @@ export default function PartnersPage({ context = 'customs' }: { context?: 'custo
                     {p.has_credit === true || (p.has_credit == null && Boolean(p.payment_terms && p.payment_terms !== 'CONTADO'))
                       ? `Crédito (${p.payment_terms || 'Habilitado'})`
                       : p.payment_terms || '—'}
+                    {p.allows_discount === true ? ' · Con desc.' : ''}
                   </td>
                   <td className="p-3">{p.email || p.phone || '—'}</td>
                   <td className="p-3 text-center">
