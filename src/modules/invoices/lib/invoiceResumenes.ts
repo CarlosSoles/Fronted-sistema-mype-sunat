@@ -11,12 +11,34 @@
  */
 
 /** Línea de la vista previa. */
+/** Estados en los que el comprobante nunca llegó a SUNAT y admite reenvío. */
+export const ESTADOS_REENVIABLES_SUNAT = ['PENDIENTE', 'EN_COLA', 'ERROR_RED', 'SIN_CONFIRMAR'] as const;
+
+/** ¿El comprobante nunca llegó a SUNAT y puede reenviarse desde la fila? */
+export const esLineaReenviable = (linea: Pick<LineaResumen, 'estado' | 'reenviable'>): boolean =>
+  linea.reenviable === true || (ESTADOS_REENVIABLES_SUNAT as readonly string[]).includes(linea.estado);
+
+/** Etiqueta legible del estado frente a SUNAT en Bajas y Resúmenes. */
+export const ETIQUETA_ESTADO_SUNAT: Record<string, string> = {
+  ACEPTADO: 'Aceptado por SUNAT',
+  OBSERVADO: 'Observado por SUNAT',
+  RECHAZADO: 'Rechazado por SUNAT',
+  ANULADO: 'Anulado (Baja)',
+  PENDIENTE: 'No enviado a SUNAT (Pendiente)',
+  EN_COLA: 'No enviado a SUNAT (En cola)',
+  ERROR_RED: 'No llegó a SUNAT (Error de red)',
+  SIN_CONFIRMAR: 'No llegó a SUNAT (Sin confirmar)',
+  ENVIADO: 'Enviado a SUNAT',
+};
+
 export interface LineaResumen {
+  id?: string;
   serie: string;
   correlativo: number;
   tipoComprobante: string;
   fechaEmision: string;
   estado: string;
+  reenviable?: boolean;
   total: number;
   /** `true` si entra en el XML que se enviaría. */
   incluido: boolean;

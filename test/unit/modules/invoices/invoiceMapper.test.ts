@@ -106,6 +106,25 @@ describe('TA-59 · traducción de campos', () => {
     // 100 / 1.18 = 84.7457... → base 84.75 e IGV 15.25.
     expect(invoice.subtotal + invoice.igv).toBeCloseTo(100, 2);
   });
+
+  it('usa base_imponible, exonerada, inafecta y total_igv reales del listado cuando vienen del backend', () => {
+    const exonerada = aInvoice(
+      fila({
+        monto_total: 250,
+        base_imponible: 0,
+        exonerada: 250,
+        inafecta: 0,
+        total_igv: 0,
+        forma_pago: 'Credito',
+        cuotas: [{ numero: 'Cuota001', monto: 250, vencimiento: '2026-11-30' }],
+      }),
+    );
+
+    expect(exonerada.subtotal).toBe(250);
+    expect(exonerada.igv).toBe(0);
+    expect(exonerada.formaPago).toBe('Credito');
+    expect(exonerada.cuotas).toHaveLength(1);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -458,5 +477,35 @@ describe('origen y motivo de la nota', () => {
 
     expect(convertida.motivoNota?.codigo).toBe('99');
     expect(convertida.motivoNota?.descripcion).toBe('');
+  });
+
+  it('mapea comprobante_origen completo (tipo, serie-número, cliente, importe) en listado y detalle', () => {
+    const convertida = aInvoiceDetalle(
+      nota({
+        comprobante_origen: {
+          id: 'orig-53',
+          tipo_comprobante: '01',
+          serie: 'F001',
+          correlativo: 53,
+          numero: 'F001-00000053',
+          cliente_documento: '20100066603',
+          cliente_nombre: 'CONSTRUCTORA DEL NORTE S.A.C.',
+          monto_total: 1003,
+          moneda: 'PEN',
+        },
+      }),
+    );
+
+    expect(convertida.comprobanteOrigen).toEqual({
+      id: 'orig-53',
+      tipoComprobante: '01',
+      serie: 'F001',
+      correlativo: 53,
+      numero: 'F001-00000053',
+      clienteDocumento: '20100066603',
+      clienteNombre: 'CONSTRUCTORA DEL NORTE S.A.C.',
+      montoTotal: 1003,
+      moneda: 'PEN',
+    });
   });
 });

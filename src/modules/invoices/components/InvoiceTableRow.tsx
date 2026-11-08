@@ -63,11 +63,23 @@ export const InvoiceTableRow = ({
         <PageText variant="caption">
           {c.formaPago === 'Credito'
             ? `Crédito (${c.cuotas.length} cuotas)`
-            : 'Contado'}
+            : c.formaPago === 'Contado'
+              ? 'Contado'
+              : 'Forma de pago no registrada'}
         </PageText>
-        {c.documentoAfectado && (
+        {(c.comprobanteOrigen || c.documentoAfectado) && (
           <PageText variant="caption">
-            Afecta: {c.documentoAfectado}
+            Afecta:{' '}
+            {c.comprobanteOrigen?.tipoComprobante === '03'
+              ? 'Boleta '
+              : c.comprobanteOrigen?.tipoComprobante === '01'
+                ? 'Factura '
+                : ''}
+            {c.comprobanteOrigen?.numero ?? c.documentoAfectado}
+            {c.comprobanteOrigen?.montoTotal !== null &&
+            c.comprobanteOrigen?.montoTotal !== undefined
+              ? ` (${formatCurrency(c.comprobanteOrigen.montoTotal, c.comprobanteOrigen.moneda === 'USD' ? 'USD' : 'PEN')})`
+              : ''}
           </PageText>
         )}
       </TableCell>
@@ -145,7 +157,7 @@ export const InvoiceTableRow = ({
           >
             <Download aria-hidden="true" />
           </Button>
-          {(c.estado === 'RECHAZADO' || c.estado === 'EN_COLA') && (
+          {(c.estado === 'RECHAZADO' || c.estado === 'EN_COLA' || c.estado === 'SIN_CONFIRMAR') && (
             <Button
               variant="ghost"
               size="icon-xs"

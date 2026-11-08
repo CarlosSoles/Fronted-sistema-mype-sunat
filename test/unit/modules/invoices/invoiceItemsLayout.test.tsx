@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { InvoiceItemsGrid } from '@/modules/invoices/components/InvoiceItemsGrid';
-import { itemVacio } from '@/modules/invoices/lib/invoiceItems';
+import { actualizarItem, calcularItem, itemVacio, valorUnitarioDesdePrecioConIgv } from '@/modules/invoices/lib/invoiceItems';
+import { borradorAPayloadEmision } from '@/modules/invoices/lib/invoiceEmitPayload';
+import { borradorInicial } from '@/modules/invoices/lib/invoiceEmitDraft';
 
 afterEach(cleanup);
 const props = () => ({ onCambiar: vi.fn(), onEliminar: vi.fn(), onAgregar: vi.fn(), onAgregarBolsa: vi.fn() });
@@ -44,6 +46,36 @@ describe('presentación del detalle de líneas', () => {
     expect(callbacks.onEliminar).not.toHaveBeenCalled();
     expect(screen.getByRole('alert').textContent).toBe('Debe quedar al menos una línea');
   });
+  it('explicita en la etiqueta de la columna que el precio unitario incluye IGV y desglosa la base sin tratar precioUnitario como base sin impuesto', () => {
+    render(<InvoiceItemsGrid items={[itemVacio('a')]} {...props()} />);
+    expect(screen.getByRole('columnheader', { name: /Precio unitario \(con IGV\)/i })).toBeTruthy();
+    expect(screen.getByText(/Precio final con IGV incluido/i)).toBeTruthy();
+
+    expect(valorUnitarioDesdePrecioConIgv(118, 'GRAVADA')).toBe(100);
+    expect(valorUnitarioDesdePrecioConIgv(50, 'EXONERADA')).toBe(50);
+
+    const actualizados = actualizarItem([itemVacio('a')], 0, {
+      descripcion: 'Taladro percutor',
+      cantidad: 2,
+      precioUnitario: 118,
+    });
+    expect(actualizados[0].precioUnitario).toBe(118);
+    expect(actualizados[0].valorUnitario).toBe(100);
+    expect(calcularItem(actualizados[0])).toEqual({
+      base: 200,
+      igv: 36,
+      icbper: 0,
+      total: 236,
+    });
+
+    const payload = borradorAPayloadEmision({
+      ...borradorInicial('01', '2026-11-07'),
+      items: actualizados,
+    });
+    expect(payload.items[0].precioUnitario).toBe(118);
+    expect(payload.items[0].valorUnitario).toBe(100);
+  });
+
   it('elimina una línea cuando queda otra en el detalle', () => {
     const callbacks = props();
     render(<InvoiceItemsGrid items={[itemVacio('a'), itemVacio('b')]} {...callbacks} />);

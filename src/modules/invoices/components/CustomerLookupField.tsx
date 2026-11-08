@@ -6,7 +6,25 @@ import { PartnerFormDialog } from '@/modules/customs/components/PartnerFormDialo
 import { PageText } from '@/components/ui';
 import { ESPERA_MS, MINIMO_CARACTERES, type ClienteBuscado } from '../lib/invoiceSearch';
 
-export const partnerToCustomer = (p: BusinessPartnerRecord): ClienteBuscado => ({ id: p.id, tipoDocumento: p.doc_type, numeroDocumento: p.doc_number, razonSocial: p.legal_name, direccion: p.address ?? undefined });
+export const partnerToCustomer = (p: BusinessPartnerRecord): ClienteBuscado => {
+  const tieneCredito =
+    typeof p.has_credit === 'boolean'
+      ? p.has_credit
+      : p.payment_terms
+        ? p.payment_terms !== 'CONTADO'
+        : undefined;
+  const admiteDescuento =
+    typeof p.allows_discount === 'boolean' ? p.allows_discount : undefined;
+  return {
+    id: p.id,
+    tipoDocumento: p.doc_type,
+    numeroDocumento: p.doc_number,
+    razonSocial: p.legal_name,
+    direccion: p.address ?? undefined,
+    ...(tieneCredito !== undefined ? { tieneCredito } : {}),
+    ...(admiteDescuento !== undefined ? { admiteDescuento } : {}),
+  };
+};
 
 type Campo = 'documento' | 'nombre';
 interface CustomerLookupFieldProps {

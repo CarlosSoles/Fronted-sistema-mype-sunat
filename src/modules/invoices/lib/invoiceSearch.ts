@@ -27,6 +27,10 @@ export interface ClienteBuscado {
   numeroDocumento: string;
   razonSocial: string;
   direccion?: string;
+  /** Si el cliente tiene crédito habilitado en el maestro de terceros. */
+  tieneCredito?: boolean | null;
+  /** Si el cliente admite descuentos según el maestro de terceros. */
+  admiteDescuento?: boolean | null;
 }
 
 /** Producto que ofrece el buscador. */
@@ -37,6 +41,8 @@ export interface ProductoBuscado {
   valorUnitario: number;
   /** Stock disponible, si se conoce; se muestra para no vender lo que no hay. */
   stock?: number;
+  /** Afectación tributaria configurada en el producto (Catálogo 07: 10, 20, 30, 11). */
+  afectacion?: 'GRAVADA' | 'EXONERADA' | 'INAFECTA' | 'GRATUITA' | '10' | '20' | '30' | '11' | null;
 }
 
 /** Mínimo de caracteres para disparar una búsqueda por nombre. */

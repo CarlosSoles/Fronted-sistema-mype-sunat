@@ -71,7 +71,12 @@ interface FilaComprobante {
   total: number;
   estado: string;
   cdrCodigo?: string;
+  cdrMensaje?: string;
   documentoAfectado?: string;
+  comprobanteOrigen?: ComprobanteDemo['comprobanteOrigen'];
+  motivoNota?: { codigo: string; descripcion: string };
+  formaPago: 'Contado' | 'Credito' | null;
+  cuotas: readonly { numero: string; monto: number; vencimiento: string }[];
   hashCpe: string;
 }
 
@@ -93,8 +98,13 @@ const desdeNormalizado = (item: Invoice): FilaComprobante => ({
   total: item.total,
   estado: item.estadoBackend ?? '',
   cdrCodigo: item.cdrCodigo,
+  cdrMensaje: item.cdrMensaje,
   documentoAfectado: item.documentoAfectado,
-  hashCpe: '',
+  comprobanteOrigen: item.comprobanteOrigen ?? null,
+  motivoNota: item.motivoNota,
+  formaPago: item.formaPago ?? null,
+  cuotas: item.cuotas ?? [],
+  hashCpe: item.hashCpe ?? '',
 });
 
 const desdeCrudo = (item: InvoiceListado): FilaComprobante => {
@@ -113,7 +123,23 @@ const desdeCrudo = (item: InvoiceListado): FilaComprobante => {
     total,
     estado: item.estado,
     cdrCodigo: item.cdr_codigo ?? undefined,
+    cdrMensaje: item.cdr_descripcion ?? undefined,
     documentoAfectado: item.documento_afectado ?? undefined,
+    comprobanteOrigen: item.comprobante_origen
+      ? {
+          id: item.comprobante_origen.id ?? null,
+          tipoComprobante: item.comprobante_origen.tipo_comprobante ?? null,
+          serie: item.comprobante_origen.serie ?? null,
+          correlativo: item.comprobante_origen.correlativo ?? null,
+          numero: item.comprobante_origen.numero,
+          clienteDocumento: item.comprobante_origen.cliente_documento ?? null,
+          clienteNombre: item.comprobante_origen.cliente_nombre ?? null,
+          montoTotal: item.comprobante_origen.monto_total ?? null,
+          moneda: item.comprobante_origen.moneda ?? null,
+        }
+      : null,
+    formaPago: item.forma_pago ?? null,
+    cuotas: item.cuotas ?? [],
     hashCpe: item.hash_cpe ?? '',
   };
 };
@@ -129,12 +155,14 @@ const desdeCrudo = (item: InvoiceListado): FilaComprobante => {
 export function aComprobanteDemo(item: InvoiceListado | Invoice): ComprobanteDemo {
   const fila = esInvoiceNormalizado(item) ? desdeNormalizado(item) : desdeCrudo(item);
   const documento = fila.clienteDocumento;
+  const correlativoNum = Number(fila.correlativo) || 0;
 
   return {
     id: fila.id,
+    numero: `${fila.serie}-${String(correlativoNum).padStart(8, '0')}`,
     tipo: TIPOS[fila.tipoComprobante] ?? '01',
     serie: fila.serie,
-    correlativo: Number(fila.correlativo) || 0,
+    correlativo: correlativoNum,
     clienteRuc: documento,
     clienteTipoDoc: documento.length === 11 ? '6' : '1',
     clienteRazonSocial: fila.clienteNombre || 'Sin nombre registrado',
@@ -150,12 +178,16 @@ export function aComprobanteDemo(item: InvoiceListado | Invoice): ComprobanteDem
     estadoBackend: fila.estado,
     cdrCodigo: fila.cdrCodigo,
     documentoAfectado: fila.documentoAfectado,
+    comprobanteOrigen: fila.comprobanteOrigen ?? null,
+    motivoNota: fila.motivoNota,
     tipoOperacion: '0101',
-    formaPago: 'Contado',
-    cuotas: [],
-    cdrDescripcion: fila.cdrCodigo
-      ? descripcionCdr(fila.cdrCodigo)
-      : 'Sin CDR: el comprobante aún no tiene respuesta de SUNAT',
+    formaPago: fila.formaPago,
+    cuotas: fila.cuotas,
+    cdrDescripcion:
+      fila.cdrMensaje ??
+      (fila.cdrCodigo
+        ? descripcionCdr(fila.cdrCodigo)
+        : 'Sin CDR: el comprobante aún no tiene respuesta de SUNAT'),
     hashCpe: fila.hashCpe,
     items: [],
   };
