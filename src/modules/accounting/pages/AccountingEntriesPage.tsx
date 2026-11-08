@@ -6,6 +6,7 @@
  * seleccionable y los asientos muestran su origen (factura, importación o
  * manual), para que contabilidad pueda auditar de dónde salió cada línea.
  */
+import { PeriodInput } from '../components/PeriodInput';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/axios';
@@ -15,7 +16,6 @@ import {
   Badge,
   Button,
   Card,
-  Input,
   Page,
   PageHeader,
   PageText,
@@ -314,13 +314,7 @@ export default function AccountingEntriesPage() {
             >
               Período contable
             </label>
-            <Input
-              id="periodo-contable"
-              type="month"
-              value={period}
-              onChange={(event) => setPeriod(event.target.value)}
-              className="w-44"
-            />
+            <PeriodInput id="periodo-contable" value={period} onChange={setPeriod} className="w-44" />
           </div>
           <p className="text-xs text-muted-foreground pb-2">
             Se consultan y exportan solo los asientos de este período.
