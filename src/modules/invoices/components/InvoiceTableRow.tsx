@@ -67,9 +67,19 @@ export const InvoiceTableRow = ({
               ? 'Contado'
               : 'Forma de pago no registrada'}
         </PageText>
-        {c.documentoAfectado && (
+        {(c.comprobanteOrigen || c.documentoAfectado) && (
           <PageText variant="caption">
-            Afecta: {c.documentoAfectado}
+            Afecta:{' '}
+            {c.comprobanteOrigen?.tipoComprobante === '03'
+              ? 'Boleta '
+              : c.comprobanteOrigen?.tipoComprobante === '01'
+                ? 'Factura '
+                : ''}
+            {c.comprobanteOrigen?.numero ?? c.documentoAfectado}
+            {c.comprobanteOrigen?.montoTotal !== null &&
+            c.comprobanteOrigen?.montoTotal !== undefined
+              ? ` (${formatCurrency(c.comprobanteOrigen.montoTotal, c.comprobanteOrigen.moneda === 'USD' ? 'USD' : 'PEN')})`
+              : ''}
           </PageText>
         )}
       </TableCell>

@@ -107,6 +107,18 @@ export interface ComprobanteDemo {
   ultimoErrorMensaje?: string;
   /** Documento afectado, solo para notas de crédito/débito. */
   documentoAfectado?: string;
+  /** Resumen del comprobante origen en notas de crédito o débito. */
+  comprobanteOrigen?: {
+    id: string | null;
+    tipoComprobante: string | null;
+    serie: string | null;
+    correlativo: number | null;
+    numero: string;
+    clienteDocumento: string | null;
+    clienteNombre: string | null;
+    montoTotal: number | null;
+    moneda: string | null;
+  } | null;
   /** Tiempo de despacho en la cola Outbox, en ms. */
   tiempoDespachoMs?: number;
   tipoOperacion: TipoOperacion;

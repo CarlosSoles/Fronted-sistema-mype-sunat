@@ -33,6 +33,19 @@ export interface InvoiceItem {
   total: number;
 }
 
+/** Resumen del comprobante afectado por una nota de crédito o débito (07/08). */
+export interface ComprobanteOrigenNota {
+  id: string | null;
+  tipoComprobante: string | null;
+  serie: string | null;
+  correlativo: number | null;
+  numero: string;
+  clienteDocumento: string | null;
+  clienteNombre: string | null;
+  montoTotal: number | null;
+  moneda: string | null;
+}
+
 export interface Invoice {
   tieneCdr?: boolean;
   lineasOrigen?: readonly LineaOrigen[];
@@ -114,6 +127,8 @@ export interface Invoice {
    * facturas y boletas es `undefined` porque no afectan a ningún documento.
    */
   documentoAfectado?: string;
+  /** Resumen del comprobante origen en notas de crédito/débito. */
+  comprobanteOrigen?: ComprobanteOrigenNota | null;
   /** Motivo de la nota (Catálogo 09) tal como se guardó: `06`. */
   motivoNota?: { codigo: string; descripcion: string };
 }
@@ -155,6 +170,17 @@ export interface InvoiceListado {
   inafecta?: number;
   documento_afectado?: string | null;
   credit_debit_reason_code?: string | null;
+  comprobante_origen?: {
+    id: string | null;
+    tipo_comprobante: string | null;
+    serie: string | null;
+    correlativo: number | null;
+    numero: string;
+    cliente_documento: string | null;
+    cliente_nombre: string | null;
+    monto_total: number | null;
+    moneda: string | null;
+  } | null;
   hash_cpe?: string | null;
   cdr_descripcion?: string | null;
   forma_pago?: 'Contado' | 'Credito' | null;

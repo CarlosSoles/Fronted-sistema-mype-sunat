@@ -18,6 +18,7 @@
  */
 import type {
   CdrStatus,
+  ComprobanteOrigenNota,
   Invoice,
   InvoiceItem,
   Moneda,
@@ -44,8 +45,20 @@ export interface ComprobanteBackend {
   exonerada?: number;
   inafecta?: number;
   documento_afectado?: string | null;
+  referenced_document_type?: string | null;
   referenced_series_correlative?: string | null;
   credit_debit_reason_code?: string | null;
+  comprobante_origen?: {
+    id: string | null;
+    tipo_comprobante: string | null;
+    serie: string | null;
+    correlativo: number | null;
+    numero: string;
+    cliente_documento: string | null;
+    cliente_nombre: string | null;
+    monto_total: number | null;
+    moneda: string | null;
+  } | null;
   hash_cpe?: string | null;
   forma_pago?: 'Contado' | 'Credito' | null;
   cuotas?: readonly {
@@ -235,6 +248,7 @@ export const aInvoice = (fila: ComprobanteBackend): Invoice => {
     tipoComprobante: fila.tipo_comprobante,
     estadoBackend: fila.estado,
     documentoAfectado: fila.referenced_series_correlative ?? fila.documento_afectado ?? undefined,
+    comprobanteOrigen: aComprobanteOrigen(fila),
     motivoNota: fila.credit_debit_reason_code
       ? {
           codigo: fila.credit_debit_reason_code,
@@ -248,6 +262,39 @@ export const aInvoice = (fila: ComprobanteBackend): Invoice => {
       : undefined,
     reintentable: esReintentable(fila.estado),
   };
+};
+
+const aComprobanteOrigen = (fila: ComprobanteBackend): ComprobanteOrigenNota | null => {
+  if (fila.comprobante_origen) {
+    const o = fila.comprobante_origen;
+    return {
+      id: o.id ?? null,
+      tipoComprobante: o.tipo_comprobante ?? null,
+      serie: o.serie ?? null,
+      correlativo: o.correlativo ?? null,
+      numero: o.numero,
+      clienteDocumento: o.cliente_documento ?? null,
+      clienteNombre: o.cliente_nombre ?? null,
+      montoTotal: o.monto_total !== null && o.monto_total !== undefined ? numero(o.monto_total) : null,
+      moneda: o.moneda ?? null,
+    };
+  }
+  const refNumero = (fila.referenced_series_correlative ?? fila.documento_afectado ?? '').trim();
+  if ((fila.tipo_comprobante === '07' || fila.tipo_comprobante === '08') && refNumero) {
+    const m = /^([A-Za-z0-9]+)-(\d+)$/.exec(refNumero);
+    return {
+      id: null,
+      tipoComprobante: fila.referenced_document_type ?? null,
+      serie: m ? m[1] : null,
+      correlativo: m ? Number(m[2]) : null,
+      numero: refNumero,
+      clienteDocumento: fila.cliente_documento ?? null,
+      clienteNombre: fila.cliente_nombre ?? null,
+      montoTotal: null,
+      moneda: fila.moneda ?? null,
+    };
+  }
+  return null;
 };
 
 /** Convierte el detalle, que sí trae el IGV exacto y el CDR. */
@@ -275,7 +322,8 @@ export const aInvoiceDetalle = (fila: ComprobanteDetalleBackend): Invoice => {
     // Referencia de la nota al documento que modifica. El modal ya sabía
     // pintarla (`documentoAfectado` + `motivoNota`); lo que faltaba era que el
     // dato llegara hasta aquí.
-    documentoAfectado: fila.referenced_series_correlative ?? undefined,
+    documentoAfectado: fila.referenced_series_correlative ?? fila.documento_afectado ?? undefined,
+    comprobanteOrigen: aComprobanteOrigen(fila),
     motivoNota: fila.credit_debit_reason_code
       ? {
           codigo: fila.credit_debit_reason_code,

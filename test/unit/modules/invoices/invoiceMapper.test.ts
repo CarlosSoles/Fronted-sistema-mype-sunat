@@ -478,4 +478,34 @@ describe('origen y motivo de la nota', () => {
     expect(convertida.motivoNota?.codigo).toBe('99');
     expect(convertida.motivoNota?.descripcion).toBe('');
   });
+
+  it('mapea comprobante_origen completo (tipo, serie-número, cliente, importe) en listado y detalle', () => {
+    const convertida = aInvoiceDetalle(
+      nota({
+        comprobante_origen: {
+          id: 'orig-53',
+          tipo_comprobante: '01',
+          serie: 'F001',
+          correlativo: 53,
+          numero: 'F001-00000053',
+          cliente_documento: '20100066603',
+          cliente_nombre: 'CONSTRUCTORA DEL NORTE S.A.C.',
+          monto_total: 1003,
+          moneda: 'PEN',
+        },
+      }),
+    );
+
+    expect(convertida.comprobanteOrigen).toEqual({
+      id: 'orig-53',
+      tipoComprobante: '01',
+      serie: 'F001',
+      correlativo: 53,
+      numero: 'F001-00000053',
+      clienteDocumento: '20100066603',
+      clienteNombre: 'CONSTRUCTORA DEL NORTE S.A.C.',
+      montoTotal: 1003,
+      moneda: 'PEN',
+    });
+  });
 });

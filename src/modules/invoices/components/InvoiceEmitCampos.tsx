@@ -115,6 +115,104 @@ export const InvoiceEmitCampos = ({
         disabled={esNota && Boolean(b.documentoAfectado.trim())}
       />
 
+      {esNota && (
+        <>
+          <div className="sm:col-span-2" data-testid="paso-origen-nota">
+            <CampoTexto
+              id="doc-afectado"
+              list="documentos-aceptados"
+              label="Documento afectado"
+              value={b.documentoAfectado}
+              onChange={(v) =>
+                actualizar(
+                  vincularDocumentoAfectado(
+                    { ...b, documentoAfectado: v },
+                    existentes,
+                  ).borrador,
+                )
+              }
+              placeholder="F001-0042"
+              error={
+                b.documentoAfectado.trim() && !afectado
+                  ? 'Seleccione una factura o boleta ACEPTADA por SUNAT.'
+                  : undefined
+              }
+            />
+          </div>
+          <datalist id="documentos-aceptados">
+            {elegibles.map((c) => (
+              <option
+                key={c.id}
+                value={`${c.serie}-${String(c.correlativo).padStart(8, '0')}`}
+              >
+                {c.clienteRazonSocial}
+              </option>
+            ))}
+          </datalist>
+          {afectado ? (
+            <div
+              className="sm:col-span-2 rounded-lg border bg-muted/40 p-2.5 space-y-1"
+              data-testid="resumen-comprobante-origen"
+            >
+              <p className="text-xs font-medium">
+                Comprobante origen:{' '}
+                {afectado.tipo === '03' ? 'Boleta (03)' : 'Factura (01)'} ·{' '}
+                {afectado.numero ||
+                  `${afectado.serie}-${String(afectado.correlativo).padStart(8, '0')}`}
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                Cliente: {afectado.clienteRazonSocial} ({afectado.clienteRuc}) · Importe total S/{' '}
+                {afectado.totalNeto.toFixed(2)} · Se vincula con{' '}
+                {afectado.numero ||
+                  `${afectado.serie}-${String(afectado.correlativo).padStart(8, '0')}`}{' '}
+                · {afectado.clienteRazonSocial} · base S/{' '}
+                {afectado.baseImponible.toFixed(2)} + IGV de{' '}
+                {afectado.igv.toFixed(2)}
+              </p>
+              {saldoNota && (
+                <p className="text-xs">
+                  Total S/ {saldoNota.total.toFixed(2)} · Acreditado según servidor S/{' '}
+                  {saldoNota.devuelto.toFixed(2)} · Disponible según servidor S/{' '}
+                  {saldoNota.disponible.toFixed(2)}. Las notas antiguas sin vínculo por ID pueden no estar incluidas.
+                </p>
+              )}
+              {b.tipo === '07' &&
+                saldoNota &&
+                Math.round(saldoNota.devuelto * 100) > Math.round(saldoNota.total * 100) && (
+                  <p role="alert" className="text-xs text-destructive">
+                    El acreditado según el servidor supera el total del comprobante. Revise el sobre-crédito antes de continuar.
+                  </p>
+                )}
+            </div>
+          ) : (
+            <div
+              className="sm:col-span-2 rounded-lg border border-dashed bg-muted/20 p-2 text-[11px] text-muted-foreground"
+              data-testid="aviso-comprobante-origen"
+            >
+              Paso 1: elija el comprobante origen (Factura o Boleta aceptada) para cargar serie, cliente e importe.
+            </div>
+          )}
+          <div className="sm:col-span-2">
+            <CampoSelect
+              id="motivo"
+              label="Motivo de la nota"
+              value={b.motivoCodigo}
+              onChange={(v) => {
+                const elegido = motivos.find((m) => m.codigo === v);
+                actualizar({
+                  motivoCodigo: v,
+                  motivoDescripcion: elegido?.descripcion ?? '',
+                });
+              }}
+              opciones={motivos.map((m) => ({
+                value: m.codigo,
+                label: `${m.codigo} - ${m.descripcion}`,
+              }))}
+            />
+          </div>
+        </>
+      )}
+
       {/*
         D9 · Fecha de emisión.
 
@@ -232,69 +330,7 @@ export const InvoiceEmitCampos = ({
         total={total}
       />
 
-      {esNota && (
-        <>
-          <div className="sm:col-span-2">
-            <CampoTexto
-              id="doc-afectado"
-              list="documentos-aceptados"
-              label="Documento afectado"
-              value={b.documentoAfectado}
-              onChange={(v) =>
-                actualizar(
-                  vincularDocumentoAfectado(
-                    { ...b, documentoAfectado: v },
-                    existentes,
-                  ).borrador,
-                )
-              }
-              placeholder="F001-0042"
-              error={
-                b.documentoAfectado.trim() && !afectado
-                  ? 'Seleccione una factura o boleta ACEPTADA por SUNAT.'
-                  : undefined
-              }
-            />
-          </div>
-          <datalist id="documentos-aceptados">
-            {elegibles.map((c) => <option key={c.id} value={`${c.serie}-${String(c.correlativo).padStart(8, '0')}`}>{c.clienteRazonSocial}</option>)}
-          </datalist>
-          {afectado && (
-            <div className="sm:col-span-2 rounded-lg border bg-muted/40 p-2">
-              <p className="text-[11px] text-muted-foreground">
-                {/* El número fiscal, no `id`: en los comprobantes reales `id` es
-                    el UUID del backend y ver un GUID crudo en pantalla se lee
-                    como un error del sistema. `numero` ya trae los ceros de
-                    relleno (F001-00000047); se reconstruye solo si faltara. */}
-                Se vincula con{' '}
-                {afectado.numero ||
-                  `${afectado.serie}-${String(afectado.correlativo).padStart(8, '0')}`}{' '}
-                · {afectado.clienteRazonSocial} · base S/{' '}
-                {afectado.baseImponible.toFixed(2)} + IGV de{' '}
-                {afectado.igv.toFixed(2)}
-              </p>
-              {saldoNota && <p className="text-xs">Total S/ {saldoNota.total.toFixed(2)} · Acreditado según servidor S/ {saldoNota.devuelto.toFixed(2)} · Disponible según servidor S/ {saldoNota.disponible.toFixed(2)}. Las notas antiguas sin vínculo por ID pueden no estar incluidas.</p>}
-              {b.tipo === '07' && saldoNota && Math.round(saldoNota.devuelto * 100) > Math.round(saldoNota.total * 100) && <p role="alert" className="text-xs text-destructive">El acreditado según el servidor supera el total del comprobante. Revise el sobre-crédito antes de continuar.</p>}
-            </div>
-          )}
-          <CampoSelect
-            id="motivo"
-            label="Motivo de la nota"
-            value={b.motivoCodigo}
-            onChange={(v) => {
-              const elegido = motivos.find((m) => m.codigo === v);
-              actualizar({
-                motivoCodigo: v,
-                motivoDescripcion: elegido?.descripcion ?? '',
-              });
-            }}
-            opciones={motivos.map((m) => ({
-              value: m.codigo,
-              label: `${m.codigo} - ${m.descripcion}`,
-            }))}
-          />
-        </>
-      )}
+
     </div>
   );
 };

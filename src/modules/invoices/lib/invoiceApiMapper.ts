@@ -73,6 +73,7 @@ interface FilaComprobante {
   cdrCodigo?: string;
   cdrMensaje?: string;
   documentoAfectado?: string;
+  comprobanteOrigen?: ComprobanteDemo['comprobanteOrigen'];
   motivoNota?: { codigo: string; descripcion: string };
   formaPago: 'Contado' | 'Credito' | null;
   cuotas: readonly { numero: string; monto: number; vencimiento: string }[];
@@ -99,6 +100,7 @@ const desdeNormalizado = (item: Invoice): FilaComprobante => ({
   cdrCodigo: item.cdrCodigo,
   cdrMensaje: item.cdrMensaje,
   documentoAfectado: item.documentoAfectado,
+  comprobanteOrigen: item.comprobanteOrigen ?? null,
   motivoNota: item.motivoNota,
   formaPago: item.formaPago ?? null,
   cuotas: item.cuotas ?? [],
@@ -123,6 +125,19 @@ const desdeCrudo = (item: InvoiceListado): FilaComprobante => {
     cdrCodigo: item.cdr_codigo ?? undefined,
     cdrMensaje: item.cdr_descripcion ?? undefined,
     documentoAfectado: item.documento_afectado ?? undefined,
+    comprobanteOrigen: item.comprobante_origen
+      ? {
+          id: item.comprobante_origen.id ?? null,
+          tipoComprobante: item.comprobante_origen.tipo_comprobante ?? null,
+          serie: item.comprobante_origen.serie ?? null,
+          correlativo: item.comprobante_origen.correlativo ?? null,
+          numero: item.comprobante_origen.numero,
+          clienteDocumento: item.comprobante_origen.cliente_documento ?? null,
+          clienteNombre: item.comprobante_origen.cliente_nombre ?? null,
+          montoTotal: item.comprobante_origen.monto_total ?? null,
+          moneda: item.comprobante_origen.moneda ?? null,
+        }
+      : null,
     formaPago: item.forma_pago ?? null,
     cuotas: item.cuotas ?? [],
     hashCpe: item.hash_cpe ?? '',
@@ -163,6 +178,7 @@ export function aComprobanteDemo(item: InvoiceListado | Invoice): ComprobanteDem
     estadoBackend: fila.estado,
     cdrCodigo: fila.cdrCodigo,
     documentoAfectado: fila.documentoAfectado,
+    comprobanteOrigen: fila.comprobanteOrigen ?? null,
     motivoNota: fila.motivoNota,
     tipoOperacion: '0101',
     formaPago: fila.formaPago,
