@@ -66,5 +66,13 @@ export const inventoryPurchasesApi = {
     const response = await apiClient.get<NationalPurchaseRecord>(`/inventory/purchases/${id}`);
     return response.data;
   },
+
+  payPurchase: async (
+    id: string,
+    payload: { amount?: number; paymentDate?: string; paymentMethod?: string; bankName?: string },
+  ): Promise<{ id: string; status: string; amount: number; paymentMethod: string }> => {
+    const response = await apiClient.post(`/inventory/purchases/${id}/pay`, payload);
+    return response.data;
+  },
 };
 

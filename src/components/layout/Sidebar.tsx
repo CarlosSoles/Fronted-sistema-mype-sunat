@@ -19,6 +19,7 @@ import {
   FileMinus2,
   FileText,
   FileX2,
+  Receipt,
   FolderGit2,
   GitCompareArrows,
   LayoutDashboard,
@@ -113,6 +114,7 @@ const NAV_ITEMS: NavItem[] = [
     subItems: [
       { title: 'Resumen de inventario', path: '/inventory/dashboard', icon: LayoutDashboard, group: 'Inventario' },
       { title: 'Existencias y Catálogo', path: '/inventory/stocks', icon: Boxes, group: 'Inventario' },
+      { title: 'Compras nacionales', path: '/inventory/purchases', icon: Receipt, group: 'Inventario' },
       { title: 'Movimientos', path: '/inventory/movements', icon: GitCompareArrows, group: 'Inventario' },
       { title: 'Transferencias', path: '/inventory/transfers', icon: ArrowLeftRight, allowedRoles: ['ADMIN'], group: 'Inventario' },
       { title: 'Ajustes y toma física', path: '/inventory/adjustments', icon: ClipboardCheck, allowedRoles: ['ADMIN'], group: 'Inventario' },
