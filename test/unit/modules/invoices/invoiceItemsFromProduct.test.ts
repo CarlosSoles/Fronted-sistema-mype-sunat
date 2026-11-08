@@ -35,6 +35,7 @@ describe('TA-64 + TA-61 - producto elegido en el buscador -> línea de la grilla
     expect(item.codigo).toBe('CEM-001');
     expect(item.descripcion).toBe('Cemento Portland tipo I - 42.5 kg');
     expect(item.unidad).toBe('NIU');
+    expect(item.unidadHeredada).toBe(true);
     expect(item.valorUnitario).toBe(32.9);
   });
 
