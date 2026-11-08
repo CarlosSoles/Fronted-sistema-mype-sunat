@@ -14,6 +14,13 @@ export default function InvoicesDashboardPage() {
   const metricas = useQuery({ queryKey: ['invoices-dashboard-metrics', period], queryFn: () => invoicesApi.getMetrics(period) });
   const alertas = useQuery({ queryKey: ['invoices-dashboard-alertas'], queryFn: () => invoicesApi.getAlertas() });
   const m = metricas.data;
+  const dlqPendientes = alertas.data?.dlq.pendientes ?? 0;
+  const certificadoGrave = alertas.data?.certificado.gravedad === 'CRITICO';
+  const motivoAlerta = dlqPendientes > 0
+    ? `DLQ ${dlqPendientes}`
+    : certificadoGrave
+      ? 'Certificado'
+      : 'Certificado sin datos';
 
   const kpis = [
     { label: 'Facturado neto', value: money(m?.facturado ?? 0), icon: TrendingUp },
@@ -35,8 +42,12 @@ export default function InvoicesDashboardPage() {
         <Badge variant={m && m.rechazados > 0 ? 'destructive' : 'outline'}>
           {m && m.rechazados > 0 ? 'Requiere revisión' : 'Sin rechazos'}
         </Badge>
-        <Badge variant={alertas.data?.gravedadGlobal === 'CRITICO' ? 'destructive' : 'secondary'}>
+        <Badge
+          variant={alertas.data?.gravedadGlobal === 'CRITICO' ? 'destructive' : 'secondary'}
+          title={alertas.data ? `${alertas.data.certificado.mensaje} ${alertas.data.dlq.mensaje}` : undefined}
+        >
           Alerta: {alertas.data?.gravedadGlobal ?? 'SIN_DATOS'}
+          {alertas.data?.gravedadGlobal === 'CRITICO' ? ` · ${motivoAlerta}` : ''}
         </Badge>
       </div>
 
