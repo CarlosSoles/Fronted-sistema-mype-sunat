@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Badge, Card, Page, PageHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
 import { accountingApi } from '../services/accountingApi';
-import { PeriodInput } from '../components/PeriodInput';
+import { PeriodInput } from '@/components/common/PeriodInput';
 
 const periodoActual = () => {
   const hoy = new Date();

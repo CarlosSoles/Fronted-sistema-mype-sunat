@@ -6,7 +6,7 @@
  * seleccionable y los asientos muestran su origen (factura, importación o
  * manual), para que contabilidad pueda auditar de dónde salió cada línea.
  */
-import { PeriodInput } from '../components/PeriodInput';
+import { PeriodInput } from '@/components/common/PeriodInput';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/axios';

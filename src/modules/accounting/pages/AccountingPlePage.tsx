@@ -1,4 +1,4 @@
-import { PeriodInput } from '../components/PeriodInput';
+import { PeriodInput } from '@/components/common/PeriodInput';
 import { useState } from 'react';
 import { Button, Card, Page, PageHeader } from '@/components/ui';
 import { Download, FileCheck2, Loader2 } from 'lucide-react';

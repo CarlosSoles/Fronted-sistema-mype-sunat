@@ -18,6 +18,7 @@ const SecurityPage = React.lazy(() => import('@/modules/auth/pages/SecurityPage'
 // la fila. La alternativa pages/InvoicesListPage se retiró en la fusión del
 // M1 para no dejar dos bandejas paralelas apuntando al mismo endpoint.
 const InvoicesListPage = React.lazy(() => import('@/modules/invoices/InvoiceList'));
+const InvoicesDashboardPage = React.lazy(() => import('@/modules/invoices/pages/InvoicesDashboardPage'));
 const InvoiceEmissionPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceEmissionPage'));
 // TA-61: pestaña de configuración de FE. Se carga aparte porque casi nadie la
 // abre a diario y no debe pesar en la primera carga del módulo.
@@ -91,7 +92,15 @@ export const AppRoutes = () => {
             <Route path="/settings/security" element={<SecurityPage />} />
 
             {/* [M1: Facturación] ADMIN, OPERADOR_FACTURACION, CONTADOR, AUDITOR */}
-            <Route path="/invoices" element={<Navigate to="/invoices/facturas" replace />} />
+            <Route path="/invoices" element={<Navigate to="/invoices/dashboard" replace />} />
+            <Route
+              path="/invoices/dashboard"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT']}>
+                  <InvoicesDashboardPage />
+                </RoleProtectedRoute>
+              }
+            />
             <Route
               path="/invoices/facturas"
               element={

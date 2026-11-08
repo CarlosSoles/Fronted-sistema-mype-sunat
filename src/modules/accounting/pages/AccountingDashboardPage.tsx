@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { BookOpen, CheckCircle2, FileText, Scale, TrendingUp, Wallet } from 'lucide-react';
 import { Badge, Card, Page, PageHeader } from '@/components/ui';
 import { accountingApi } from '../services/accountingApi';
-import { PeriodInput } from '../components/PeriodInput';
+import { PeriodInput } from '@/components/common/PeriodInput';
 
 const periodoActual = () => {
   const hoy = new Date();
