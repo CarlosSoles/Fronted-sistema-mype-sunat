@@ -24,7 +24,6 @@ const InvoiceEmissionPage = React.lazy(() => import('@/modules/invoices/pages/In
 const InvoiceSettingsPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceSettingsPage'));
 const InvoiceBajasPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceBajasPage'));
 const InvoiceMonitorPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceMonitorPage'));
-const ResilienceDashboardPage = React.lazy(() => import('@/modules/resilience/pages/ResilienceDashboardPage'));
 const CustomsDashboardPage = React.lazy(() => import('@/modules/customs/pages/CustomsDashboardPage'));
 const ImportOrdersPage = React.lazy(() => import('@/modules/customs/pages/ImportOrdersPage'));
 const ShipmentsListPage = React.lazy(() => import('@/modules/customs/pages/ShipmentsListPage'));
@@ -158,16 +157,6 @@ export const AppRoutes = () => {
               element={
                 <RoleProtectedRoute allowedRoles={['ADMIN']}>
                   <InvoiceSettingsPage />
-                </RoleProtectedRoute>
-              }
-            />
-
-            {/* [M2: Resiliencia] ADMIN, AUDITOR */}
-            <Route
-              path="/resilience"
-              element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'AUDITOR']}>
-                  <ResilienceDashboardPage />
                 </RoleProtectedRoute>
               }
             />

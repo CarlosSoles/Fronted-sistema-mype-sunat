@@ -147,14 +147,6 @@ const NAV_ITEMS: NavItem[] = [
       { title: 'Libros Electrónicos (PLE/SIRE)', path: '/accounting/ple', icon: FileCheck2, group: 'Reportes' },
     ],
   },
-  {
-    title: 'Resiliencia SUNAT',
-    path: '/resilience',
-    icon: Activity,
-    badge: 'Caos',
-    developer: 'Oliver Saldaña',
-    allowedRoles: ['ADMIN', 'AUDITOR'],
-  },
 ];
 
 export const Sidebar = () => {
