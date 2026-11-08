@@ -19,7 +19,7 @@ import {
   TableRow,
 } from '@/components/ui';
 import { accountingApi } from '../services/accountingApi';
-import { PeriodInput } from '../components/PeriodInput';
+import { PeriodInput } from '@/components/common/PeriodInput';
 
 const periodoActual = () => {
   const hoy = new Date();

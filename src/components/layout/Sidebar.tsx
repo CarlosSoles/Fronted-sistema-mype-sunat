@@ -63,6 +63,7 @@ const NAV_ITEMS: NavItem[] = [
     developer: 'Jhordy Salirrosas',
     allowedRoles: ['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT'],
     subItems: [
+      { title: 'Resumen de facturación', path: '/invoices/dashboard', icon: LayoutDashboard },
       { title: 'Facturas y Boletas', path: '/invoices/facturas', icon: FileText },
       { title: 'Clientes y proveedores', path: '/invoices/clientes', icon: Building2 },
       // La pantalla de emisión existía y funcionaba desde el Sprint 1, pero
