@@ -136,6 +136,7 @@ const NAV_ITEMS: NavItem[] = [
     developer: 'Michael Velásquez',
     allowedRoles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
     subItems: [
+      { title: 'Resumen contable', path: '/accounting/dashboard', icon: LayoutDashboard, group: 'Registros' },
       { title: 'Libro Diario (PCGE)', path: '/accounting', icon: FileText, group: 'Registros' },
       { title: 'Plan de Cuentas (PCGE)', path: '/accounting/plan-cuentas', icon: BookOpen, group: 'Registros' },
       { title: 'Períodos Contables', path: '/accounting/periods', icon: CalendarDays, group: 'Registros' },
