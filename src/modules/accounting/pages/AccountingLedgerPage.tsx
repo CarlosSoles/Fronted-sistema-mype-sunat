@@ -4,7 +4,6 @@ import { BookOpen } from 'lucide-react';
 import {
   Badge,
   Card,
-  Input,
   Page,
   PageHeader,
   Select,
@@ -20,6 +19,7 @@ import {
   TableRow,
 } from '@/components/ui';
 import { accountingApi } from '../services/accountingApi';
+import { PeriodInput } from '../components/PeriodInput';
 
 const periodoActual = () => {
   const hoy = new Date();
@@ -27,10 +27,7 @@ const periodoActual = () => {
 };
 
 const money = (value: number) => `S/ ${value.toFixed(2)}`;
-const normalizarPeriodo = (value: string): string => {
-  const match = /^(\d{4})-(\d{1,2})$/.exec(value);
-  return match ? `${match[1]}-${match[2].padStart(2, '0')}` : value;
-};
+
 
 
 export default function AccountingLedgerPage() {
@@ -61,7 +58,7 @@ export default function AccountingLedgerPage() {
         <div className="p-4 flex flex-col gap-3 md:flex-row md:items-end">
           <div className="space-y-1.5">
             <label className="text-xs font-medium">Período</label>
-            <Input type="month" value={period} onChange={(event) => setPeriod(normalizarPeriodo(event.target.value))} />
+            <PeriodInput value={period} onChange={setPeriod} />
           </div>
           <div className="space-y-1.5 min-w-72">
             <label className="text-xs font-medium">Cuenta contable</label>

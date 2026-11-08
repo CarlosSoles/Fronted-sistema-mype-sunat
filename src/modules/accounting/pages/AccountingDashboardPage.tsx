@@ -2,18 +2,16 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { BookOpen, CheckCircle2, FileText, Scale, TrendingUp, Wallet } from 'lucide-react';
-import { Badge, Card, Input, Page, PageHeader } from '@/components/ui';
+import { Badge, Card, Page, PageHeader } from '@/components/ui';
 import { accountingApi } from '../services/accountingApi';
+import { PeriodInput } from '../components/PeriodInput';
 
 const periodoActual = () => {
   const hoy = new Date();
   return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
 };
 
-const normalizar = (value: string) => {
-  const m = /^(\d{4})-(\d{1,2})$/.exec(value);
-  return m ? `${m[1]}-${m[2].padStart(2, '0')}` : value;
-};
+
 
 const money = (n: number) => `S/ ${n.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -39,7 +37,7 @@ export default function AccountingDashboardPage() {
       <div className="flex items-end gap-3 mb-4">
         <div className="space-y-1.5">
           <label htmlFor="dashboard-period" className="text-xs font-medium">Período</label>
-          <Input id="dashboard-period" type="month" value={period} onChange={(e) => setPeriod(normalizar(e.target.value))} />
+          <PeriodInput id="dashboard-period" value={period} onChange={setPeriod} />
         </div>
         <Badge variant={periodoAbierto ? 'outline' : 'secondary'}>{periodoAbierto ? 'ABIERTO' : 'SIN ABRIR'}</Badge>
         <Badge variant={cuadrado ? 'outline' : 'destructive'}>

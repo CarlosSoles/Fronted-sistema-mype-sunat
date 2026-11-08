@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Badge,
   Card,
-  Input,
   Page,
   PageHeader,
   Table,
@@ -14,6 +13,7 @@ import {
   TableRow,
 } from '@/components/ui';
 import { accountingApi } from '../services/accountingApi';
+import { PeriodInput } from '../components/PeriodInput';
 
 const periodoActual = () => {
   const hoy = new Date();
@@ -21,10 +21,7 @@ const periodoActual = () => {
 };
 
 
-const normalizarPeriodo = (value: string): string => {
-  const match = /^(\d{4})-(\d{1,2})$/.exec(value);
-  return match ? `${match[1]}-${match[2].padStart(2, '0')}` : value;
-};
+
 
 export default function AccountingTrialBalancePage() {
   const [period, setPeriod] = useState(periodoActual);
@@ -44,7 +41,7 @@ export default function AccountingTrialBalancePage() {
         <div className="p-4 flex items-end gap-3">
           <div className="space-y-1.5">
             <label className="text-xs font-medium">Período</label>
-            <Input type="month" value={period} onChange={(event) => setPeriod(normalizarPeriodo(event.target.value))} />
+            <PeriodInput value={period} onChange={setPeriod} />
           </div>
           <Badge
             variant={

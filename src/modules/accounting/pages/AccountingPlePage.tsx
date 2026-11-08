@@ -1,5 +1,6 @@
+import { PeriodInput } from '../components/PeriodInput';
 import { useState } from 'react';
-import { Button, Card, Input, Page, PageHeader } from '@/components/ui';
+import { Button, Card, Page, PageHeader } from '@/components/ui';
 import { Download, FileCheck2, Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { apiClient } from '@/lib/axios';
@@ -71,13 +72,7 @@ export default function AccountingPlePage() {
             >
               Período a exportar
             </label>
-            <Input
-              id="periodo-ple"
-              type="month"
-              value={period}
-              onChange={(event) => setPeriod(event.target.value)}
-              className="w-44"
-            />
+            <PeriodInput id="periodo-contable" value={period} onChange={setPeriod} className="w-44" />
           </div>
           <p className="text-xs text-muted-foreground pb-2">
             La trama se genera con los asientos del período seleccionado.
