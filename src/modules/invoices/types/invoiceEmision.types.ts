@@ -42,6 +42,8 @@ export interface LineaEmisionPayload {
   cantidad: number;
   /** Valor unitario SIN IGV. */
   valorUnitario: number;
+  /** Precio unitario final CON IGV incluido digitado en la venta. */
+  precioUnitario?: number;
   afectacion?: AfectacionGrilla;
   descuento?: { codigo: '00' | '01'; monto: number } | null;
   /** Código del Catálogo 54 cuando la línea está sujeta a detracción. */

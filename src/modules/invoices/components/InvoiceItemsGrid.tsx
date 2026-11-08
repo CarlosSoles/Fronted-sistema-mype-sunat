@@ -119,7 +119,7 @@ export const InvoiceItemsGrid = ({
               <th className="px-2 py-1 text-left">Descripción</th>
               <th className="px-2 py-1 text-left">Und.</th>
               <th className="px-2 py-1 text-right">Cant.</th>
-              <th className="px-2 py-1 text-right">V. unit.</th>
+              <th className="px-2 py-1 text-right">Precio unitario (con IGV)</th>
               <th className="px-2 py-1 text-left">Descuento (Cat. 53)</th>
               <th className="px-2 py-1 text-right">ICBPER</th>
               <th className="px-2 py-1 text-left">Afectación (Cat. 07) / tributo (Cat. 05)</th>
@@ -203,15 +203,19 @@ export const InvoiceItemsGrid = ({
                   <td className="px-1 py-1">
                     <input
                       aria-label={`Valor unitario de la línea ${i + 1}`}
+                      title="Precio unitario final con IGV incluido"
                       type="number"
                       min="0"
                       step="0.01"
                       className={`${CLASE_CELDA} text-right`}
-                      value={item.valorUnitario}
+                      value={item.precioUnitario ?? item.valorUnitario}
                       onChange={(e) =>
                         onCambiar(i, { valorUnitario: Number(e.target.value) })
                       }
                     />
+                    <span className="block text-right text-[10px] text-muted-foreground">
+                      Precio final con IGV incluido
+                    </span>
                   </td>
                   <td className="px-1 py-1">
                     <select aria-label={`Tipo de descuento de la línea ${i + 1}`} className={CLASE_CELDA}
