@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, AlertDescription, Button, PageField } from '@/components/ui';
+import { Alert, AlertDescription, Badge, Button, Card, PageField, PageText } from '@/components/ui';
 import type { ConfiguracionBackend, ConfiguracionInput, EntornoFiscal, PerfilComercial } from '../hooks/useInvoiceConfig';
 import { invoiceConfigError } from '../lib/invoiceConfigError';
 
@@ -79,10 +79,74 @@ export const InvoiceIssuerConfigForm = ({ config, ruc, guardar }: {
         <p>El usuario actual no se publica. Escriba solo para reemplazarlo.</p></PageField>
       <PageField label="Nueva contraseña SOL" htmlFor="cfg-sol-password"><input id="cfg-sol-password" className={clase} type="password" autoComplete="new-password" maxLength={256} value={solPassword} onChange={(e) => setSolPassword(e.target.value)} />
         <p>Contraseña SOL: {config.sol_password_configurada ? 'configurado' : 'no configurado'}</p></PageField>
-      <PageField label="Certificado digital PKCS#12" htmlFor="cfg-cert"><input key={fileKey} id="cfg-cert" type="file" accept=".p12,.pfx" onChange={(e) => setFile(e.target.files?.[0])} />
-        <p>Cargue un archivo .p12 o .pfx (máximo 96 KiB). Solo se envía el archivo seleccionado.</p></PageField>
-      <PageField label="Nueva contraseña del certificado" htmlFor="cfg-cert-password"><input id="cfg-cert-password" className={clase} type="password" autoComplete="new-password" maxLength={256} value={certPassword} onChange={(e) => setCertPassword(e.target.value)} />
-        <p>Contraseña del certificado: {config.cert_password_configurada ? 'configurado' : 'no configurado'}</p></PageField>
+      <Card className="space-y-3 p-4" data-testid="seccion-certificado-digital">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <PageText variant="label">Certificado Digital (.PFX / .P12)</PageText>
+          <Badge
+            variant={
+              config.certificado?.estado === 'VIGENTE'
+                ? 'outline'
+                : config.certificado?.estado === 'POR_VENCER'
+                  ? 'secondary'
+                  : 'destructive'
+            }
+          >
+            {config.certificado?.estado === 'VIGENTE'
+              ? 'Vigente'
+              : config.certificado?.estado === 'POR_VENCER'
+                ? 'Por vencer'
+                : config.certificado?.estado === 'VENCIDO'
+                  ? 'Vencido'
+                  : 'No configurado'}
+          </Badge>
+        </div>
+        <div className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-3">
+          <p>
+            <span className="font-medium text-foreground">Archivo:</span>{' '}
+            {file
+              ? file.name
+              : config.certificado?.archivo ?? 'Sin archivo registrado'}
+          </p>
+          <p>
+            <span className="font-medium text-foreground">Estado:</span>{' '}
+            {config.certificado?.configurado
+              ? 'Operativo para firma XML'
+              : 'Pendiente de carga o vencido'}
+          </p>
+          <p>
+            <span className="font-medium text-foreground">Vencimiento:</span>{' '}
+            {config.certificado?.vence_el
+              ? `${config.certificado.vence_el}${
+                  config.certificado.dias_restantes !== null
+                    ? ` (${config.certificado.dias_restantes} días restantes)`
+                    : ''
+                }`
+              : 'No disponible'}
+          </p>
+        </div>
+        <PageField label="Certificado digital PKCS#12" htmlFor="cfg-cert">
+          <input
+            key={fileKey}
+            id="cfg-cert"
+            type="file"
+            accept=".p12,.pfx"
+            onChange={(e) => setFile(e.target.files?.[0])}
+          />
+          <p>Cargue un archivo .p12 o .pfx (máximo 96 KiB). Solo se envía el archivo seleccionado.</p>
+        </PageField>
+        <PageField label="Nueva contraseña del certificado" htmlFor="cfg-cert-password">
+          <input
+            id="cfg-cert-password"
+            className={clase}
+            type="password"
+            autoComplete="new-password"
+            maxLength={256}
+            value={certPassword}
+            onChange={(e) => setCertPassword(e.target.value)}
+          />
+          <p>Contraseña del certificado: {config.cert_password_configurada ? 'configurado' : 'no configurado'}</p>
+        </PageField>
+      </Card>
       <p>Deje vacíos los campos que desea conservar. Al configurar SOL o certificado por primera vez, complete ambos campos del grupo.</p>
       <Button type="submit">{enviando ? 'Guardando…' : 'Guardar configuración'}</Button>
     </fieldset>

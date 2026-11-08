@@ -23,8 +23,18 @@ export interface ConfiguracionInput {
   cert_base64?: string;
   cert_password?: string;
 }
+export interface EstadoCertificadoBackend {
+  archivo: string | null;
+  configurado: boolean;
+  estado: 'VIGENTE' | 'POR_VENCER' | 'VENCIDO' | 'NO_CONFIGURADO';
+  vence_el: string | null;
+  dias_restantes: number | null;
+  origen: 'company' | 'deployment';
+}
+
 export interface ConfiguracionBackend {
   ruc?: string;
+  certificado?: EstadoCertificadoBackend;
   perfil_comercial?: PerfilComercial | null;
   origen_efectivo?: 'company' | 'deployment';
   origen_sol?: 'company' | 'deployment';

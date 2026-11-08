@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { InvoiceEmitModal } from '@/modules/invoices/components/InvoiceEmitModal';
+import { InvoiceIssuerConfigForm } from '@/modules/invoices/components/InvoiceIssuerConfigForm';
 import { invoicesApi } from '@/modules/invoices/services/invoicesApi';
 import { construir } from '@/modules/invoices/data/invoiceDemoTypes';
 
@@ -56,4 +57,32 @@ it('muestra el comprobante origen (tipo, serie-número, cliente e importe) desde
   expect(resumen.textContent).toContain('FERRETERIA NORTE');
   expect(resumen.textContent).toContain('Importe total S/ 1770.00');
   cleanup(); query.clear();
+});
+
+it('muestra la sección del certificado digital (archivo, estado y vencimiento) visible y directa en Configuración', () => {
+  render(
+    <InvoiceIssuerConfigForm
+      ruc="20100070970"
+      guardar={vi.fn()}
+      config={{
+        entorno: 'BETA',
+        perfil_comercial: 'MAYORISTA',
+        cert_password_configurada: true,
+        certificado: {
+          archivo: 'certificado-20100070970.p12 (custodia empresa)',
+          configurado: true,
+          estado: 'VIGENTE',
+          vence_el: '2027-05-15',
+          dias_restantes: 189,
+          origen: 'company',
+        },
+      }}
+    />,
+  );
+  const seccion = screen.getByTestId('seccion-certificado-digital');
+  expect(seccion.textContent).toContain('Certificado Digital (.PFX / .P12)');
+  expect(seccion.textContent).toContain('certificado-20100070970.p12 (custodia empresa)');
+  expect(seccion.textContent).toContain('Vigente');
+  expect(seccion.textContent).toContain('2027-05-15 (189 días restantes)');
+  cleanup();
 });
