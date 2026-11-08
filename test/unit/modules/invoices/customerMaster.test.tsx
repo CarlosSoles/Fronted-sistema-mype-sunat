@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CustomerLookupField } from '@/modules/invoices/components/CustomerLookupField';
 import { RetencionMaestro } from '@/modules/invoices/components/RetencionMaestro';
+import { InvoiceEmitModal } from '@/modules/invoices/components/InvoiceEmitModal';
 import { masterDataApi, type BusinessPartnerRecord } from '@/modules/customs/services/masterDataApi';
 import { apiClient } from '@/lib/axios';
 import type { ClienteBuscado } from '@/modules/invoices/lib/invoiceSearch';
@@ -88,4 +89,20 @@ it('no reactiva ni selecciona un tercero inactivo al registrar su documento', as
   expect(selected).not.toHaveBeenCalled();
   expect(masterDataApi.createPartner).not.toHaveBeenCalled();
   expect(masterDataApi.updatePartner).not.toHaveBeenCalled();
+});
+it('solo habilita la venta al crédito con cuotas para clientes con crédito registrado en el maestro', async () => {
+  const sinCredito: BusinessPartnerRecord = { ...partner, id: 'c-contado', legal_name: 'Cliente Contado', has_credit: false, payment_terms: 'CONTADO' };
+  const conCredito: BusinessPartnerRecord = { ...partner, id: 'c-credito', doc_number: '20555555551', legal_name: 'Cliente Credito', has_credit: true, payment_terms: '30_DIAS' };
+  vi.mocked(masterDataApi.getPartners).mockResolvedValue([sinCredito, conCredito]);
+  render(<QueryClientProvider client={client}><InvoiceEmitModal tipoInicial="01" fecha="2026-11-06" existentes={[]} onEmitir={vi.fn()} onCerrar={vi.fn()} /></QueryClientProvider>);
+  const btnCredito = () => screen.getByRole('button', { name: 'Crédito' }) as HTMLButtonElement;
+  expect(btnCredito().disabled).toBe(true);
+  fireEvent.change(screen.getByLabelText('Razón social / nombre'), { target: { value: 'Cliente' } });
+  fireEvent.click(await screen.findByRole('button', { name: /Cliente Contado/ }));
+  expect(btnCredito().disabled).toBe(true);
+  fireEvent.change(screen.getByLabelText('Razón social / nombre'), { target: { value: 'Cliente' } });
+  fireEvent.click(await screen.findByRole('button', { name: /Cliente Credito/ }));
+  expect(btnCredito().disabled).toBe(false);
+  fireEvent.click(btnCredito());
+  expect(screen.getByText(/Pago a crédito en/i)).toBeTruthy();
 });

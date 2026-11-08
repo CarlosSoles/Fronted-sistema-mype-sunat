@@ -27,6 +27,8 @@ export interface ClienteBuscado {
   numeroDocumento: string;
   razonSocial: string;
   direccion?: string;
+  /** Si el cliente tiene crédito habilitado en el maestro de terceros. */
+  tieneCredito?: boolean | null;
 }
 
 /** Producto que ofrece el buscador. */

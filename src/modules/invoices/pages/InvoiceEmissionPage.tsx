@@ -552,25 +552,37 @@ export default function InvoiceEmissionPage() {
                   Forma de pago
                 </span>
                 <div className="flex gap-2">
-                  {(['Contado', 'Credito'] as const).map((forma) => (
-                    <Button
-                      key={forma}
-                      type="button"
-                      size="sm"
-                      variant={formaPago === forma ? 'default' : 'outline'}
-                      onClick={() => {
-                        setFormaPago(forma);
-                        setCuotas(
-                          forma === 'Credito'
-                            ? repartirEnCuotas(netoPendiente, 1, fechaEmision)
-                            : [],
-                        );
-                      }}
-                    >
-                      {forma === 'Credito' ? 'Crédito' : 'Contado'}
-                    </Button>
-                  ))}
+                  {(['Contado', 'Credito'] as const).map((forma) => {
+                    const creditoHabilitado =
+                      clienteSeleccionado?.tieneCredito === true;
+                    return (
+                      <Button
+                        key={forma}
+                        type="button"
+                        size="sm"
+                        disabled={forma === 'Credito' && !creditoHabilitado}
+                        variant={formaPago === forma ? 'default' : 'outline'}
+                        onClick={() => {
+                          if (forma === 'Credito' && !creditoHabilitado) return;
+                          setFormaPago(forma);
+                          setCuotas(
+                            forma === 'Credito'
+                              ? repartirEnCuotas(netoPendiente, 1, fechaEmision)
+                              : [],
+                          );
+                        }}
+                      >
+                        {forma === 'Credito' ? 'Crédito' : 'Contado'}
+                      </Button>
+                    );
+                  })}
                 </div>
+                {clienteSeleccionado?.tieneCredito !== true && (
+                  <PageText variant="caption">
+                    La venta al crédito con cuotas solo se habilita para
+                    clientes con crédito registrado en el maestro.
+                  </PageText>
+                )}
               </div>
 
               {formaPago === 'Credito' && (
@@ -597,12 +609,27 @@ export default function InvoiceEmissionPage() {
                 }
                 placeholderDocumento={tipo === '01' ? '20100070970' : '70123456'}
                 errorDocumento={clienteDoc.length > 0 && !documentoValidoParaTipo(tipo, clienteDoc) ? mensajeErrorDocumento(tipo) : undefined}
-                onDocumentoChange={(valor) => { setClienteSeleccionado(null); setClienteDoc(valor); setClienteRazonSocial(''); }}
-                onRazonSocialChange={(valor) => { setClienteSeleccionado(null); setClienteRazonSocial(valor); }}
+                onDocumentoChange={(valor) => {
+                  setClienteSeleccionado(null);
+                  setClienteDoc(valor);
+                  setClienteRazonSocial('');
+                  setFormaPago('Contado');
+                  setCuotas([]);
+                }}
+                onRazonSocialChange={(valor) => {
+                  setClienteSeleccionado(null);
+                  setClienteRazonSocial(valor);
+                  setFormaPago('Contado');
+                  setCuotas([]);
+                }}
                 onElegir={(cliente) => {
                   setClienteSeleccionado(cliente);
                   setClienteDoc(cliente.numeroDocumento);
                   setClienteRazonSocial(cliente.razonSocial);
+                  if (cliente.tieneCredito !== true) {
+                    setFormaPago('Contado');
+                    setCuotas([]);
+                  }
                 }}
               />
 

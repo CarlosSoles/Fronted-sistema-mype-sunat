@@ -50,6 +50,7 @@ export interface BorradorEmision {
   clienteId?: string;
   clienteTipoDocumento?: string;
   clienteDireccion?: string;
+  clienteTieneCredito?: boolean | null;
   clienteDoc: string;
   clienteTipoDoc: '1' | '6';
   clienteRazonSocial: string;

@@ -32,6 +32,7 @@ export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PR
     tradeName: partner?.trade_name ?? '', countryCode: partner?.country_code ?? 'PE',
     address: partner?.address ?? '', email: partner?.email ?? '', phone: partner?.phone ?? '',
     paymentTerms: partner?.payment_terms ?? 'CONTADO', currencyCode: partner?.currency_code ?? 'PEN',
+    hasCredit: typeof partner?.has_credit === 'boolean' ? partner.has_credit : Boolean(partner?.payment_terms && partner.payment_terms !== 'CONTADO'),
     isActive: partner?.is_active ?? true,
   });
   const [roles, setRoles] = useState<PartnerRole[]>(partner ? [...partner.roles] : [initialRole]);
@@ -50,7 +51,7 @@ export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PR
         legalName: form.legalName.trim(), tradeName: form.tradeName.trim() || undefined,
         countryCode: form.countryCode.trim().toUpperCase(), address: form.address.trim() || undefined,
         email: form.email.trim() || undefined, phone: form.phone.trim() || undefined,
-        paymentTerms: form.paymentTerms, currencyCode: form.currencyCode, roles,
+        paymentTerms: form.paymentTerms, hasCredit: form.hasCredit, currencyCode: form.currencyCode, roles,
       };
       if (partner) return masterDataApi.updatePartner(partner.id, { ...payload, isActive: form.isActive });
       if (requiredRole) {
@@ -122,7 +123,7 @@ export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PR
             </div>
             <div>
               <p className="mb-1 font-medium">Condición de pago</p>
-              <select aria-label="Condición de pago" className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm" value={form.paymentTerms} onChange={(e) => setForm({ ...form, paymentTerms: e.target.value })}>
+              <select aria-label="Condición de pago" className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm" value={form.paymentTerms} onChange={(e) => setForm({ ...form, paymentTerms: e.target.value, hasCredit: e.target.value !== 'CONTADO' })}>
                 <option value="CONTADO">Contado</option>
                 <option value="15_DIAS">15 días</option>
                 <option value="30_DIAS">30 días</option>
@@ -130,6 +131,25 @@ export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PR
                 <option value="60_DIAS">60 días</option>
                 <option value="CARTA_CREDITO">Carta de crédito</option>
               </select>
+              <label className="mt-2 flex items-center gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  aria-label="Habilitado para venta al crédito"
+                  checked={form.hasCredit}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      hasCredit: e.target.checked,
+                      paymentTerms: e.target.checked
+                        ? form.paymentTerms === 'CONTADO'
+                          ? '30_DIAS'
+                          : form.paymentTerms
+                        : 'CONTADO',
+                    })
+                  }
+                />
+                Habilitado para venta al crédito
+              </label>
             </div>
             <div>
               <p className="mb-1 font-medium">Moneda</p>

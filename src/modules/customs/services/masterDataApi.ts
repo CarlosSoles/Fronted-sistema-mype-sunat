@@ -56,6 +56,7 @@ export interface BusinessPartnerRecord {
   website?: string | null;
   roles: PartnerRole[];
   payment_terms?: string | null;
+  has_credit?: boolean | null;
   credit_limit?: string | number | null;
   currency_code?: string | null;
   is_active: boolean;

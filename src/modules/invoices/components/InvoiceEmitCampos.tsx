@@ -159,15 +159,19 @@ export const InvoiceEmitCampos = ({
             ? mensajeErrorDocumento(b.tipo)
             : undefined
         }
-        onDocumentoChange={(clienteDoc) => actualizar({ clienteDoc, clienteRazonSocial: '', clienteId: undefined, clienteTipoDocumento: undefined, clienteDireccion: undefined })}
-        onRazonSocialChange={(clienteRazonSocial) => actualizar({ clienteRazonSocial, clienteId: undefined })}
+        onDocumentoChange={(clienteDoc) => actualizar({ clienteDoc, clienteRazonSocial: '', clienteId: undefined, clienteTipoDocumento: undefined, clienteDireccion: undefined, clienteTieneCredito: false, formaPago: 'Contado', cuotas: [] })}
+        onRazonSocialChange={(clienteRazonSocial) => actualizar({ clienteRazonSocial, clienteId: undefined, clienteTieneCredito: false, formaPago: 'Contado', cuotas: [] })}
         onElegir={(cliente) =>
           actualizar({
             clienteId: cliente.id,
             clienteTipoDocumento: cliente.tipoDocumento,
             clienteDireccion: cliente.direccion,
+            clienteTieneCredito: cliente.tieneCredito === true,
             clienteDoc: cliente.numeroDocumento,
             clienteRazonSocial: cliente.razonSocial,
+            ...(cliente.tieneCredito === true
+              ? {}
+              : { formaPago: 'Contado', cuotas: [] }),
           })
         }
       />

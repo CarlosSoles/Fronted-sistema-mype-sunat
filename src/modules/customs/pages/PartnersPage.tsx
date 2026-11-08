@@ -115,7 +115,11 @@ export default function PartnersPage({ context = 'customs' }: { context?: 'custo
                       {p.roles.map((r) => <Badge key={r} variant="outline" className="text-[10px]">{r}</Badge>)}
                     </div>
                   </td>
-                  <td className="p-3">{p.payment_terms || '—'}</td>
+                  <td className="p-3">
+                    {p.has_credit === true || (p.has_credit == null && Boolean(p.payment_terms && p.payment_terms !== 'CONTADO'))
+                      ? `Crédito (${p.payment_terms || 'Habilitado'})`
+                      : p.payment_terms || '—'}
+                  </td>
                   <td className="p-3">{p.email || p.phone || '—'}</td>
                   <td className="p-3 text-center">
                     <Badge variant={p.is_active ? 'default' : 'secondary'}>
