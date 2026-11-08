@@ -63,7 +63,9 @@ export const InvoiceTableRow = ({
         <PageText variant="caption">
           {c.formaPago === 'Credito'
             ? `Crédito (${c.cuotas.length} cuotas)`
-            : 'Contado'}
+            : c.formaPago === 'Contado'
+              ? 'Contado'
+              : 'Forma de pago no registrada'}
         </PageText>
         {c.documentoAfectado && (
           <PageText variant="caption">

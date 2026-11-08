@@ -154,7 +154,15 @@ export interface InvoiceListado {
   exonerada?: number;
   inafecta?: number;
   documento_afectado?: string | null;
+  credit_debit_reason_code?: string | null;
   hash_cpe?: string | null;
+  cdr_descripcion?: string | null;
+  forma_pago?: 'Contado' | 'Credito' | null;
+  cuotas?: readonly {
+    numero: string;
+    monto: number;
+    vencimiento: string;
+  }[];
 }
 
 /** Página de comprobantes que devuelve `GET /invoices`. */

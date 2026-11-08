@@ -73,6 +73,30 @@ describe('invoiceApiMapper', () => {
     expect(comprobante.tipo).toBe('07');
     expect(comprobante.documentoAfectado).toBe('F001-00000001');
   });
+
+  it('deja formaPago en null cuando el backend no la informa, en vez de inventar Contado', () => {
+    const comprobante = aComprobanteDemo(fila());
+    expect(comprobante.formaPago).toBeNull();
+    expect(comprobante.cuotas).toEqual([]);
+  });
+
+  it('conserva formaPago Credito, cuotas y cdr_descripcion reales del listado', () => {
+    const comprobante = aComprobanteDemo(
+      fila({
+        forma_pago: 'Credito',
+        cuotas: [{ numero: 'Cuota001', monto: 118, vencimiento: '2026-11-30' }],
+        cdr_descripcion: 'La Factura numero F001-00000007, ha sido aceptada',
+      }),
+    );
+
+    expect(comprobante.formaPago).toBe('Credito');
+    expect(comprobante.cuotas).toEqual([
+      { numero: 'Cuota001', monto: 118, vencimiento: '2026-11-30' },
+    ]);
+    expect(comprobante.cdrDescripcion).toBe(
+      'La Factura numero F001-00000007, ha sido aceptada',
+    );
+  });
 });
 
 describe('aPayloadCreacion', () => {

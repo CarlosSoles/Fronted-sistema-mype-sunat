@@ -27,6 +27,7 @@ interface RespuestaStocks {
   balances?: Array<{
     sku?: string;
     description?: string;
+    sunatUnitCode?: string;
     currentStock?: number | string;
     averageUnitCost?: number | string;
   }>;
@@ -52,14 +53,12 @@ export const productosDesdeStocks = (
       const sku = (b.sku ?? '').trim();
       const stock = Number(b.currentStock ?? 0);
       const costo = Number(b.averageUnitCost ?? 0);
+      const unidadRaw = (b.sunatUnitCode ?? '').trim().toUpperCase();
 
       return {
         sku,
         descripcion: (b.description ?? '').trim(),
-        // La unidad del producto no viene en la valorización; se usa NIU, que
-        // es la del Catálogo 03 válida para bienes, y el usuario la cambia si
-        // el producto se vende por docena o por ciento.
-        unidad: 'NIU',
+        unidad: unidadRaw || 'NIU',
         valorUnitario: Number.isFinite(costo) ? r2(costo) : 0,
         stock: Number.isFinite(stock) ? stock : 0,
       };
