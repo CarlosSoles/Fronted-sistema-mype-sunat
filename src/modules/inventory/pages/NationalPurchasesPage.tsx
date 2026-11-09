@@ -7,6 +7,7 @@ import {
   TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui';
 import { inventoryPurchasesApi, type NationalPurchaseRecord } from '../services/inventoryPurchasesApi';
+import { NationalPurchaseModal } from '../components/NationalPurchaseModal';
 
 const money = (n: number) => `S/ ${n.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -18,6 +19,7 @@ export default function NationalPurchasesPage() {
   const [amount, setAmount] = useState('');
   const [historial, setHistorial] = useState<Array<{ id: string; date: string; amount: number; paymentMethod: string; bankName?: string | null; concept: string }> | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [altaAbierta, setAltaAbierta] = useState(false);
 
   const { data, isLoading, error: queryError } = useQuery({
     queryKey: ['national-purchases'],
@@ -46,7 +48,9 @@ export default function NationalPurchasesPage() {
 
   return (
     <Page>
-      <PageHeader title="Compras nacionales" description="Comprobantes de compra, estado de pago y asiento contable" />
+      <PageHeader title="Compras nacionales" description="Comprobantes de compra, estado de pago y asiento contable">
+        <Button size="sm" onClick={() => setAltaAbierta(true)}><Receipt className="h-4 w-4 mr-1" /> Registrar compra</Button>
+      </PageHeader>
 
       {error || queryError ? <Card className="p-4 mb-4 text-sm text-destructive">{error ?? 'No se pudieron cargar las compras.'}</Card> : null}
 
@@ -133,6 +137,7 @@ export default function NationalPurchasesPage() {
           </Table>
         </DialogContent>
       </Dialog>
+      <NationalPurchaseModal isOpen={altaAbierta} onClose={() => setAltaAbierta(false)} onSuccess={() => { setAltaAbierta(false); void queryClient.invalidateQueries({ queryKey: ['national-purchases'] }); }} />
     </Page>
   );
 }

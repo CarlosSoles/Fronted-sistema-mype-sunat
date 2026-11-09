@@ -41,6 +41,7 @@ const DuaCalculatorPage = React.lazy(() => import('@/modules/customs/pages/DuaCa
 const InventoryStocksPage = React.lazy(() => import('@/modules/inventory/pages/InventoryStocksPage'));
 const InventoryDashboardPage = React.lazy(() => import('@/modules/inventory/pages/InventoryDashboardPage'));
 const NationalPurchasesPage = React.lazy(() => import('@/modules/inventory/pages/NationalPurchasesPage'));
+const PurchasesPayablesPage = React.lazy(() => import('@/modules/inventory/pages/PurchasesPayablesPage'));
 const InventoryTransfersPage = React.lazy(() => import('@/modules/inventory/pages/InventoryTransfersPage'));
 const InventoryAdjustmentsPage = React.lazy(() => import('@/modules/inventory/pages/InventoryAdjustmentsPage'));
 const InventoryKardexPage = React.lazy(() => import('@/modules/inventory/pages/InventoryKardexPage'));
@@ -332,6 +333,14 @@ export const AppRoutes = () => {
               element={
                 <RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
                   <InventoryDashboardPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/inventory/purchases/payables"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <PurchasesPayablesPage />
                 </RoleProtectedRoute>
               }
             />

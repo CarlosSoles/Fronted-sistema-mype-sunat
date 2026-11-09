@@ -20,6 +20,7 @@ import {
   FileText,
   FileX2,
   Receipt,
+  WalletCards,
   FolderGit2,
   GitCompareArrows,
   LayoutDashboard,
@@ -106,6 +107,18 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
+    title: 'Compras',
+    path: '/inventory/purchases',
+    icon: Receipt,
+    developer: 'Oliver Saldaña',
+    allowedRoles: ['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
+    subItems: [
+      { title: 'Compras nacionales', path: '/inventory/purchases', icon: Receipt },
+      { title: 'Cuentas por pagar', path: '/inventory/purchases/payables', icon: WalletCards },
+      { title: 'Proveedores', path: '/invoices/clientes', icon: Building2 },
+    ],
+  },
+  {
     title: 'Inventario y Kardex',
     path: '/inventory',
     icon: Boxes,
@@ -114,7 +127,6 @@ const NAV_ITEMS: NavItem[] = [
     subItems: [
       { title: 'Resumen de inventario', path: '/inventory/dashboard', icon: LayoutDashboard, group: 'Inventario' },
       { title: 'Existencias y Catálogo', path: '/inventory/stocks', icon: Boxes, group: 'Inventario' },
-      { title: 'Compras nacionales', path: '/inventory/purchases', icon: Receipt, group: 'Inventario' },
       { title: 'Movimientos', path: '/inventory/movements', icon: GitCompareArrows, group: 'Inventario' },
       { title: 'Transferencias', path: '/inventory/transfers', icon: ArrowLeftRight, allowedRoles: ['ADMIN'], group: 'Inventario' },
       { title: 'Ajustes y toma física', path: '/inventory/adjustments', icon: ClipboardCheck, allowedRoles: ['ADMIN'], group: 'Inventario' },
