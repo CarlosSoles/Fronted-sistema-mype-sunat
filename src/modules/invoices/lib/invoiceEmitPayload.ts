@@ -85,14 +85,14 @@ export const borradorAPayloadEmision = (
       unidad: item.unidad,
       cantidad: item.cantidad,
       valorUnitario: item.valorUnitario,
-      ...(typeof item.precioUnitario === 'number' && Number.isFinite(item.precioUnitario)
-        ? { precioUnitario: item.precioUnitario }
-        : {}),
+      precioUnitario: typeof item.precioUnitario === 'number' && Number.isFinite(item.precioUnitario)
+        ? item.precioUnitario
+        : item.afectacion === 'GRAVADA' ? Number((item.valorUnitario * 1.18).toFixed(10)) : item.valorUnitario,
       descuento: item.descuento ?? null,
       // La afectación es POR LÍNEA: una factura puede llevar un ítem gravado y
       // otro exonerado. Mandar siempre '10' hacía que elegir "Exonerada" no
       // llegara nunca al XML.
-      afectacion: CODIGO_AFECTACION[item.afectacion],
+      afectacion: (item.codigoAfectacion ?? CODIGO_AFECTACION[item.afectacion]) as AfectacionGrilla,
       // Igual con la detracción: "eso lo manda el producto, no la factura".
       codigoDetraccion: item.codigoDetraccion || undefined,
       // El ICBPER solo viaja cuando la línea es una bolsa plástica.
