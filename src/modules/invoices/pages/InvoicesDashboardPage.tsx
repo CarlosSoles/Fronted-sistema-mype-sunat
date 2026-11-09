@@ -74,7 +74,7 @@ export default function InvoicesDashboardPage() {
           ['Facturas y boletas', '/invoices/facturas'],
           ['Monitor Outbox y CDR', '/invoices/monitor'],
           ['Notas de crédito/débito', '/invoices/notas'],
-          ['Bajas y resúmenes', '/invoices/bajas'],
+          ['Anulación y resúmenes', '/invoices/bajas'],
           ['Configuración', '/invoices/configuracion'],
         ].map(([title, to]) => (
           <Link key={to} to={to} className="rounded-lg border bg-card p-4 hover:bg-muted/40 transition-colors">
