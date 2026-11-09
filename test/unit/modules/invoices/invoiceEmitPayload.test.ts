@@ -214,3 +214,23 @@ describe('problemaDeCronograma', () => {
     expect(mensaje).toContain('2026-11-03');
   });
 });
+
+// El catálogo conserva su base sugerida; seleccionar inicializa también el precio final.
+import { itemDesdeProducto } from '@/modules/invoices/lib/invoiceItems';
+it.each([['10', 118], ['20', 100], ['30', 100]])('seleccionar → no editar → crear conserva precio final (%s)', (afectacion, precio) => {
+  const selected = itemDesdeProducto({ sku: 'P1', descripcion: 'Producto', unidad: 'NIU', valorUnitario: 100, afectacion }, 'k');
+  const payload = borradorAPayloadEmision(factura({ items: [selected] }));
+  expect(payload.items[0]).toMatchObject({ codigo: 'P1', cantidad: 1, precioUnitario: precio, afectacion });
+});
+import { productosDesdeStocks } from '@/modules/invoices/services/inventoryProductsApi';
+it.each(['12', '16', '21', '31', '37', '40'])('catálogo → selección → payload conserva código fiscal %s', codigo => {
+  const product = productosDesdeStocks({ balances: [{ sku: 'P1', description: 'Prueba', sunatUnitCode: 'KGM', averageUnitCost: 100, taxAffectation: codigo }] })[0];
+  const selected = itemDesdeProducto(product, 'k');
+  const payload = borradorAPayloadEmision(factura({ items: [selected] }));
+  expect(payload.items[0].afectacion).toBe(codigo);
+  expect(payload.items[0].unidad).toBe('KGM');
+});
+it('no fabrica afectación ni unidad cuando falta configuración del producto', () => {
+  expect(() => itemDesdeProducto({ sku: 'P1', descripcion: 'Prueba', unidad: '', valorUnitario: 100, afectacion: '10' }, 'k')).toThrow(/Unidad/);
+  expect(() => itemDesdeProducto({ sku: 'P1', descripcion: 'Prueba', unidad: 'NIU', valorUnitario: 100, afectacion: null }, 'k')).toThrow(/afectación/);
+});
