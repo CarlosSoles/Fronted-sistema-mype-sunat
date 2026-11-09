@@ -19,6 +19,8 @@ import {
   FileMinus2,
   FileText,
   FileX2,
+  Receipt,
+  WalletCards,
   FolderGit2,
   GitCompareArrows,
   LayoutDashboard,
@@ -63,6 +65,7 @@ const NAV_ITEMS: NavItem[] = [
     developer: 'Jhordy Salirrosas',
     allowedRoles: ['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT'],
     subItems: [
+      { title: 'Resumen de facturación', path: '/invoices/dashboard', icon: LayoutDashboard },
       { title: 'Facturas y Boletas', path: '/invoices/facturas', icon: FileText },
       { title: 'Clientes y proveedores', path: '/invoices/clientes', icon: Building2 },
       // La pantalla de emisión existía y funcionaba desde el Sprint 1, pero
@@ -71,7 +74,7 @@ const NAV_ITEMS: NavItem[] = [
       // menú, así que si no está aquí, para él el módulo no sabe emitir.
       { title: 'Emitir Comprobante', path: '/invoices/emision', icon: FilePlus },
       { title: 'Notas', path: '/invoices/notas', icon: FileMinus2 },
-      { title: 'Bajas y Resúmenes Diarios', path: '/invoices/bajas', icon: FileX2 },
+      { title: 'Anulación y Resúmenes Diarios', path: '/invoices/bajas', icon: FileX2 },
       { title: 'Monitor Outbox y CDR', path: '/invoices/monitor', icon: Activity },
       // La ruta `/invoices/configuracion` (TA-61) existía desde el Sprint 2 y
       // responde con `GET /invoices/config`, pero no figuraba en el menú: una
@@ -104,13 +107,26 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
+    title: 'Compras',
+    path: '/inventory/purchases',
+    icon: Receipt,
+    developer: 'Oliver Saldaña',
+    allowedRoles: ['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
+    subItems: [
+      { title: 'Compras nacionales', path: '/inventory/purchases', icon: Receipt },
+      { title: 'Cuentas por pagar', path: '/inventory/purchases/payables', icon: WalletCards },
+      { title: 'Proveedores', path: '/invoices/clientes', icon: Building2 },
+    ],
+  },
+  {
     title: 'Inventario y Kardex',
     path: '/inventory',
     icon: Boxes,
     developer: 'Carlos Ahumada',
     allowedRoles: ['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
     subItems: [
-      { title: 'Existencias y Catálogo', path: '/inventory/stocks', icon: LayoutDashboard, group: 'Inventario' },
+      { title: 'Resumen de inventario', path: '/inventory/dashboard', icon: LayoutDashboard, group: 'Inventario' },
+      { title: 'Existencias y Catálogo', path: '/inventory/stocks', icon: Boxes, group: 'Inventario' },
       { title: 'Movimientos', path: '/inventory/movements', icon: GitCompareArrows, group: 'Inventario' },
       { title: 'Transferencias', path: '/inventory/transfers', icon: ArrowLeftRight, allowedRoles: ['ADMIN'], group: 'Inventario' },
       { title: 'Ajustes y toma física', path: '/inventory/adjustments', icon: ClipboardCheck, allowedRoles: ['ADMIN'], group: 'Inventario' },
@@ -136,6 +152,7 @@ const NAV_ITEMS: NavItem[] = [
     developer: 'Michael Velásquez',
     allowedRoles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
     subItems: [
+      { title: 'Resumen contable', path: '/accounting/dashboard', icon: LayoutDashboard, group: 'Registros' },
       { title: 'Libro Diario (PCGE)', path: '/accounting', icon: FileText, group: 'Registros' },
       { title: 'Plan de Cuentas (PCGE)', path: '/accounting/plan-cuentas', icon: BookOpen, group: 'Registros' },
       { title: 'Períodos Contables', path: '/accounting/periods', icon: CalendarDays, group: 'Registros' },
@@ -146,14 +163,6 @@ const NAV_ITEMS: NavItem[] = [
       { title: 'Balance General', path: '/accounting/balance-sheet', icon: ClipboardCheck, group: 'Reportes' },
       { title: 'Libros Electrónicos (PLE/SIRE)', path: '/accounting/ple', icon: FileCheck2, group: 'Reportes' },
     ],
-  },
-  {
-    title: 'Resiliencia SUNAT',
-    path: '/resilience',
-    icon: Activity,
-    badge: 'Caos',
-    developer: 'Oliver Saldaña',
-    allowedRoles: ['ADMIN', 'AUDITOR'],
   },
 ];
 

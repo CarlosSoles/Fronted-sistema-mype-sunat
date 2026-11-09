@@ -27,6 +27,11 @@ export const accountingApi = {
     return response.data;
   },
 
+  createAccount: async (payload: { code: string; name: string; parentCode?: string }): Promise<AccountingAccount> => {
+    const response = await apiClient.post<AccountingAccount>('/accounting/accounts', payload);
+    return response.data;
+  },
+
   getAccounts: async (): Promise<AccountingAccount[]> => {
     return cachedGet('accounting-accounts', async () => {
       const response = await apiClient.get<AccountingAccount[]>('/accounting/accounts');
@@ -43,6 +48,21 @@ export const accountingApi = {
 
   openPeriod: async (year: number, month: number): Promise<AccountingPeriod> => {
     const response = await apiClient.post<AccountingPeriod>('/accounting/periods', { year, month });
+    return response.data;
+  },
+
+  generateClosingEntry: async (year: number): Promise<{ resultado: number; totalIngresos: number; totalGastos: number }> => {
+    const response = await apiClient.post(`/accounting/closing-entry/${year}`);
+    return response.data;
+  },
+
+  openFiscalYear: async (year: number): Promise<AccountingPeriod[]> => {
+    const response = await apiClient.post<AccountingPeriod[]>(`/accounting/periods/year/${year}/open`);
+    return response.data;
+  },
+
+  closeFiscalYear: async (year: number): Promise<AccountingPeriod[]> => {
+    const response = await apiClient.post<AccountingPeriod[]>(`/accounting/periods/year/${year}/close`);
     return response.data;
   },
 

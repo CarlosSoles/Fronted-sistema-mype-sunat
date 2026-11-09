@@ -1,17 +1,15 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Card, Input, Page, PageHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
+import { Card, Page, PageHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
 import { accountingApi } from '../services/accountingApi';
+import { PeriodInput } from '@/components/common/PeriodInput';
 
 const periodoActual = () => {
   const hoy = new Date();
   return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
 };
 
-const normalizarPeriodo = (value: string): string => {
-  const match = /^(\d{4})-(\d{1,2})$/.exec(value);
-  return match ? `${match[1]}-${match[2].padStart(2, '0')}` : value;
-};
+
 
 const money = (value: number) => `S/ ${value.toFixed(2)}`;
 
@@ -32,11 +30,7 @@ export default function AccountingIncomeStatementPage() {
       <Card className="mb-4 p-4">
         <div className="space-y-1.5 max-w-xs">
           <label className="text-xs font-medium">Período</label>
-          <Input
-            type="month"
-            value={period}
-            onChange={(event) => setPeriod(normalizarPeriodo(event.target.value))}
-          />
+          <PeriodInput value={period} onChange={setPeriod} />
         </div>
       </Card>
 

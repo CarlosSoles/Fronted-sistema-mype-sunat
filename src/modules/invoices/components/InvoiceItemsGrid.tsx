@@ -178,6 +178,8 @@ export const InvoiceItemsGrid = ({
                       aria-label={`Unidad de la línea ${i + 1}`}
                       className={CLASE_CELDA}
                       value={item.unidad}
+                      disabled={Boolean(item.unidadHeredada)}
+                      title={item.unidadHeredada ? 'La unidad se configura en el producto' : undefined}
                       onChange={(e) => onCambiar(i, { unidad: e.target.value })}
                     >
                       {UNIDADES_MEDIDA.map((u) => (

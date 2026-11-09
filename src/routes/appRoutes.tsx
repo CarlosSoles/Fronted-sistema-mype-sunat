@@ -18,13 +18,13 @@ const SecurityPage = React.lazy(() => import('@/modules/auth/pages/SecurityPage'
 // la fila. La alternativa pages/InvoicesListPage se retiró en la fusión del
 // M1 para no dejar dos bandejas paralelas apuntando al mismo endpoint.
 const InvoicesListPage = React.lazy(() => import('@/modules/invoices/InvoiceList'));
+const InvoicesDashboardPage = React.lazy(() => import('@/modules/invoices/pages/InvoicesDashboardPage'));
 const InvoiceEmissionPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceEmissionPage'));
 // TA-61: pestaña de configuración de FE. Se carga aparte porque casi nadie la
 // abre a diario y no debe pesar en la primera carga del módulo.
 const InvoiceSettingsPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceSettingsPage'));
 const InvoiceBajasPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceBajasPage'));
 const InvoiceMonitorPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceMonitorPage'));
-const ResilienceDashboardPage = React.lazy(() => import('@/modules/resilience/pages/ResilienceDashboardPage'));
 const CustomsDashboardPage = React.lazy(() => import('@/modules/customs/pages/CustomsDashboardPage'));
 const ImportOrdersPage = React.lazy(() => import('@/modules/customs/pages/ImportOrdersPage'));
 const ShipmentsListPage = React.lazy(() => import('@/modules/customs/pages/ShipmentsListPage'));
@@ -39,6 +39,9 @@ const MasterDataPage = React.lazy(() => import('@/modules/customs/pages/MasterDa
 
 const DuaCalculatorPage = React.lazy(() => import('@/modules/customs/pages/DuaCalculatorPage'));
 const InventoryStocksPage = React.lazy(() => import('@/modules/inventory/pages/InventoryStocksPage'));
+const InventoryDashboardPage = React.lazy(() => import('@/modules/inventory/pages/InventoryDashboardPage'));
+const NationalPurchasesPage = React.lazy(() => import('@/modules/inventory/pages/NationalPurchasesPage'));
+const PurchasesPayablesPage = React.lazy(() => import('@/modules/inventory/pages/PurchasesPayablesPage'));
 const InventoryTransfersPage = React.lazy(() => import('@/modules/inventory/pages/InventoryTransfersPage'));
 const InventoryAdjustmentsPage = React.lazy(() => import('@/modules/inventory/pages/InventoryAdjustmentsPage'));
 const InventoryKardexPage = React.lazy(() => import('@/modules/inventory/pages/InventoryKardexPage'));
@@ -50,6 +53,8 @@ const SireImportPage = React.lazy(() => import('@/modules/sire/pages/SireImportP
 
 // Submódulos de Contabilidad PCGE (M4)
 const AccountingEntriesPage = React.lazy(() => import('@/modules/accounting/pages/AccountingEntriesPage'));
+const AccountingDashboardPage = React.lazy(() => import('@/modules/accounting/pages/AccountingDashboardPage'));
+const AccountingTaxBooksPage = React.lazy(() => import('@/modules/accounting/pages/AccountingTaxBooksPage'));
 const AccountingPlanCuentasPage = React.lazy(() => import('@/modules/accounting/pages/AccountingPlanCuentasPage'));
 const AccountingPlePage = React.lazy(() => import('@/modules/accounting/pages/AccountingPlePage'));
 const AccountingPeriodsPage = React.lazy(() => import('@/modules/accounting/pages/AccountingPeriodsPage'));
@@ -91,7 +96,15 @@ export const AppRoutes = () => {
             <Route path="/settings/security" element={<SecurityPage />} />
 
             {/* [M1: Facturación] ADMIN, OPERADOR_FACTURACION, CONTADOR, AUDITOR */}
-            <Route path="/invoices" element={<Navigate to="/invoices/facturas" replace />} />
+            <Route path="/invoices" element={<Navigate to="/invoices/dashboard" replace />} />
+            <Route
+              path="/invoices/dashboard"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT']}>
+                  <InvoicesDashboardPage />
+                </RoleProtectedRoute>
+              }
+            />
             <Route
               path="/invoices/facturas"
               element={
@@ -158,16 +171,6 @@ export const AppRoutes = () => {
               element={
                 <RoleProtectedRoute allowedRoles={['ADMIN']}>
                   <InvoiceSettingsPage />
-                </RoleProtectedRoute>
-              }
-            />
-
-            {/* [M2: Resiliencia] ADMIN, AUDITOR */}
-            <Route
-              path="/resilience"
-              element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'AUDITOR']}>
-                  <ResilienceDashboardPage />
                 </RoleProtectedRoute>
               }
             />
@@ -324,7 +327,31 @@ export const AppRoutes = () => {
             />
 
             {/* [Módulo de Inventario Autónomo - Fase 3.0] */}
-            <Route path="/inventory" element={<Navigate to="/inventory/stocks" replace />} />
+            <Route path="/inventory" element={<Navigate to="/inventory/dashboard" replace />} />
+            <Route
+              path="/inventory/dashboard"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <InventoryDashboardPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/inventory/purchases/payables"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <PurchasesPayablesPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/inventory/purchases"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <NationalPurchasesPage />
+                </RoleProtectedRoute>
+              }
+            />
             <Route
               path="/inventory/stocks"
               element={
@@ -428,6 +455,14 @@ export const AppRoutes = () => {
 
             {/* [M5: Contabilidad PCGE] ADMIN, CONTADOR, AUDITOR */}
             <Route
+              path="/accounting/dashboard"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <AccountingDashboardPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
               path="/accounting"
               element={
                 <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
@@ -480,6 +515,14 @@ export const AppRoutes = () => {
               element={
                 <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
                   <AccountingPeriodsPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/accounting/tax-books"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <AccountingTaxBooksPage />
                 </RoleProtectedRoute>
               }
             />

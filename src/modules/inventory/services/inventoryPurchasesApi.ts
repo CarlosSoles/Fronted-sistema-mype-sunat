@@ -36,6 +36,8 @@ export interface NationalPurchaseRecord {
   igvAmount: number;
   totalAmount: number;
   status: string;
+  paidAmount?: number;
+  balance?: number;
   notes?: string | null;
   responsible?: string | null;
   itemsCount: number;
@@ -57,6 +59,11 @@ export const inventoryPurchasesApi = {
     return response.data;
   },
 
+  listPayables: async (): Promise<Array<{ supplierDocNumber: string; supplierName: string; total: number; paid: number; balance: number; count: number }>> => {
+    const response = await apiClient.get('/inventory/purchases/payables');
+    return response.data;
+  },
+
   listPurchases: async (): Promise<{ total: number; items: NationalPurchaseRecord[] }> => {
     const response = await apiClient.get<{ total: number; items: NationalPurchaseRecord[] }>('/inventory/purchases');
     return response.data;
@@ -64,6 +71,19 @@ export const inventoryPurchasesApi = {
 
   getPurchaseById: async (id: string): Promise<NationalPurchaseRecord> => {
     const response = await apiClient.get<NationalPurchaseRecord>(`/inventory/purchases/${id}`);
+    return response.data;
+  },
+
+  listPayments: async (id: string): Promise<Array<{ id: string; date: string; amount: number; paymentMethod: string; bankName?: string | null; concept: string }>> => {
+    const response = await apiClient.get(`/inventory/purchases/${id}/payments`);
+    return response.data;
+  },
+
+  payPurchase: async (
+    id: string,
+    payload: { amount?: number; paymentDate?: string; paymentMethod?: string; bankName?: string },
+  ): Promise<{ id: string; status: string; amount: number; paymentMethod: string }> => {
+    const response = await apiClient.post(`/inventory/purchases/${id}/pay`, payload);
     return response.data;
   },
 };

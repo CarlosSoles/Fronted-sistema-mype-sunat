@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarDays, Lock, Unlock } from 'lucide-react';
+import { CalendarDays, FileText, Lock, Unlock } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -31,6 +31,24 @@ export default function AccountingPeriodsPage() {
   });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['accounting-periods'] });
+
+  const openYear = useMutation({
+    mutationFn: (y: number) => accountingApi.openFiscalYear(y),
+    onSuccess: async () => { setError(null); await invalidate(); },
+    onError: () => setError('No se pudo abrir el año fiscal.'),
+  });
+
+  const closingEntry = useMutation({
+    mutationFn: (y: number) => accountingApi.generateClosingEntry(y),
+    onSuccess: async () => { setError(null); await invalidate(); },
+    onError: () => setError('No se pudo generar el asiento de cierre. Verifique que el año tenga asientos y no esté cerrado.'),
+  });
+
+  const closeYear = useMutation({
+    mutationFn: (y: number) => accountingApi.closeFiscalYear(y),
+    onSuccess: async () => { setError(null); await invalidate(); },
+    onError: () => setError('No se pudo cerrar el año fiscal.'),
+  });
 
   const openPeriod = useMutation({
     mutationFn: ({ y, m }: { y: number; m: number }) => accountingApi.openPeriod(y, m),
@@ -84,6 +102,18 @@ export default function AccountingPeriodsPage() {
           <Button onClick={() => openPeriod.mutate({ y: year, m: month })} disabled={openPeriod.isPending}>
             <Unlock className="w-4 h-4 mr-1" />
             {openPeriod.isPending ? 'Abriendo…' : 'Abrir período'}
+          </Button>
+          <Button variant="outline" onClick={() => openYear.mutate(year)} disabled={openYear.isPending}>
+            <CalendarDays className="w-4 h-4 mr-1" />
+            {openYear.isPending ? 'Abriendo año…' : 'Abrir año fiscal'}
+          </Button>
+          <Button variant="outline" onClick={() => closingEntry.mutate(year)} disabled={closingEntry.isPending}>
+            <FileText className="w-4 h-4 mr-1" />
+            {closingEntry.isPending ? 'Generando asiento…' : 'Asiento de cierre'}
+          </Button>
+          <Button variant="outline" onClick={() => closeYear.mutate(year)} disabled={closeYear.isPending}>
+            <Lock className="w-4 h-4 mr-1" />
+            {closeYear.isPending ? 'Cerrando año…' : 'Cerrar año fiscal'}
           </Button>
         </div>
       </Card>
