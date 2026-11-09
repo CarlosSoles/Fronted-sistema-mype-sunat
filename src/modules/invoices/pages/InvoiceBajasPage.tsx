@@ -1,3 +1,4 @@
+import { EnviarBajaPanel } from '../components/EnviarBajaPanel';
 /**
  * Bajas y Resúmenes Diarios (RA / RC) — TA-67.
  *
@@ -240,7 +241,7 @@ export default function InvoiceBajasPage() {
                   {mensajeReenvio}
                 </div>
               )}
-              <Table>
+              {pestana === 'baja' ? <EnviarBajaPanel key={fecha} fecha={fecha} vista={vista} onEnviado={() => void cargar(pestana, fecha)} /> : <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Comprobante</TableHead>
@@ -315,19 +316,9 @@ export default function InvoiceBajasPage() {
                   })
                 )}
               </TableBody>
-            </Table>
+            </Table>}
 
-            {/*
-              D11: ENVÍO REAL del resumen diario.
-              Aquí decía «No hay botón de "enviar" porque el envío real pasa
-              por la cola de resúmenes, y fingirlo sería el mismo error que
-              inventar un CDR». La primera mitad era cierta; la segunda no: la
-              cola existe y el endpoint está conectado desde hace semanas. Lo
-              que faltaba era esta llamada.
-              Solo se ofrece para el RESUMEN DIARIO (boletas), que es lo que
-              pidió el docente; el flujo de baja (RA) es otro envío y no se
-              toca aquí.
-            */}
+            {/* RC conserva confirmación y respuesta literal; el Monitor sigue el ticket. */}
             {pestana === 'resumen' && (
               <div className="mt-3">
                 <EnviarResumenDiarioBoton
@@ -342,7 +333,7 @@ export default function InvoiceBajasPage() {
               </div>
             )}
 
-            {vista.xml && (
+            {pestana === 'resumen' && vista.xml && (
               <details className="mt-3">
                 <summary className="cursor-pointer text-xs text-muted-foreground">
                   Ver el XML que se enviaría

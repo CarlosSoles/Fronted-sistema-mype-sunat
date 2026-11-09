@@ -1,3 +1,4 @@
+import { InvoiceAggregateMonitor } from '../components/InvoiceAggregateMonitor';
 /**
  * Monitor Outbox y Auditoría CDR — TA-28 / TA-29 / TA-69.
  *
@@ -152,6 +153,7 @@ export default function InvoiceMonitorPage() {
 
   return (
     <Page>
+      <InvoiceAggregateMonitor />
       <PageHeader
         title="Monitor Outbox y Auditoría CDR"
         description="Cola de envío, reintentos y salud del certificado de firma"
