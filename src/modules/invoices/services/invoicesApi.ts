@@ -61,7 +61,19 @@ export interface FiltrosInvoices {
  */
 export interface SaldoNota { total: number; devuelto: number; disponible: number; }
 
+export type ResultadoConsultaSunat =
+  | { tipo: 'RECUPERADO'; estado: string; codigo: string | null; mensaje?: string | null; referencia?: string | null }
+  | { tipo: 'NO_ENCONTRADO' }
+  | { tipo: 'INCIERTO'; motivo: string };
+
 export const invoicesApi = {
+  consultarSunat: async (id: string): Promise<ResultadoConsultaSunat> => {
+    const { data } = await apiClient.post<ResultadoConsultaSunat>(`/invoices/${encodeURIComponent(id)}/consultar-sunat`);
+    if (!data || !['RECUPERADO', 'NO_ENCONTRADO', 'INCIERTO'].includes(data.tipo) ||
+      (data.tipo === 'RECUPERADO' && (typeof data.estado !== 'string' || (data.codigo !== null && typeof data.codigo !== 'string'))) ||
+      (data.tipo === 'INCIERTO' && typeof data.motivo !== 'string')) throw new Error('Respuesta de consulta SUNAT no válida.');
+    return data;
+  },
   getSaldoNota: async (id: string): Promise<SaldoNota> => {
     const { data } = await apiClient.get<SaldoNota>(`/invoices/${encodeURIComponent(id)}/saldo`);
     if (![data.total, data.devuelto, data.disponible].every((n) => typeof n === 'number' && Number.isFinite(n) && n >= 0)) throw new Error('El saldo recibido no es válido.');
