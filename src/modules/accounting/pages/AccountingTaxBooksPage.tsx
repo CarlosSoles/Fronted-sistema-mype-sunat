@@ -23,7 +23,18 @@ export default function AccountingTaxBooksPage() {
     const h = new Date(); return `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, '0')}`;
   });
   const r = rango(periodo);
-  const ventas = useQuery({ queryKey: ['tax-book-sales', periodo], queryFn: () => invoicesApi.getInvoices(1, { ...r, page_size: 100 }) });
+  const ventas = useQuery({
+    queryKey: ['tax-book-sales', periodo],
+    queryFn: async () => {
+      const primera = await invoicesApi.getInvoices(1, { ...r, page_size: 100 });
+      const filas = [...primera.data];
+      for (let page = 2; page <= primera.totalPages; page += 1) {
+        const siguiente = await invoicesApi.getInvoices(page, { ...r, page_size: 100 });
+        filas.push(...siguiente.data);
+      }
+      return { data: filas, total: primera.total, totalPages: primera.totalPages };
+    },
+  });
   const compras = useQuery({ queryKey: ['tax-book-purchases'], queryFn: () => inventoryPurchasesApi.listPurchases() });
 
   const comprasPeriodo = useMemo(
