@@ -12,6 +12,8 @@ export default function AccountingPlePage() {
   const [isDownloadingDiario, setIsDownloadingDiario] = useState(false);
   const [isDownloadingMayor, setIsDownloadingMayor] = useState(false);
   const [isDownloadingBalances, setIsDownloadingBalances] = useState(false);
+  const [isDownloadingVentas, setIsDownloadingVentas] = useState(false);
+  const [isDownloadingCompras, setIsDownloadingCompras] = useState(false);
   const [period, setPeriod] = useState(() => {
     const hoy = new Date();
     return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
@@ -41,6 +43,24 @@ export default function AccountingPlePage() {
     } catch (error) {
       console.error('Error al exportar trama PLE:', error);
       setError('No se pudo generar el PLE del período seleccionado.');
+    } finally {
+      setLoader(false);
+    }
+  };
+
+  const handleExportTaxPle = async (bookCode: '140100' | '080100') => {
+    const setLoader = bookCode === '140100' ? setIsDownloadingVentas : setIsDownloadingCompras;
+    setLoader(true);
+    setError(null);
+    try {
+      const response = await apiClient.post('/accounting/ple/tax-export', {
+        companyRuc, year: Number(period.slice(0, 4)), month: Number(period.slice(5, 7)), bookCode,
+      });
+      const { fileName, content } = response.data;
+      if (!fileName || !content) throw new Error('Sin trama');
+      downloadTxtFile(fileName, content);
+    } catch {
+      setError('No se pudo generar el registro tributario del período.');
     } finally {
       setLoader(false);
     }
@@ -147,6 +167,26 @@ export default function AccountingPlePage() {
           <Button variant="outline" size="sm" className="w-full" onClick={() => handleExportPle('070100')} disabled={isDownloadingBalances}>
             {isDownloadingBalances ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
             {isDownloadingBalances ? 'Generando Trama...' : 'Descargar Inventarios y Balances 7.1'}
+          </Button>
+        </Card>
+
+        {/* Registro de Ventas 14.1 */}
+        <Card className="p-5 space-y-3 border">
+          <h3 className="font-semibold text-base">Registro de Ventas 14.1 (PLE)</h3>
+          <p className="text-xs text-muted-foreground">Facturas, boletas y notas del período con base, IGV y total.</p>
+          <Button variant="outline" size="sm" className="w-full" onClick={() => handleExportTaxPle('140100')} disabled={isDownloadingVentas}>
+            {isDownloadingVentas ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+            {isDownloadingVentas ? 'Generando Trama...' : 'Descargar Ventas 14.1'}
+          </Button>
+        </Card>
+
+        {/* Registro de Compras 8.1 */}
+        <Card className="p-5 space-y-3 border">
+          <h3 className="font-semibold text-base">Registro de Compras 8.1 (PLE)</h3>
+          <p className="text-xs text-muted-foreground">Compras nacionales del período con base, IGV y total.</p>
+          <Button variant="outline" size="sm" className="w-full" onClick={() => handleExportTaxPle('080100')} disabled={isDownloadingCompras}>
+            {isDownloadingCompras ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+            {isDownloadingCompras ? 'Generando Trama...' : 'Descargar Compras 8.1'}
           </Button>
         </Card>
 
