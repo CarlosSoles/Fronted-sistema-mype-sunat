@@ -22,7 +22,7 @@ async function sendOne(item: OfflineQueueItem): Promise<SendResult> {
   // resetStuckItems lo devuelve a PENDIENTE al arrancar.
   await patch(item.id, { status: 'ENVIANDO', attempts });
 
-  const outcome = await sendInvoice(item.payload);
+  const outcome = await sendInvoice(item.payload, item.id);
   const syncedAt = new Date().toISOString();
 
   if (outcome.kind === 'SINCRONIZADO') {
