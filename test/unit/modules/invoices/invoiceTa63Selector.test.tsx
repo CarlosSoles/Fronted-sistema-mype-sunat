@@ -40,7 +40,7 @@ it.each(['modal', 'pagina'])('%s: solo aparece con detracción, bloquea vacío y
   expect(invoicesApi.emitirComprobante).not.toHaveBeenCalled();
   fireEvent.change(selector, { target: { value: '003' } });
   fireEvent.click(emitir);
-  await waitFor(() => expect(invoicesApi.emitirComprobante).toHaveBeenCalledWith(expect.objectContaining({ medio_pago_detraccion: '003' })));
+  await waitFor(() => expect(invoicesApi.emitirComprobante).toHaveBeenCalledWith(expect.objectContaining({ medio_pago_detraccion: '003' }), expect.stringMatching(/^[A-Za-z0-9_-]{16,128}$/)));
   fireEvent.change(screen.getByLabelText('Detracción de la línea 1'), { target: { value: '' } });
   expect(screen.queryByLabelText('Medio de pago de la detracción')).toBeNull();
   client.clear();
