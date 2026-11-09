@@ -44,16 +44,17 @@ function detailOf(data: unknown, fallback: string): string {
  * envio real. Por eso un 202 significa "el servidor lo tiene", no "SUNAT lo
  * acepto".
  *
- * Un 409 indica que el comprobante ya existe (misma empresa, tipo, serie y
- * correlativo). Se trata como exito: reintentar no debe duplicar.
+ * Un 409 puede indicar reutilización de clave con otro cuerpo: no confirma el alta.
  */
 export async function sendInvoice(
   payload: InvoiceIngestPayload,
+  idempotencyKey: string,
 ): Promise<IngestOutcome> {
   try {
     const response = await apiClient.post<IngestAcceptedResponse>(
       '/invoices',
       payload,
+      { headers: { 'Idempotency-Key': idempotencyKey } },
     );
 
     return { kind: 'SINCRONIZADO', invoiceId: response.data.id };
@@ -76,7 +77,7 @@ export async function sendInvoice(
     const { status, data } = error.response;
 
     if (status === 409) {
-      return { kind: 'YA_EXISTIA' };
+      return { kind: 'RECHAZADO', detail: 'Conflicto de emisión (409): la clave ya se usó con otros datos. Tus datos se conservan; verifica si el comprobante ya existe antes de iniciar otro intento.' };
     }
 
     if (status === 401 || status === 403) {

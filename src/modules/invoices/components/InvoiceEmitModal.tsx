@@ -11,6 +11,7 @@
  * botón: el usuario ve el motivo en pantalla y el envío nunca pasa por alto una
  * regla del Catálogo 01/03/06/07/09/10/54.
  */
+import { crearIntentoEmision, mensajeErrorEmision } from '../lib/invoiceIdempotency';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { extractApiErrorMessage } from '@/lib/apiErrors';
 import { useQuery } from '@tanstack/react-query';
@@ -231,6 +232,7 @@ export const InvoiceEmitModal = ({
   });
 
   /** `true` mientras la emisión viaja al backend; bloquea el doble envío. */
+  const intento = useRef(crearIntentoEmision());
   const [enviando, setEnviando] = useState(false);
   /** Motivo por el que el backend rechazó, o por el que no se llegó a enviar. */
   const [errorEmision, setErrorEmision] = useState<string | null>(null);
@@ -381,27 +383,31 @@ export const InvoiceEmitModal = ({
 
     setEnviando(true);
     setErrorEmision(null);
+    const payload = borradorAPayloadEmision(b);
+    const clave = intento.current.clavePara(payload);
     try {
       if (b.tipo === '07' && afectado) {
         const actual = await invoicesApi.getSaldoNota(afectado.id);
         if (Math.round(flujo.importeTotal * 100) > Math.round(actual.disponible * 100)) throw new Error('La nota supera el saldo actualizado del comprobante.');
       }
       const resultado = await invoicesApi.emitirComprobante(
-        borradorAPayloadEmision(b),
+        payload,
+        clave,
       );
+      intento.current.completar();
       onEmitir(resultado);
     } catch (error: unknown) {
       const sinRespuesta =
-        !navigator.onLine ||
-        (error instanceof Error && 'response' in error && !(error as { response?: unknown }).response);
+        !(error as { response?: unknown })?.response &&
+        (!navigator.onLine || (error instanceof Error && 'response' in error));
       if (sinRespuesta) {
-        await enqueueInvoiceEmission(borradorAPayloadEmision(b));
+        await enqueueInvoiceEmission(payload, clave);
         onEmitir(null as never);
         return;
       }
       // NO se inventa un número ni un CDR: se muestra lo que dijo el backend.
       const mensaje =
-        error instanceof Error ? error.message : 'Error desconocido';
+        mensajeErrorEmision(error);
       setErrorEmision(`No se pudo emitir el comprobante: ${mensaje}`);
     } finally {
       setEnviando(false);

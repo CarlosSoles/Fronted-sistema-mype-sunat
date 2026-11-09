@@ -51,11 +51,13 @@ export async function closeOfflineQueue(): Promise<void> {
 /** Guarda un comprobante en la cola, en estado PENDIENTE. */
 export async function enqueue(
   payload: InvoiceIngestPayload,
+  idempotencyKey: string = crypto.randomUUID(),
 ): Promise<OfflineQueueItem> {
   const now = new Date().toISOString();
 
   const item: OfflineQueueItem = {
-    id: crypto.randomUUID(),
+    // El UUID persistido del ítem es también la clave del intento de creación.
+    id: idempotencyKey,
     payload,
     status: 'PENDIENTE',
     attempts: 0,

@@ -55,14 +55,15 @@ export function useOfflineQueue() {
    */
   const emit = useCallback(
     async (payload: InvoiceIngestPayload): Promise<EmitInvoiceResult> => {
+      const idempotencyKey = crypto.randomUUID();
       // Sin conexion conocida: se encola sin gastar un timeout de 15 s.
       if (!navigator.onLine) {
-        await enqueue(payload);
+        await enqueue(payload, idempotencyKey);
         await refresh();
         return { enviado: false, encolado: true, detail: 'Sin conexion' };
       }
 
-      const outcome = await sendInvoice(payload);
+      const outcome = await sendInvoice(payload, idempotencyKey);
 
       if (outcome.kind === 'SINCRONIZADO') {
         return { enviado: true, encolado: false, invoiceId: outcome.invoiceId };
@@ -81,7 +82,7 @@ export function useOfflineQueue() {
         };
       }
 
-      await enqueue(payload);
+      await enqueue(payload, idempotencyKey);
       await refresh();
 
       return { enviado: false, encolado: true, detail: outcome.detail };
