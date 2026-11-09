@@ -100,10 +100,11 @@ export const invoicesApi = {
     });
   },
 
-  createInvoice: async (dto: CreateInvoiceDto): Promise<Invoice> => {
+  createInvoice: async (dto: CreateInvoiceDto, idempotencyKey: string): Promise<Invoice> => {
     const response = await apiClient.post<ComprobanteBackend>(
       '/invoices',
       aCreateInvoiceDto(dto),
+      { headers: { 'Idempotency-Key': idempotencyKey } },
     );
     return aInvoice(response.data);
   },
@@ -126,10 +127,12 @@ export const invoicesApi = {
    */
   emitirComprobante: async (
     dto: EmitirComprobantePayload,
+    idempotencyKey: string,
   ): Promise<ResultadoEmisionBackend> => {
     const response = await apiClient.post<ResultadoEmisionBackend>(
       '/invoices/emitir',
       dto,
+      { headers: { 'Idempotency-Key': idempotencyKey } },
     );
     return response.data;
   },
