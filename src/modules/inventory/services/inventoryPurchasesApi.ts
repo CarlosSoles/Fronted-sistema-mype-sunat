@@ -59,6 +59,11 @@ export const inventoryPurchasesApi = {
     return response.data;
   },
 
+  listPayables: async (): Promise<Array<{ supplierDocNumber: string; supplierName: string; total: number; paid: number; balance: number; count: number }>> => {
+    const response = await apiClient.get('/inventory/purchases/payables');
+    return response.data;
+  },
+
   listPurchases: async (): Promise<{ total: number; items: NationalPurchaseRecord[] }> => {
     const response = await apiClient.get<{ total: number; items: NationalPurchaseRecord[] }>('/inventory/purchases');
     return response.data;
