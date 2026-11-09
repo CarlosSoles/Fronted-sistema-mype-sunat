@@ -73,7 +73,7 @@ const NAV_ITEMS: NavItem[] = [
       // menú, así que si no está aquí, para él el módulo no sabe emitir.
       { title: 'Emitir Comprobante', path: '/invoices/emision', icon: FilePlus },
       { title: 'Notas', path: '/invoices/notas', icon: FileMinus2 },
-      { title: 'Bajas y Resúmenes Diarios', path: '/invoices/bajas', icon: FileX2 },
+      { title: 'Anulación y Resúmenes Diarios', path: '/invoices/bajas', icon: FileX2 },
       { title: 'Monitor Outbox y CDR', path: '/invoices/monitor', icon: Activity },
       // La ruta `/invoices/configuracion` (TA-61) existía desde el Sprint 2 y
       // responde con `GET /invoices/config`, pero no figuraba en el menú: una
