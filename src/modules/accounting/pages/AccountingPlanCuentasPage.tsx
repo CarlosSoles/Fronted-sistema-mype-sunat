@@ -1,9 +1,16 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { ChevronDown, ChevronRight, Search } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ChevronDown, ChevronRight, Plus, Search } from 'lucide-react';
 import {
   Badge,
+  Button,
   Card,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   Input,
   Page,
   PageHeader,
@@ -59,6 +66,15 @@ function buildTree(accounts: AccountingAccount[]): TreeNode[] {
 
 export default function AccountingPlanCuentasPage() {
   const [search, setSearch] = useState('');
+  const [abrirAlta, setAbrirAlta] = useState(false);
+  const [nueva, setNueva] = useState({ code: '', name: '', parentCode: '' });
+  const [errorAlta, setErrorAlta] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const crear = useMutation({
+    mutationFn: () => accountingApi.createAccount({ code: nueva.code.trim(), name: nueva.name.trim(), parentCode: nueva.parentCode.trim() || undefined }),
+    onSuccess: async () => { setAbrirAlta(false); setNueva({ code: '', name: '', parentCode: '' }); setErrorAlta(null); await queryClient.invalidateQueries({ queryKey: ['accounting-accounts'] }); },
+    onError: (e: any) => setErrorAlta(e?.response?.data?.message ?? 'No se pudo crear la cuenta.'),
+  });
   const [expanded, setExpanded] = useState<Set<string>>(new Set(['1', '2', '3', '4', '5', '6', '7', '8', '9']));
 
   const { data: accounts = [], isLoading, error } = useQuery({
@@ -132,7 +148,9 @@ export default function AccountingPlanCuentasPage() {
       <PageHeader
         title="Plan Contable General Empresarial (PCGE 2019)"
         description={`${accounts.length} cuentas cargadas · jerarquía por elemento, cuenta y subcuenta`}
-      />
+      >
+        <Button size="sm" onClick={() => setAbrirAlta(true)}><Plus className="h-4 w-4 mr-1" /> Nueva subcuenta</Button>
+      </PageHeader>
 
       <Card className="mb-4">
         <div className="p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -209,6 +227,18 @@ export default function AccountingPlanCuentasPage() {
           </Table>
         </Card>
       )}
+      <Dialog open={abrirAlta} onOpenChange={setAbrirAlta}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Nueva subcuenta PCGE</DialogTitle><DialogDescription>Agrega una divisionaria al catálogo. El código padre debe existir.</DialogDescription></DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5"><label className="text-xs font-medium">Código</label><Input value={nueva.code} onChange={(e) => setNueva({ ...nueva, code: e.target.value })} placeholder="2011101" /></div>
+            <div className="space-y-1.5"><label className="text-xs font-medium">Nombre</label><Input value={nueva.name} onChange={(e) => setNueva({ ...nueva, name: e.target.value })} placeholder="Almacén principal" /></div>
+            <div className="space-y-1.5"><label className="text-xs font-medium">Cuenta padre (opcional)</label><Input value={nueva.parentCode} onChange={(e) => setNueva({ ...nueva, parentCode: e.target.value })} placeholder="20111" /></div>
+            {errorAlta ? <p className="text-xs text-destructive">{errorAlta}</p> : null}
+          </div>
+          <DialogFooter><Button variant="outline" onClick={() => setAbrirAlta(false)}>Cancelar</Button><Button onClick={() => crear.mutate()} disabled={crear.isPending || !nueva.code || !nueva.name}>{crear.isPending ? 'Creando…' : 'Crear cuenta'}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Page>
   );
 }
