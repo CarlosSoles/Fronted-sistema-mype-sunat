@@ -27,6 +27,11 @@ export const accountingApi = {
     return response.data;
   },
 
+  createAccount: async (payload: { code: string; name: string; parentCode?: string }): Promise<AccountingAccount> => {
+    const response = await apiClient.post<AccountingAccount>('/accounting/accounts', payload);
+    return response.data;
+  },
+
   getAccounts: async (): Promise<AccountingAccount[]> => {
     return cachedGet('accounting-accounts', async () => {
       const response = await apiClient.get<AccountingAccount[]>('/accounting/accounts');
