@@ -1,3 +1,4 @@
+import type { SeleccionBaja, AgregadoFiscal } from '../types/invoiceAggregate.types';
 import { apiClient } from '@/lib/axios';
 import { cachedGet } from '@/lib/offlineCache';
 import { type Invoice } from '../types/invoice.types';
@@ -67,6 +68,16 @@ export type ResultadoConsultaSunat =
   | { tipo: 'INCIERTO'; motivo: string };
 
 export const invoicesApi = {
+  previsualizarBaja: async (fecha: string, lineas: SeleccionBaja[]): Promise<VistaPreviaResumen> => {
+    const { data } = await apiClient.post<VistaPreviaResumen>('/invoices/resumenes/baja/vista', { lineas }, { params: { fecha } }); return data;
+  },
+  enviarBaja: async (fecha: string, lineas: SeleccionBaja[]): Promise<ResultadoEnvioAgregado> => {
+    const { data } = await apiClient.post<ResultadoEnvioAgregado>('/invoices/resumenes/baja/enviar', { lineas }, { params: { fecha } }); return data;
+  },
+  getAgregados: async (): Promise<AgregadoFiscal[]> => { const { data } = await apiClient.get<AgregadoFiscal[]>('/invoices/resumenes/envios'); return data; },
+  consultarAgregado: async (identifier: string): Promise<{ motivo: string | null; status: string | null }> => {
+    const { data } = await apiClient.post<{ motivo: string | null; status: string | null }>(`/invoices/resumenes/envios/${encodeURIComponent(identifier)}/consultar`); return data;
+  },
   consultarSunat: async (id: string): Promise<ResultadoConsultaSunat> => {
     const { data } = await apiClient.post<ResultadoConsultaSunat>(`/invoices/${encodeURIComponent(id)}/consultar-sunat`);
     if (!data || !['RECUPERADO', 'NO_ENCONTRADO', 'INCIERTO'].includes(data.tipo) ||
