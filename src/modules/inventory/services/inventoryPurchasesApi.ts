@@ -36,6 +36,8 @@ export interface NationalPurchaseRecord {
   igvAmount: number;
   totalAmount: number;
   status: string;
+  paidAmount?: number;
+  balance?: number;
   notes?: string | null;
   responsible?: string | null;
   itemsCount: number;
