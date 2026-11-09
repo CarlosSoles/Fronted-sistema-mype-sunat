@@ -18,6 +18,7 @@ export interface PendingAccountingEntry {
 export interface PendingInvoiceEmission {
   id: string;
   type: 'INVOICE_EMISSION';
+  idempotencyKey?: string;
   payload: EmitirComprobantePayload;
   createdAt: string;
   attempts: number;
@@ -126,9 +127,10 @@ export async function enqueueDailySummary(fecha: string): Promise<string> {
   return id;
 }
 
-/** Encola una emisión cuando no hay red; la llave fiscal evita duplicados. */
+/** Conserva la clave del intento online al transferirlo a la cola persistente. */
 export async function enqueueInvoiceEmission(
   payload: EmitirComprobantePayload,
+  idempotencyKey: string = crypto.randomUUID(),
 ): Promise<string> {
   const id = uuid();
   escribir([
@@ -136,6 +138,7 @@ export async function enqueueInvoiceEmission(
     {
       id,
       type: 'INVOICE_EMISSION',
+      idempotencyKey,
       payload,
       createdAt: new Date().toISOString(),
       attempts: 0,
@@ -199,7 +202,7 @@ export async function flushOutbox(
       if (operacion.type === 'ACCOUNTING_ENTRY') {
         await accountingApi.createEntry(operacion.payload);
       } else if (operacion.type === 'INVOICE_EMISSION') {
-        await invoicesApi.emitirComprobante(operacion.payload);
+        await invoicesApi.emitirComprobante(operacion.payload, operacion.idempotencyKey ?? operacion.id);
       } else if (operacion.type === 'DAILY_SUMMARY') {
         await invoicesApi.enviarResumenDiario(operacion.payload.fecha);
       } else {

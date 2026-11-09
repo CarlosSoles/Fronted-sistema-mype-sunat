@@ -40,9 +40,10 @@
  * El CDR se consulta en la bandeja. No se muestra "ACEPTADO" en ningún caso
  * aquí, porque SUNAT no ha respondido todavía.
  */
+import { crearIntentoEmision, mensajeErrorEmision } from '../lib/invoiceIdempotency';
 import { MedioPagoDetraccionSelect } from '../components/MedioPagoDetraccionSelect';
 import type { MedioPagoDetraccion } from '../lib/medioPagoDetraccion';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Alert,
@@ -150,6 +151,7 @@ export default function InvoiceEmissionPage() {
   // `invoiceEmitDraft`, así que aquí solo se guarda el estado.
   const [formaPago, setFormaPago] = useState<'Contado' | 'Credito'>('Contado');
   const [cuotas, setCuotas] = useState<readonly CuotaBorrador[]>([]);
+  const intento = useRef(crearIntentoEmision());
   const [enviando, setEnviando] = useState(false);
   const [productos, setProductos] = useState<readonly ProductoBuscado[]>([]);
   const [resultado, setResultado] = useState<{
@@ -437,7 +439,8 @@ export default function InvoiceEmissionPage() {
       };
 
       payloadPendiente = borradorAPayloadEmision(borradorCompleto);
-      const r: ResultadoEmisionBackend = await invoicesApi.emitirComprobante(payloadPendiente);
+      const r: ResultadoEmisionBackend = await invoicesApi.emitirComprobante(payloadPendiente, intento.current.clavePara(payloadPendiente));
+      intento.current.completar();
 
       setResultado({
         ok: true,
@@ -454,10 +457,12 @@ export default function InvoiceEmissionPage() {
       setMedioPagoDetraccion('');
     } catch (error: unknown) {
       const sinRespuesta =
-        !navigator.onLine ||
-        (error instanceof Error && 'response' in error && !(error as { response?: unknown }).response);
+        !(error as { response?: unknown })?.response &&
+        (!navigator.onLine || (error instanceof Error && 'response' in error));
       if (sinRespuesta) {
-        if (payloadPendiente) await enqueueInvoiceEmission(payloadPendiente);
+        if (payloadPendiente) {
+          await enqueueInvoiceEmission(payloadPendiente, intento.current.clavePara(payloadPendiente));
+        }
         setResultado({
           ok: true,
           numero: 'PENDIENTE',
@@ -472,7 +477,7 @@ export default function InvoiceEmissionPage() {
       // NO se inventa un CDR ni un número. Si el backend rechaza, se dice por
       // qué: el mensaje del backend explica qué falta (stock, RUC, correlativo).
       const mensaje =
-        error instanceof Error ? error.message : 'Error desconocido';
+        mensajeErrorEmision(error);
       setResultado({
         ok: false,
         mensaje: `No se pudo emitir el comprobante: ${mensaje}`,
