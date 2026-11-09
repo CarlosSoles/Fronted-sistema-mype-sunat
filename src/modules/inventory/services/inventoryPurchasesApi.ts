@@ -69,6 +69,11 @@ export const inventoryPurchasesApi = {
     return response.data;
   },
 
+  listPayments: async (id: string): Promise<Array<{ id: string; date: string; amount: number; paymentMethod: string; bankName?: string | null; concept: string }>> => {
+    const response = await apiClient.get(`/inventory/purchases/${id}/payments`);
+    return response.data;
+  },
+
   payPurchase: async (
     id: string,
     payload: { amount?: number; paymentDate?: string; paymentMethod?: string; bankName?: string },
