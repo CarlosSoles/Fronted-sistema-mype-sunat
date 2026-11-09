@@ -32,6 +32,7 @@ import {
   type FormatoDescarga,
 } from '../lib/invoiceDescarga';
 import { InvoiceStatusBadge } from './InvoiceStatusBadge';
+import { InvoiceSunatConsulta } from './InvoiceSunatConsulta';
 import { InvoiceAuditTrail } from './InvoiceAuditTrail';
 import { invoicesApi } from '../services/invoicesApi';
 import type { Invoice } from '../types/invoice.types';
@@ -202,6 +203,8 @@ export const InvoiceCdrModal = ({
               : ''}
           </PageText>
         </DialogHeader>
+
+        <InvoiceSunatConsulta key={c.id} id={c.id} />
 
         <Tabs value={modo} onValueChange={(v) => setModo(v as 'cdr' | 'xml')}>
           <TabsList>
