@@ -68,6 +68,8 @@ export interface ItemBorrador {
   afectacion: AfectacionIgv;
   /** True cuando la afectación proviene del producto elegido y no es editable como campo libre. */
   afectacionHeredada?: boolean;
+  /** True cuando la unidad proviene del producto y no debe editarse en la venta. */
+  unidadHeredada?: boolean;
   descuento?: { codigo: '00' | '01'; monto: number } | null;
   /** Importe del ICBPER de la línea; > 0 la marca como bolsa plástica. */
   icbper: number;
@@ -320,8 +322,10 @@ export const itemDesdeProducto = (
     unidad: valida ? unidad : 'NIU',
     cantidad: 1,
     valorUnitario: Number.isFinite(valor) && valor > 0 ? valor : 0,
+    precioUnitario: Number.isFinite(valor) && valor > 0 ? (afectacion === 'GRAVADA' ? Number((valor * 1.18).toFixed(10)) : valor) : 0,
     afectacion,
     afectacionHeredada: true,
+    unidadHeredada: true,
     icbper: 0,
   };
 };
