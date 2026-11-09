@@ -16,12 +16,17 @@ export default function NationalPurchasesPage() {
   const [method, setMethod] = useState('TRANSFERENCIA');
   const [bank, setBank] = useState('');
   const [amount, setAmount] = useState('');
+  const [historial, setHistorial] = useState<Array<{ id: string; date: string; amount: number; paymentMethod: string; bankName?: string | null; concept: string }> | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const { data, isLoading, error: queryError } = useQuery({
     queryKey: ['national-purchases'],
     queryFn: () => inventoryPurchasesApi.listPurchases(),
   });
+
+  const verPagos = async (p: NationalPurchaseRecord) => {
+    try { setHistorial(await inventoryPurchasesApi.listPayments(p.id)); } catch { setError('No se pudo cargar el historial de pagos.'); }
+  };
 
   const payment = useMutation({
     mutationFn: () => inventoryPurchasesApi.payPurchase(selected!.id, {
@@ -66,11 +71,14 @@ export default function NationalPurchasesPage() {
                 <TableCell align="right">{money(p.totalAmount)}</TableCell><TableCell align="right">{money(p.paidAmount ?? 0)}</TableCell><TableCell align="right">{money(p.balance ?? p.totalAmount - (p.paidAmount ?? 0))}</TableCell>
                 <TableCell><Badge variant={p.status === 'PAGADA' ? 'outline' : 'secondary'}>{p.status}</Badge></TableCell>
                 <TableCell align="right">
-                  {p.status !== 'PAGADA' && p.status !== 'ANULADA' ? (
-                    <Button size="sm" variant="outline" onClick={() => { setSelected(p); setMethod('TRANSFERENCIA'); setBank(''); setAmount(String(p.totalAmount - (p.paidAmount ?? 0))); }}>
-                      <CreditCard className="h-3.5 w-3.5 mr-1" /> Pagar
-                    </Button>
-                  ) : <span className="text-xs text-muted-foreground">—</span>}
+                  <div className="flex justify-end gap-1">
+                    {(p.paidAmount ?? 0) > 0 ? <Button size="sm" variant="ghost" onClick={() => verPagos(p)}>Pagos</Button> : null}
+                    {p.status !== 'PAGADA' && p.status !== 'ANULADA' ? (
+                      <Button size="sm" variant="outline" onClick={() => { setSelected(p); setMethod('TRANSFERENCIA'); setBank(''); setAmount(String(p.totalAmount - (p.paidAmount ?? 0))); }}>
+                        <CreditCard className="h-3.5 w-3.5 mr-1" /> Pagar
+                      </Button>
+                    ) : null}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -110,6 +118,19 @@ export default function NationalPurchasesPage() {
             <Button variant="outline" onClick={() => setSelected(null)}>Cancelar</Button>
             <Button onClick={() => payment.mutate()} disabled={payment.isPending}>{payment.isPending ? 'Registrando…' : 'Confirmar pago'}</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={historial !== null} onOpenChange={(open) => { if (!open) setHistorial(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Historial de pagos</DialogTitle><DialogDescription>Abonos registrados en tesorería.</DialogDescription></DialogHeader>
+          <Table>
+            <TableHeader><TableRow><TableHead>Fecha</TableHead><TableHead>Método</TableHead><TableHead align="right">Monto</TableHead></TableRow></TableHeader>
+            <TableBody>
+              {(historial ?? []).map((h) => <TableRow key={h.id}><TableCell>{new Date(h.date).toLocaleDateString('es-PE')}</TableCell><TableCell>{h.paymentMethod}{h.bankName ? ` · ${h.bankName}` : ''}</TableCell><TableCell align="right">{money(h.amount)}</TableCell></TableRow>)}
+              {(historial ?? []).length === 0 ? <TableRow><TableCell colSpan={3}>Sin pagos registrados.</TableCell></TableRow> : null}
+            </TableBody>
+          </Table>
         </DialogContent>
       </Dialog>
     </Page>
