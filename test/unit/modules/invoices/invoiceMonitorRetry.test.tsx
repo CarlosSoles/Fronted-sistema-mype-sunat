@@ -6,7 +6,7 @@ import { ALERTAS_VACIAS } from '@/modules/invoices/lib/invoiceAlertas';
 import { aInvoice } from '@/modules/invoices/lib/invoiceMapper';
 
 vi.mock('@/modules/invoices/services/invoicesApi', () => ({
-  invoicesApi: { getAlertas: vi.fn(), getInvoices: vi.fn(), getInvoiceById: vi.fn(), retryCdr: vi.fn() },
+  invoicesApi: { getAgregados: vi.fn(), getAlertas: vi.fn(), getInvoices: vi.fn(), getInvoiceById: vi.fn(), retryCdr: vi.fn() },
 }));
 
 const comprobante = aInvoice({
@@ -17,6 +17,7 @@ const comprobante = aInvoice({
 });
 
 beforeEach(() => {
+  vi.mocked(invoicesApi.getAgregados).mockResolvedValue([]);
   vi.mocked(invoicesApi.getAlertas).mockResolvedValue(ALERTAS_VACIAS);
   vi.mocked(invoicesApi.getInvoiceById).mockRejectedValue(new Error('Detalle no disponible'));
   vi.mocked(invoicesApi.getInvoices).mockImplementation(async (_page, filtros) => ({
