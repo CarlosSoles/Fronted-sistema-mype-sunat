@@ -53,6 +53,7 @@ const SireImportPage = React.lazy(() => import('@/modules/sire/pages/SireImportP
 // Submódulos de Contabilidad PCGE (M4)
 const AccountingEntriesPage = React.lazy(() => import('@/modules/accounting/pages/AccountingEntriesPage'));
 const AccountingDashboardPage = React.lazy(() => import('@/modules/accounting/pages/AccountingDashboardPage'));
+const AccountingTaxBooksPage = React.lazy(() => import('@/modules/accounting/pages/AccountingTaxBooksPage'));
 const AccountingPlanCuentasPage = React.lazy(() => import('@/modules/accounting/pages/AccountingPlanCuentasPage'));
 const AccountingPlePage = React.lazy(() => import('@/modules/accounting/pages/AccountingPlePage'));
 const AccountingPeriodsPage = React.lazy(() => import('@/modules/accounting/pages/AccountingPeriodsPage'));
@@ -505,6 +506,14 @@ export const AppRoutes = () => {
               element={
                 <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
                   <AccountingPeriodsPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/accounting/tax-books"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <AccountingTaxBooksPage />
                 </RoleProtectedRoute>
               }
             />
