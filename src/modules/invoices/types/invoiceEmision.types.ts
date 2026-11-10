@@ -54,6 +54,7 @@ export interface LineaEmisionPayload {
 
 /** Alta de comprobante desde la pantalla. */
 export interface EmitirComprobantePayload {
+  almacen?: string;
   medio_pago_detraccion?: import('../lib/medioPagoDetraccion').MedioPagoDetraccion;
   tipo_comprobante: TipoEmisionPantalla;
   serie: string;

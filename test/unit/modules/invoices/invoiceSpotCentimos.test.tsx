@@ -10,7 +10,7 @@ import { montoDetraccionPara, validarCronograma } from '@/modules/invoices/lib/i
 import { borradorAPayloadEmision, problemaDeCronograma } from '@/modules/invoices/lib/invoiceEmitPayload';
 import { InvoiceEmitModal } from '@/modules/invoices/components/InvoiceEmitModal';
 
-vi.mock('@/lib/axios', () => ({ apiClient: { get: vi.fn() } }));
+vi.mock('@/lib/axios', () => ({ apiClient: { get: vi.fn(async () => ({ data: [] })) } }));
 
 afterEach(cleanup);
 const base = borradorInicial('01', '2026-11-06');

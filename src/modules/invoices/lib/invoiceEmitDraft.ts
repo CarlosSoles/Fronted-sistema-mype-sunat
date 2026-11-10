@@ -43,6 +43,7 @@ import { diasEntreFechas, fechaIsoValida } from './invoiceFecha';
 
 /** Estado editable del formulario de emisión. */
 export interface BorradorEmision {
+  almacen?: string;
   medioPagoDetraccion?: import('./medioPagoDetraccion').MedioPagoDetraccion | '';
   tipo: TipoEmisible;
   serie: string;
@@ -104,6 +105,7 @@ export const borradorInicial = (
   tipo: TipoEmisible,
   fecha: string,
 ): BorradorEmision => ({
+  almacen: 'ALM-01',
   tipo,
   serie: serieInicialPorTipo(tipo),
   correlativo: 100,

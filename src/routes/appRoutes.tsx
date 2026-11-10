@@ -22,6 +22,7 @@ const InvoicesDashboardPage = React.lazy(() => import('@/modules/invoices/pages/
 const InvoiceEmissionPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceEmissionPage'));
 // TA-61: pestaña de configuración de FE. Se carga aparte porque casi nadie la
 // abre a diario y no debe pesar en la primera carga del módulo.
+const InvoicePricesPage = React.lazy(() => import('@/modules/invoices/pages/InvoicePricesPage'));
 const InvoiceSettingsPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceSettingsPage'));
 const InvoiceBajasPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceBajasPage'));
 const InvoiceMonitorPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceMonitorPage'));
@@ -174,6 +175,8 @@ export const AppRoutes = () => {
                 </RoleProtectedRoute>
               }
             />
+
+            <Route path="/invoices/configuracion/precios" element={<RoleProtectedRoute allowedRoles={['ADMIN']}><InvoicePricesPage /></RoleProtectedRoute>} />
 
             {/* [M3: Suite Aduanera e Inventarios] ADMIN, OPERADOR_ADUANAS, CONTADOR, AUDITOR */}
             <Route

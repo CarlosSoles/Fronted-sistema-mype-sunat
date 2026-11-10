@@ -54,7 +54,7 @@ describe('búsqueda real del formulario de emisión', () => {
     const usuario = userEvent.setup(); montar();
     await usuario.type(screen.getByLabelText('Razón social / nombre'), 'FERRETERIA');
     expect(screen.getByRole('status').textContent).toContain('Buscando');
-    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('No se pudo buscar'));
+    await waitFor(() => expect(screen.getByText('No se pudo buscar en el maestro. Vuelva a intentarlo.').getAttribute('role')).toBe('alert'));
     expect(screen.queryByText(/Sin coincidencias/)).toBeNull();
   });
 });

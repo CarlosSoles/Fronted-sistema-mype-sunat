@@ -296,6 +296,7 @@ export const itemDesdeProducto = (
     descripcion: string;
     unidad: string;
     valorUnitario: number;
+    precioUnitario?: number;
     afectacion?: string | null;
   },
   clave: string,
@@ -312,7 +313,7 @@ export const itemDesdeProducto = (
     unidad,
     cantidad: 1,
     valorUnitario: Number.isFinite(valor) && valor > 0 ? valor : 0,
-    precioUnitario: Number.isFinite(valor) && valor > 0 ? (afectacion === 'GRAVADA' ? Number((valor * 1.18).toFixed(10)) : valor) : 0,
+    precioUnitario: producto.precioUnitario ?? (Number.isFinite(valor) && valor > 0 ? (afectacion === 'GRAVADA' ? Number((valor * 1.18).toFixed(10)) : valor) : 0),
     afectacion,
     codigoAfectacion: ({ GRAVADA: '10', EXONERADA: '20', INAFECTA: '30', GRATUITA: '11' } as Record<string, string>)[producto.afectacion?.trim().toUpperCase() ?? ''] ?? producto.afectacion?.trim(),
     afectacionHeredada: true,
