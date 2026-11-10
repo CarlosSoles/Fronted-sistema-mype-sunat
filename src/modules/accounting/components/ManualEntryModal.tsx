@@ -56,7 +56,7 @@ export default function ManualEntryModal({ open, period, onClose, onSaved }: Man
       if (prev.some((line) => line.accountCode)) return prev;
       return [
         { accountCode: '1211', debit: '', credit: '' },
-        { accountCode: '7011', debit: '', credit: '' },
+        { accountCode: '', debit: '', credit: '' },
       ];
     });
   }, [accounts, open]);
@@ -116,7 +116,7 @@ export default function ManualEntryModal({ open, period, onClose, onSaved }: Man
       setGlosa('');
       setLines([
         { accountCode: '1211', debit: '', credit: '' },
-        { accountCode: '7011', debit: '', credit: '' },
+        { accountCode: '', debit: '', credit: '' },
       ]);
       onSaved();
       onClose();
