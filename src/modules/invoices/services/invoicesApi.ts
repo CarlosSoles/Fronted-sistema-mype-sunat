@@ -67,7 +67,17 @@ export type ResultadoConsultaSunat =
   | { tipo: 'NO_ENCONTRADO' }
   | { tipo: 'INCIERTO'; motivo: string };
 
+export interface ResultadoReprocesoPuente {
+  completo: boolean; yaCompleto: boolean; asientoId?: string; asientoOmitido: boolean;
+  asientoCostoId?: string; costoVenta?: number; kardex: 'COMPLETO' | 'PENDIENTE';
+  movimientosRegistrados: number; movimientosOmitidos: number; errores: string[];
+}
+
 export const invoicesApi = {
+  reprocesarPuente: async (id: string): Promise<ResultadoReprocesoPuente> => {
+    const { data } = await apiClient.post<ResultadoReprocesoPuente>(`/invoices/${encodeURIComponent(id)}/reprocesar-puente`);
+    return data;
+  },
   previsualizarBaja: async (fecha: string, lineas: SeleccionBaja[]): Promise<VistaPreviaResumen> => {
     const { data } = await apiClient.post<VistaPreviaResumen>('/invoices/resumenes/baja/vista', { lineas }, { params: { fecha } }); return data;
   },
