@@ -10,6 +10,7 @@ export default function ExpensesPage() {
   const { data = [], isLoading } = useQuery({ queryKey: ['expenses'], queryFn: expensesApi.list });
   const [form, setForm] = useState({ description: '', supplierName: '', supplierDoc: '', documentNumber: '', expenseDate: new Date().toISOString().slice(0, 10), baseAmount: '', igvAmount: '', totalAmount: '' });
   const [error, setError] = useState<string | null>(null);
+  const pagar = useMutation({ mutationFn: (id: string) => expensesApi.pay(id), onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ['expenses'] }); }, onError: () => setError('No se pudo pagar el gasto.') });
   const crear = useMutation({
     mutationFn: () => expensesApi.create({ description: form.description, supplierName: form.supplierName, supplierDoc: form.supplierDoc || undefined, documentNumber: form.documentNumber || undefined, expenseDate: form.expenseDate, baseAmount: Number(form.baseAmount), igvAmount: Number(form.igvAmount), totalAmount: Number(form.totalAmount) }),
     onSuccess: async () => { setError(null); setForm({ ...form, description: '', supplierName: '', supplierDoc: '', documentNumber: '', baseAmount: '', igvAmount: '', totalAmount: '' }); await queryClient.invalidateQueries({ queryKey: ['expenses'] }); },
@@ -32,10 +33,10 @@ export default function ExpensesPage() {
           <div className="flex items-end"><Button onClick={() => crear.mutate()} disabled={crear.isPending || !form.description || !form.supplierName}>{crear.isPending ? 'Registrando…' : 'Registrar gasto'}</Button></div>
         </div>
       </Card>
-      <Card flush><Table><TableHeader><TableRow><TableHead>Fecha</TableHead><TableHead>Proveedor</TableHead><TableHead>Descripción</TableHead><TableHead align="right">Base</TableHead><TableHead align="right">IGV</TableHead><TableHead align="right">Total</TableHead></TableRow></TableHeader><TableBody>
-        {isLoading ? <TableRow><TableCell colSpan={6}>Cargando…</TableCell></TableRow> : null}
-        {!isLoading && data.length === 0 ? <TableRow><TableCell colSpan={6}>Sin gastos registrados.</TableCell></TableRow> : null}
-        {data.map((g) => <TableRow key={g.id}><TableCell>{new Date(g.expense_date).toLocaleDateString('es-PE')}</TableCell><TableCell>{g.supplier_name}</TableCell><TableCell>{g.description}</TableCell><TableCell align="right">{money(g.base_amount)}</TableCell><TableCell align="right">{money(g.igv_amount)}</TableCell><TableCell align="right">{money(g.total_amount)}</TableCell></TableRow>)}
+      <Card flush><Table><TableHeader><TableRow><TableHead>Fecha</TableHead><TableHead>Proveedor</TableHead><TableHead>Descripción</TableHead><TableHead align="right">Base</TableHead><TableHead align="right">IGV</TableHead><TableHead align="right">Total</TableHead><TableHead align="right">Pagado</TableHead><TableHead align="right">Saldo</TableHead><TableHead align="right">Acción</TableHead></TableRow></TableHeader><TableBody>
+        {isLoading ? <TableRow><TableCell colSpan={9}>Cargando…</TableCell></TableRow> : null}
+        {!isLoading && data.length === 0 ? <TableRow><TableCell colSpan={9}>Sin gastos registrados.</TableCell></TableRow> : null}
+        {data.map((g) => <TableRow key={g.id}><TableCell>{new Date(g.expense_date).toLocaleDateString('es-PE')}</TableCell><TableCell>{g.supplier_name}</TableCell><TableCell>{g.description}</TableCell><TableCell align="right">{money(g.base_amount)}</TableCell><TableCell align="right">{money(g.igv_amount)}</TableCell><TableCell align="right">{money(g.total_amount)}</TableCell><TableCell align="right">{money(g.paid_amount ?? 0)}</TableCell><TableCell align="right">{money(Number(g.total_amount) - Number(g.paid_amount ?? 0))}</TableCell><TableCell align="right">{g.status !== 'PAGADO' ? <Button size="sm" variant="outline" onClick={() => pagar.mutate(g.id)}>Pagar</Button> : null}</TableCell></TableRow>)}
       </TableBody></Table></Card>
     </Page>
   );
