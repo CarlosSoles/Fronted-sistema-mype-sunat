@@ -49,7 +49,7 @@ describe('D11 · botón de envío del resumen diario', () => {
     ).toBeDefined();
   });
 
-  it('si NINGUNA es elegible, explica que ya tienen CDR y no ofrece enviar', () => {
+  it('si NINGUNA es elegible, explica las exclusiones sin atribuir CDR a todos', () => {
     // D11: cuando todas las boletas del día ya están informadas, el envío se
     // inhabilita CON explicación. Callarse haría pensar que el día está vacío.
     render(
@@ -61,9 +61,9 @@ describe('D11 · botón de envío del resumen diario', () => {
     expect(
       screen.queryByRole('button', { name: /Enviar resumen diario/i }),
     ).toBeNull();
-    const texto = screen.getByText(/No hay ninguna boleta que informar/i);
-    expect(texto.textContent).toContain('CDR');
-    expect(texto.textContent).toContain('duplicaría');
+    const texto = screen.getByText(/No hay boletas elegibles para RC/i);
+    expect(texto.textContent).toContain('transporte incierto');
+    expect(texto.textContent).toContain('canal individual en curso');
     expect(texto.textContent).toContain('deshabilitado');
   });
 

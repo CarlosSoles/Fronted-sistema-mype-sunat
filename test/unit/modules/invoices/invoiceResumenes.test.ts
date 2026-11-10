@@ -139,10 +139,12 @@ describe('TA-67 · resumen de la vista previa', () => {
 
   it('identifica filas que nunca llegaron a SUNAT como reenviables y rotula su estado', () => {
     expect(esLineaReenviable({ estado: 'ERROR_RED' })).toBe(true);
+    expect(esLineaReenviable({ estado: 'PENDIENTE', reenviable: false })).toBe(false);
+    expect(esLineaReenviable({ estado: 'ERROR_RED', reenviable: false })).toBe(false);
     expect(esLineaReenviable({ estado: 'PENDIENTE' })).toBe(true);
     expect(esLineaReenviable({ estado: 'EN_COLA' })).toBe(true);
     expect(esLineaReenviable({ estado: 'ACEPTADO' })).toBe(false);
-    expect(ETIQUETA_ESTADO_SUNAT.ERROR_RED).toContain('No llegó a SUNAT');
+    expect(ETIQUETA_ESTADO_SUNAT.ERROR_RED).toContain('Error de transporte');
     expect(ETIQUETA_ESTADO_SUNAT.ACEPTADO).toContain('Aceptado por SUNAT');
   });
 

@@ -16,7 +16,7 @@ export const ESTADOS_REENVIABLES_SUNAT = ['PENDIENTE', 'EN_COLA', 'ERROR_RED', '
 
 /** ¿El comprobante nunca llegó a SUNAT y puede reenviarse desde la fila? */
 export const esLineaReenviable = (linea: Pick<LineaResumen, 'estado' | 'reenviable'>): boolean =>
-  linea.reenviable === true || (ESTADOS_REENVIABLES_SUNAT as readonly string[]).includes(linea.estado);
+  linea.reenviable ?? (ESTADOS_REENVIABLES_SUNAT as readonly string[]).includes(linea.estado);
 
 /** Etiqueta legible del estado frente a SUNAT en Bajas y Resúmenes. */
 export const ETIQUETA_ESTADO_SUNAT: Record<string, string> = {
@@ -26,8 +26,8 @@ export const ETIQUETA_ESTADO_SUNAT: Record<string, string> = {
   ANULADO: 'Anulado (Baja)',
   PENDIENTE: 'No enviado a SUNAT (Pendiente)',
   EN_COLA: 'No enviado a SUNAT (En cola)',
-  ERROR_RED: 'No llegó a SUNAT (Error de red)',
-  SIN_CONFIRMAR: 'No llegó a SUNAT (Sin confirmar)',
+  ERROR_RED: 'Error de transporte (ver motivo)',
+  SIN_CONFIRMAR: 'Sin confirmación de SUNAT',
   ENVIADO: 'Enviado a SUNAT',
 };
 
