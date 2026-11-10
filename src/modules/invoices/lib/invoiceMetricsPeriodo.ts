@@ -17,6 +17,8 @@
 
 /** Respuesta de `GET /api/v1/invoices/metrics`. */
 export interface MetricasFacturacion {
+  /** Total de documentos registrados en el período, incluidos todos los estados. */
+  total?: number;
   /** Comprobantes emitidos en el periodo, sin contar los rechazados. */
   emitidos: number;
   /** Rechazados por SUNAT en el periodo. */
@@ -98,6 +100,7 @@ export const normalizarMetricas = (
   };
 
   return {
+    total: crudo?.total == null ? undefined : numero(crudo.total),
     emitidos: numero(crudo?.emitidos),
     rechazados: numero(crudo?.rechazados),
     aceptados: numero(crudo?.aceptados),
