@@ -57,6 +57,7 @@ const SireImportPage = React.lazy(() => import('@/modules/sire/pages/SireImportP
 const AccountingEntriesPage = React.lazy(() => import('@/modules/accounting/pages/AccountingEntriesPage'));
 const AccountingDashboardPage = React.lazy(() => import('@/modules/accounting/pages/AccountingDashboardPage'));
 const AccountingRulesPage = React.lazy(() => import('@/modules/accounting/pages/AccountingRulesPage'));
+const ExpensesPage = React.lazy(() => import('@/modules/expenses/pages/ExpensesPage'));
 const AccountingTaxBooksPage = React.lazy(() => import('@/modules/accounting/pages/AccountingTaxBooksPage'));
 const AccountingPlanCuentasPage = React.lazy(() => import('@/modules/accounting/pages/AccountingPlanCuentasPage'));
 const AccountingPlePage = React.lazy(() => import('@/modules/accounting/pages/AccountingPlePage'));
@@ -518,6 +519,14 @@ export const AppRoutes = () => {
               element={
                 <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
                   <AccountingBalanceSheetPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/expenses"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <ExpensesPage />
                 </RoleProtectedRoute>
               }
             />

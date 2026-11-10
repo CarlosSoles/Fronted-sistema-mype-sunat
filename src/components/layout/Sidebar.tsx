@@ -148,6 +148,13 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
+    title: 'Gastos',
+    path: '/expenses',
+    icon: Receipt,
+    developer: 'Oliver Saldaña',
+    allowedRoles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
+  },
+  {
     title: 'Contabilidad PCGE',
     path: '/accounting',
     icon: BookOpen,
