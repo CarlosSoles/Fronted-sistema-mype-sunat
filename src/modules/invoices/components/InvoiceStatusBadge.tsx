@@ -6,7 +6,7 @@ import { lecturaRechazo, type ResultadoPresentacion } from '../lib/invoiceResult
  *  - Verde   -> Aceptado (CDR código 0).
  *  - Amarillo-> Observado (CDR 4xxx: aceptado con observaciones).
  *  - Azul    -> En cola Outbox, pendiente de despacho.
- *  - Ámbar   -> Sin confirmar: el envío falló y SUNAT no lo evaluó.
+ *  - Ámbar   -> Sin confirmar: recepción o resultado de SUNAT desconocido.
  *  - Rojo    -> Rechazado por SUNAT (requiere acción correctiva).
  *
  * POR QUÉ "SIN CONFIRMAR" ES UN ESTADO Y NO UN CASO ESPECIAL
@@ -44,12 +44,12 @@ const ESTADOS: Record<
   },
   /**
    * Ámbar y no rojo: no hay veredicto de SUNAT. El comprobante puede seguir
-   * emitiéndose una vez resuelto el problema de red.
+   * conciliándose antes de autorizar cualquier reenvío.
    */
   SIN_CONFIRMAR: {
-    label: 'Error de red (ERROR_RED)',
+    label: 'Incertidumbre de transporte',
     className: 'border-amber-500/40 bg-amber-500/10 text-amber-700',
-    ariaLabel: 'No llegó a SUNAT: el envío falló por un error de red',
+    ariaLabel: 'Incertidumbre de transporte: resultado sin confirmar',
   },
   RECHAZADO: {
     label: 'Rechazado',
@@ -66,7 +66,8 @@ interface InvoiceStatusBadgeProps {
 
 export const InvoiceStatusBadge = ({ estado, codigo, resultado }: InvoiceStatusBadgeProps) => {
   const lectura = estado === 'RECHAZADO' ? lecturaRechazo(resultado) : null;
-  const meta = lectura ? { ...ESTADOS[estado], label: lectura.etiqueta, ariaLabel: lectura.etiqueta } : ESTADOS[estado];
+  const incierto = resultado?.origen === 'TRANSPORTE_INCIERTO';
+  const meta = incierto ? ESTADOS.SIN_CONFIRMAR : lectura ? { ...ESTADOS[estado], label: lectura.etiqueta, ariaLabel: lectura.etiqueta } : ESTADOS[estado];
 
   return (
     <Badge
@@ -75,7 +76,7 @@ export const InvoiceStatusBadge = ({ estado, codigo, resultado }: InvoiceStatusB
       aria-label={meta.ariaLabel}
     >
       {meta.label}
-      {(resultado?.codigo ?? codigo) && (resultado?.codigo ?? codigo) !== '0' ? ` · ${resultado?.codigo ?? codigo}` : ''}
+      {!incierto && (resultado?.codigo ?? codigo) && (resultado?.codigo ?? codigo) !== '0' ? ` · ${resultado?.codigo ?? codigo}` : ''}
     </Badge>
   );
 };

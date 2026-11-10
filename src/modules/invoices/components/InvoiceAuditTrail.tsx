@@ -1,4 +1,4 @@
-import { lecturaRechazo } from '../lib/invoiceResultPresentation';
+import { lecturaRechazo, lecturaIncertidumbre } from '../lib/invoiceResultPresentation';
 /**
  * Bitácora de auditoría del comprobante (M1).
  *
@@ -54,7 +54,7 @@ export const InvoiceAuditTrail = ({ comprobante, digest, historial, errorHistori
   // mismo. `esErrorDeRed` se conserva como respaldo para filas antiguas que
   // todavía traigan el estado colapsado desde el backend.
   const falloDeRed =
-    comprobante.estado === 'SIN_CONFIRMAR' || esErrorDeRed(comprobante);
+    comprobante.resultadoPresentacion?.origen === 'TRANSPORTE_INCIERTO' || comprobante.estado === 'SIN_CONFIRMAR' || esErrorDeRed(comprobante);
 
   const filas: { etiqueta: string; valor: string }[] = [
     {
@@ -74,7 +74,7 @@ export const InvoiceAuditTrail = ({ comprobante, digest, historial, errorHistori
       // `LECTURA_DEL_ESTADO` ya incluye SIN_CONFIRMAR, así que una sola
       // consulta cubre los cinco estados.
       valor:
-        rechazo?.lectura ?? LECTURA_DEL_ESTADO[comprobante.estado ?? ''] ??
+        (falloDeRed ? lecturaIncertidumbre(comprobante.resultadoPresentacion) : rechazo?.lectura) ?? LECTURA_DEL_ESTADO[comprobante.estado ?? ''] ??
         'Estado no reconocido por la interfaz.',
     },
     {
@@ -82,15 +82,13 @@ export const InvoiceAuditTrail = ({ comprobante, digest, historial, errorHistori
       valor: comprobante.resultadoPresentacion?.origen === 'VALIDACION_LOCAL' ? rechazo!.sinCdr : comprobante.cdrCodigo?.trim()
         ? comprobante.cdrCodigo
         : rechazo ? rechazo.sinCdr : falloDeRed
-          // No es "todavía no respondió": SUNAT no respondió PORQUE nunca le
-          // llegó el documento. Decirlo al revés sugiere una espera que no va
-          // a terminar sola.
-          ? 'Sin código: el envío no llegó a SUNAT'
+          // Sin CDR no se afirma que el comprobante nunca llegó a SUNAT.
+          ? 'Sin CDR concluyente: recepción sin confirmar'
           : 'Sin código: SUNAT todavía no respondió',
     },
     {
       etiqueta: 'Descripción del CDR',
-      valor: rechazo?.motivo ?? (comprobante.cdrDescripcion?.trim()
+      valor: (falloDeRed ? lecturaIncertidumbre(comprobante.resultadoPresentacion) : rechazo?.motivo) ?? (comprobante.cdrDescripcion?.trim()
         ? comprobante.cdrDescripcion
         : 'No hay descripción registrada'),
     },

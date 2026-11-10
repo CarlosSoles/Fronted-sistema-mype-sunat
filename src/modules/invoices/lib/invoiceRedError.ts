@@ -1,22 +1,4 @@
-/**
- * ¿El comprobante falló en el envío, sin llegar nunca a SUNAT?
- *
- * POR QUÉ ESTÁ EN `lib` Y NO DENTRO DE UN COMPONENTE
- *
- * Un `ERROR_RED` es un fallo de TRANSMISIÓN: el documento no salió del
- * sistema. Un `RECHAZADO` es un VEREDICTO de SUNAT: llegó y lo tiró. Son
- * estados fiscales opuestos y confundirlos afirma algo falso sobre el
- * comprobante.
- *
- * El problema es que el front no puede verlo en `estado`: `mapEstadoCdr`
- * colapsa `FALLO_CRITICO` dentro de `RECHAZADO` para que la fila salga en rojo,
- * así que a los componentes les llega "RECHAZADO" en los dos casos.
- *
- * La decisión tiene que ser UNA sola. Si el modal, la bitácora y la grilla
- * tienen cada uno su propia heurística, acaban discrepando en el borde y la
- * ficha vuelve a contradecirse consigo misma — que es exactamente el defecto
- * que se arregló el 3 nov.
- */
+/** Lectura conservadora de un resultado no confirmado; no prueba recepción ni ausencia. */
 import type { ComprobanteDemo } from '../data/invoiceDemoSchema';
 
 /**
@@ -43,5 +25,4 @@ export const esErrorDeRed = (c: ComprobanteDemo): boolean =>
     (c.cdrDescripcion?.includes('No llegó a SUNAT') ?? false));
 
 /** Rótulo del estado fiscal de un comprobante, con su lectura en claro. */
-export const LECTURA_ERROR_RED =
-  'No llegó a SUNAT: el envío falló por un error de red. SUNAT no lo evaluó, así que no hay rechazo ni aceptación.';
+export { LECTURA_INCERTIDUMBRE as LECTURA_ERROR_RED } from './invoiceResultPresentation';
