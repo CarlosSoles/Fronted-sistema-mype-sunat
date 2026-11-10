@@ -107,10 +107,10 @@ it.each([{ roles: ['PROVEEDOR'] }, { roles: ['PROVEEDOR', 'IMPORTADOR', 'AGENTE'
   fireEvent.click(screen.getByRole('button', { name: 'Nuevo tercero' }));
   fireEvent.click(screen.getByLabelText('CLIENTE'));
   for (const role of roles) fireEvent.click(screen.getByLabelText(role));
-  fireEvent.change(screen.getByLabelText('Número'), { target: { value: '20555555555' } });
+  fireEvent.change(screen.getByLabelText('Número'), { target: { value: '20555555556' } });
   fireEvent.change(screen.getByLabelText('Razón social'), { target: { value: 'Proveedor nuevo' } });
   fireEvent.click(screen.getByRole('button', { name: 'Guardar tercero' }));
-  await waitFor(() => expect(masterDataApi.createPartner).toHaveBeenCalledWith(expect.objectContaining({ docNumber: '20555555555', roles })));
+  await waitFor(() => expect(masterDataApi.createPartner).toHaveBeenCalledWith(expect.objectContaining({ docNumber: '20555555556', roles })));
   expect(screen.queryByTitle('Eliminar tercero')).toBeNull();
 });
 it('edita y guarda un proveedor sin CLIENTE y conserva su ficha', async () => {

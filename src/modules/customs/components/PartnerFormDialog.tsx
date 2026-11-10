@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button, Input, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui';
+import { rucValido, dniValido } from '@/modules/invoices/lib/invoiceEmitValidation';
 import { masterDataApi, type BusinessPartnerRecord, type PartnerRole } from '../services/masterDataApi';
 import { enqueuePartnerCreate } from '@/lib/outbox';
 
@@ -38,6 +39,19 @@ export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PR
   });
   const [roles, setRoles] = useState<PartnerRole[]>(partner ? [...partner.roles] : [initialRole]);
   const [error, setError] = useState('');
+  const documentoValido = (() => {
+    const doc = form.docNumber.trim();
+    if (form.docType === '6') return rucValido(doc);
+    if (form.docType === '1') return dniValido(doc);
+    return /^[A-Za-z0-9-]{3,20}$/.test(doc);
+  })();
+  const mensajeDocumento = !form.docNumber.trim() || documentoValido
+    ? null
+    : form.docType === '6'
+      ? 'RUC inválido: deben ser 11 dígitos y superar el módulo 11 de SUNAT.'
+      : form.docType === '1'
+        ? 'DNI inválido: deben ser 8 dígitos.'
+        : 'Documento inválido: use letras, números o guiones (3 a 20).';
   const [existing, setExisting] = useState<BusinessPartnerRecord | null>(null);
   const toggleRole = (role: PartnerRole) => setRoles((prev) => prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]);
   const save = useMutation({
@@ -108,7 +122,21 @@ export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PR
             </div>
             <div>
               <p className="mb-1 font-medium">Número</p>
-              <Input aria-label="Número" disabled={!!partner} placeholder="Ej. 20100000001 o TAX ID" value={form.docNumber} onChange={(e) => setForm({ ...form, docNumber: e.target.value })} />
+              <Input
+                aria-label="Número"
+                disabled={!!partner}
+                placeholder={form.docType === '6' ? '20100000001' : form.docType === '1' ? '70123456' : 'TAX ID'}
+                value={form.docNumber}
+                inputMode={form.docType === '6' || form.docType === '1' ? 'numeric' : 'text'}
+                maxLength={form.docType === '6' ? 11 : form.docType === '1' ? 8 : 20}
+                onChange={(e) => {
+                  const limpio = form.docType === '6' || form.docType === '1'
+                    ? e.target.value.replace(/\D/g, '')
+                    : e.target.value;
+                  setForm({ ...form, docNumber: limpio });
+                }}
+              />
+              {mensajeDocumento ? <p className="mt-1 text-xs text-destructive">{mensajeDocumento}</p> : null}
             </div>
             <div className="sm:col-span-2">
               <p className="mb-1 font-medium">Razón social</p>
@@ -200,7 +228,7 @@ export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PR
 
       <DialogFooter>
         <Button variant="outline" disabled={save.isPending} onClick={onClose}>Cancelar</Button>
-        <Button disabled={save.isPending || !form.docNumber.trim() || !form.legalName.trim() || !roles.length} onClick={() => { setError(''); save.mutate(false); }}>{partner ? 'Guardar cambios' : 'Guardar tercero'}</Button>
+        <Button disabled={save.isPending || !documentoValido || !form.legalName.trim() || !roles.length} onClick={() => { setError(''); save.mutate(false); }}>{partner ? 'Guardar cambios' : 'Guardar tercero'}</Button>
       </DialogFooter>
       </>}
     </DialogContent>

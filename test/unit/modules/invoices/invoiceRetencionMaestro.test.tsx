@@ -11,9 +11,9 @@ afterEach(() => { cleanup(); vi.resetAllMocks(); });
 
 it('consulta el maestro y permite corrección explícita', async () => {
   vi.mocked(apiClient.get).mockImplementation(async (url) => ({ data: String(url).endsWith('tax-status')
-    ? [{ indicator: 'RETENCION', value: true }] : [{ id: 'p1', doc_type: '6', doc_number: '20601234567' }] }) as never);
+    ? [{ indicator: 'RETENCION', value: true }] : [{ id: 'p1', doc_type: '6', doc_number: '20601234565' }] }) as never);
   const onChange = vi.fn();
-  const props = { documento: '20601234567', razonSocial: 'Empresa', valor: false, onChange };
+  const props = { documento: '20601234565', razonSocial: 'Empresa', valor: false, onChange };
   const view = render(<RetencionMaestro {...props} />);
   expect(await screen.findByText(/según maestro: Sí/)).toBeTruthy();
   expect(onChange).toHaveBeenCalledWith(true, false);
@@ -26,12 +26,12 @@ it('consulta el maestro y permite corrección explícita', async () => {
 
 it('permite crear un cliente ausente sin impedir la selección manual', async () => {
   vi.mocked(apiClient.get).mockResolvedValue({ data: [] } as never);
-  vi.mocked(apiClient.post).mockResolvedValue({ data: { id: 'p1', doc_type: '6', doc_number: '20601234567' } } as never);
-  render(<RetencionMaestro documento="20601234567" razonSocial="Empresa" valor={false} onChange={vi.fn()} />);
+  vi.mocked(apiClient.post).mockResolvedValue({ data: { id: 'p1', doc_type: '6', doc_number: '20601234565' } } as never);
+  render(<RetencionMaestro documento="20601234565" razonSocial="Empresa" valor={false} onChange={vi.fn()} />);
   expect(await screen.findByText(/Sin registro en el maestro/)).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: /Crear cliente/ }));
   fireEvent.click(await screen.findByRole('button', { name: 'Guardar tercero' }));
-  await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith('/master-data/partners', expect.objectContaining({ docNumber: '20601234567', legalName: 'Empresa' })));
+  await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith('/master-data/partners', expect.objectContaining({ docNumber: '20601234565', legalName: 'Empresa' })));
 });
 
 function render(ui: ReactNode) { return rtlRender(ui, { wrapper: ({ children }) => <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })}>{children}</QueryClientProvider> }); }
