@@ -5,6 +5,7 @@ import { type InventoryBalance } from '../types/inventory.types';
 import { ProductModal } from '../components/ProductModal';
 import { ProductDetailDrawer } from '../components/ProductDetailDrawer';
 import { ManualMovementModal } from '../components/ManualMovementModal';
+import { CatalogsManagerModal } from '../components/CatalogsManagerModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -23,6 +24,7 @@ import {
   Edit2,
   Trash2,
   Download,
+  Layers,
 } from 'lucide-react';
 
 export default function InventoryStocksPage() {
@@ -31,9 +33,11 @@ export default function InventoryStocksPage() {
   const [totalValuation, setTotalValuation] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>('ALL');
+  const [originFilter, setOriginFilter] = useState<'ALL' | 'NACIONAL' | 'IMPORTADO'>('ALL');
   const [isLoading, setIsLoading] = useState(true);
   const [refreshState, setRefreshState] = useState<'idle' | 'loading' | 'success'>('idle');
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [isCatalogsModalOpen, setIsCatalogsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<InventoryBalance | null>(null);
   const [selectedProductForDetail, setSelectedProductForDetail] = useState<InventoryBalance | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -48,7 +52,7 @@ export default function InventoryStocksPage() {
       setBalances(data.balances || []);
       setTotalValuation(data.totalValuationPen || 0);
     } catch (err) {
-      console.error('Error cargando existencias:', err);
+      console.error('Error, cargando existencias:', err);
     } finally {
       setIsLoading(false);
     }
@@ -73,6 +77,10 @@ export default function InventoryStocksPage() {
     if (selectedWarehouse !== 'ALL' && b.warehouseCode !== selectedWarehouse) {
       return false;
     }
+    if (originFilter !== 'ALL') {
+      const productOrigin = b.origin_type || (b.hsCode ? 'IMPORTADO' : 'NACIONAL');
+      if (productOrigin !== originFilter) return false;
+    }
     const term = (searchTerm || '').trim().toLowerCase();
     if (!term) return true;
     const sku = String(b.sku || '').toLowerCase();
@@ -82,9 +90,17 @@ export default function InventoryStocksPage() {
     return sku.includes(term) || desc.includes(term) || brand.includes(term) || cat.includes(term);
   });
 
-  const handleOpenDetail = (b: InventoryBalance) => {
+  const handleOpenDetail = async (b: InventoryBalance) => {
     setSelectedProductForDetail(b);
     setIsDetailOpen(true);
+    try {
+      const detailed = await inventoryApi.getProductBySku(b.sku);
+      if (detailed) {
+        setSelectedProductForDetail((prev) => (prev ? { ...prev, ...detailed } : (detailed as any)));
+      }
+    } catch {
+      // Ignorar si falla la consulta detallada
+    }
   };
 
   const handleStartEdit = (b: InventoryBalance) => {
@@ -168,11 +184,10 @@ export default function InventoryStocksPage() {
 
       {feedbackMessage && (
         <div
-          className={`p-3.5 rounded-lg text-xs font-medium border flex items-center justify-between ${
-            feedbackMessage.type === 'success'
-              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300'
-              : 'bg-destructive/10 border-destructive/30 text-destructive'
-          }`}
+          className={`p-3.5 rounded-lg text-xs font-medium border flex items-center justify-between ${feedbackMessage.type === 'success'
+            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300'
+            : 'bg-destructive/10 border-destructive/30 text-destructive'
+            }`}
         >
           <span>{feedbackMessage.text}</span>
           <Button
@@ -199,6 +214,16 @@ export default function InventoryStocksPage() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsCatalogsModalOpen(true)}
+            className="gap-1.5"
+            title="Administrar tablas de Marcas, Modelos, Categorías, Fabricantes, Unidades SUNAT y Tags"
+          >
+            <Layers className="h-4 w-4 text-primary" /> Mantenedores
+          </Button>
+
           <Button variant="outline" size="sm" onClick={handleExportCsv} className="gap-1.5" title="Descargar inventario valorizado en formato CSV">
             <Download className="h-4 w-4" /> Exportar CSV
           </Button>
@@ -276,20 +301,35 @@ export default function InventoryStocksPage() {
             />
           </div>
 
-          <div className="flex items-center gap-2">
-            <label className="text-xs text-muted-foreground font-semibold uppercase whitespace-nowrap">Almacén:</label>
-            <select
-              value={selectedWarehouse}
-              onChange={(e) => setSelectedWarehouse(e.target.value)}
-              className="h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              <option value="ALL">Todos los Almacenes</option>
-              {warehouseOptions.map((w) => (
-                <option key={w} value={w}>
-                  {w} {w === 'ALM-01' ? '(Principal)' : ''}
-                </option>
-              ))}
-            </select>
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-muted-foreground font-semibold uppercase whitespace-nowrap">Origen:</label>
+              <select
+                value={originFilter}
+                onChange={(e) => setOriginFilter(e.target.value as any)}
+                className="h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                <option value="ALL">Todos los Orígenes</option>
+                <option value="NACIONAL">🇵🇪 Nacionales</option>
+                <option value="IMPORTADO">🌐 Importados</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-muted-foreground font-semibold uppercase whitespace-nowrap">Almacén:</label>
+              <select
+                value={selectedWarehouse}
+                onChange={(e) => setSelectedWarehouse(e.target.value)}
+                className="h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                <option value="ALL">Todos los Almacenes</option>
+                {warehouseOptions.map((w) => (
+                  <option key={w} value={w}>
+                    {w} {w === 'ALM-01' ? '(Principal)' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -317,8 +357,24 @@ export default function InventoryStocksPage() {
                     <td className="p-3 font-semibold">{b.warehouseCode || 'ALM-01'}</td>
                     <td className="p-3 font-mono font-bold text-primary">{b.sku}</td>
                     <td className="p-3">
-                      <p className="font-medium text-foreground">{b.description}</p>
-                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-medium text-foreground">{b.description}</p>
+                        {b.origin_type === 'IMPORTADO' || (!b.origin_type && b.hsCode) ? (
+                          <Badge variant="outline" className="text-[10px] bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400 font-semibold py-0 px-1.5">
+                            🌐 Importado
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-semibold py-0 px-1.5">
+                            🇵🇪 Nacional
+                          </Badge>
+                        )}
+                        {b.is_service && (
+                          <Badge variant="outline" className="text-[10px] bg-purple-500/10 border-purple-500/30 text-purple-600 dark:text-purple-400 font-semibold py-0 px-1.5">
+                            Servicio
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                         {b.brand && (
                           <span className="text-[10px] text-muted-foreground bg-muted/60 px-1.5 py-0.2 rounded font-semibold">
                             {b.brand}
@@ -327,6 +383,11 @@ export default function InventoryStocksPage() {
                         {b.category && (
                           <span className="text-[10px] text-muted-foreground border px-1.5 py-0.2 rounded">
                             {b.category}
+                          </span>
+                        )}
+                        {b.warehouse_location && (
+                          <span className="text-[10px] font-mono text-muted-foreground bg-secondary/80 px-1.5 py-0.2 rounded" title="Ubicación física en almacén">
+                            📍 {b.warehouse_location}
                           </span>
                         )}
                         {b.hsCode && (
@@ -447,6 +508,14 @@ export default function InventoryStocksPage() {
         onClose={() => { setIsMovementModalOpen(false); setSelectedSkuForMovement(undefined); }}
         onSuccess={loadData}
         defaultSku={selectedSkuForMovement}
+      />
+
+      <CatalogsManagerModal
+        isOpen={isCatalogsModalOpen}
+        onClose={() => {
+          setIsCatalogsModalOpen(false);
+          loadData();
+        }}
       />
     </div>
   );

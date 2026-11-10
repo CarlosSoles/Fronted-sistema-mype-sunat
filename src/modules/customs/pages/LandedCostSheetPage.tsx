@@ -11,14 +11,24 @@ import {
 } from '../components';
 import { useLandedCost } from '../hooks/useLandedCost';
 import { customsDeclarationsApi } from '../services/customsDeclarationsApi';
+import { landedCostApi } from '../services/landedCostApi';
 import { useRolePermissions } from '@/hooks/useRolePermissions';
-import { Calculator, ArrowLeft, Layers, CheckCircle2, ClipboardCheck, DollarSign } from 'lucide-react';
+import { Calculator, ArrowLeft, Layers, CheckCircle2, ClipboardCheck, DollarSign, Ship } from 'lucide-react';
 
 export default function LandedCostSheetPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { isReadOnly } = useRolePermissions();
-  const shipmentId = id || 'EXP-2026-00042';
+
+  const eligibleShipmentsQuery = useQuery({
+    queryKey: ['customs', 'landed-cost', 'eligible-shipments'],
+    queryFn: landedCostApi.getEligibleShipments,
+  });
+
+  const [customSelectedId, setCustomSelectedId] = useState<string | null>(null);
+
+  const defaultFirstShipmentId = eligibleShipmentsQuery.data?.[0]?.id || 'EXP-2026-00042';
+  const shipmentId = id || customSelectedId || defaultFirstShipmentId;
 
   const [activeTab, setActiveTab] = useState<'RECEIPT' | 'COSTING'>('RECEIPT');
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
@@ -105,14 +115,46 @@ export default function LandedCostSheetPage() {
             variant="default"
             onClick={() => navigate('/inventory/kardex')}
             className="text-xs gap-1.5 h-8 bg-primary text-primary-foreground hover:bg-primary/90"
+            title="Consulta las entradas valorizadas según PLE 13.1 oficial de SUNAT"
           >
             <Layers className="h-3.5 w-3.5" />
-            Ver Kardex Valorizado (Libro 13.1)
+            Consultar Kardex Valorizado (SUNAT 13.1)
           </Button>
         </div>
       </PageHeader>
 
       <div className="space-y-4">
+        {/* Selector de Expediente de Importación / Embarque (Obs 11) */}
+        <div className="bg-muted/40 p-3.5 rounded-xl border space-y-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <label className="font-bold text-foreground text-xs flex items-center gap-1.5">
+                <Ship className="h-4 w-4 text-primary" />
+                Expediente de Importación Seleccionado para Liquidación y Almacén:
+              </label>
+              <p className="text-[11px] text-muted-foreground">
+                Seleccione el embarque que ya cuenta con levante aduanero para procesar el ingreso físico y hoja de costos.
+              </p>
+            </div>
+            <div className="w-full sm:w-80">
+              <select
+                value={shipmentId}
+                onChange={(e) => setCustomSelectedId(e.target.value)}
+                className="w-full h-8 px-2 text-xs rounded-md border border-input bg-background font-semibold"
+              >
+                {(eligibleShipmentsQuery.data ?? []).length === 0 ? (
+                  <option value={shipmentId}>{shipmentId} (Expediente Activo)</option>
+                ) : (
+                  eligibleShipmentsQuery.data!.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.shipment_number} · {s.supplier?.business_name || 'Proveedor'} ({s.status})
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+          </div>
+        </div>
         {successBanner && (
           <Alert className="bg-emerald-500/10 border-emerald-500/30 text-xs">
             <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />

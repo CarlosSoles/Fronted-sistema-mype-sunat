@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { type CountryItem, saveStoredCountry } from '../services/catalogsApi';
+import { type CountryItem } from '../services/catalogsApi';
+import { masterDataApi } from '../services/masterDataApi';
 import { Check } from 'lucide-react';
 
 interface CountrySelectorProps {
@@ -23,7 +24,7 @@ export const CountrySelector: React.FC<CountrySelectorProps> = ({
   const [newCountryCode, setNewCountryCode] = useState('');
   const [newCountryName, setNewCountryName] = useState('');
 
-  const handleQuickSaveCountry = () => {
+  const handleQuickSaveCountry = async () => {
     const codeTrimmed = newCountryCode.trim().toUpperCase();
     const nameTrimmed = newCountryName.trim();
     if (codeTrimmed.length < 2 || nameTrimmed.length < 2) return;
@@ -33,7 +34,14 @@ export const CountrySelector: React.FC<CountrySelectorProps> = ({
       name: nameTrimmed,
       flag: '🌐',
     };
-    const updated = saveStoredCountry(newCountry);
+    try {
+      await masterDataApi.upsertCountry({ code: codeTrimmed, name: nameTrimmed, status: 'ACTIVO' });
+    } catch {
+      // Si la red falla, continúa con estado local
+    }
+    const updated = [...countries.filter((c) => c.code !== newCountry.code), newCountry].sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
     onCountriesChange(updated);
     onSelectCountry(newCountry.code);
     setIsAddingCountry(false);

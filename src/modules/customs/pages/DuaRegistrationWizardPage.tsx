@@ -108,7 +108,7 @@ export default function DuaRegistrationWizardPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => navigate('/customs/shipments')}
+            onClick={() => navigate('/customs/declarations')}
             className="text-xs gap-1.5 h-8"
           >
             <ArrowLeft className="h-3.5 w-3.5" />

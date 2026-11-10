@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Dialog,
   DialogContent,
@@ -8,10 +9,21 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { formatCurrency } from '@/lib/formatters';
-import { FileText, DollarSign, Layers, ShieldCheck } from 'lucide-react';
+import {
+  FileText,
+  DollarSign,
+  Layers,
+  ShieldCheck,
+  Upload,
+  Download,
+  FileCheck2,
+  Paperclip,
+} from 'lucide-react';
 import { type CustomsDeclarationRecord } from '../types';
 import { DamFormatAView } from './DamFormatAView';
+import { customsDeclarationsApi } from '../services/customsDeclarationsApi';
 
 interface DamFormatsViewerModalProps {
   declaration: CustomsDeclarationRecord | null;
@@ -24,7 +36,46 @@ export const DamFormatsViewerModal: React.FC<DamFormatsViewerModalProps> = ({
   isOpen,
   onClose,
 }) => {
-  const [activeFormat, setActiveFormat] = useState<'A' | 'B' | 'C'>('A');
+  const queryClient = useQueryClient();
+  const [activeFormat, setActiveFormat] = useState<'A' | 'B' | 'C' | 'DOCS'>('A');
+
+  // Formulario de subida de documentos
+  const [docFormatType, setDocFormatType] = useState('FORMATO_A');
+  const [docNumber, setDocNumber] = useState('');
+  const [docFileName, setDocFileName] = useState('');
+  const [docFileUrl, setDocFileUrl] = useState('');
+  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
+
+  const declarationId = declaration?.id || '';
+
+  const docsQuery = useQuery({
+    queryKey: ['customs', 'declaration-documents', declarationId],
+    queryFn: () => customsDeclarationsApi.getDocuments(declarationId),
+    enabled: isOpen && Boolean(declarationId),
+  });
+
+  const uploadMutation = useMutation({
+    mutationFn: () =>
+      customsDeclarationsApi.uploadDocument(declarationId, {
+        format_type: docFormatType,
+        document_number: docNumber.trim() || undefined,
+        file_name: docFileName.trim() || `${docFormatType}_DAM_${declaration?.dua_number || 'DOC'}.pdf`,
+        storage_url: docFileUrl.trim() || `/documents/dam/${declarationId}/${docFormatType.toLowerCase()}.pdf`,
+        mime_type: 'application/pdf',
+        file_size_bytes: 245000,
+        uploaded_by: 'Operador Aduanas',
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['customs', 'declaration-documents', declarationId],
+      });
+      setUploadSuccess('Documento subido y vinculado exitosamente a la DAM.');
+      setDocNumber('');
+      setDocFileName('');
+      setDocFileUrl('');
+      setTimeout(() => setUploadSuccess(null), 4000);
+    },
+  });
 
   if (!declaration) return null;
 
@@ -76,6 +127,20 @@ export const DamFormatsViewerModal: React.FC<DamFormatsViewerModalProps> = ({
           >
             <ShieldCheck className="h-3.5 w-3.5" />
             Formato C (Liquidación de Tributos)
+          </Button>
+          <Button
+            size="sm"
+            variant={activeFormat === 'DOCS' ? 'default' : 'ghost'}
+            onClick={() => setActiveFormat('DOCS')}
+            className="h-8 gap-1.5 text-primary"
+          >
+            <Paperclip className="h-3.5 w-3.5" />
+            Subir / Ver Documentos (Formatos A, B, C y Sustento)
+            {docsQuery.data && docsQuery.data.length > 0 && (
+              <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">
+                {docsQuery.data.length}
+              </Badge>
+            )}
           </Button>
         </div>
 
@@ -296,6 +361,161 @@ export const DamFormatsViewerModal: React.FC<DamFormatsViewerModalProps> = ({
                   <span className="font-medium text-foreground">BCP — Op. Bancaria 994128</span>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Contenido Documentos y Sustentos (Obs 10) */}
+        {activeFormat === 'DOCS' && (
+          <div className="space-y-4 py-2 text-xs">
+            {uploadSuccess && (
+              <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-medium">
+                {uploadSuccess}
+              </div>
+            )}
+
+            {/* Formulario de Carga */}
+            <div className="p-4 border rounded-xl bg-card/60 space-y-3">
+              <h4 className="font-bold text-foreground text-xs flex items-center gap-2">
+                <Upload className="h-4 w-4 text-primary" />
+                Subir Nuevo Documento Oficial de la DAM (Formatos A, B, C o Sustentos)
+              </h4>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="font-medium text-muted-foreground block mb-1 uppercase text-[10px]">
+                    Tipo de Formato / Documento *
+                  </label>
+                  <select
+                    value={docFormatType}
+                    onChange={(e) => setDocFormatType(e.target.value)}
+                    className="w-full h-8 px-2 text-xs rounded-md border border-input bg-background font-medium"
+                  >
+                    <option value="FORMATO_A">Formato A — Declaración de Mercancías</option>
+                    <option value="FORMATO_B">Formato B — Declaración del Valor OMC</option>
+                    <option value="FORMATO_C">Formato C — Liquidación de Tributos</option>
+                    <option value="BL">Conocimiento de Embarque (B/L / AWB)</option>
+                    <option value="FACTURA_COMERCIAL">Factura Comercial (Commercial Invoice)</option>
+                    <option value="PACKING_LIST">Lista de Empaque (Packing List)</option>
+                    <option value="CERTIFICADO_ORIGEN">Certificado de Origen</option>
+                    <option value="SUSTENTO_VALOR">Sustento de Valor / Transferencia Swift</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-medium text-muted-foreground block mb-1 uppercase text-[10px]">
+                    N° Folio / Referencia Documentaria
+                  </label>
+                  <Input
+                    placeholder="ej: DAM-118-2026-A-01"
+                    value={docNumber}
+                    onChange={(e) => setDocNumber(e.target.value)}
+                    className="h-8 text-xs font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-medium text-muted-foreground block mb-1 uppercase text-[10px]">
+                    Nombre del Archivo (PDF / Imagen)
+                  </label>
+                  <Input
+                    placeholder="ej: Formato_A_Firmado.pdf"
+                    value={docFileName}
+                    onChange={(e) => setDocFileName(e.target.value)}
+                    className="h-8 text-xs"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-medium text-muted-foreground block mb-1 uppercase text-[10px]">
+                  Enlace o URL de Almacenamiento Seguro (S3 / Storage Local)
+                </label>
+                <Input
+                  placeholder="https://storage.sunat-mype.pe/declarations/dam-2026-118-045892/formato_a.pdf"
+                  value={docFileUrl}
+                  onChange={(e) => setDocFileUrl(e.target.value)}
+                  className="h-8 text-xs font-mono"
+                />
+              </div>
+
+              <div className="flex justify-end pt-1">
+                <Button
+                  size="sm"
+                  onClick={() => uploadMutation.mutate()}
+                  disabled={uploadMutation.isPending}
+                  className="gap-1.5 text-xs font-semibold"
+                >
+                  <Upload className="h-3.5 w-3.5" />
+                  {uploadMutation.isPending ? 'Cargando documento...' : 'Registrar y Guardar Documento'}
+                </Button>
+              </div>
+            </div>
+
+            {/* Listado de Documentos Oficiales Registrados */}
+            <div className="border rounded-xl bg-card overflow-hidden">
+              <div className="p-3 bg-muted/40 border-b flex items-center justify-between">
+                <span className="font-bold text-foreground text-xs flex items-center gap-1.5">
+                  <FileCheck2 className="h-4 w-4 text-emerald-600" />
+                  Expediente Digital: Documentos Asociados a la DAM
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  Almacenados en Base de Datos Oficial
+                </span>
+              </div>
+
+              <table className="w-full text-left text-xs">
+                <thead className="bg-muted/20 text-muted-foreground uppercase text-[10px]">
+                  <tr>
+                    <th className="p-2.5">Tipo Formato</th>
+                    <th className="p-2.5">N° Documento</th>
+                    <th className="p-2.5">Archivo</th>
+                    <th className="p-2.5">Fecha Registro</th>
+                    <th className="p-2.5 text-right">Acción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {docsQuery.isLoading ? (
+                    <tr>
+                      <td colSpan={5} className="p-4 text-center text-muted-foreground">
+                        Cargando expediente digital...
+                      </td>
+                    </tr>
+                  ) : (docsQuery.data ?? []).length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="p-6 text-center text-muted-foreground">
+                        No hay documentos registrados para esta declaración. Puede subir los Formatos A, B, C o sustentos arriba.
+                      </td>
+                    </tr>
+                  ) : (
+                    docsQuery.data!.map((doc) => (
+                      <tr key={doc.id} className="border-t hover:bg-muted/10">
+                        <td className="p-2.5">
+                          <Badge variant="outline" className="font-mono text-[10px]">
+                            {doc.format_type}
+                          </Badge>
+                        </td>
+                        <td className="p-2.5 font-mono">{doc.document_number || 'S/N'}</td>
+                        <td className="p-2.5 font-medium">{doc.file_name}</td>
+                        <td className="p-2.5 font-mono text-muted-foreground">
+                          {String(doc.created_at).slice(0, 10)}
+                        </td>
+                        <td className="p-2.5 text-right">
+                          <a
+                            href={doc.storage_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-primary hover:underline font-semibold text-[11px]"
+                          >
+                            <Download className="h-3 w-3" />
+                            Ver Documento
+                          </a>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         )}

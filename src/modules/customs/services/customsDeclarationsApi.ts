@@ -218,20 +218,50 @@ export const customsDeclarationsApi = {
     settlementId: string,
     payload: PaySettlementPayload
   ): Promise<{ message: string; levante_granted: boolean }> => {
-    try {
-      const response = await apiClient.post<{ message: string; levante_granted: boolean }>(
-        `/customs/settlements/${settlementId}/pay`,
-        payload
-      );
-      markSettlementPaidInStorage(settlementId, payload);
-      return response.data;
-    } catch {
-      markSettlementPaidInStorage(settlementId, payload);
-      return {
-        message: 'Pago registrado exitosamente mediante Teledespacho bancario.',
-        levante_granted: true,
-      };
+    const response = await apiClient.post<{ message: string; levante_granted: boolean }>(
+      `/customs/settlements/${settlementId}/pay`,
+      payload
+    );
+    markSettlementPaidInStorage(settlementId, payload);
+    return response.data;
+  },
+
+  /**
+   * Carga y asocia un documento oficial DAM (Formatos A, B, C o Sustento).
+   */
+  uploadDocument: async (
+    declarationId: string,
+    payload: {
+      format_type: string;
+      document_number?: string;
+      file_name: string;
+      storage_url: string;
+      mime_type?: string;
+      file_size_bytes?: number;
+      uploaded_by?: string;
     }
+  ) => {
+    const response = await apiClient.post(
+      `/customs/declarations/${declarationId}/documents`,
+      payload
+    );
+    return response.data;
+  },
+
+  /**
+   * Obtiene los documentos oficiales adjuntos a la declaración.
+   */
+  getDocuments: async (declarationId: string) => {
+    const response = await apiClient.get<Array<{
+      id: string;
+      format_type: string;
+      document_number?: string;
+      file_name: string;
+      storage_url: string;
+      mime_type?: string;
+      created_at: string;
+    }>>(`/customs/declarations/${declarationId}/documents`);
+    return response.data;
   },
 
   /**

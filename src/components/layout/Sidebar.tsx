@@ -27,6 +27,7 @@ import {
   ClipboardCheck,
   Settings,
   Ship,
+  ShoppingBag,
   Sparkles,
 } from 'lucide-react';
 
@@ -106,6 +107,16 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
+    title: 'Compras',
+    path: '/purchases',
+    icon: ShoppingBag,
+    developer: 'Carlos Ahumada',
+    allowedRoles: ['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
+    subItems: [
+      { title: 'Registro de compras', path: '/purchases', icon: Receipt },
+    ],
+  },
+  {
     title: 'Inventario y Kardex',
     path: '/inventory',
     icon: Boxes,
@@ -114,12 +125,12 @@ const NAV_ITEMS: NavItem[] = [
     subItems: [
       { title: 'Resumen de inventario', path: '/inventory/dashboard', icon: LayoutDashboard, group: 'Inventario' },
       { title: 'Existencias y Catálogo', path: '/inventory/stocks', icon: Boxes, group: 'Inventario' },
-      { title: 'Compras nacionales', path: '/inventory/purchases', icon: Receipt, group: 'Inventario' },
       { title: 'Movimientos', path: '/inventory/movements', icon: GitCompareArrows, group: 'Inventario' },
       { title: 'Transferencias', path: '/inventory/transfers', icon: ArrowLeftRight, allowedRoles: ['ADMIN'], group: 'Inventario' },
       { title: 'Ajustes y toma física', path: '/inventory/adjustments', icon: ClipboardCheck, allowedRoles: ['ADMIN'], group: 'Inventario' },
       { title: 'Saldo inicial', path: '/inventory/opening', icon: FileUp, allowedRoles: ['ADMIN'], group: 'Inventario' },
       { title: 'Kardex valorizado', path: '/kardex/general', icon: BookOpen, group: 'Kardex' },
+      { title: 'Configuración y Costeo', path: '/inventory/config', icon: Settings, allowedRoles: ['ADMIN', 'CONTADOR', 'ACCOUNTANT'], group: 'Kardex' },
     ],
   },
   {

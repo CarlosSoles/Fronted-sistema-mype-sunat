@@ -125,6 +125,7 @@ export const DuaStep2SeriesTable: React.FC<DuaStep2SeriesTableProps> = ({
                   <Input
                     type="number"
                     value={item.fob_usd}
+                    onFocus={(e) => e.target.select()}
                     onChange={(e) => handleUpdateItem(index, { fob_usd: parseFloat(e.target.value) || 0 })}
                     className="h-7 text-xs font-mono font-bold text-primary"
                   />
@@ -148,6 +149,7 @@ export const DuaStep2SeriesTable: React.FC<DuaStep2SeriesTableProps> = ({
                   <Input
                     type="number"
                     value={item.physical_quantity}
+                    onFocus={(e) => e.target.select()}
                     onChange={(e) => handleUpdateItem(index, { physical_quantity: Number(e.target.value) || 0 })}
                     className="h-7 text-xs"
                   />
@@ -156,6 +158,7 @@ export const DuaStep2SeriesTable: React.FC<DuaStep2SeriesTableProps> = ({
                   <label className="text-[10px] text-muted-foreground block">Unidad</label>
                   <Input
                     value={item.physical_unit}
+                    onFocus={(e) => e.target.select()}
                     onChange={(e) => handleUpdateItem(index, { physical_unit: e.target.value })}
                     className="h-7 text-xs"
                   />
@@ -165,6 +168,7 @@ export const DuaStep2SeriesTable: React.FC<DuaStep2SeriesTableProps> = ({
                   <Input
                     type="number"
                     value={item.net_weight_kg}
+                    onFocus={(e) => e.target.select()}
                     onChange={(e) => handleUpdateItem(index, { net_weight_kg: Number(e.target.value) || 0 })}
                     className="h-7 text-xs font-mono"
                   />
@@ -174,6 +178,7 @@ export const DuaStep2SeriesTable: React.FC<DuaStep2SeriesTableProps> = ({
                   <Input
                     type="number"
                     value={item.gross_weight_kg}
+                    onFocus={(e) => e.target.select()}
                     onChange={(e) => handleUpdateItem(index, { gross_weight_kg: Number(e.target.value) || 0 })}
                     className="h-7 text-xs font-mono"
                   />
@@ -182,6 +187,7 @@ export const DuaStep2SeriesTable: React.FC<DuaStep2SeriesTableProps> = ({
                   <label className="text-[10px] text-muted-foreground block">TPI (TLC)</label>
                   <Input
                     value={item.tpi_code || ''}
+                    onFocus={(e) => e.target.select()}
                     onChange={(e) => handleUpdateItem(index, { tpi_code: e.target.value })}
                     placeholder="800 China"
                     className="h-7 text-xs font-mono"
@@ -192,7 +198,16 @@ export const DuaStep2SeriesTable: React.FC<DuaStep2SeriesTableProps> = ({
                   <Input
                     type="number"
                     value={item.ad_valorem_rate}
+                    onFocus={(e) => e.target.select()}
                     onChange={(e) => handleUpdateItem(index, { ad_valorem_rate: Number(e.target.value) || 0 })}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (index === items.length - 1) {
+                          handleAddItem();
+                        }
+                      }
+                    }}
                     className="h-7 text-xs font-mono font-bold"
                   />
                 </div>

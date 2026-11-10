@@ -19,6 +19,9 @@ import {
   DollarSign,
   AlertTriangle,
   CheckCircle2,
+  Boxes,
+  MapPin,
+  Layers,
 } from 'lucide-react';
 import { type InventoryBalance } from '../types/inventory.types';
 
@@ -35,9 +38,15 @@ const SUNAT_TYPES: Record<string, string> = {
   '02': '02 - Productos Terminados',
   '03': '03 - Materias Primas',
   '04': '04 - Envases y Embalajes',
+  '05': '05 - Materiales Auxiliares y Suministros',
   '07': '07 - Repuestos y Accesorios',
   '99': '99 - Otros',
 };
+
+const money = (n: number | null | undefined) =>
+  typeof n === 'number'
+    ? `S/ ${n.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : '—';
 
 export const ProductDetailDrawer: React.FC<ProductDetailDrawerProps> = ({
   product,
@@ -53,9 +62,11 @@ export const ProductDetailDrawer: React.FC<ProductDetailDrawerProps> = ({
     product.minStockAlert > 0 &&
     product.currentStock <= product.minStockAlert;
 
+  const isImported = (product as any).origin_type === 'IMPORTADO';
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto text-xs">
         <DialogHeader className="border-b pb-3">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -63,8 +74,14 @@ export const ProductDetailDrawer: React.FC<ProductDetailDrawerProps> = ({
                 <span className="font-mono font-bold text-base text-primary">
                   {product.sku}
                 </span>
+                <Badge
+                  variant={isImported ? 'default' : 'secondary'}
+                  className={isImported ? 'bg-blue-600 text-white text-[10px]' : 'text-[10px]'}
+                >
+                  {isImported ? '🌐 IMPORTADO' : '🇵🇪 NACIONAL'}
+                </Badge>
                 {product.brand && (
-                  <Badge variant="secondary" className="text-[10px] font-semibold">
+                  <Badge variant="outline" className="text-[10px] font-semibold">
                     {product.brand}
                   </Badge>
                 )}
@@ -73,9 +90,11 @@ export const ProductDetailDrawer: React.FC<ProductDetailDrawerProps> = ({
                     {product.category}
                   </Badge>
                 )}
-                <Badge className="bg-emerald-600 text-white text-[10px]">
-                  Inventariable (Activo)
-                </Badge>
+                {(product as any).warehouse_location && (
+                  <Badge variant="secondary" className="text-[10px] flex items-center gap-1 font-mono">
+                    <MapPin className="h-3 w-3" /> {(product as any).warehouse_location}
+                  </Badge>
+                )}
               </div>
               <DialogTitle className="text-sm font-semibold text-foreground mt-1">
                 {product.description}
@@ -137,11 +156,37 @@ export const ProductDetailDrawer: React.FC<ProductDetailDrawerProps> = ({
             </Card>
           </div>
 
-          {/* FICHA TÉCNICA Y ESPECIFICACIONES */}
+          {/* PRECIOS Y REGLAS COMERCIALES (OBS 11, 13) */}
+          <div className="p-3.5 rounded-lg border bg-muted/20 space-y-2">
+            <div className="flex items-center gap-1.5 font-bold text-foreground uppercase tracking-wider text-[11px]">
+              <DollarSign className="h-3.5 w-3.5 text-emerald-600" />
+              Estructura de Precios de Venta y Márgenes
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="bg-card p-2 rounded border">
+                <span className="text-[10px] text-muted-foreground uppercase block font-semibold">Costo Referencial:</span>
+                <span className="font-mono font-bold text-foreground">{money((product as any).cost_price ?? product.averageUnitCost)}</span>
+              </div>
+              <div className="bg-card p-2 rounded border">
+                <span className="text-[10px] text-muted-foreground uppercase block font-semibold">Precio Venta (Minorista):</span>
+                <span className="font-mono font-bold text-emerald-600">{money((product as any).sale_price)}</span>
+              </div>
+              <div className="bg-card p-2 rounded border">
+                <span className="text-[10px] text-muted-foreground uppercase block font-semibold">Precio Mayorista:</span>
+                <span className="font-mono font-bold text-foreground">{money((product as any).wholesale_price)}</span>
+              </div>
+              <div className="bg-card p-2 rounded border">
+                <span className="text-[10px] text-muted-foreground uppercase block font-semibold">Precio Promo:</span>
+                <span className="font-mono font-bold text-amber-600">{money((product as any).promo_price)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* FICHA TÉCNICA Y CLASIFICACIÓN */}
           <div className="p-3.5 rounded-lg border bg-muted/20 space-y-3">
             <div className="flex items-center gap-1.5 font-bold text-foreground uppercase tracking-wider text-[11px]">
               <Package className="h-3.5 w-3.5 text-primary" />
-              Especificaciones Técnicas y Comerciales
+              Especificaciones y Mantenedores
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -154,95 +199,149 @@ export const ProductDetailDrawer: React.FC<ProductDetailDrawerProps> = ({
                 <span className="font-semibold text-foreground">{product.model || '—'}</span>
               </div>
               <div>
-                <span className="text-[10px] text-muted-foreground uppercase block font-semibold">Línea / Categoría:</span>
+                <span className="text-[10px] text-muted-foreground uppercase block font-semibold">Categoría:</span>
                 <span className="font-semibold text-foreground">{product.category || 'General'}</span>
               </div>
               <div>
-                <span className="text-[10px] text-muted-foreground uppercase block font-semibold">Código de Barras:</span>
-                <span className="font-mono font-semibold text-foreground">{product.barcode || '—'}</span>
+                <span className="text-[10px] text-muted-foreground uppercase block font-semibold">Fabricante:</span>
+                <span className="font-semibold text-foreground">{(product as any).manufacturer || '—'}</span>
               </div>
             </div>
           </div>
 
-          {/* CLASIFICACIÓN ARANCELARIA Y COMERCIO EXTERIOR */}
-          <div className="p-3.5 rounded-lg border bg-muted/20 space-y-3">
-            <div className="flex items-center gap-1.5 font-bold text-foreground uppercase tracking-wider text-[11px]">
-              <Globe className="h-3.5 w-3.5 text-blue-500" />
-              Parámetros de Comercio Exterior & Logística
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <span className="text-[10px] text-muted-foreground uppercase block font-semibold">
-                  Partida Arancelaria (SPN / DUA):
-                </span>
-                <span className="font-mono font-bold text-foreground">
-                  {product.hsCode || '8471.30.00.00'}
-                </span>
-                <span className="text-[10px] text-muted-foreground block">
-                  Subpartida Nacional 10 dígitos
-                </span>
+          {/* LOGÍSTICA / COMERCIO EXTERIOR */}
+          {isImported ? (
+            <div className="p-3.5 rounded-lg border bg-blue-500/5 border-blue-500/20 space-y-3">
+              <div className="flex items-center gap-1.5 font-bold text-foreground uppercase tracking-wider text-[11px]">
+                <Globe className="h-3.5 w-3.5 text-blue-600" />
+                Parámetros de Importación y Despacho Aduanero (DAM)
               </div>
-
-              <div>
-                <span className="text-[10px] text-muted-foreground uppercase block font-semibold">
-                  Peso Unitario Bruto:
-                </span>
-                <span className="font-mono font-bold text-foreground">
-                  {product.weightKg ? `${product.weightKg} kg` : '2.80 kg'}
-                </span>
-                <span className="text-[10px] text-muted-foreground block">
-                  Factor bivariado de estiba/flete
-                </span>
-              </div>
-
-              <div>
-                <span className="text-[10px] text-muted-foreground uppercase block font-semibold">
-                  Volumen Unitario:
-                </span>
-                <span className="font-mono font-bold text-foreground">
-                  {product.volumeM3 ? `${product.volumeM3} m³` : '—'}
-                </span>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <span className="text-[10px] text-muted-foreground uppercase block font-semibold">
+                    Partida Arancelaria (HS Code):
+                  </span>
+                  <span className="font-mono font-bold text-foreground">
+                    {product.hsCode || '—'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-muted-foreground uppercase block font-semibold">
+                    País de Origen:
+                  </span>
+                  <span className="font-mono font-bold text-foreground">
+                    {(product as any).country_of_origin || 'CN'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-muted-foreground uppercase block font-semibold">
+                    Peso Neto Unitario:
+                  </span>
+                  <span className="font-mono font-bold text-foreground">
+                    {product.weightKg ? `${product.weightKg} kg` : '—'}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-
-          {/* REGULATORIO SUNAT */}
-          <div className="p-3.5 rounded-lg border bg-muted/20 space-y-3">
-            <div className="flex items-center gap-1.5 font-bold text-foreground uppercase tracking-wider text-[11px]">
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-              Atributos de Cumplimiento SUNAT (PLE 13.1)
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <span className="text-[10px] text-muted-foreground uppercase block font-semibold">
-                  Tipo Existencia (Tabla 5):
-                </span>
-                <span className="font-medium text-foreground">
-                  {SUNAT_TYPES[product.sunatTypeCode || '01'] || '01 - Mercaderías'}
-                </span>
+          ) : (
+            <div className="p-3.5 rounded-lg border bg-muted/20 space-y-3">
+              <div className="flex items-center gap-1.5 font-bold text-foreground uppercase tracking-wider text-[11px]">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                Cumplimiento Tributario SUNAT
               </div>
-
-              <div>
-                <span className="text-[10px] text-muted-foreground uppercase block font-semibold">
-                  Unidad Medida (Tabla 6):
-                </span>
-                <span className="font-mono font-semibold text-foreground">
-                  {product.sunatUnitCode || 'NIU'} (Unidades)
-                </span>
-              </div>
-
-              <div>
-                <span className="text-[10px] text-muted-foreground uppercase block font-semibold">
-                  Alerta Stock Mínimo:
-                </span>
-                <span className="font-mono font-semibold text-foreground">
-                  {product.minStockAlert ? `${product.minStockAlert} ${product.sunatUnitCode || 'NIU'}` : 'Sin umbral'}
-                </span>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div>
+                  <span className="text-[10px] text-muted-foreground uppercase block font-semibold">Código de Barras:</span>
+                  <span className="font-mono font-semibold text-foreground">{product.barcode || '—'}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-muted-foreground uppercase block font-semibold">Afectación IGV:</span>
+                  <span className="font-mono font-semibold text-foreground">
+                    {product.taxAffectation === '10' ? '10 - Gravado' : product.taxAffectation || '10'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-muted-foreground uppercase block font-semibold">Tipo Existencia (T.5):</span>
+                  <span className="font-medium text-foreground">
+                    {SUNAT_TYPES[product.sunatTypeCode || '01'] || '01 - Mercaderías'}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
+          )}
+
+          {/* VARIACIONES DEL ARTÍCULO (ATRIBUTOS Y VARIANTES FÍSICAS) */}
+          {(product as any).variants && (product as any).variants.length > 0 && (
+            <div className="p-3.5 rounded-lg border bg-muted/20 space-y-2.5">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-1.5 font-bold text-foreground uppercase tracking-wider text-[11px]">
+                  <Layers className="h-3.5 w-3.5 text-emerald-600" />
+                  Variaciones del Artículo ({((product as any).variants || []).length})
+                </div>
+                {(product as any).attributes && (product as any).attributes.length > 0 && (
+                  <div className="flex items-center gap-1 flex-wrap">
+                    <span className="text-[10px] text-muted-foreground font-semibold">Atributos:</span>
+                    {(product as any).attributes.map((attr: string, i: number) => (
+                      <Badge key={i} variant="outline" className="text-[10px] py-0 px-1.5 bg-background font-medium">
+                        {attr}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="border rounded-md overflow-hidden bg-background">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-muted/50 border-b text-muted-foreground text-[10px] uppercase">
+                    <tr>
+                      <th className="p-2 font-semibold">Variante / Atributo</th>
+                      <th className="p-2 font-mono font-semibold">SKU Específico</th>
+                      <th className="p-2 font-mono font-semibold">Cód. Barras</th>
+                      <th className="p-2 text-right font-semibold">Costo Adic.</th>
+                      <th className="p-2 text-right font-semibold">Precio Venta</th>
+                      <th className="p-2 text-right font-semibold">Stock</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y text-xs">
+                    {(product as any).variants.map((v: any, idx: number) => (
+                      <tr key={idx} className="hover:bg-muted/20">
+                        <td className="p-2 font-medium text-foreground">{v.variant_name}</td>
+                        <td className="p-2 font-mono text-primary font-bold">{v.sku}</td>
+                        <td className="p-2 font-mono text-muted-foreground">{v.barcode || '—'}</td>
+                        <td className="p-2 text-right font-mono text-muted-foreground">
+                          {Number(v.additional_cost || 0) > 0 ? `+ ${money(v.additional_cost)}` : 'S/ 0.00'}
+                        </td>
+                        <td className="p-2 text-right font-mono font-bold text-emerald-600">
+                          {v.price_override ? money(v.price_override) : (product.sale_price ? money(product.sale_price) : 'Base')}
+                        </td>
+                        <td className="p-2 text-right font-mono font-semibold">
+                          {v.current_stock ?? 0} {product.sunatUnitCode || 'NIU'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* PRESENTACIONES COMERCIALES (OBS 10, 25) */}
+          {(product as any).presentations && (product as any).presentations.length > 0 && (
+            <div className="p-3.5 rounded-lg border bg-muted/20 space-y-2">
+              <div className="flex items-center gap-1.5 font-bold text-foreground uppercase tracking-wider text-[11px]">
+                <Boxes className="h-3.5 w-3.5 text-emerald-600" />
+                Presentaciones Comerciales y Factores de Conversión
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(product as any).presentations.map((p: any, idx: number) => (
+                  <Badge key={idx} variant="outline" className="text-xs p-1.5 font-normal flex items-center gap-1">
+                    <strong>{p.presentation_name}</strong>
+                    <span className="text-muted-foreground font-mono">(= {p.factor} {product.sunatUnitCode || 'NIU'})</span>
+                    {p.sale_price ? <span className="font-mono font-semibold text-emerald-600 ml-1">{money(p.sale_price)}</span> : null}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <DialogFooter className="border-t pt-3 flex items-center justify-between sm:justify-between">

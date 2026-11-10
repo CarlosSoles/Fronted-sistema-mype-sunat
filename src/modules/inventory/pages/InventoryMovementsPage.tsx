@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { inventoryApi } from '../services/inventoryApi';
 import { type InventoryMovement } from '../types/inventory.types';
 import { ManualMovementModal } from '../components/ManualMovementModal';
-import { NationalPurchaseModal } from '../components/NationalPurchaseModal';
 import { MovementDetailModal } from '../components/MovementDetailModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,7 +14,6 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   CheckCircle2,
-  ShoppingBag,
   Search,
   Download,
   Filter,
@@ -30,7 +27,7 @@ const OPERATION_NAMES: Record<string, string> = {
   '05': '05 Devolución Recibida',
   '06': '06 Devolución Entregada',
   '07': '07 Bonificación',
-  '08': '08 Premio',
+  '08': '08 Reposición por Nota de Débito (Proveedor)',
   '09': '09 Donación',
   '10': '10 Salida a Producción',
   '11': '11 Transferencia entre Almacenes',
@@ -60,19 +57,11 @@ const DOCUMENT_NAMES: Record<string, string> = {
 };
 
 export default function InventoryMovementsPage() {
-  const [searchParams] = useSearchParams();
   const [movements, setMovements] = useState<InventoryMovement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshState, setRefreshState] = useState<'idle' | 'loading' | 'success'>('idle');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
   const [selectedMovement, setSelectedMovement] = useState<InventoryMovement | null>(null);
-
-  useEffect(() => {
-    if (searchParams.get('action') === 'purchase') {
-      setIsPurchaseModalOpen(true);
-    }
-  }, [searchParams]);
 
   // Filtros
   const [searchTerm, setSearchTerm] = useState('');
@@ -230,15 +219,13 @@ export default function InventoryMovementsPage() {
           </Button>
           <Button
             size="sm"
-            onClick={() => setIsPurchaseModalOpen(true)}
-            className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-xs"
+            variant="outline"
+            onClick={() => setIsModalOpen(true)}
+            className="gap-1.5 font-medium"
+            title="Registrar entradas o salidas internas en un solo almacén (mermas, desmedros, reposición por nota de débito, muestras)"
           >
-            <ShoppingBag className="h-4 w-4" />
-            Compra Nacional (Op. 02)
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => setIsModalOpen(true)} className="gap-1">
-            <PlusCircle className="h-4 w-4" />
-            Otro Movimiento
+            <PlusCircle className="h-4 w-4 text-primary" />
+            Nuevo Movimiento Interno
           </Button>
         </div>
       </div>
@@ -460,12 +447,6 @@ export default function InventoryMovementsPage() {
       <ManualMovementModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSuccess={loadMovements}
-      />
-
-      <NationalPurchaseModal
-        isOpen={isPurchaseModalOpen}
-        onClose={() => setIsPurchaseModalOpen(false)}
         onSuccess={loadMovements}
       />
 
