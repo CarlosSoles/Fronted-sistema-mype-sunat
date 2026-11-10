@@ -4,5 +4,6 @@ export interface ReceivableRecord { id: string; numero: string; customerName: st
 export const collectionsApi = {
   receivables: async (): Promise<ReceivableRecord[]> => (await apiClient.get('/collections/receivables')).data,
   list: async (): Promise<CollectionRecord[]> => (await apiClient.get('/collections')).data,
+  annul: async (id: string) => (await apiClient.post(`/collections/${id}/annul`)).data,
   create: async (payload: { customerName: string; customerDoc?: string; invoiceNumber?: string; description?: string; collectionDate?: string; paymentMethod?: string; bankName?: string; amount: number }) => (await apiClient.post('/collections', payload)).data,
 };
