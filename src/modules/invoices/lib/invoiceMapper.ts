@@ -1,3 +1,4 @@
+import type { ResultadoPresentacion } from './invoiceResultPresentation';
 /**
  * Traducción entre el contrato del backend y el modelo del frontend (TA-59).
  *
@@ -27,6 +28,7 @@ import { MOTIVOS_NC, MOTIVOS_ND } from './invoiceEmitValidation';
 
 /** Fila del backend tal como llega por HTTP. */
 export interface ComprobanteBackend {
+  resultado_presentacion?: ResultadoPresentacion;
   id: string;
   tipo_comprobante: string;
   serie: string;
@@ -238,6 +240,7 @@ export const aInvoice = (fila: ComprobanteBackend): Invoice => {
     subtotal,
     igv,
     total,
+    resultadoPresentacion: fila.resultado_presentacion,
     cdrStatus: aCdrStatus(fila.estado),
     cdrCodigo: fila.cdr_codigo ?? undefined,
     cdrMensaje: fila.cdr_descripcion ?? undefined,

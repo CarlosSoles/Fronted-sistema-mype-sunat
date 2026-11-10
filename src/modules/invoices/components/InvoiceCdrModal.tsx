@@ -1,3 +1,4 @@
+import { lecturaRechazo } from '../lib/invoiceResultPresentation';
 /**
  * Modal de auditoría CDR y visor XML del comprobante (M1).
  *
@@ -63,7 +64,7 @@ export const InvoiceCdrModal = ({
    * dentro del efecto, que dispara renders en cascada.
    */
   const [xmlReal, setXmlReal] = useState<string | null | undefined>(undefined);
-  const [historialCargado, setHistorialCargado] = useState<{ id: string; eventos?: Invoice['historial']; tieneCdr?: boolean; comprobanteOrigen?: Invoice['comprobanteOrigen']; error?: boolean } | null>(null);
+  const [historialCargado, setHistorialCargado] = useState<{ id: string; eventos?: Invoice['historial']; tieneCdr?: boolean; comprobanteOrigen?: Invoice['comprobanteOrigen']; resultado?: Invoice['resultadoPresentacion']; ultimoErrorCodigo?: string; ultimoErrorMensaje?: string; error?: boolean } | null>(null);
 
   const idComprobante = comprobante?.id ?? null;
 
@@ -71,7 +72,7 @@ export const InvoiceCdrModal = ({
     if (!idComprobante) return;
     let vigente = true;
     void Promise.resolve().then(() => invoicesApi.getInvoiceById(idComprobante)).then((detalle) => {
-      if (vigente) setHistorialCargado({ id: idComprobante, eventos: detalle.historial ?? [], tieneCdr: detalle.tieneCdr ?? Boolean(detalle.cdrCodigo), comprobanteOrigen: detalle.comprobanteOrigen ?? null });
+      if (vigente) setHistorialCargado({ id: idComprobante, eventos: detalle.historial ?? [], tieneCdr: detalle.tieneCdr ?? Boolean(detalle.cdrCodigo), comprobanteOrigen: detalle.comprobanteOrigen ?? null, resultado: detalle.resultadoPresentacion, ultimoErrorCodigo: detalle.ultimoErrorCodigo, ultimoErrorMensaje: detalle.ultimoErrorMensaje });
     }).catch(() => { if (vigente) setHistorialCargado({ id: idComprobante, error: true }); });
     return () => { vigente = false; };
   }, [idComprobante]);
@@ -96,7 +97,9 @@ export const InvoiceCdrModal = ({
 
   if (!comprobante) return null;
 
-  const c = comprobante;
+  const ficha = historialCargado?.id === comprobante.id && !historialCargado.error ? historialCargado : null;
+  const c = { ...comprobante, resultadoPresentacion: ficha?.resultado ?? comprobante.resultadoPresentacion, ultimoErrorCodigo: ficha?.ultimoErrorCodigo ?? comprobante.ultimoErrorCodigo, ultimoErrorMensaje: ficha?.ultimoErrorMensaje ?? comprobante.ultimoErrorMensaje };
+  const rechazo = c.estado === 'RECHAZADO' ? lecturaRechazo(c.resultadoPresentacion) : null;
 
   /**
    * Pide el documento al backend y lo guarda.
@@ -130,6 +133,7 @@ export const InvoiceCdrModal = ({
    * señala con "sin código de CDR" en lugar de inventar un estado.
    */
   const etiquetaCodigo = (() => {
+    if (rechazo) return rechazo.codigo;
     if (c.cdrCodigo) return `Código ${c.cdrCodigo}`;
     // El rechazo por SOAP Fault no trae CDR, pero sí un código de error.
     if (c.ultimoErrorCodigo) return `Código ${c.ultimoErrorCodigo}`;
@@ -184,7 +188,7 @@ export const InvoiceCdrModal = ({
             <span>
               {numeroSerie} · {c.clienteRazonSocial}
             </span>
-            <InvoiceStatusBadge estado={c.estado} codigo={c.cdrCodigo} />
+            <InvoiceStatusBadge estado={c.estado} codigo={c.cdrCodigo} resultado={c.resultadoPresentacion} />
           </DialogTitle>
           <PageText variant="caption">
             {/* `null` es DESCONOCIDO, no "Contado": los comprobantes emitidos
@@ -272,7 +276,7 @@ export const InvoiceCdrModal = ({
                 <Badge variant="outline" className="text-[10px]">
                   {etiquetaCodigo}
                 </Badge>
-                <PageText variant="caption">{c.cdrDescripcion}</PageText>
+                <PageText variant="caption">{rechazo?.motivo ?? c.cdrDescripcion}</PageText>
               </div>
               <PageText variant="caption" className="break-all">
                 {xmlReal === undefined

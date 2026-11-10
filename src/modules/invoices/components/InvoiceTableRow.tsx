@@ -125,7 +125,7 @@ export const InvoiceTableRow = ({
       </TableCell>
 
       <TableCell align="center">
-        <InvoiceStatusBadge estado={c.estado} codigo={c.cdrCodigo} />
+        <InvoiceStatusBadge estado={c.estado} codigo={c.cdrCodigo} resultado={c.resultadoPresentacion} />
       </TableCell>
 
       <TableCell align="right" onClick={(e) => e.stopPropagation()}>

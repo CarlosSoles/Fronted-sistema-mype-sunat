@@ -1,3 +1,4 @@
+import { lecturaRechazo } from '../lib/invoiceResultPresentation';
 /**
  * Bitácora de auditoría del comprobante (M1).
  *
@@ -46,6 +47,7 @@ const LECTURA_DEL_ESTADO: Record<string, string> = {
 
 /** Bitácora con los datos reales del comprobante. */
 export const InvoiceAuditTrail = ({ comprobante, digest, historial, errorHistorial }: InvoiceAuditTrailProps) => {
+  const rechazo = comprobante.estado === 'RECHAZADO' ? lecturaRechazo(comprobante.resultadoPresentacion) : null;
   const aceptado =
     comprobante.estado === 'ACEPTADO' || comprobante.estado === 'OBSERVADO';
   // Desde que ERROR_RED llega como SIN_CONFIRMAR, el estado se basta a sí
@@ -72,14 +74,14 @@ export const InvoiceAuditTrail = ({ comprobante, digest, historial, errorHistori
       // `LECTURA_DEL_ESTADO` ya incluye SIN_CONFIRMAR, así que una sola
       // consulta cubre los cinco estados.
       valor:
-        LECTURA_DEL_ESTADO[comprobante.estado ?? ''] ??
+        rechazo?.lectura ?? LECTURA_DEL_ESTADO[comprobante.estado ?? ''] ??
         'Estado no reconocido por la interfaz.',
     },
     {
       etiqueta: 'Código CDR',
-      valor: comprobante.cdrCodigo?.trim()
+      valor: comprobante.resultadoPresentacion?.origen === 'VALIDACION_LOCAL' ? rechazo!.sinCdr : comprobante.cdrCodigo?.trim()
         ? comprobante.cdrCodigo
-        : falloDeRed
+        : rechazo ? rechazo.sinCdr : falloDeRed
           // No es "todavía no respondió": SUNAT no respondió PORQUE nunca le
           // llegó el documento. Decirlo al revés sugiere una espera que no va
           // a terminar sola.
@@ -88,9 +90,9 @@ export const InvoiceAuditTrail = ({ comprobante, digest, historial, errorHistori
     },
     {
       etiqueta: 'Descripción del CDR',
-      valor: comprobante.cdrDescripcion?.trim()
+      valor: rechazo?.motivo ?? (comprobante.cdrDescripcion?.trim()
         ? comprobante.cdrDescripcion
-        : 'No hay descripción registrada',
+        : 'No hay descripción registrada'),
     },
     {
       etiqueta: 'Hash del XML (digest)',

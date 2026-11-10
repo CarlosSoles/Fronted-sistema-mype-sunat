@@ -90,3 +90,23 @@ it('F8 deja de rotular DLQ cuando la bitácora registra un reencolado posterior'
   const historial = [{ id: '1', fecha: '2026-11-06', mensaje: 'Rescate: EN_DLQ.' }, { id: '2', fecha: '2026-11-07', mensaje: 'Rescate: ENCOLADO.' }];
   expect(estadoDeMonitor({ ...comprobante, estadoBackend: 'PENDIENTE', historial })).toBe('PENDIENTE');
 });
+
+it('DLQ ofrece reintento efectivo, muestra resultado y deja de rotularla DLQ al refrescar', async () => {
+  let rescatado = false;
+  const dlq = { ...comprobante, id: 'invoice-57', numero: 'F001-00000057', estadoBackend: 'EN_COLA', historial: [{ id: 'h', fecha: '2026-11-10', mensaje: 'Rescate manual: EN_DLQ.' }] };
+  vi.mocked(invoicesApi.getInvoices).mockImplementation(async (_p, filtro) => ({ data: filtro?.estado === 'EN_COLA' ? [dlq] : [], total: 1, page: 1, pageSize: 100, totalPages: 1 }));
+  vi.mocked(invoicesApi.getInvoiceById).mockImplementation(async () => rescatado ? { ...dlq, historial: [...dlq.historial, { id: 'h2', fecha: '2026-11-10', mensaje: 'Rescate manual: ENCOLADO.' }] } : dlq);
+  vi.mocked(invoicesApi.retryCdr).mockImplementation(async () => { rescatado = true; return { id: dlq.id, estado: 'EN_COLA', encolado: true, mensaje: 'Comprobante reencolado manualmente.', resultadoCola: 'ENCOLADO' } as never; });
+  render(<InvoiceMonitorPage />);
+  const fila = (await screen.findByText(dlq.numero)).closest('tr')!;
+  await within(fila).findByText('DLQ'); fireEvent.click(within(fila).getByRole('button', { name: 'Reintentar' }));
+  await screen.findByText('Comprobante reencolado manualmente.');
+  await waitFor(() => expect(within(screen.getByText(dlq.numero).closest('tr')!).queryByText('DLQ')).toBeNull());
+  expect(invoicesApi.retryCdr).toHaveBeenCalledExactlyOnceWith(dlq.id);
+});
+it.each(['ACEPTADO', 'OBSERVADO', 'ANULADO'])('una referencia DLQ histórica no habilita acción para %s', async estado => {
+  const inv = { ...comprobante, estadoBackend: estado, historial: [{ id: 'h', fecha: '2026-11-10', mensaje: 'EN_DLQ' }] };
+  vi.mocked(invoicesApi.getInvoiceById).mockResolvedValue(inv);
+  render(<InvoiceMonitorPage />); await screen.findByText(inv.numero);
+  expect(within(screen.getByText(inv.numero).closest('tr')!).queryByRole('button', { name: 'Reintentar' })).toBeNull();
+});

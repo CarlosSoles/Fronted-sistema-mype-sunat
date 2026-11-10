@@ -1,3 +1,4 @@
+import type { ResultadoPresentacion } from './invoiceResultPresentation';
 /**
  * Adaptador entre el DTO del backend (TA-29) y el modelo que pinta la grilla.
  *
@@ -58,6 +59,7 @@ function fechaLocal(iso: string): string {
  */
 /** Datos del comprobante que la grilla necesita, ya sin depender del contrato. */
 interface FilaComprobante {
+  resultadoPresentacion?: ResultadoPresentacion;
   id: string;
   serie: string;
   correlativo: string;
@@ -85,6 +87,7 @@ const esInvoiceNormalizado = (item: Invoice | InvoiceListado): item is Invoice =
   'estadoBackend' in item;
 
 const desdeNormalizado = (item: Invoice): FilaComprobante => ({
+  resultadoPresentacion: item.resultadoPresentacion,
   id: item.id,
   serie: item.serie,
   correlativo: String(item.correlativo),
@@ -110,6 +113,7 @@ const desdeNormalizado = (item: Invoice): FilaComprobante => ({
 const desdeCrudo = (item: InvoiceListado): FilaComprobante => {
   const total = Number(item.monto_total) || 0;
   return {
+    resultadoPresentacion: item.resultado_presentacion,
     id: item.id,
     serie: item.serie,
     correlativo: String(item.correlativo),
@@ -158,6 +162,7 @@ export function aComprobanteDemo(item: InvoiceListado | Invoice): ComprobanteDem
   const correlativoNum = Number(fila.correlativo) || 0;
 
   return {
+    resultadoPresentacion: fila.resultadoPresentacion,
     id: fila.id,
     numero: `${fila.serie}-${String(correlativoNum).padStart(8, '0')}`,
     tipo: TIPOS[fila.tipoComprobante] ?? '01',

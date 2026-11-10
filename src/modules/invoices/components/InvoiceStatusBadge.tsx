@@ -1,3 +1,4 @@
+import { lecturaRechazo, type ResultadoPresentacion } from '../lib/invoiceResultPresentation';
 /**
  * Badge semafórico del estado de un comprobante frente a SUNAT.
  *
@@ -59,11 +60,13 @@ const ESTADOS: Record<
 
 interface InvoiceStatusBadgeProps {
   estado: EstadoCdrDemo;
+  resultado?: ResultadoPresentacion;
   codigo?: string;
 }
 
-export const InvoiceStatusBadge = ({ estado, codigo }: InvoiceStatusBadgeProps) => {
-  const meta = ESTADOS[estado];
+export const InvoiceStatusBadge = ({ estado, codigo, resultado }: InvoiceStatusBadgeProps) => {
+  const lectura = estado === 'RECHAZADO' ? lecturaRechazo(resultado) : null;
+  const meta = lectura ? { ...ESTADOS[estado], label: lectura.etiqueta, ariaLabel: lectura.etiqueta } : ESTADOS[estado];
 
   return (
     <Badge
@@ -72,7 +75,7 @@ export const InvoiceStatusBadge = ({ estado, codigo }: InvoiceStatusBadgeProps) 
       aria-label={meta.ariaLabel}
     >
       {meta.label}
-      {codigo && codigo !== '0' ? ` · ${codigo}` : ''}
+      {(resultado?.codigo ?? codigo) && (resultado?.codigo ?? codigo) !== '0' ? ` · ${resultado?.codigo ?? codigo}` : ''}
     </Badge>
   );
 };

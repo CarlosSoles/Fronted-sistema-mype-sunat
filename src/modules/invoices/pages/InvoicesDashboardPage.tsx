@@ -24,7 +24,7 @@ export default function InvoicesDashboardPage() {
 
   const kpis = [
     { label: 'Facturado neto', value: money(m?.facturado ?? 0), icon: TrendingUp },
-    { label: 'Comprobantes emitidos', value: m?.emitidos ?? 0, icon: FileText },
+    { label: 'Comprobantes registrados (total)', value: m?.total ?? '—', icon: FileText },
     { label: 'Aceptados / observados', value: m?.aceptados ?? 0, icon: CheckCircle2 },
     { label: 'Pendientes SUNAT', value: m?.pendientes ?? 0, icon: Clock },
     { label: 'Rechazados', value: m?.rechazados ?? 0, icon: AlertTriangle },
@@ -33,7 +33,7 @@ export default function InvoicesDashboardPage() {
 
   return (
     <Page>
-      <PageHeader title="Resumen de facturación" description="Emitidos, aceptados, pendientes y estado de la conexión con SUNAT" />
+      <PageHeader title="Resumen de facturación" description="Total de documentos del período; neto solo de aceptados/observados: facturas y boletas menos NC más ND" />
       <div className="flex flex-wrap items-end gap-3 mb-5">
         <div className="space-y-1.5">
           <label htmlFor="invoices-dashboard-period" className="text-xs font-medium">Período</label>

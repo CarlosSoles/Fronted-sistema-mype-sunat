@@ -1,3 +1,4 @@
+import type { ResultadoPresentacion } from '../lib/invoiceResultPresentation';
 /**
  * Tipos del dominio de demostración de comprobantes (M1).
  *
@@ -72,6 +73,7 @@ export type TipoDocIdentidad = '1' | '6';
 
 /** Fila enriquecida que consume la tabla del módulo. */
 export interface ComprobanteDemo {
+  resultadoPresentacion?: ResultadoPresentacion;
   id: string;
   /**
    * Número fiscal completo (`F001-00000045`), con ceros de relleno.
