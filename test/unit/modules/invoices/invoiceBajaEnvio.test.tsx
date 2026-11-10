@@ -44,5 +44,20 @@ it.each(['RA', 'RC'] as const)('Monitor muestra %s, ticket, causa y consulta sin
   vi.mocked(invoicesApi.getAgregados).mockResolvedValue([{ id: 'a', kind, identifier: `${kind}-20261109-001`, reference_date: '2026-11-09', state: 'POLLING', ticket: 'T-FAKE', transport_uncertain: false, result: null, error: 'SUNAT sigue procesando' }]);
   vi.mocked(invoicesApi.consultarAgregado).mockResolvedValue({ motivo: 'En proceso', status: '98' }); render(<InvoiceAggregateMonitor />);
   expect(await screen.findByText(/Ticket: T-FAKE/)).toBeTruthy(); fireEvent.click(screen.getByRole('button', { name: `Consultar ticket ${kind}-20261109-001` }));
-  expect((await screen.findByRole('status')).textContent).toContain('En proceso'); expect(invoicesApi.consultarAgregado).toHaveBeenCalledExactlyOnceWith(`${kind}-20261109-001`); expect(invoicesApi.enviarBaja).not.toHaveBeenCalled();
+  expect((await screen.findByText('En proceso')).textContent).toContain('En proceso'); expect(invoicesApi.consultarAgregado).toHaveBeenCalledExactlyOnceWith(`${kind}-20261109-001`); expect(invoicesApi.enviarBaja).not.toHaveBeenCalled();
+});
+it.each(['respuesta','error'])('Monitor mantiene Consultando… y deshabilita duplicados hasta %s', async outcome => {
+  vi.mocked(invoicesApi.getAgregados).mockResolvedValue([{ id:'a',kind:'RA',identifier:'RA-20261109-001',reference_date:'2026-11-09',state:'POLLING',ticket:'T',transport_uncertain:false,result:null,error:null }]);
+  let resolve!: (value:{motivo:string;status:string})=>void; let reject!: (error:Error)=>void;
+  vi.mocked(invoicesApi.consultarAgregado).mockImplementation(()=>new Promise((ok,fail)=>{resolve=ok;reject=fail;}));
+  render(<InvoiceAggregateMonitor />);
+  fireEvent.click(await screen.findByRole('button',{name:'Consultar ticket RA-20261109-001'}));
+  expect(screen.getByRole('status').textContent).toContain('Consultando…');
+  expect((screen.getByRole('button',{name:'Consultando…'}) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole('button',{name:'Actualizar agregados'}) as HTMLButtonElement).disabled).toBe(true);
+  expect(invoicesApi.consultarAgregado).toHaveBeenCalledTimes(1);
+  if(outcome==='respuesta')resolve({motivo:'SUNAT sigue procesando',status:'98'});else reject(new Error('Consulta no concluyente'));
+  expect(await screen.findByRole('button',{name:'Consultar ticket RA-20261109-001'})).toBeTruthy();
+  expect(screen.queryByText(/Consultando… RA/)).toBeNull();
+  if(outcome==='respuesta')expect(screen.getByRole('status').textContent).toContain('SUNAT sigue procesando');else expect(screen.getByRole('alert').textContent).toContain('Consulta no concluyente');
 });

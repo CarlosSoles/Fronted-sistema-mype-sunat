@@ -76,7 +76,7 @@ export const invoicesApi = {
   },
   getAgregados: async (): Promise<AgregadoFiscal[]> => { const { data } = await apiClient.get<AgregadoFiscal[]>('/invoices/resumenes/envios'); return data; },
   consultarAgregado: async (identifier: string): Promise<{ motivo: string | null; status: string | null }> => {
-    const { data } = await apiClient.post<{ motivo: string | null; status: string | null }>(`/invoices/resumenes/envios/${encodeURIComponent(identifier)}/consultar`); return data;
+    const { data } = await apiClient.post<{ motivo: string | null; status: string | null }>(`/invoices/resumenes/envios/${encodeURIComponent(identifier)}/consultar`, undefined, { timeout: 120_000 }); return data;
   },
   consultarSunat: async (id: string): Promise<ResultadoConsultaSunat> => {
     const { data } = await apiClient.post<ResultadoConsultaSunat>(`/invoices/${encodeURIComponent(id)}/consultar-sunat`);
