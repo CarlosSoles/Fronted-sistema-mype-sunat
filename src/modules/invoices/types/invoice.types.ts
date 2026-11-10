@@ -1,3 +1,4 @@
+import type { ResultadoPresentacion } from '../lib/invoiceResultPresentation';
 /**
  * Estado de un comprobante frente a SUNAT, tal como lo pinta el front.
  *
@@ -47,6 +48,7 @@ export interface ComprobanteOrigenNota {
 }
 
 export interface Invoice {
+  resultadoPresentacion?: ResultadoPresentacion;
   tieneCdr?: boolean;
   lineasOrigen?: readonly LineaOrigen[];
   historial?: readonly { id: string; fecha: string; mensaje: string | null }[];
@@ -150,6 +152,7 @@ export interface CreateInvoiceDto {
 
 /** Fila del listado tal como la devuelve el backend (TA-29, snake_case). */
 export interface InvoiceListado {
+  resultado_presentacion?: ResultadoPresentacion;
   id: string;
   tipo_comprobante: string;
   serie: string;
