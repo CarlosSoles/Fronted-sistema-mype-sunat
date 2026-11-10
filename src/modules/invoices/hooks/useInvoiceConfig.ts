@@ -17,6 +17,7 @@ export const tipoComprobantePorPerfil = (
 
 export interface ConfiguracionInput {
   local_anexo?: string | null;
+  cuenta_banco_nacion?: string | null;
   domicilio_fiscal?: string | null;
   ubigeo_fiscal?: string | null;
   departamento_fiscal?: string | null;
@@ -44,6 +45,7 @@ export interface EstadoCertificadoBackend {
 export interface ConfiguracionBackend {
   ruc?: string;
   local_anexo?: string | null;
+  cuenta_banco_nacion?: string | null;
   domicilio_fiscal?: string | null;
   ubigeo_fiscal?: string | null;
   departamento_fiscal?: string | null;
