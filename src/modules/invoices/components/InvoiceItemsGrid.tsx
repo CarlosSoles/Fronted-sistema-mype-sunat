@@ -50,6 +50,8 @@ interface InvoiceItemsGridProps {
   onAgregarConProducto?: (producto: ProductoBuscado) => void;
   /** Si el cliente admite descuentos según el maestro de terceros (true por defecto en uso aislado). */
   admiteDescuento?: boolean;
+  /** Unidades del catálogo SUNAT; si no llegan se usa el subconjunto local. */
+  unidades?: readonly { codigo: string; descripcion: string }[];
 }
 
 /** Tabla editable de líneas del comprobante. */
@@ -62,6 +64,7 @@ export const InvoiceItemsGrid = ({
   productos = [],
   onAgregarConProducto,
   admiteDescuento = true,
+  unidades = UNIDADES_MEDIDA,
 }: InvoiceItemsGridProps) => {
   const [avisoMinimo, setAvisoMinimo] = useState(false);
   /**
@@ -182,7 +185,7 @@ export const InvoiceItemsGrid = ({
                       title={item.unidadHeredada ? 'La unidad se configura en el producto' : undefined}
                       onChange={(e) => onCambiar(i, { unidad: e.target.value })}
                     >
-                      {UNIDADES_MEDIDA.map((u) => (
+                      {unidades.map((u) => (
                         <option key={u.codigo} value={u.codigo}>
                           {u.codigo}
                         </option>

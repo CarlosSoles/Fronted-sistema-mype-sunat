@@ -51,8 +51,6 @@ interface NewImportOrderModalProps {
   onSuccess: () => void;
 }
 
-const INCOTERMS = ['FOB', 'CIF', 'CFR', 'EXW', 'FCA', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP'];
-
 export const NewImportOrderModal: React.FC<NewImportOrderModalProps> = ({
   isOpen,
   onClose,
@@ -69,6 +67,14 @@ export const NewImportOrderModal: React.FC<NewImportOrderModalProps> = ({
   const [supplierPhone, setSupplierPhone] = useState('');
   const [catalogo, setCatalogo] = useState<InventoryBalance[]>([]);
   const [incoterm, setIncoterm] = useState('FOB');
+  const [incoterms, setIncoterms] = useState<string[]>([]);
+  useEffect(() => {
+    const consulta = masterDataApi.getIncoterms?.();
+    if (!consulta) return;
+    consulta
+      .then((data) => setIncoterms(data.filter((i) => i.is_active).map((i) => i.code)))
+      .catch(() => setIncoterms([]));
+  }, []);
   const [currencyCode, setCurrencyCode] = useState('USD');
   const [transportMode, setTransportMode] = useState('MARITIMO');
   const [portOfOrigin, setPortOfOrigin] = useState('');
@@ -560,7 +566,7 @@ export const NewImportOrderModal: React.FC<NewImportOrderModalProps> = ({
                   onChange={(e) => setIncoterm(e.target.value)}
                   className="w-full h-8 rounded-md border border-input bg-background px-2 text-xs mt-1 font-semibold"
                 >
-                  {INCOTERMS.map((inc) => (
+                  {(incoterms.length > 0 ? incoterms : [incoterm]).map((inc) => (
                     <option key={inc} value={inc}>
                       {inc} 2020
                     </option>
