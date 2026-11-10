@@ -95,7 +95,7 @@ export const InvoiceKpiCards = ({
 
       <Card size="sm" data-kpi="rechazados">
         <CardHeader>
-          <CardTitle>Rechazos / Error de red</CardTitle>
+          <CardTitle>Rechazos / Sin confirmar</CardTitle>
           <CardAction>
             <Badge variant="destructive" className="text-[10px]">
               Rojo

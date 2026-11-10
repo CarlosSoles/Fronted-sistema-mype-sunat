@@ -110,3 +110,18 @@ it.each(['ACEPTADO', 'OBSERVADO', 'ANULADO'])('una referencia DLQ histórica no 
   render(<InvoiceMonitorPage />); await screen.findByText(inv.numero);
   expect(within(screen.getByText(inv.numero).closest('tr')!).queryByRole('button', { name: 'Reintentar' })).toBeNull();
 });
+
+it('incertidumbre de transporte muestra motivo y permite conciliar sin llamarlo error de red', async () => {
+  const incierto = { ...comprobante, estadoBackend: 'ENVIADO', resultadoPresentacion: { origen: 'TRANSPORTE_INCIERTO' as const, codigo: 'M1_TRANSPORT_UNCERTAIN', motivo: 'Incertidumbre de transporte: Beta sin CDR' } };
+  vi.mocked(invoicesApi.getInvoices).mockImplementation(async (_page, filtros) => ({ data: filtros?.estado === 'ENVIADO' ? [incierto] : [], total: 1, page: 1, pageSize: 20, totalPages: 1 }));
+  vi.mocked(invoicesApi.getInvoiceById).mockResolvedValue(incierto);
+  vi.mocked(invoicesApi.retryCdr).mockResolvedValue({ id: incierto.id, estado: 'ENVIADO', encolado: true, mensaje: 'Comprobante reencolado para conciliar' });
+  render(<InvoiceMonitorPage />);
+  const boton = await screen.findByRole('button', { name: 'Reintentar' });
+  const fila = boton.closest('tr')!;
+  expect(within(fila).getByText('Incertidumbre de transporte')).toBeTruthy();
+  expect(within(fila).getByText(incierto.resultadoPresentacion.motivo)).toBeTruthy();
+  expect(within(fila).queryByText(/Error de red|No llegó a SUNAT/)).toBeNull();
+  fireEvent.click(boton);
+  await waitFor(() => expect(invoicesApi.retryCdr).toHaveBeenCalledWith(incierto.id));
+});

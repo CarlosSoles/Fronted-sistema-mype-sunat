@@ -13,8 +13,8 @@ export type TipoComprobante = '01' | '03' | '07' | '08' | 'RA' | 'RC';
 /**
  * Estado del comprobante tal como lo pinta la ficha.
  *
- * `SIN_CONFIRMAR` NO es un veredicto de SUNAT: el documento no llegó a
- * enviarse, así que no hay ni aceptación ni rechazo. Antes ese caso se
+ * `SIN_CONFIRMAR` NO es un veredicto de SUNAT: no se confirmó su recepción
+ * ni se conoce un resultado fiscal concluyente. Antes ese caso se
  * colapsaba en `RECHAZADO` y la ficha afirmaba algo falso sobre el comprobante.
  */
 export type EstadoCdrDemo =
