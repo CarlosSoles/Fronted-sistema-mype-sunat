@@ -59,6 +59,7 @@ export const borradorAPayloadEmision = (
   const esNota = esTipoNota(b.tipo);
 
   const payload: EmitirComprobantePayload = {
+    almacen: b.almacen ?? 'ALM-01',
     tipo_comprobante: b.tipo,
     serie: b.serie,
     customer_identity_type: b.clienteDoc.length === 11 ? '6' : '1',
