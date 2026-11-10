@@ -293,3 +293,8 @@ describe('buscarAfectado', () => {
     expect(buscarAfectado([otro], 'F001-00000044')).toBeUndefined();
   });
 });
+
+it('6H permite observado como origen y conserva las exclusiones de otros estados', () => {
+ expect(admiteNota(comprobante({ estado: 'OBSERVADO' }))).toBe(true);
+ expect(admiteNota(comprobante({ estado: 'RECHAZADO' }))).toBe(false);
+});

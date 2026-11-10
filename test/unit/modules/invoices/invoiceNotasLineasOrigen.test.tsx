@@ -17,7 +17,7 @@ it.each(['07', '08'] as const)('precarga y permite editar las líneas reales en 
   render(<QueryClientProvider client={query}><InvoiceEmitModal seriesConfiguradas={seriesConfiguradasPrueba} tipoInicial={tipo} fecha="2026-11-05" existentes={[factura]} onEmitir={vi.fn()} onCerrar={vi.fn()} /></QueryClientProvider>);
   fireEvent.change(screen.getByLabelText('Documento afectado'), { target: { value: 'F001-00000056' } });
   await waitFor(() => expect((screen.getByLabelText('Descripción de la línea 1') as HTMLInputElement).value).toBe('Cemento real'));
-  expect((screen.getByLabelText('Valor unitario de la línea 1') as HTMLInputElement).value).toBe('59');
+  expect((screen.getByLabelText('Valor unitario de la línea 1') as HTMLInputElement).value).toBe('59.00');
   fireEvent.change(screen.getByLabelText('Descripción de la línea 1'), { target: { value: 'Cemento editado' } });
   expect((screen.getByLabelText('Descripción de la línea 1') as HTMLInputElement).value).toBe('Cemento editado');
   expect(await screen.findByText(/Disponible según servidor S\/ 118.00/)).toBeTruthy();
