@@ -11,27 +11,36 @@ import {
 } from '../components';
 import { useLandedCost } from '../hooks/useLandedCost';
 import { customsDeclarationsApi } from '../services/customsDeclarationsApi';
+import { landedCostApi } from '../services/landedCostApi';
 import { useRolePermissions } from '@/hooks/useRolePermissions';
-import { Calculator, ArrowLeft, Layers, CheckCircle2, ClipboardCheck, DollarSign } from 'lucide-react';
+import { Calculator, ArrowLeft, Layers, CheckCircle2, ClipboardCheck, DollarSign, Ship, AlertCircle } from 'lucide-react';
 
 export default function LandedCostSheetPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { isReadOnly } = useRolePermissions();
-  const shipmentId = id || 'EXP-2026-00042';
+
+  const eligibleShipmentsQuery = useQuery({
+    queryKey: ['customs', 'landed-cost', 'eligible-shipments'],
+    queryFn: landedCostApi.getEligibleShipments,
+  });
+
+  const [customSelectedId, setCustomSelectedId] = useState<string | null>(null);
+
+  const defaultFirstShipmentId = eligibleShipmentsQuery.data?.[0]?.id || '';
+  const shipmentId = id || customSelectedId || defaultFirstShipmentId;
 
   const [activeTab, setActiveTab] = useState<'RECEIPT' | 'COSTING'>('RECEIPT');
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
   const [successBanner, setSuccessBanner] = useState<string | null>(null);
+  const [errorBanner, setErrorBanner] = useState<string | null>(null);
 
   const declarationsQuery = useQuery({
     queryKey: ['customs-declarations-list'],
     queryFn: customsDeclarationsApi.getDeclarations,
   });
 
-  const activeDec =
-    declarationsQuery.data?.find((d) => d.shipment_id === shipmentId) ||
-    declarationsQuery.data?.[0];
+  const activeDec = declarationsQuery.data?.find((d) => d.shipment_id === shipmentId);
 
   const receiptItems = activeDec?.series && activeDec.series.length > 0
     ? activeDec.series.map((s) => ({
@@ -60,13 +69,22 @@ export default function LandedCostSheetPage() {
   const totalExpensePen = expenses.reduce((acc, e) => acc + (e.net_amount_pen || 0), 0);
 
   const handleApproveCost = async () => {
+    setErrorBanner(null);
+    setSuccessBanner(null);
     try {
+      if (!sheet) {
+        await calculateLandedCost();
+      }
       const res = await approveLandedCost();
       setSuccessBanner(
         res?.message || 'Hoja de costos aprobada exitosamente y transmitida al módulo de Inventario.',
       );
-    } catch {
-      setSuccessBanner('Hoja de costos aprobada exitosamente y transmitida al módulo de Inventario.');
+    } catch (err: any) {
+      setErrorBanner(
+        err?.response?.data?.message ||
+          err?.message ||
+          'No se pudo aprobar la hoja de costos ni transmitir al inventario. Verifica que el expediente tenga una DAM con ítems y hoja calculada.',
+      );
     }
   };
 
@@ -103,16 +121,56 @@ export default function LandedCostSheetPage() {
           <Button
             size="sm"
             variant="default"
-            onClick={() => navigate('/inventory/kardex')}
+            onClick={() => navigate('/kardex/general')}
             className="text-xs gap-1.5 h-8 bg-primary text-primary-foreground hover:bg-primary/90"
+            title="Consulta las entradas valorizadas según PLE 13.1 oficial de SUNAT"
           >
             <Layers className="h-3.5 w-3.5" />
-            Ver Kardex Valorizado (Libro 13.1)
+            Consultar Kardex Valorizado (SUNAT 13.1)
           </Button>
         </div>
       </PageHeader>
 
       <div className="space-y-4">
+        {/* Selector de Expediente de Importación / Embarque (Obs 11) */}
+        <div className="bg-muted/40 p-3.5 rounded-xl border space-y-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <label className="font-bold text-foreground text-xs flex items-center gap-1.5">
+                <Ship className="h-4 w-4 text-primary" />
+                Expediente de Importación Seleccionado para Liquidación y Almacén:
+              </label>
+              <p className="text-[11px] text-muted-foreground">
+                Seleccione el embarque que ya cuenta con levante aduanero para procesar el ingreso físico y hoja de costos.
+              </p>
+            </div>
+            <div className="w-full sm:w-80">
+              <select
+                value={shipmentId}
+                onChange={(e) => setCustomSelectedId(e.target.value)}
+                className="w-full h-8 px-2 text-xs rounded-md border border-input bg-background font-semibold"
+              >
+                {(eligibleShipmentsQuery.data ?? []).length === 0 ? (
+                  <option value={shipmentId}>{shipmentId} (Expediente Activo)</option>
+                ) : (
+                  eligibleShipmentsQuery.data!.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.shipment_number} · {s.supplier?.business_name || 'Proveedor'} ({s.status})
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+          </div>
+        </div>
+        {errorBanner && (
+          <Alert variant="destructive" className="text-xs">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle className="font-bold">Error al transmitir a Inventario</AlertTitle>
+            <AlertDescription className="mt-0.5">{errorBanner}</AlertDescription>
+          </Alert>
+        )}
+
         {successBanner && (
           <Alert className="bg-emerald-500/10 border-emerald-500/30 text-xs">
             <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -152,9 +210,10 @@ export default function LandedCostSheetPage() {
         {activeTab === 'RECEIPT' && (
           <GoodsReceiptTabContent
             shipmentId={shipmentId}
-            declarationId={activeDec?.dua_number || '118-2026-10-045892'}
+            declarationId={activeDec?.id || ''}
             initialItems={receiptItems}
             onReceiptConfirmed={() => {
+              setErrorBanner(null);
               setSuccessBanner('Acta de recepción física en rampa confirmada conforme. La mercancía está lista para costeo.');
             }}
           />

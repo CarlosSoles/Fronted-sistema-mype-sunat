@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Card, Button, Badge, Alert, AlertTitle, AlertDescription } from '@/components/ui';
-import { CheckCircle2, ShieldCheck, FileCheck, Truck, UserCheck } from 'lucide-react';
+import { CheckCircle2, ShieldCheck, FileCheck, Truck, UserCheck, AlertCircle } from 'lucide-react';
 import { goodsReceiptApi } from '../services/goodsReceiptApi';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -25,7 +25,7 @@ interface GoodsReceiptTabContentProps {
 
 export const GoodsReceiptTabContent: React.FC<GoodsReceiptTabContentProps> = ({
   shipmentId,
-  declarationId = '118-2026-10-045892',
+  declarationId = '',
   initialItems,
   onReceiptConfirmed,
 }) => {
@@ -34,6 +34,7 @@ export const GoodsReceiptTabContent: React.FC<GoodsReceiptTabContentProps> = ({
 
   const [isSigned, setIsSigned] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [sealStatus, setSealStatus] = useState<'INTACTO' | 'VIOLADO' | 'SIN_PRECINTO'>('INTACTO');
 
   const defaultItem: ReceiptItemState = {
@@ -69,13 +70,18 @@ export const GoodsReceiptTabContent: React.FC<GoodsReceiptTabContentProps> = ({
   const receiptNumberOfficial = `REC-${new Date().getFullYear()}-${String(shipmentId.replace(/\D/g, '') || '00089').padStart(5, '0')}`;
 
   const handleConfirm = async () => {
+    if (!declarationId) {
+      setErrorMessage('El expediente seleccionado no tiene una DAM/DUA vinculada aún.');
+      return;
+    }
     setIsSubmitting(true);
+    setErrorMessage(null);
     try {
       await goodsReceiptApi.confirmReceipt({
         receiptNumber: receiptNumberOfficial,
         shipmentId,
         declarationId,
-        warehouseCode: '0000',
+        warehouseCode: 'ALM-01',
         responsibleName: `${userName} (Almacén Central)`,
         sealNumber: 'SEAL-984512',
         receptionType: 'TOTAL',
@@ -92,9 +98,12 @@ export const GoodsReceiptTabContent: React.FC<GoodsReceiptTabContentProps> = ({
       });
       setIsSigned(true);
       onReceiptConfirmed?.();
-    } catch {
-      setIsSigned(true);
-      onReceiptConfirmed?.();
+    } catch (err: any) {
+      setErrorMessage(
+        err?.response?.data?.message ||
+          err?.message ||
+          'No se pudo guardar el Acta de Recepción en la base de datos.',
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -102,6 +111,13 @@ export const GoodsReceiptTabContent: React.FC<GoodsReceiptTabContentProps> = ({
 
   return (
     <div className="space-y-4 text-xs">
+      {errorMessage && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle className="font-bold">Error al registrar recepción física</AlertTitle>
+          <AlertDescription>{errorMessage}</AlertDescription>
+        </Alert>
+      )}
       {/* Alerta Normativa de Recepción Física */}
       <Alert className="bg-primary/5 border-primary/20">
         <ShieldCheck className="h-4 w-4 text-primary" />
@@ -126,7 +142,7 @@ export const GoodsReceiptTabContent: React.FC<GoodsReceiptTabContentProps> = ({
         </div>
         <div>
           <span className="text-[10px] text-muted-foreground uppercase font-semibold block">Almacén Receptor:</span>
-          <span className="font-semibold">0000 - Almacén Principal Callao</span>
+          <span className="font-semibold">ALM-01 - Almacén Principal</span>
         </div>
         <div>
           <span className="text-[10px] text-muted-foreground uppercase font-semibold block">Estado de Precinto:</span>

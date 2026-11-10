@@ -25,6 +25,20 @@ export interface IncotermRecord {
   is_active: boolean;
 }
 
+export interface CountryRecord {
+  code: string;
+  name: string;
+  status: string;
+}
+
+export interface PortRecord {
+  code: string;
+  name: string;
+  country_code: string;
+  type: string;
+  status: string;
+}
+
 export interface DocumentTypeRecord {
   code: string;
   name: string;
@@ -147,6 +161,53 @@ export const masterDataApi = {
   },
   deleteExchangeRate: async (id: string) => {
     await apiClient.delete(`${BASE}/exchange-rates/${id}`);
+  },
+  updateExchangeRate: async (id: string, payload: { rate: number; source?: string }) => {
+    const { data } = await apiClient.put<ExchangeRateRecord>(
+      `${BASE}/exchange-rates/${id}`,
+      payload,
+    );
+    return data;
+  },
+  syncTodayExchangeRate: async (): Promise<ExchangeRateRecord> => {
+    const { data } = await apiClient.post<ExchangeRateRecord>(
+      `${BASE}/exchange-rates/sync-today`,
+    );
+    return data;
+  },
+
+  // Países
+  getCountries: async (): Promise<CountryRecord[]> => {
+    const { data } = await apiClient.get<CountryRecord[]>(`${BASE}/countries`);
+    return data;
+  },
+  upsertCountry: async (payload: { code: string; name: string; status?: string }) => {
+    const { data } = await apiClient.put<CountryRecord>(`${BASE}/countries`, payload);
+    return data;
+  },
+  deleteCountry: async (code: string) => {
+    await apiClient.delete(`${BASE}/countries/${code}`);
+  },
+
+  // Puertos
+  getPorts: async (type?: string): Promise<PortRecord[]> => {
+    const { data } = await apiClient.get<PortRecord[]>(`${BASE}/ports`, {
+      params: type ? { type } : undefined,
+    });
+    return data;
+  },
+  upsertPort: async (payload: {
+    code: string;
+    name: string;
+    countryCode?: string;
+    type?: string;
+    status?: string;
+  }) => {
+    const { data } = await apiClient.put<PortRecord>(`${BASE}/ports`, payload);
+    return data;
+  },
+  deletePort: async (code: string) => {
+    await apiClient.delete(`${BASE}/ports/${code}`);
   },
 
   // Incoterms

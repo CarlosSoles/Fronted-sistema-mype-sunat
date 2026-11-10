@@ -4,7 +4,15 @@ import { MemoryRouter, useLocation } from 'react-router-dom';
 import { NewImportOrderModal } from '@/modules/customs/components/NewImportOrderModal';
 import { masterDataApi, type BusinessPartnerRecord } from '@/modules/customs/services/masterDataApi';
 
-vi.mock('@/modules/customs/services/masterDataApi', () => ({ masterDataApi: { getPartners: vi.fn(), getPartner: vi.fn(), getCurrencies: vi.fn() } }));
+vi.mock('@/modules/customs/services/masterDataApi', () => ({
+  masterDataApi: {
+    getPartners: vi.fn(),
+    getPartner: vi.fn(),
+    getCurrencies: vi.fn(),
+    getCountries: vi.fn().mockResolvedValue([]),
+    getPorts: vi.fn().mockResolvedValue([]),
+  },
+}));
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
 function Location() { return <output data-testid="location">{useLocation().pathname}</output>; }
 it('resuelve proveedor y banco por API dentro del modal, sin navegar al maestro', async () => {

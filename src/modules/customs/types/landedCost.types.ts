@@ -32,6 +32,7 @@ export interface LocalExpenseInvoiceRecord {
 
 export interface AddLocalExpensePayload {
   shipment_id: string;
+  purchase_id?: string;
   supplier_ruc: string;
   supplier_name: string;
   expense_concept: string;

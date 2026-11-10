@@ -18,14 +18,14 @@ const money = (n: number) => `S/ ${n.toLocaleString('es-PE', { minimumFractionDi
 export default function AccountingDashboardPage() {
   const [period, setPeriod] = useState(periodoActual);
   const balance = useQuery({ queryKey: ['accounting-dashboard-balance', period], queryFn: () => accountingApi.getTrialBalance(period) });
+  const entries = useQuery({ queryKey: ['accounting-dashboard-entries', period], queryFn: () => accountingApi.getEntries(period) });
   const accounts = useQuery({ queryKey: ['accounting-accounts'], queryFn: () => accountingApi.getAccounts() });
   const periods = useQuery({ queryKey: ['accounting-periods'], queryFn: () => accountingApi.getPeriods() });
 
-  const rows = balance.data?.rows ?? [];
   const cuadrado = Math.abs((balance.data?.totalDebit ?? 0) - (balance.data?.totalCredit ?? 0)) < 0.01;
   const periodoAbierto = periods.data?.find((p) => p.period === period)?.status === 'ABIERTO';
   const kpis = [
-    { label: 'Asientos con movimiento', value: rows.length, icon: FileText },
+    { label: 'Asientos con movimiento', value: entries.data?.length ?? 0, icon: FileText },
     { label: 'Total debe', value: money(balance.data?.totalDebit ?? 0), icon: Wallet },
     { label: 'Total haber', value: money(balance.data?.totalCredit ?? 0), icon: TrendingUp },
     { label: 'Cuentas PCGE', value: accounts.data?.length ?? 0, icon: BookOpen },

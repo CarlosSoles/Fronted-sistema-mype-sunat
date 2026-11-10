@@ -43,6 +43,11 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
   // Clonar cabeceras requeridas por NestJS y SUNAT
   const headers = new Headers(request.headers);
+  const clientIp = request.headers.get('CF-Connecting-IP');
+  if (clientIp) {
+    headers.set('X-Forwarded-For', clientIp);
+    headers.set('X-Real-IP', clientIp);
+  }
   headers.set('Host', new URL(backendBase).host);
   headers.set('X-Forwarded-Host', url.host);
   headers.set('X-Forwarded-Proto', url.protocol.replace(':', ''));

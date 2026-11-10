@@ -29,9 +29,7 @@ import {
 import { formatCurrency, formatDateToPeru } from '@/lib/formatters';
 import {
   BookOpen,
-  Download,
   PlusCircle,
-  RefreshCw,
 } from 'lucide-react';
 import { useRolePermissions } from '@/hooks/useRolePermissions';
 import ManualEntryModal from '../components/ManualEntryModal';
@@ -159,20 +157,16 @@ const etiquetaOrigen = (source: string): string => {
 };
 
 export default function AccountingEntriesPage() {
-  const { canCreateAccountingEntry, isAuditor } = useRolePermissions();
+  const { canCreateAccountingEntry } = useRolePermissions();
   const { activeCompany, user } = useAuthStore();
   const companyId = activeCompany?.tenantId ?? user?.companyId ?? '';
-  const companyRuc = activeCompany?.ruc ?? user?.companyRuc ?? '';
 
   const [period, setPeriod] = useState(periodoActual);
-  const [isExporting, setIsExporting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const {
     data: asientosBackend,
     isLoading,
-    isFetching,
     error: queryError,
     refetch,
   } = useQuery({
@@ -209,99 +203,17 @@ export default function AccountingEntriesPage() {
     ? 'No se pudieron cargar los asientos del período. Revisa la sesión y la conexión con el backend.'
     : null;
 
-  const exportarPle = async () => {
-    if (entries.length === 0) {
-      setError('No hay asientos para exportar en el período seleccionado.');
-      return;
-    }
-
-    setIsExporting(true);
-    setError(null);
-    try {
-      const { data } = await apiClient.post<{
-        fileName?: string;
-        content?: string;
-      }>(
-        '/accounting/ple/export',
-        {
-          companyId,
-          companyRuc,
-          year: Number(period.slice(0, 4)),
-          month: Number(period.slice(5, 7)),
-          bookCode: '050100',
-        },
-        { timeout: 60_000 },
-      );
-
-      if (!data.fileName || !data.content) {
-        throw new Error('El backend no devolvió una trama PLE válida');
-      }
-
-      const blob = new Blob([data.content], {
-        type: 'text/plain;charset=utf-8',
-      });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = data.fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch {
-      setError(
-        'No se pudo generar el PLE del período. No se descargó ningún archivo simulado.',
-      );
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
   return (
     <Page>
       <PageHeader
         title="Libro Diario (PCGE)"
         description="Asientos del período, origen del movimiento y validación de partida doble"
       >
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => void refetch()}
-          disabled={isFetching}
-        >
-          <RefreshCw
-            aria-hidden="true"
-            className={isFetching ? 'animate-spin' : ''}
-          />
-          {isFetching ? 'Refrescando...' : 'Refrescar'}
-        </Button>
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={exportarPle}
-          disabled={isExporting || entries.length === 0}
-        >
-          <Download aria-hidden="true" />
-          {isExporting ? 'Exportando...' : 'Exportar PLE (.txt)'}
-        </Button>
-
         {canCreateAccountingEntry ? (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsModalOpen(true)}
-          >
+          <Button variant="outline" size="sm" onClick={() => setIsModalOpen(true)}>
             <PlusCircle aria-hidden="true" />
-            Nuevo Asiento
+            Nuevo asiento
           </Button>
-        ) : isAuditor ? (
-          <Badge
-            variant="outline"
-            className="h-9 px-3 text-xs bg-muted/60 text-muted-foreground border-dashed"
-          >
-            Auditoría contable (solo lectura)
-          </Badge>
         ) : null}
       </PageHeader>
 
@@ -317,16 +229,16 @@ export default function AccountingEntriesPage() {
             <PeriodInput id="periodo-contable" value={period} onChange={setPeriod} className="w-44" />
           </div>
           <p className="text-xs text-muted-foreground pb-2">
-            Se consultan y exportan solo los asientos de este período.
+            Se consultan solo los asientos de este período.
           </p>
         </div>
       </Card>
 
-      {(error ?? loadError) && (
+      {loadError ? (
         <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-          {error ?? loadError}
+          {loadError}
         </div>
-      )}
+      ) : null}
 
       <DoubleEntryBalanceCard totalDebe={totalDebe} totalHaber={totalHaber} />
 

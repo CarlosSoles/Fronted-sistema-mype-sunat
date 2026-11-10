@@ -21,7 +21,7 @@ export default function AccountingPlePage() {
   const [error, setError] = useState<string | null>(null);
 
   // Función unificada para consultar al Backend y descargar la trama real
-  const handleExportPle = async (bookCode: '050100' | '060100' | '070100') => {
+  const handleExportPle = async (bookCode: '050100' | '060100' | '030100') => {
     const setLoader = bookCode === '050100' ? setIsDownloadingDiario : bookCode === '060100' ? setIsDownloadingMayor : setIsDownloadingBalances;
     setLoader(true);
     setError(null);
@@ -157,16 +157,16 @@ export default function AccountingPlePage() {
             {isDownloadingMayor ? 'Generando Trama...' : 'Descargar Libro Mayor 6.1'}
           </Button>
         </Card>
-        {/* Libro de Inventarios y Balances 7.1 */}
+        {/* Libro de Inventarios y Balances 3.1 */}
         <Card className="p-5 space-y-3 border">
           <div className="flex items-center gap-2">
             <FileCheck2 className="w-5 h-5 text-amber-600" />
-            <h3 className="font-semibold text-base">Inventarios y Balances 7.1 (PLE)</h3>
+            <h3 className="font-semibold text-base">Inventarios y Balances 3.1 (PLE)</h3>
           </div>
           <p className="text-xs text-muted-foreground">Saldos por cuenta contable del período, agregados desde el Libro Diario.</p>
-          <Button variant="outline" size="sm" className="w-full" onClick={() => handleExportPle('070100')} disabled={isDownloadingBalances}>
+          <Button variant="outline" size="sm" className="w-full" onClick={() => handleExportPle('030100')} disabled={isDownloadingBalances}>
             {isDownloadingBalances ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
-            {isDownloadingBalances ? 'Generando Trama...' : 'Descargar Inventarios y Balances 7.1'}
+            {isDownloadingBalances ? 'Generando Trama...' : 'Descargar Inventarios y Balances 3.1'}
           </Button>
         </Card>
 

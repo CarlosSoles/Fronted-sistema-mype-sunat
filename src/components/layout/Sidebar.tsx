@@ -28,6 +28,7 @@ import {
   ClipboardCheck,
   Settings,
   Ship,
+  ShoppingBag,
   Sparkles,
 } from 'lucide-react';
 
@@ -108,12 +109,12 @@ const NAV_ITEMS: NavItem[] = [
   },
   {
     title: 'Compras',
-    path: '/inventory/purchases',
-    icon: Receipt,
-    developer: 'Oliver Saldaña',
+    path: '/purchases',
+    icon: ShoppingBag,
+    developer: 'Carlos Ahumada',
     allowedRoles: ['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
     subItems: [
-      { title: 'Compras nacionales', path: '/inventory/purchases', icon: Receipt },
+      { title: 'Registro de compras', path: '/purchases', icon: Receipt },
       { title: 'Cuentas por pagar', path: '/inventory/purchases/payables', icon: WalletCards },
       { title: 'Proveedores', path: '/invoices/clientes', icon: Building2 },
     ],
@@ -132,6 +133,7 @@ const NAV_ITEMS: NavItem[] = [
       { title: 'Ajustes y toma física', path: '/inventory/adjustments', icon: ClipboardCheck, allowedRoles: ['ADMIN'], group: 'Inventario' },
       { title: 'Saldo inicial', path: '/inventory/opening', icon: FileUp, allowedRoles: ['ADMIN'], group: 'Inventario' },
       { title: 'Kardex valorizado', path: '/kardex/general', icon: BookOpen, group: 'Kardex' },
+      { title: 'Configuración y Costeo', path: '/inventory/config', icon: Settings, allowedRoles: ['ADMIN', 'CONTADOR', 'ACCOUNTANT'], group: 'Kardex' },
     ],
   },
   {
@@ -146,6 +148,20 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
+    title: 'Cobros',
+    path: '/collections',
+    icon: WalletCards,
+    developer: 'Oliver Saldaña',
+    allowedRoles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
+  },
+  {
+    title: 'Gastos',
+    path: '/expenses',
+    icon: Receipt,
+    developer: 'Oliver Saldaña',
+    allowedRoles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
+  },
+  {
     title: 'Contabilidad PCGE',
     path: '/accounting',
     icon: BookOpen,
@@ -156,7 +172,7 @@ const NAV_ITEMS: NavItem[] = [
       { title: 'Libro Diario (PCGE)', path: '/accounting', icon: FileText, group: 'Registros' },
       { title: 'Plan de Cuentas (PCGE)', path: '/accounting/plan-cuentas', icon: BookOpen, group: 'Registros' },
       { title: 'Períodos Contables', path: '/accounting/periods', icon: CalendarDays, group: 'Registros' },
-      { title: 'Mapeador de Cuentas PCGE', path: '/customs/config?tab=mappings', icon: Settings, group: 'Registros' },
+      { title: 'Reglas de contabilización', path: '/accounting/rules', icon: Settings, group: 'Registros' },
       { title: 'Libro Mayor', path: '/accounting/ledger', icon: BookOpen, group: 'Reportes' },
       { title: 'Balance de Comprobación', path: '/accounting/trial-balance', icon: ClipboardCheck, group: 'Reportes' },
       { title: 'Estado de Resultados', path: '/accounting/income-statement', icon: FileText, group: 'Reportes' },

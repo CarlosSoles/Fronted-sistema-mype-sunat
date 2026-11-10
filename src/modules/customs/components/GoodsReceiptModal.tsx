@@ -147,8 +147,8 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold mb-1 text-slate-300">Responsable de Recepción</label>
+            <div>
+              <label className="block text-xs font-semibold mb-1 text-slate-300">Responsable de Recepción *</label>
               <Input
                 {...register('responsibleName')}
                 placeholder="Nombre del inspector o almacenero"
@@ -164,7 +164,15 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                 {...register('responsibleDni')}
                 placeholder="8 dígitos"
                 maxLength={8}
-                className="bg-slate-800 text-slate-100"
+                className="bg-slate-800 text-slate-100 font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold mb-1 text-slate-300">N° Contenedor</label>
+              <Input
+                {...register('containerNumber')}
+                placeholder="ej: MSCU1234567"
+                className="bg-slate-800 text-slate-100 font-mono uppercase"
               />
             </div>
             <div>
@@ -172,7 +180,7 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
               <Input
                 {...register('sealNumber')}
                 placeholder="N° Precinto SUNAT"
-                className="bg-slate-800 text-slate-100"
+                className="bg-slate-800 text-slate-100 font-mono"
               />
             </div>
           </div>

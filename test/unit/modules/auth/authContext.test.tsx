@@ -84,4 +84,41 @@ describe('AuthContext & Session Life Cycle', () => {
     expect(screen.getByTestId('auth-status')).toHaveTextContent('No Autenticado');
     expect(screen.getByTestId('access-token')).toHaveTextContent('sin-token');
   });
+
+  it('solo llama refreshToken una vez al montar y conserva el usuario si refresh no trae user', async () => {
+    const refreshSpy = vi.spyOn(authApi, 'refreshToken').mockResolvedValue({
+      accessToken: 'jwt-refreshed-1',
+    } as never);
+    vi.spyOn(authApi, 'getProfile').mockResolvedValue({} as never);
+    vi.spyOn(authApi, 'login').mockResolvedValue({
+      accessToken: 'jwt-after-login',
+      user: {
+        id: 'u-1',
+        companyId: 'c-1',
+        email: 'admin@mype.pe',
+        fullName: 'Usuario Prueba',
+        role: 'ADMIN',
+      },
+    });
+
+    await act(async () => {
+      render(
+        <AuthProvider>
+          <ConsumerComponent />
+        </AuthProvider>
+      );
+    });
+
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('access-token')).toHaveTextContent('jwt-refreshed-1');
+
+    await act(async () => {
+      screen.getByText('Login Test').click();
+    });
+
+    // No debe volver a dispararse refreshToken tras login (previene tormenta 429)
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('access-token')).toHaveTextContent('jwt-after-login');
+    expect(screen.getByTestId('user-name')).toHaveTextContent('Usuario Prueba');
+  });
 });

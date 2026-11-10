@@ -12,9 +12,9 @@ interface CustomsKpiGridProps {
 
 export const CustomsKpiGrid: React.FC<CustomsKpiGridProps> = ({
   shipments,
-  pendingSettlementsCount = 2,
-  totalCifUsd = 51500,
-  exchangeRate = 3.82,
+  pendingSettlementsCount = 0,
+  totalCifUsd = 0,
+  exchangeRate = 0,
 }) => {
   const activeShipments = shipments.filter(
     (s) => s.status !== 'CERRADO' && s.status !== 'CANCELADO'

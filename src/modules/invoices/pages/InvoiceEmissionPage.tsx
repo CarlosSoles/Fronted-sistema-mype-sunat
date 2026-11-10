@@ -63,6 +63,7 @@ import {
 import { FileText, Send, Plus } from 'lucide-react';
 import { documentoValidoParaTipo, mensajeErrorDocumento } from '../lib/invoiceEmitValidation';
 import { CustomerLookupField } from '../components/CustomerLookupField';
+import { inventoryApi } from '@/modules/inventory/services/inventoryApi';
 import { InvoiceItemsGrid } from '../components/InvoiceItemsGrid';
 import { InvoiceDescuentoGlobal } from '../components/InvoiceDescuentoGlobal';
 import { liquidarDescuentoGlobal, type DescuentoGlobal } from '../lib/invoiceDescuentoGlobal';
@@ -75,6 +76,7 @@ import {
   itemBolsa,
   itemDesdeProducto,
   itemVacio,
+  UNIDADES_MEDIDA,
   type ItemBorrador,
 } from '../lib/invoiceItems';
 import {
@@ -145,6 +147,14 @@ export default function InvoiceEmissionPage() {
   const [clienteDoc, setClienteDoc] = useState('');
   const [clienteRazonSocial, setClienteRazonSocial] = useState('');
   const [items, setItems] = useState<readonly ItemBorrador[]>([itemVacio('1')]);
+  const [unidades, setUnidades] = useState<readonly { codigo: string; descripcion: string }[]>(UNIDADES_MEDIDA);
+  useEffect(() => {
+    inventoryApi.getUnits()
+      .then((data) => {
+        if (data.length > 0) setUnidades(data.map((u) => ({ codigo: u.code, descripcion: u.name })));
+      })
+      .catch(() => {});
+  }, []);
   const [descuentoGlobal, setDescuentoGlobal] = useState<DescuentoGlobal | null>(null);
   const [agenteRetencion, setAgenteRetencion] = useState(false);
   const [correccionRetencion, setCorreccionRetencion] = useState(false);
@@ -703,6 +713,7 @@ export default function InvoiceEmissionPage() {
             <CardContent>
               <InvoiceWarehouseSelect value={almacen} onChange={setAlmacen} />
               <InvoiceItemsGrid
+                unidades={unidades}
                 items={items}
                 onCambiar={cambiarItem}
                 onEliminar={eliminarItem}

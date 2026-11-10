@@ -4,6 +4,7 @@ import {
   type KardexLedgerResponse,
   type InventoryMovement,
   type InventoryBookObligation,
+  type ProductVariantRecord,
 } from '../types/inventory.types';
 import { type ProductFormData } from '../validators/productSchema';
 import { type ManualMovementFormData } from '../validators/manualMovementSchema';
@@ -139,5 +140,187 @@ export const inventoryApi = {
       fileName,
       recordsCount,
     };
+  },
+
+  // --------------------------------------------------------------------------
+  // Fase 2: Mantenedores Oficiales SUNAT y Catálogos Maestros
+  // --------------------------------------------------------------------------
+  getUnits: async (): Promise<Array<{ code: string; name: string; symbol?: string }>> => {
+    const response = await apiClient.get('/inventory/catalogs/units');
+    return response.data;
+  },
+
+  getExistenceTypes: async (): Promise<Array<{ code: string; name: string; description: string }>> => {
+    const response = await apiClient.get('/inventory/catalogs/existence-types');
+    return response.data;
+  },
+
+  getBrands: async (): Promise<Array<{ id: string; code: string; name: string; description?: string }>> => {
+    const response = await apiClient.get('/inventory/catalogs/brands');
+    return response.data;
+  },
+
+  createBrand: async (data: { name: string; code?: string; description?: string }) => {
+    const response = await apiClient.post('/inventory/catalogs/brands', data);
+    return response.data;
+  },
+
+  updateBrand: async (id: string, data: { name?: string; code?: string; description?: string }) => {
+    const response = await apiClient.put(`/inventory/catalogs/brands/${id}`, data);
+    return response.data;
+  },
+
+  deleteBrand: async (id: string) => {
+    const response = await apiClient.delete(`/inventory/catalogs/brands/${id}`);
+    return response.data;
+  },
+
+  getModels: async (): Promise<Array<{ id: string; code: string; name: string; brand_name?: string; description?: string }>> => {
+    const response = await apiClient.get('/inventory/catalogs/models');
+    return response.data;
+  },
+
+  createModel: async (data: { name: string; code?: string; brand_name?: string; description?: string }) => {
+    const response = await apiClient.post('/inventory/catalogs/models', data);
+    return response.data;
+  },
+
+  updateModel: async (id: string, data: { name?: string; code?: string; brand_name?: string; description?: string }) => {
+    const response = await apiClient.put(`/inventory/catalogs/models/${id}`, data);
+    return response.data;
+  },
+
+  deleteModel: async (id: string) => {
+    const response = await apiClient.delete(`/inventory/catalogs/models/${id}`);
+    return response.data;
+  },
+
+  getCategories: async (): Promise<Array<{ id: string; code: string; name: string; sunat_code?: string; description?: string }>> => {
+    const response = await apiClient.get('/inventory/catalogs/categories');
+    return response.data;
+  },
+
+  createCategory: async (data: { name: string; code?: string; sunat_code?: string; description?: string }) => {
+    const response = await apiClient.post('/inventory/catalogs/categories', data);
+    return response.data;
+  },
+
+  updateCategory: async (id: string, data: { name?: string; code?: string; sunat_code?: string; description?: string }) => {
+    const response = await apiClient.put(`/inventory/catalogs/categories/${id}`, data);
+    return response.data;
+  },
+
+  deleteCategory: async (id: string) => {
+    const response = await apiClient.delete(`/inventory/catalogs/categories/${id}`);
+    return response.data;
+  },
+
+  getManufacturers: async (): Promise<Array<{ id: string; name: string; country_code: string; website?: string; contact_info?: string }>> => {
+    const response = await apiClient.get('/inventory/catalogs/manufacturers');
+    return response.data;
+  },
+
+  createManufacturer: async (data: { name: string; country_code?: string; website?: string; contact_info?: string }) => {
+    const response = await apiClient.post('/inventory/catalogs/manufacturers', data);
+    return response.data;
+  },
+
+  updateManufacturer: async (id: string, data: { name?: string; country_code?: string; website?: string; contact_info?: string }) => {
+    const response = await apiClient.put(`/inventory/catalogs/manufacturers/${id}`, data);
+    return response.data;
+  },
+
+  deleteManufacturer: async (id: string) => {
+    const response = await apiClient.delete(`/inventory/catalogs/manufacturers/${id}`);
+    return response.data;
+  },
+
+  getTags: async (): Promise<Array<{ id: string; name: string; color?: string }>> => {
+    const response = await apiClient.get('/inventory/catalogs/tags');
+    return response.data;
+  },
+
+  createTag: async (data: { name: string; color?: string }) => {
+    const response = await apiClient.post('/inventory/catalogs/tags', data);
+    return response.data;
+  },
+
+  updateTag: async (id: string, data: { name?: string; color?: string }) => {
+    const response = await apiClient.put(`/inventory/catalogs/tags/${id}`, data);
+    return response.data;
+  },
+
+  deleteTag: async (id: string) => {
+    const response = await apiClient.delete(`/inventory/catalogs/tags/${id}`);
+    return response.data;
+  },
+
+  getAuthorizedResponsibles: async (): Promise<{
+    users: Array<{ id: string; name: string; role: string; email: string; type: string }>;
+    transporters: Array<{ id: string; name: string; role: string; type: string }>;
+  }> => {
+    const response = await apiClient.get('/inventory/catalogs/responsibles');
+    return response.data;
+  },
+
+  // --------------------------------------------------------------------------
+  // Fase 4: Configuración de Costeo y Recálculo Integral (Obs 21, 22, 23)
+  // --------------------------------------------------------------------------
+  getCostConfig: async (): Promise<{
+    currentMethod: 'PROMEDIO' | 'FIFO';
+    companyRuc: string;
+    companyName: string;
+    productsCount: number;
+    warehousesCount: number;
+    movementsCount: number;
+    totalInventoryValuePen: number;
+    lastRecalculatedAt: string | null;
+  }> => {
+    const response = await apiClient.get('/inventory/kardex/config');
+    return response.data;
+  },
+
+  updateCostMethod: async (method: 'PROMEDIO' | 'FIFO'): Promise<{ success: boolean; method: string; message: string }> => {
+    const response = await apiClient.post('/inventory/kardex/config/method', { method });
+    return response.data;
+  },
+
+  recalculateCosting: async (method?: 'PROMEDIO' | 'FIFO'): Promise<{
+    success: boolean;
+    method: 'PROMEDIO' | 'FIFO';
+    productsCount: number;
+    movementsCount: number;
+    previousValuationPen: number;
+    newValuationPen: number;
+    differencePen: number;
+    recalculatedAt: string;
+  }> => {
+    const response = await apiClient.post('/inventory/kardex/config/recalculate', { method });
+    return response.data;
+  },
+
+  // --------------------------------------------------------------------------
+  // Variantes de Producto y Atributos de Artículo
+  // --------------------------------------------------------------------------
+  getProductVariants: async (sku: string): Promise<ProductVariantRecord[]> => {
+    const response = await apiClient.get<ProductVariantRecord[]>(
+      `/inventory/stocks/products/${encodeURIComponent(sku.trim())}/variants`
+    );
+    return response.data;
+  },
+
+  addProductVariant: async (sku: string, payload: Partial<ProductVariantRecord>): Promise<ProductVariantRecord> => {
+    const response = await apiClient.post<ProductVariantRecord>(
+      `/inventory/stocks/products/${encodeURIComponent(sku.trim())}/variants`,
+      payload
+    );
+    return response.data;
+  },
+
+  deleteProductVariant: async (sku: string, variantId: string): Promise<{ success: boolean }> => {
+    const response = await apiClient.delete(
+      `/inventory/stocks/products/${encodeURIComponent(sku.trim())}/variants/${variantId}`
+    );
+    return response.data;
   },
 };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -22,12 +22,18 @@ import {
   Mail,
   Phone,
   MapPin,
+  Search,
 } from 'lucide-react';
 import {
   importOrdersApi,
   type CreateImportOrderPayload,
 } from '../services/importOrdersApi';
-import { masterDataApi, type BusinessPartnerRecord } from '../services/masterDataApi';
+import {
+  masterDataApi,
+  type BusinessPartnerRecord,
+  type CountryRecord,
+  type PortRecord,
+} from '../services/masterDataApi';
 import { inventoryApi } from '@/modules/inventory/services/inventoryApi';
 import type { InventoryBalance } from '@/modules/inventory/types/inventory.types';
 
@@ -45,8 +51,6 @@ interface NewImportOrderModalProps {
   onSuccess: () => void;
 }
 
-const INCOTERMS = ['FOB', 'CIF', 'CFR', 'EXW', 'FCA', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP'];
-
 export const NewImportOrderModal: React.FC<NewImportOrderModalProps> = ({
   isOpen,
   onClose,
@@ -63,6 +67,14 @@ export const NewImportOrderModal: React.FC<NewImportOrderModalProps> = ({
   const [supplierPhone, setSupplierPhone] = useState('');
   const [catalogo, setCatalogo] = useState<InventoryBalance[]>([]);
   const [incoterm, setIncoterm] = useState('FOB');
+  const [incoterms, setIncoterms] = useState<string[]>([]);
+  useEffect(() => {
+    const consulta = masterDataApi.getIncoterms?.();
+    if (!consulta) return;
+    consulta
+      .then((data) => setIncoterms(data.filter((i) => i.is_active).map((i) => i.code)))
+      .catch(() => setIncoterms([]));
+  }, []);
   const [currencyCode, setCurrencyCode] = useState('USD');
   const [transportMode, setTransportMode] = useState('MARITIMO');
   const [portOfOrigin, setPortOfOrigin] = useState('');
@@ -82,8 +94,25 @@ export const NewImportOrderModal: React.FC<NewImportOrderModalProps> = ({
 
   const [registeredCurrencies, setRegisteredCurrencies] = useState<string[]>(['USD', 'EUR', 'PEN', 'CNY', 'GBP', 'JPY']);
   const [partnerBankInfo, setPartnerBankInfo] = useState<{ swift?: string; iban?: string; bank_name?: string } | null>(null);
+  const [dbCountries, setDbCountries] = useState<CountryRecord[]>([]);
+  const [dbPorts, setDbPorts] = useState<PortRecord[]>([]);
+  const [isCustomOriginPort, setIsCustomOriginPort] = useState(false);
+  const [isCustomDestPort, setIsCustomDestPort] = useState(false);
+  const [activeTab, setActiveTab] = useState<'LOGISTICS' | 'ITEMS'>('LOGISTICS');
+  const [isCompactTabs, setIsCompactTabs] = useState<boolean>(true);
+  const firstFieldRef = useRef<HTMLInputElement | null>(null);
 
-  // Cargar catálogo de proveedores registrados y monedas
+  // Autofocus al abrir el modal
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        firstFieldRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
+  // Cargar catálogo de proveedores registrados, monedas, países y puertos de la BD
   useEffect(() => {
     if (!isOpen) return;
     void inventoryApi.getStockBalances()
@@ -99,10 +128,28 @@ export const NewImportOrderModal: React.FC<NewImportOrderModalProps> = ({
         .catch(() => setRegisteredSuppliers([]));
 
       masterDataApi
-        .getCurrencies()
-        .then((currs) => {
+        .getCurrencies?.()
+        ?.then((currs) => {
           if (currs && currs.length > 0) {
             setRegisteredCurrencies(currs.filter((c) => c.is_active).map((c) => c.code));
+          }
+        })
+        .catch(() => {});
+
+      masterDataApi
+        .getCountries?.()
+        ?.then((data) => setDbCountries(data || []))
+        .catch(() => {});
+
+      masterDataApi
+        .getPorts?.()
+        ?.then((data) => {
+          setDbPorts(data || []);
+          if (data && data.length > 0) {
+            const defaultOrigin = data.find((p) => p.type === 'ORIGIN' || p.type === 'BOTH');
+            if (defaultOrigin && !portOfOrigin) {
+              setPortOfOrigin(defaultOrigin.name.toUpperCase());
+            }
           }
         })
         .catch(() => {});
@@ -125,6 +172,15 @@ export const NewImportOrderModal: React.FC<NewImportOrderModalProps> = ({
       setSupplierPhone(found.phone || '');
       if (found.currency_code) {
         setCurrencyCode(found.currency_code);
+      }
+      if (found.country_code) {
+        const countryPort = dbPorts.find(
+          (p) => p.country_code === found.country_code && (p.type === 'ORIGIN' || p.type === 'BOTH')
+        );
+        if (countryPort) {
+          setPortOfOrigin(countryPort.name.toUpperCase());
+          setIsCustomOriginPort(false);
+        }
       }
       // Cargar cuenta bancaria del proveedor si existe
       masterDataApi
@@ -152,11 +208,20 @@ export const NewImportOrderModal: React.FC<NewImportOrderModalProps> = ({
   );
   const totalCif = totalFob + (Number(estimatedFreight) || 0) + (Number(estimatedInsurance) || 0);
 
-  const handleAddItem = () => {
+  const handleAddItem = (autoFocus = false) => {
+    const nextIdx = items.length;
     setItems((prev) => [
       ...prev,
       { productCode: '', description: '', hsCode: '', quantity: 1, unitPriceFob: 0 },
     ]);
+    if (autoFocus) {
+      setTimeout(() => {
+        const nextElem =
+          document.getElementById(`item-desc-${nextIdx}`) ||
+          document.getElementById(`item-qty-${nextIdx}`);
+        nextElem?.focus();
+      }, 50);
+    }
   };
 
   const handleRemoveItem = (index: number) => {
@@ -251,6 +316,47 @@ export const NewImportOrderModal: React.FC<NewImportOrderModalProps> = ({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+          {/* Selector de modo de visualización y pestañas (optimización para laptops) */}
+          <div className="flex items-center justify-between border-b border-border/70 pb-2">
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setActiveTab('LOGISTICS')}
+                className={`px-3 py-1 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 ${
+                  !isCompactTabs || activeTab === 'LOGISTICS'
+                    ? 'bg-primary text-primary-foreground shadow-xs'
+                    : 'bg-muted/70 text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Building2 className="h-3.5 w-3.5" />
+                1. Proveedor y Logística
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('ITEMS')}
+                className={`px-3 py-1 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 ${
+                  isCompactTabs && activeTab === 'ITEMS'
+                    ? 'bg-primary text-primary-foreground shadow-xs'
+                    : 'bg-muted/70 text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Ship className="h-3.5 w-3.5" />
+                2. Mercancías y Precios ({items.length} {items.length === 1 ? 'ítem' : 'ítems'})
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsCompactTabs(!isCompactTabs)}
+              className="text-[11px] text-muted-foreground hover:text-primary underline hidden sm:inline"
+              title="Alternar entre modo por pestañas (ideal para laptops) o vista continua completa (monitores grandes)"
+            >
+              {isCompactTabs ? 'Vista continua (Monitores grandes)' : 'Modo pestañas (Laptop)'}
+            </button>
+          </div>
+
+          {/* Bloque 1: Proveedor y Logística */}
+          {(!isCompactTabs || activeTab === 'LOGISTICS') && (
+            <div className="space-y-3">
           {/* Proveedor y Origen */}
           <div className="bg-muted/40 p-3.5 rounded-lg border space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-2">
@@ -284,6 +390,7 @@ export const NewImportOrderModal: React.FC<NewImportOrderModalProps> = ({
                   Proveedor Extranjero (Razón Social) *
                 </label>
                 <Input
+                  ref={firstFieldRef}
                   placeholder="ej: SHENZHEN TECH ELECTRONICS CO., LTD."
                   value={supplierName}
                   onChange={(e) => setSupplierName(e.target.value)}
@@ -313,16 +420,26 @@ export const NewImportOrderModal: React.FC<NewImportOrderModalProps> = ({
                   onChange={(e) => setSupplierCountry(e.target.value)}
                   className="w-full h-8 rounded-md border border-input bg-background px-2 text-xs mt-1"
                 >
-                  <option value="CN">China (CN)</option>
-                  <option value="US">Estados Unidos (US)</option>
-                  <option value="DE">Alemania (DE)</option>
-                  <option value="JP">Japón (JP)</option>
-                  <option value="KR">Corea del Sur (KR)</option>
-                  <option value="BR">Brasil (BR)</option>
-                  <option value="IT">Italia (IT)</option>
-                  <option value="ES">España (ES)</option>
-                  <option value="MX">México (MX)</option>
-                  <option value="IN">India (IN)</option>
+                  {dbCountries.length > 0 ? (
+                    dbCountries.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.name} ({c.code})
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="CN">China (CN)</option>
+                      <option value="US">Estados Unidos (US)</option>
+                      <option value="DE">Alemania (DE)</option>
+                      <option value="JP">Japón (JP)</option>
+                      <option value="KR">Corea del Sur (KR)</option>
+                      <option value="BR">Brasil (BR)</option>
+                      <option value="IT">Italia (IT)</option>
+                      <option value="ES">España (ES)</option>
+                      <option value="MX">México (MX)</option>
+                      <option value="IN">India (IN)</option>
+                    </>
+                  )}
                 </select>
               </div>
 
@@ -449,7 +566,7 @@ export const NewImportOrderModal: React.FC<NewImportOrderModalProps> = ({
                   onChange={(e) => setIncoterm(e.target.value)}
                   className="w-full h-8 rounded-md border border-input bg-background px-2 text-xs mt-1 font-semibold"
                 >
-                  {INCOTERMS.map((inc) => (
+                  {(incoterms.length > 0 ? incoterms : [incoterm]).map((inc) => (
                     <option key={inc} value={inc}>
                       {inc} 2020
                     </option>
@@ -483,21 +600,87 @@ export const NewImportOrderModal: React.FC<NewImportOrderModalProps> = ({
                 </select>
               </div>
               <div>
-                <label className="font-medium text-muted-foreground uppercase text-[10px]">Puerto Origen</label>
-                <Input
-                  placeholder="ej: Shanghai, Ningbo"
-                  value={portOfOrigin}
-                  onChange={(e) => setPortOfOrigin(e.target.value)}
-                  className="mt-1 h-8 text-xs uppercase"
-                />
+                <div className="flex items-center justify-between">
+                  <label className="font-medium text-muted-foreground uppercase text-[10px]">Puerto Origen</label>
+                  <button
+                    type="button"
+                    onClick={() => setIsCustomOriginPort(!isCustomOriginPort)}
+                    className="text-[9px] text-primary hover:underline font-mono"
+                  >
+                    {isCustomOriginPort ? 'Ver lista' : 'Escribir manual'}
+                  </button>
+                </div>
+                {isCustomOriginPort ? (
+                  <Input
+                    placeholder="ej: SHANGHAI, NINGBO"
+                    value={portOfOrigin}
+                    onChange={(e) => setPortOfOrigin(e.target.value.toUpperCase())}
+                    className="mt-1 h-8 text-xs uppercase"
+                  />
+                ) : (
+                  <select
+                    value={portOfOrigin}
+                    onChange={(e) => {
+                      if (e.target.value === '__CUSTOM__') {
+                        setIsCustomOriginPort(true);
+                      } else {
+                        setPortOfOrigin(e.target.value);
+                      }
+                    }}
+                    className="w-full h-8 rounded-md border border-input bg-background px-2 text-xs mt-1 font-medium"
+                  >
+                    <option value="">Seleccione puerto origen...</option>
+                    {dbPorts
+                      .filter((p) => p.type === 'ORIGIN' || p.type === 'BOTH')
+                      .map((p) => (
+                        <option key={p.code} value={p.name.toUpperCase()}>
+                          {p.name} ({p.country_code} - {p.code})
+                        </option>
+                      ))}
+                    <option value="__CUSTOM__">+ Otro (Escribir nombre manual)...</option>
+                  </select>
+                )}
               </div>
               <div>
-                <label className="font-medium text-muted-foreground uppercase text-[10px]">Puerto Destino</label>
-                <Input
-                  value={portOfDestination}
-                  onChange={(e) => setPortOfDestination(e.target.value)}
-                  className="mt-1 h-8 text-xs uppercase"
-                />
+                <div className="flex items-center justify-between">
+                  <label className="font-medium text-muted-foreground uppercase text-[10px]">Puerto Destino</label>
+                  <button
+                    type="button"
+                    onClick={() => setIsCustomDestPort(!isCustomDestPort)}
+                    className="text-[9px] text-primary hover:underline font-mono"
+                  >
+                    {isCustomDestPort ? 'Ver lista' : 'Escribir manual'}
+                  </button>
+                </div>
+                {isCustomDestPort ? (
+                  <Input
+                    placeholder="ej: CALLAO, PAITA, CHANCAY"
+                    value={portOfDestination}
+                    onChange={(e) => setPortOfDestination(e.target.value.toUpperCase())}
+                    className="mt-1 h-8 text-xs uppercase"
+                  />
+                ) : (
+                  <select
+                    value={portOfDestination}
+                    onChange={(e) => {
+                      if (e.target.value === '__CUSTOM__') {
+                        setIsCustomDestPort(true);
+                      } else {
+                        setPortOfDestination(e.target.value);
+                      }
+                    }}
+                    className="w-full h-8 rounded-md border border-input bg-background px-2 text-xs mt-1 font-medium"
+                  >
+                    {dbPorts
+                      .filter((p) => p.type === 'DESTINATION' || p.type === 'BOTH')
+                      .map((p) => (
+                        <option key={p.code} value={p.name.toUpperCase()}>
+                          {p.name} ({p.country_code} - {p.code})
+                        </option>
+                      ))}
+                    <option value="__CUSTOM__">+ Otro (Escribir nombre manual)...</option>
+                  </select>
+                )}
               </div>
             </div>
 
@@ -509,6 +692,7 @@ export const NewImportOrderModal: React.FC<NewImportOrderModalProps> = ({
                   step="0.01"
                   min="0"
                   value={estimatedFreight}
+                  onFocus={(e) => e.target.select()}
                   onChange={(e) => setEstimatedFreight(parseFloat(e.target.value) || 0)}
                   className="mt-1 h-8 text-xs font-mono"
                 />
@@ -520,6 +704,7 @@ export const NewImportOrderModal: React.FC<NewImportOrderModalProps> = ({
                   step="0.01"
                   min="0"
                   value={estimatedInsurance}
+                  onFocus={(e) => e.target.select()}
                   onChange={(e) => setEstimatedInsurance(parseFloat(e.target.value) || 0)}
                   className="mt-1 h-8 text-xs font-mono"
                 />
@@ -545,123 +730,246 @@ export const NewImportOrderModal: React.FC<NewImportOrderModalProps> = ({
             </div>
           </div>
 
-          {/* Tabla de Mercancías */}
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <h3 className="font-semibold text-foreground text-xs">Mercancías y Precios Unitarios FOB</h3>
+          {isCompactTabs && (
+            <div className="flex justify-end pt-1">
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                onClick={() => setActiveTab('ITEMS')}
+                className="gap-1.5 text-xs font-semibold"
+              >
+                Continuar a Mercancías ➔
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Bloque 2: Mercancías y Precios */}
+      {(!isCompactTabs || activeTab === 'ITEMS') && (
+        <div className="space-y-2">
+          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+            <div className="flex items-center gap-2">
+              {isCompactTabs && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setActiveTab('LOGISTICS')}
+                  className="h-7 text-xs px-2 text-muted-foreground hover:text-foreground"
+                >
+                  ⬅ Volver a Proveedor
+                </Button>
+              )}
+              <h3 className="font-semibold text-foreground text-xs">
+                Mercancías y Precios Unitarios FOB ({items.length} {items.length === 1 ? 'ítem' : 'ítems'})
+              </h3>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* SKU Quick Search Selector */}
+              {catalogo.length > 0 && (
+                <div className="relative flex items-center">
+                  <Search className="absolute left-2 h-3 w-3 text-muted-foreground pointer-events-none" />
+                  <input
+                    list="catalog-quick-sku-list"
+                    placeholder="Buscar SKU del catálogo…"
+                    onChange={(e) => {
+                      const val = e.target.value.trim();
+                      const found = catalogo.find(
+                        (c) => c.sku.toLowerCase() === val.toLowerCase() || `${c.sku} - ${c.description}`.toLowerCase() === val.toLowerCase()
+                      );
+                      if (found) {
+                        const lastItem = items[items.length - 1];
+                        const isLastEmpty = !lastItem.productCode && !lastItem.description && Number(lastItem.quantity) === 1 && Number(lastItem.unitPriceFob) === 0;
+                        if (isLastEmpty) {
+                          handleItemChange(items.length - 1, 'productCode', found.sku);
+                          handleItemChange(items.length - 1, 'description', found.description);
+                          handleItemChange(items.length - 1, 'hsCode', found.hsCode ?? '');
+                        } else {
+                          setItems((prev) => [
+                            ...prev,
+                            {
+                              productCode: found.sku,
+                              description: found.description,
+                              hsCode: found.hsCode ?? '',
+                              quantity: 1,
+                              unitPriceFob: 0,
+                            },
+                          ]);
+                        }
+                        e.target.value = '';
+                        setTimeout(() => {
+                          const targetIdx = isLastEmpty ? items.length - 1 : items.length;
+                          document.getElementById(`item-fob-${targetIdx}`)?.focus();
+                        }, 50);
+                      }
+                    }}
+                    className="h-7 w-48 pl-7 pr-2 text-xs rounded-md border border-input bg-background font-mono placeholder:font-sans placeholder:text-muted-foreground"
+                  />
+                  <datalist id="catalog-quick-sku-list">
+                    {catalogo.map((p) => (
+                      <option key={`${p.warehouseCode}-${p.sku}`} value={p.sku}>
+                        {p.sku} — {p.description}
+                      </option>
+                    ))}
+                  </datalist>
+                </div>
+              )}
+
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={handleAddItem}
-                className="h-7 text-xs gap-1"
+                onClick={() => handleAddItem(true)}
+                className="h-7 text-xs gap-1 font-medium"
               >
                 <Plus className="h-3.5 w-3.5" />
-                Agregar Producto
+                Agregar Fila
               </Button>
             </div>
-
-            <div className="border rounded-md overflow-x-auto bg-card">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="border-b bg-muted/60 text-muted-foreground uppercase text-[10px]">
-                    <th className="p-2 w-28">Código / SKU</th>
-                    <th className="p-2">Descripción Arancelaria *</th>
-                    <th className="p-2 w-32">Partida (SPN)</th>
-                    <th className="p-2 w-24 text-right">Cantidad *</th>
-                    <th className="p-2 w-28 text-right">P. Unit FOB *</th>
-                    <th className="p-2 w-28 text-right">Total FOB</th>
-                    <th className="p-2 w-10 text-center"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {items.map((it, idx) => {
-                    const lineFob = (Number(it.quantity) || 0) * (Number(it.unitPriceFob) || 0);
-                    return (
-                      <tr key={idx} className="hover:bg-muted/20">
-                        <td className="p-2">
-                          <select
-                            value={it.productCode}
-                            onChange={(e) => {
-                              const codigo = e.target.value;
-                              const producto = catalogo.find((p) => p.sku === codigo);
-                              handleItemChange(idx, 'productCode', codigo);
-                              if (producto) {
-                                handleItemChange(idx, 'description', producto.description);
-                                handleItemChange(idx, 'hsCode', producto.hsCode ?? '');
-                              }
-                            }}
-                            className="h-7 w-full rounded-md border border-input bg-background px-1 text-xs font-mono"
-                          >
-                            <option value="">Seleccionar SKU…</option>
-                            {catalogo.map((p) => (
-                              <option key={`${p.warehouseCode}-${p.sku}`} value={p.sku}>
-                                {p.sku} — {p.description}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                        <td className="p-2">
-                          <Input
-                            placeholder="Descripción comercial y técnica..."
-                            value={it.description}
-                            onChange={(e) => handleItemChange(idx, 'description', e.target.value)}
-                            className="h-7 text-xs"
-                            required
-                          />
-                        </td>
-                        <td className="p-2">
-                          <Input
-                            placeholder="8517.13.00.00"
-                            value={it.hsCode}
-                            onChange={(e) => handleItemChange(idx, 'hsCode', e.target.value)}
-                            className="h-7 text-xs font-mono"
-                          />
-                        </td>
-                        <td className="p-2">
-                          <Input
-                            type="number"
-                            min="0.0001"
-                            step="any"
-                            value={it.quantity}
-                            onChange={(e) => handleItemChange(idx, 'quantity', e.target.value)}
-                            className="h-7 text-xs text-right font-mono"
-                            required
-                          />
-                        </td>
-                        <td className="p-2">
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={it.unitPriceFob}
-                            onChange={(e) => handleItemChange(idx, 'unitPriceFob', e.target.value)}
-                            className="h-7 text-xs text-right font-mono"
-                            required
-                          />
-                        </td>
-                        <td className="p-2 text-right font-mono font-bold">
-                          {currencyCode} {lineFob.toFixed(2)}
-                        </td>
-                        <td className="p-2 text-center">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRemoveItem(idx)}
-                            disabled={items.length <= 1}
-                            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
           </div>
+
+          <div className="border rounded-md overflow-x-auto bg-card">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="border-b bg-muted/60 text-muted-foreground uppercase text-[10px]">
+                  <th className="p-2 w-28">Código / SKU</th>
+                  <th className="p-2">Descripción Arancelaria *</th>
+                  <th className="p-2 w-32">Partida (SPN)</th>
+                  <th className="p-2 w-24 text-right">Cantidad *</th>
+                  <th className="p-2 w-28 text-right">P. Unit FOB *</th>
+                  <th className="p-2 w-28 text-right">Total FOB</th>
+                  <th className="p-2 w-10 text-center"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {items.map((it, idx) => {
+                  const lineFob = (Number(it.quantity) || 0) * (Number(it.unitPriceFob) || 0);
+                  return (
+                    <tr key={idx} className="hover:bg-muted/20">
+                      <td className="p-2">
+                        <select
+                          value={it.productCode}
+                          onChange={(e) => {
+                            const codigo = e.target.value;
+                            const producto = catalogo.find((p) => p.sku === codigo);
+                            handleItemChange(idx, 'productCode', codigo);
+                            if (producto) {
+                              handleItemChange(idx, 'description', producto.description);
+                              handleItemChange(idx, 'hsCode', producto.hsCode ?? '');
+                            }
+                          }}
+                          className="h-7 w-full rounded-md border border-input bg-background px-1 text-xs font-mono"
+                        >
+                          <option value="">Seleccionar SKU…</option>
+                          {catalogo.map((p) => (
+                            <option key={`${p.warehouseCode}-${p.sku}`} value={p.sku}>
+                              {p.sku} — {p.description}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="p-2">
+                        <Input
+                          id={`item-desc-${idx}`}
+                          placeholder="Descripción comercial y técnica..."
+                          value={it.description}
+                          onChange={(e) => handleItemChange(idx, 'description', e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              document.getElementById(`item-qty-${idx}`)?.focus();
+                            }
+                          }}
+                          className="h-7 text-xs"
+                          required
+                        />
+                      </td>
+                      <td className="p-2">
+                        <Input
+                          placeholder="8517.13.00.00"
+                          value={it.hsCode}
+                          onChange={(e) => handleItemChange(idx, 'hsCode', e.target.value)}
+                          className="h-7 text-xs font-mono"
+                        />
+                      </td>
+                      <td className="p-2">
+                        <Input
+                          id={`item-qty-${idx}`}
+                          type="number"
+                          min="0.0001"
+                          step="any"
+                          value={it.quantity}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => handleItemChange(idx, 'quantity', e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              document.getElementById(`item-fob-${idx}`)?.focus();
+                            }
+                          }}
+                          className="h-7 text-xs text-right font-mono"
+                          required
+                        />
+                      </td>
+                      <td className="p-2">
+                        <Input
+                          id={`item-fob-${idx}`}
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={it.unitPriceFob}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => handleItemChange(idx, 'unitPriceFob', e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              if (idx === items.length - 1) {
+                                handleAddItem(true);
+                              } else {
+                                document.getElementById(`item-desc-${idx + 1}`)?.focus();
+                              }
+                            }
+                          }}
+                          className="h-7 text-xs text-right font-mono font-medium"
+                          required
+                        />
+                      </td>
+                      <td className="p-2 text-right font-mono font-bold">
+                        {currencyCode} {lineFob.toFixed(2)}
+                      </td>
+                      <td className="p-2 text-center">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveItem(idx)}
+                          disabled={items.length <= 1}
+                          className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                          title="Eliminar fila"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground px-1 pt-1">
+            <span>
+              💡 <b>Navegación ágil:</b> Presiona <kbd className="px-1 py-0.5 bg-muted rounded border font-mono text-[10px]">Enter</kbd> en el precio para crear una nueva fila automáticamente.
+            </span>
+            <span>
+              Valores numéricos seleccionables al tabular/enfocar.
+            </span>
+          </div>
+        </div>
+      )}
 
           {/* Resumen Totalizador */}
           <div className="bg-muted p-3.5 rounded-lg border flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
