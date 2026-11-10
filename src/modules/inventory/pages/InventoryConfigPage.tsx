@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Page,
@@ -35,6 +35,24 @@ import {
 import { inventoryApi } from '../services/inventoryApi';
 import { type KardexLedgerResponse } from '../types/inventory.types';
 
+function extractCostingErrorMessage(error: unknown): string {
+  const err = error as {
+    response?: { status?: number; data?: { message?: string | string[] } };
+    message?: string;
+  };
+  const status = err?.response?.status;
+  if (status === 404) {
+    return 'El backend de producción aún no tiene desplegado el endpoint de configuración de costeo (/api/v1/inventory/kardex/config). Debes desplegar la rama dev en el backend y aplicar las migraciones.';
+  }
+  if (status === 429) {
+    return 'El servidor respondió 429 (demasiadas peticiones temporales). Espera unos segundos y vuelve a intentar.';
+  }
+  const serverMsg = err?.response?.data?.message;
+  if (Array.isArray(serverMsg)) return serverMsg.join(', ');
+  if (typeof serverMsg === 'string' && serverMsg.trim()) return serverMsg;
+  return err?.message || 'Error al comunicarse con el servidor de costeo.';
+}
+
 export default function InventoryConfigPage() {
   const queryClient = useQueryClient();
 
@@ -42,6 +60,8 @@ export default function InventoryConfigPage() {
   const {
     data: costConfig,
     isLoading: isLoadingConfig,
+    isError: isErrorConfig,
+    error: configError,
     refetch: refetchConfig,
   } = useQuery({
     queryKey: ['inventory-cost-config'],
@@ -54,8 +74,14 @@ export default function InventoryConfigPage() {
     queryFn: () => inventoryApi.getStockBalances(),
   });
 
-  const [selectedMethod, setSelectedMethod] = useState<'PROMEDIO' | 'FIFO'>('PROMEDIO');
+  const [selectedMethodOverride, setSelectedMethod] = useState<'PROMEDIO' | 'FIFO' | null>(null);
+  const selectedMethod: 'PROMEDIO' | 'FIFO' =
+    selectedMethodOverride ?? costConfig?.currentMethod ?? 'PROMEDIO';
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [methodFeedback, setMethodFeedback] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
   const [recalcSummary, setRecalcSummary] = useState<{
     success: boolean;
     method: 'PROMEDIO' | 'FIFO';
@@ -68,7 +94,8 @@ export default function InventoryConfigPage() {
   } | null>(null);
 
   // Selector de producto para trazabilidad en vivo
-  const [selectedSku, setSelectedSku] = useState<string>('');
+  const [selectedSkuOverride, setSelectedSku] = useState<string>('');
+  const selectedSku = selectedSkuOverride || stockData?.balances?.[0]?.sku || '';
   const [skuSearch, setSkuSearch] = useState<string>('');
 
   // Simulador What-If
@@ -77,20 +104,6 @@ export default function InventoryConfigPage() {
   const [simEntryQty, setSimEntryQty] = useState<number>(50);
   const [simEntryCost, setSimEntryCost] = useState<number>(32);
   const [simExitQty, setSimExitQty] = useState<number>(60);
-
-  // Sincronizar estado local con configuración del backend
-  useEffect(() => {
-    if (costConfig?.currentMethod) {
-      setSelectedMethod(costConfig.currentMethod);
-    }
-  }, [costConfig?.currentMethod]);
-
-  // Si hay productos cargados y ninguno seleccionado, seleccionar el primero
-  useEffect(() => {
-    if (!selectedSku && stockData?.balances && stockData.balances.length > 0) {
-      setSelectedSku(stockData.balances[0].sku);
-    }
-  }, [stockData, selectedSku]);
 
   // Consulta del Kardex del producto seleccionado
   const {
@@ -106,15 +119,39 @@ export default function InventoryConfigPage() {
   // Mutación para guardar el método de valuación
   const saveMethodMutation = useMutation({
     mutationFn: (method: 'PROMEDIO' | 'FIFO') => inventoryApi.updateCostMethod(method),
-    onSuccess: () => {
+    onMutate: () => {
+      setMethodFeedback(null);
+    },
+    onSuccess: (data, method) => {
+      queryClient.setQueryData(
+        ['inventory-cost-config'],
+        (prev: { currentMethod?: 'PROMEDIO' | 'FIFO' } | undefined) =>
+          prev ? { ...prev, currentMethod: method } : prev,
+      );
+      setSelectedMethod(null);
       queryClient.invalidateQueries({ queryKey: ['inventory-cost-config'] });
       queryClient.invalidateQueries({ queryKey: ['inventory-stocks'] });
+      queryClient.invalidateQueries({ queryKey: ['product-kardex-config'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-movements'] });
+      setMethodFeedback({
+        type: 'success',
+        text: data?.message || `Método actualizado a ${method}.`,
+      });
+    },
+    onError: (err) => {
+      setMethodFeedback({
+        type: 'error',
+        text: extractCostingErrorMessage(err),
+      });
     },
   });
 
   // Mutación para ejecutar el recálculo integral
   const recalculateMutation = useMutation({
     mutationFn: (method: 'PROMEDIO' | 'FIFO') => inventoryApi.recalculateCosting(method),
+    onMutate: () => {
+      setMethodFeedback(null);
+    },
     onSuccess: (data) => {
       setRecalcSummary(data);
       setShowConfirmModal(false);
@@ -122,6 +159,13 @@ export default function InventoryConfigPage() {
       queryClient.invalidateQueries({ queryKey: ['inventory-stocks'] });
       queryClient.invalidateQueries({ queryKey: ['product-kardex-config'] });
       queryClient.invalidateQueries({ queryKey: ['inventory-movements'] });
+    },
+    onError: (err) => {
+      setShowConfirmModal(false);
+      setMethodFeedback({
+        type: 'error',
+        text: extractCostingErrorMessage(err),
+      });
     },
   });
 
@@ -242,6 +286,62 @@ export default function InventoryConfigPage() {
           </p>
         </Card>
       </div>
+
+      {/* Alerta si la API de costeo no respondió o está desactualizada en producción */}
+      {isErrorConfig && (
+        <div className="mb-6 rounded-xl border border-rose-500/40 bg-rose-950/20 p-4 text-rose-200 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-rose-400 shrink-0 mt-0.5" />
+          <div className="flex-1 text-xs space-y-1">
+            <h4 className="font-semibold text-rose-300 text-sm">
+              No se pudo cargar la configuración de costeo desde el servidor
+            </h4>
+            <p className="text-rose-200/90 leading-relaxed">
+              {extractCostingErrorMessage(configError)}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void refetchConfig()}
+            className="border-rose-700 bg-rose-950/50 text-rose-200 hover:bg-rose-900/50 h-7 text-xs shrink-0"
+          >
+            Reintentar
+          </Button>
+        </div>
+      )}
+
+      {/* Feedback explícito al guardar método o detectar error en operación */}
+      {methodFeedback && (
+        <div
+          className={`mb-6 rounded-xl border p-4 flex items-start gap-3 text-xs ${
+            methodFeedback.type === 'success'
+              ? 'border-emerald-500/40 bg-emerald-950/20 text-emerald-200'
+              : 'border-rose-500/40 bg-rose-950/20 text-rose-200'
+          }`}
+        >
+          {methodFeedback.type === 'success' ? (
+            <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
+          ) : (
+            <AlertTriangle className="h-5 w-5 text-rose-400 shrink-0 mt-0.5" />
+          )}
+          <div className="flex-1">
+            <strong className="block font-semibold text-sm mb-0.5">
+              {methodFeedback.type === 'success'
+                ? 'Configuración de Costeo Actualizada'
+                : 'No se pudo completar la operación'}
+            </strong>
+            <span>{methodFeedback.text}</span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setMethodFeedback(null)}
+            className="h-7 text-xs opacity-80 hover:opacity-100"
+          >
+            Cerrar
+          </Button>
+        </div>
+      )}
 
       {/* Banner de Resultado de Recálculo si se acaba de ejecutar */}
       {recalcSummary && (

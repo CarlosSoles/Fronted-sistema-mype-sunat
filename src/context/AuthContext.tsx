@@ -50,38 +50,40 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const user = (storeUser as AuthUser) ?? usuarioLocal;
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Restauración de sesión silenciosa (Silent Refresh on mount - F5 resilience)
+  // Restauración de sesión silenciosa una sola vez al montar (F5 resilience)
   useEffect(() => {
     let isMounted = true;
 
     const restoreSession = async () => {
+      const enStoreInicial = useAuthStore.getState();
+      if (enStoreInicial.token === 'demo-token') {
+        if (isMounted) setIsLoading(false);
+        return;
+      }
+
       try {
         const response = await authApi.refreshToken();
         const token = response.accessToken || response.token;
         if (token && isMounted) {
+          const usuarioActual =
+            response.user ?? (useAuthStore.getState().user as AuthUser | null);
           setAccessToken(token);
-          setUser(response.user);
-          useAuthStore.getState().setSession(token, response.user);
+          if (usuarioActual) {
+            setUser(usuarioActual);
+            useAuthStore.getState().setSession(token, usuarioActual);
+          } else {
+            useAuthStore.getState().setToken(token);
+          }
           // La empresa se resuelve por `/auth/profile`: ni el login ni el
           // refresh la devuelven, y sin ella la sesión quedaba sin RUC emisor.
           void cargarEmpresaActiva();
         }
       } catch {
-        // Si no hay cookie válida o expiró, se intenta primero RECUPERAR la
-        // sesión que el store ya tiene en memoria o en `localStorage`.
-        //
-        // Antes se hacía `logout()` directamente cuando el store no tenía token
-        // en ese instante. El problema: al recargar la página, `persist` de
-        // zustand todavía no ha hidratado cuando este `catch` se ejecuta, así
-        // que el store estaba vacío y se borraba una sesión que en realidad
-        // existía guardada. El resultado era entrar con el botón y salir a
-        // /login en la siguiente recarga.
         const enStore = useAuthStore.getState();
         if (isMounted && enStore.token) {
           setAccessToken(enStore.token);
           if (enStore.user) setUser(enStore.user as AuthUser);
         } else if (isMounted) {
-          // De verdad no hay sesión: se limpia.
           useAuthStore.getState().logout();
         }
       } finally {
@@ -91,12 +93,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
-    restoreSession();
+    void restoreSession();
 
     return () => {
       isMounted = false;
     };
-  }, [storeToken]);
+  }, []);
 
   const login = async (credentials: LoginPayload) => {
     const data = await authApi.login(credentials);
