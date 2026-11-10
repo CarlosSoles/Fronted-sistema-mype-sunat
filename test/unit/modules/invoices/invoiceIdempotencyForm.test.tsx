@@ -83,3 +83,17 @@ it('la página usa la serie activa de configuración aunque no sea F001', async 
   emitir();
   await waitFor(() => expect(invoicesApi.emitirComprobante).toHaveBeenCalledWith(expect.objectContaining({ serie: 'F087' }), expect.any(String)));
 });
+it.each(['modal', 'pagina'])('%s: envía el almacén elegido y lo conserva al reintentar', async via => {
+  vi.mocked(apiClient.get).mockImplementation(async url => ({ data: url === '/invoices/warehouses'
+    ? [{ warehouse_code: 'ALM-01', description: 'Principal' }, { warehouse_code: 'ALM-02', description: 'Sucursal' }]
+    : url === '/invoices/config' ? { series: [{ document_type: '01', series: 'F001', is_active: true }] } : [] }));
+  vi.mocked(invoicesApi.emitirComprobante).mockRejectedValue({ response: { status: 409 } });
+  const { emitir } = await montar(via);
+  await screen.findByRole('option', { name: 'ALM-02 — Sucursal' });
+  expect((screen.getByLabelText('Almacén de salida') as HTMLSelectElement).value).toBe('ALM-01');
+  fireEvent.change(screen.getByLabelText('Almacén de salida'), { target: { value: 'ALM-02' } });
+  emitir(); await screen.findByText(/Conflicto de emisión \(409\)/);
+  expect(invoicesApi.emitirComprobante).toHaveBeenLastCalledWith(expect.objectContaining({ almacen: 'ALM-02' }), expect.any(String));
+  emitir(); await waitFor(() => expect(invoicesApi.emitirComprobante).toHaveBeenCalledTimes(2));
+  expect(vi.mocked(invoicesApi.emitirComprobante).mock.calls[0]).toEqual(vi.mocked(invoicesApi.emitirComprobante).mock.calls[1]);
+});

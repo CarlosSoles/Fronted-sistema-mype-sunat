@@ -8,7 +8,7 @@ import { borradorInicial } from '@/modules/invoices/lib/invoiceEmitDraft';
 import { validarCronograma } from '@/modules/invoices/lib/invoiceDetraccion';
 import { InvoiceEmitResumen } from '@/modules/invoices/components/InvoiceEmitResumen';
 
-vi.mock('@/lib/axios', () => ({ apiClient: { get: vi.fn() } }));
+vi.mock('@/lib/axios', () => ({ apiClient: { get: vi.fn(async () => ({ data: [] })) } }));
 afterEach(cleanup);
 
 it.each([[118, 0], [700, 0], [701, 21.03], [1180, 35.4], [1770, 53.1]])('retiene sobre %s el importe %s', (total, esperado) => {
