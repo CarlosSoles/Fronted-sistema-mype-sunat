@@ -18,7 +18,7 @@ describe('InvoiceStatusBadge', () => {
   it('rotula un fallo de envío como "Sin confirmar"', () => {
     render(<InvoiceStatusBadge estado="SIN_CONFIRMAR" />);
 
-    expect(screen.getByText('Error de red (ERROR_RED)')).toBeDefined();
+    expect(screen.getByText('Incertidumbre de transporte')).toBeDefined();
   });
 
   it('NO confunde un fallo de envío con un rechazo', () => {
@@ -53,7 +53,7 @@ describe('InvoiceStatusBadge', () => {
     const { container } = render(<InvoiceStatusBadge estado="SIN_CONFIRMAR" />);
 
     expect(container.firstElementChild?.getAttribute('aria-label')).toContain(
-      'No llegó a SUNAT',
+      'Incertidumbre de transporte',
     );
   });
 

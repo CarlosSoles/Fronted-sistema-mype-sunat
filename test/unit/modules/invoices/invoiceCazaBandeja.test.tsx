@@ -19,7 +19,7 @@ const queries: QueryClient[] = [];
 beforeEach(() => { vi.mocked(invoicesApi.getInvoices).mockResolvedValue({ data: filas, total: 3, page: 1, pageSize: 100, totalPages: 1 }); });
 afterEach(() => { cleanup(); sessionStorage.clear(); queries.splice(0).forEach((q) => q.clear()); vi.resetAllMocks(); });
 it('F3 Error de red selecciona solo filas ERROR_RED tras el mapper real', () => {
-  const opcion = FILTROS_ESTADO.find((f) => f.label === 'Error de red')!;
+  const opcion = FILTROS_ESTADO.find((f) => f.label === 'Incertidumbre de transporte')!;
   expect(opcion).toBeTruthy();
   expect(aplicarFiltros(filas.map(aComprobanteDemo), { busqueda: '', estado: opcion.value, desde: '', hasta: '' }).map((c) => c.id)).toEqual(['2']);
 });

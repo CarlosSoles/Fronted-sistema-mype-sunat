@@ -41,3 +41,13 @@ it('un código legado aislado no se presenta como CDR cuando hay prueba de bloqu
   expect(screen.getByText('Sin CDR: bloqueo previo al envío')).toBeTruthy();
   expect(screen.queryByText('Sin código: SUNAT todavía no respondió')).toBeNull();
 });
+
+it('el detalle conserva incertidumbre y motivo desde el mapper sin afirmar que no llegó', () => {
+  const raw = { ...fila({ origen: 'TRANSPORTE_INCIERTO', codigo: 'M1_TRANSPORT_UNCERTAIN', motivo: 'Incertidumbre de transporte: Beta respondió sin CDR' }), estado: 'ENVIADO' };
+  const c = aComprobanteDemo(aInvoice(raw));
+  render(<><InvoiceStatusBadge estado={c.estado} resultado={c.resultadoPresentacion} /><InvoiceAuditTrail comprobante={c} digest={null} /></>);
+  expect(screen.getByText('Incertidumbre de transporte')).toBeTruthy();
+  expect(screen.getAllByText(raw.resultado_presentacion!.motivo!)).toHaveLength(2);
+  expect(screen.getByText('Sin CDR concluyente: recepción sin confirmar')).toBeTruthy();
+  expect(screen.queryByText(/Error de red|No llegó a SUNAT|SUNAT todavía no respondió/)).toBeNull();
+});
