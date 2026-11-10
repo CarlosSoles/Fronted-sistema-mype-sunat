@@ -9,6 +9,7 @@ import {
 } from '../components';
 import { useShipments } from '../hooks/useShipments';
 import { useCustomsSettlements } from '../hooks/useCustomsSettlements';
+import { useExchangeRate } from '../hooks/useExchangeRate';
 import { importOrdersApi, type ImportOrderRecord } from '../services/importOrdersApi';
 import {
   ArrowRight,
@@ -28,6 +29,7 @@ export default function CustomsDashboardPage() {
 
   const { shipments } = useShipments();
   const { settlements } = useCustomsSettlements();
+  const { rate } = useExchangeRate();
   const [orders, setOrders] = useState<ImportOrderRecord[]>([]);
 
   const loadOrders = async () => {
@@ -277,7 +279,7 @@ export default function CustomsDashboardPage() {
           shipments={activeShipmentsList}
           pendingSettlementsCount={pendingSettlementsCount}
           totalCifUsd={totalCifUsd}
-          exchangeRate={3.82}
+          exchangeRate={rate ?? 0}
         />
 
         {/* Semáforo de Plazos Críticos y Riesgos SUNAT */}

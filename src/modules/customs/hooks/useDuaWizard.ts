@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { customsDeclarationsApi } from '../services/customsDeclarationsApi';
+import { useExchangeRate } from './useExchangeRate';
 import { customsShipmentsApi } from '../services/customsShipmentsApi';
 import { importOrdersApi } from '../services/importOrdersApi';
 import { catalogsApi } from '../services/catalogsApi';
@@ -14,6 +15,7 @@ const DRAFT_PREFIX = 'customs_dua_wizard_draft_';
 
 export const useDuaWizard = (shipmentId: string, orderId?: string | null) => {
   const queryClient = useQueryClient();
+  const { rate: tipoCambio } = useExchangeRate();
   const [currentStep, setCurrentStep] = useState<number>(1);
   const draftKey = `${DRAFT_PREFIX}${shipmentId || orderId || 'default'}`;
 
@@ -34,7 +36,7 @@ export const useDuaWizard = (shipmentId: string, orderId?: string | null) => {
       fob_total_usd: 0,
       freight_total_usd: 0,
       insurance_total_usd: 0,
-      exchange_rate: 3.82,
+      exchange_rate: tipoCambio ?? 0,
       has_article_160_guarantee: false,
       items: [],
     };
@@ -138,7 +140,7 @@ export const useDuaWizard = (shipmentId: string, orderId?: string | null) => {
       fob_total_usd: 0,
       freight_total_usd: 0,
       insurance_total_usd: 0,
-      exchange_rate: 3.82,
+      exchange_rate: tipoCambio ?? 0,
       has_article_160_guarantee: false,
       items: [],
     });

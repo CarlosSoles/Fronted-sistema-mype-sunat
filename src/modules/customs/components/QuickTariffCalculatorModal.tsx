@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calculator, Sparkles } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
+import { useExchangeRate } from '../hooks/useExchangeRate';
 
 interface QuickTariffCalculatorModalProps {
   isOpen: boolean;
@@ -25,7 +26,8 @@ export const QuickTariffCalculatorModal = ({
   const [insuranceUsd, setInsuranceUsd] = useState<number>(375);
   const [adValoremRate, setAdValoremRate] = useState<number>(0);
   const [perceptionRate, setPerceptionRate] = useState<number>(0.035);
-  const exchangeRate = 3.82;
+  const { rate, isLoading: rateLoading } = useExchangeRate();
+  const exchangeRate = rate ?? 0;
 
   // Cálculos matemáticos en tiempo real
   const cifUsd = fobUsd + freightUsd + insuranceUsd;
@@ -55,6 +57,9 @@ export const QuickTariffCalculatorModal = ({
           <DialogDescription className="text-xs text-muted-foreground">
             Cotización arancelaria instantánea antes de aperturar un expediente formal de importación.
           </DialogDescription>
+          {!rateLoading && !rate ? (
+            <p className="text-destructive text-[11px] mt-2">No hay tipo de cambio registrado. Configúralo en Datos maestros → Tipos de cambio.</p>
+          ) : null}
         </DialogHeader>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 py-4">
