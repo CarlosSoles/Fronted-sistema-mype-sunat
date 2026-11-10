@@ -36,6 +36,7 @@ export interface ClienteBuscado {
 /** Producto que ofrece el buscador. */
 export interface ProductoBuscado {
   precioUnitario?: number;
+  vendible?: boolean;
   sku: string;
   descripcion: string;
   unidad: string;

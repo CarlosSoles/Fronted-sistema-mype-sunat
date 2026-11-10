@@ -50,14 +50,14 @@ it('usa solo líneas sujetas y acepta al enviar cuotas que suman el neto real', 
   expect(borradorAPayloadEmision(borrador).items.map((item) => item.codigoDetraccion)).toEqual(['027', undefined]);
 });
 
-it('en el modal reparte cuotas según la línea sujeta y la retención seleccionada', () => {
+it('en el modal reparte cuotas según arena/piedra y la retención seleccionada', () => {
   const query = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(<QueryClientProvider client={query}><InvoiceEmitModal seriesConfiguradas={seriesConfiguradasPrueba} tipoInicial="01" fecha="2026-11-06" existentes={[]} clienteConCredito onEmitir={vi.fn()} onCerrar={vi.fn()} /></QueryClientProvider>);
   fireEvent.change(screen.getByLabelText('Valor unitario de la línea 1'), { target: { value: '1000' } });
-  fireEvent.change(screen.getByLabelText('Detracción de la línea 1'), { target: { value: '027' } });
+  fireEvent.change(screen.getByLabelText('Detracción de la línea 1'), { target: { value: '009' } });
   fireEvent.click(screen.getByRole('checkbox', { name: /Agente de Retención/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Crédito' }));
-  expect(screen.getByText(/Pago a crédito en .*Neto pendiente S\/ 1097\.40/)).toBeTruthy();
+  expect(screen.getByText(/Pago a crédito en .*Neto pendiente S\/ 1026\.60/)).toBeTruthy();
   expect(screen.getByText(/El cronograma cuadra al céntimo/)).toBeTruthy();
   query.clear();
 });

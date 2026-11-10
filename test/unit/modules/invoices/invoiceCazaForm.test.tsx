@@ -26,17 +26,17 @@ beforeEach(() => { vi.mocked(invoicesApi.getSaldoNota).mockResolvedValue({ total
 afterEach(() => { cleanup(); clientes.splice(0).forEach((q) => q.clear()); vi.resetAllMocks(); });
 
 describe('F1 notas sobre aceptados', () => {
-  it('excluye cola, red, DLQ, observados y rechazados de la elegibilidad', () => {
+  it('excluye cola, red, DLQ y rechazados; admite observados de la elegibilidad', () => {
     const rechazado = { ...origen, estado: 'RECHAZADO' as const };
     const observado = { ...origen, estado: 'OBSERVADO' as const };
-    expect(comprobantesElegibles([origen, red, dlq, rechazado, observado])).toEqual([origen]);
+    expect(comprobantesElegibles([origen, red, dlq, rechazado, observado])).toEqual([origen, observado]);
     expect(admiteNota({ ...origen, tipo: '07' })).toBe(false);
   });
   it('ofrece solo aceptados y reemplaza y bloquea el cliente previo al vincular', async () => {
     montar(modal());
     fireEvent.change(screen.getByLabelText('RUC / DNI del cliente'), { target: { value: '10456789123' } });
     fireEvent.change(screen.getByLabelText('Razón social / nombre'), { target: { value: 'FERRETERÍA' } });
-    expect(document.querySelectorAll('datalist option')).toHaveLength(1);
+    expect(screen.getByLabelText('Documento afectado').querySelectorAll('option[value]:not([value=""])')).toHaveLength(1);
     fireEvent.change(screen.getByLabelText('Documento afectado'), { target: { value: 'F001-00000056' } });
     const doc = screen.getByLabelText('RUC / DNI del cliente') as HTMLInputElement;
     expect(doc.value).toBe(origen.clienteRuc); expect(doc.disabled).toBe(true);
@@ -44,7 +44,7 @@ describe('F1 notas sobre aceptados', () => {
     expect(nombre.value).toBe(origen.clienteRazonSocial); expect(nombre.disabled).toBe(true);
     await screen.findByText(/Disponible según servidor/);
     fireEvent.change(screen.getByLabelText('Documento afectado'), { target: { value: 'F001-00000057' } });
-    expect(screen.getByText(/Seleccione una factura o boleta ACEPTADA/)).toBeTruthy();
+    expect(screen.getByText(/Seleccione una factura o boleta ACEPTADA u OBSERVADA/)).toBeTruthy();
     expect((screen.getByRole('button', { name: 'Emitir Nota de Crédito' }) as HTMLButtonElement).disabled).toBe(true);
   });
   it('expone el motivo real del rechazo del saldo', async () => {

@@ -33,10 +33,10 @@ it.each(['modal', 'pagina'])('%s: solo aparece con detracción, bloquea vacío y
   fireEvent.change(screen.getByLabelText('Razón social / nombre'), { target: { value: 'Cliente de prueba' } });
   fireEvent.change(screen.getByLabelText('Descripción de la línea 1'), { target: { value: 'Servicio' } });
   fireEvent.change(screen.getByLabelText('Valor unitario de la línea 1'), { target: { value: '1000' } });
-  fireEvent.change(screen.getByLabelText('Detracción de la línea 1'), { target: { value: '027' } });
+  fireEvent.change(screen.getByLabelText('Detracción de la línea 1'), { target: { value: '009' } });
   const selector = screen.getByLabelText('Medio de pago de la detracción') as HTMLSelectElement;
   expect(selector.value).toBe('');
-  expect(selector.options).toHaveLength(23);
+  expect(selector.options).toHaveLength(3);
   const emitir = screen.getByRole('button', { name: /Emitir.*factura|Emitir comprobante|Emitir Factura|Emitir a SUNAT/i });
   fireEvent.click(emitir);
   expect(invoicesApi.emitirComprobante).not.toHaveBeenCalled();

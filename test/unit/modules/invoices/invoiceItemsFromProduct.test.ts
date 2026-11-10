@@ -116,3 +116,7 @@ describe('TA-64 + TA-61 - producto elegido en el buscador -> línea de la grilla
     expect(calcularItem(inaf)).toEqual({ base: 80, igv: 0, icbper: 0, total: 80 });
   });
 });
+
+it('6D acepta MTQ sin sustituir la unidad real de Arena', () => {
+  expect(itemDesdeProducto({ sku: 'ARE-001', descripcion: 'Arena', unidad: 'MTQ', valorUnitario: 100, precioUnitario: 118, afectacion: '10' }, 'a')).toMatchObject({ unidad: 'MTQ', precioUnitario: 118 });
+});

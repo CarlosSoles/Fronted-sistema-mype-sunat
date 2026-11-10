@@ -285,7 +285,7 @@ export const vincularDocumentoAfectado = (
   // el afectado nunca se encontraba: la nota no heredaba serie, tipo de
   // operación, forma de pago ni fecha del documento original.
   const afectado = existentes.find(
-    (c) => c.estado === 'ACEPTADO' && (c.tipo === '01' || c.tipo === '03') && buscarAfectado([c], b.documentoAfectado) !== undefined,
+    (c) => ['ACEPTADO', 'OBSERVADO'].includes(c.estado) && (c.tipo === '01' || c.tipo === '03') && buscarAfectado([c], b.documentoAfectado) !== undefined,
   );
 
   return {

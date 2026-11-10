@@ -1,13 +1,16 @@
+import { InvoiceSeriesForm } from './InvoiceSeriesForm';
 import { Badge, Card, Page, PageText, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
 import { InvoiceIssuerConfigForm } from './InvoiceIssuerConfigForm';
 import { nombreTipo, type SerieFe } from '../lib/invoiceSettings';
 import type { ConfiguracionBackend, ConfiguracionInput } from '../hooks/useInvoiceConfig';
 
-export const InvoiceSettingsTab = ({ ruc, configuracion, series = [], onGuardar }: {
+export const InvoiceSettingsTab = ({ ruc, configuracion, series = [], onGuardar, onSerieCreada }: {
   ruc: string; configuracion?: Omit<ConfiguracionBackend, 'series'>; series?: readonly SerieFe[];
+  onSerieCreada?: () => Promise<unknown>;
   onGuardar: (input: ConfiguracionInput) => Promise<void>;
 }) => <Page>
   {configuracion && <InvoiceIssuerConfigForm key={ruc} ruc={ruc} config={configuracion} guardar={onGuardar} />}
+      <InvoiceSeriesForm onSaved={onSerieCreada} />
       <Card flush>
         <PageText variant="label">Series disponibles</PageText>
         <Table>

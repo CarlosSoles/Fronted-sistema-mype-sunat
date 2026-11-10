@@ -43,6 +43,7 @@ export const CampoTexto = ({
   <PageField label={label} htmlFor={id}>
     <input
       id={id}
+      aria-invalid={Boolean(error)} aria-describedby={error ? `${id}-error` : undefined}
       list={list}
       type={type}
       min={type === 'number' ? '0' : undefined}
@@ -52,7 +53,7 @@ export const CampoTexto = ({
       placeholder={placeholder}
     />
     {ayuda && <PageText variant="caption">{ayuda}</PageText>}
-    {error && <PageText variant="error">{error}</PageText>}
+    {error && <PageText id={`${id}-error`} variant="error">{error}</PageText>}
   </PageField>
 );
 
@@ -100,7 +101,7 @@ export const CampoFecha = ({
       onChange={(e) => onChange(e.target.value)}
     />
     {ayuda && <PageText variant="caption">{ayuda}</PageText>}
-    {error && <PageText variant="error">{error}</PageText>}
+    {error && <PageText id={`${id}-error`} variant="error">{error}</PageText>}
   </PageField>
 );
 

@@ -22,7 +22,7 @@ export default function InvoiceSettingsPage() {
   // comprobantes ya emitidos).
   const ruc = (useAuthStore((state) => state.activeCompany?.ruc) ?? '').trim();
 
-  const { data, error, cargando, guardar } = useInvoiceConfig(ruc);
+  const { data, error, cargando, guardar, recargar } = useInvoiceConfig(ruc);
 
   /**
    * Aceptados de la empresa, para la nota de almacenamiento (D1, resto).
@@ -82,6 +82,7 @@ export default function InvoiceSettingsPage() {
         ruc={ruc}
         configuracion={data}
         onGuardar={guardar}
+        onSerieCreada={recargar}
         series={data?.series ?? []}
       />
     </Page>

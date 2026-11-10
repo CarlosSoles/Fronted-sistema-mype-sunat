@@ -140,7 +140,7 @@ describe('revisarGrilla — validación de cantidad contra stock', () => {
 
     expect(revision.bloquea).toBe(false);
     expect(revision.avisos).toBe(1);
-    expect(revision.lineas[0].mensaje).toContain('no está en el inventario');
+    expect(revision.lineas[0].mensaje).toContain('no se encuentra en el catálogo de venta consultado');
   });
 
   it('avisa cuando el stock es desconocido en lugar de inventar un cero', () => {

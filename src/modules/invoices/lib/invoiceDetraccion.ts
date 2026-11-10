@@ -30,6 +30,7 @@ export interface CodigoDetraccion {
 
 /** Códigos vigentes del Catálogo 54 que se ofrecen en el formulario. */
 export const CODIGOS_DETRACCION: readonly CodigoDetraccion[] = [
+  { codigo: '009', descripcion: 'Arena y piedra', porcentaje: 0.1 },
   { codigo: '012', descripcion: 'Intermediación laboral y tercerización', porcentaje: 0.12 },
   { codigo: '019', descripcion: 'Arrendamiento de bienes', porcentaje: 0.1 },
   { codigo: '022', descripcion: 'Otros servicios empresariales', porcentaje: 0.12 },
@@ -211,3 +212,9 @@ export const validarCronograma = (
 
   return { cuotas: normalizadas, errores, netoPendiente: neto, suma, diferencia, cuadra };
 };
+
+/** Alta nueva habilitada: una sola clasificación explícita, sin inferir por SKU. */
+export function problemaSpotMinimo(items: readonly { codigoDetraccion?: string; afectacion: string }[], tipo: string): string | undefined {
+  if (!items.some(l => l.codigoDetraccion)) return;
+  if (tipo !== '01' || items.some(l => l.codigoDetraccion !== '009' || !['10', 'GRAVADA'].includes(l.afectacion))) return 'SPOT habilitado solo para factura PEN de arena y piedra (009), con todas las líneas gravadas y clasificadas; no se admiten operaciones mixtas.';
+}
