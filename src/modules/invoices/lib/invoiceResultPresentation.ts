@@ -1,5 +1,5 @@
 export interface ResultadoPresentacion {
-  origen: 'VALIDACION_LOCAL' | 'SUNAT' | 'NO_DETERMINADO';
+  origen: 'VALIDACION_LOCAL' | 'SUNAT' | 'NO_DETERMINADO' | 'TRANSPORTE_INCIERTO';
   codigo: string | null;
   motivo: string | null;
 }
@@ -21,4 +21,10 @@ export function lecturaRechazo(resultado?: ResultadoPresentacion) {
   return { etiqueta: 'Rechazado (origen no confirmado)', lectura: 'El sistema registró un rechazo; no hay evidencia suficiente para atribuirlo a SUNAT.',
     sinCdr: 'Sin CDR; origen del rechazo no confirmado', codigo: 'Origen no confirmado',
     motivo: resultado?.motivo ?? 'No hay motivo con origen confirmado registrado.' };
+}
+
+/** La falta de confirmación no demuestra que SUNAT no recibiera el envío. */
+export const LECTURA_INCERTIDUMBRE = 'Incertidumbre de transporte: no hay un resultado concluyente. Consultar antes de reenviar; SUNAT pudo recibir el comprobante.';
+export function lecturaIncertidumbre(resultado?: ResultadoPresentacion) {
+  return resultado?.origen === 'TRANSPORTE_INCIERTO' ? resultado.motivo ?? LECTURA_INCERTIDUMBRE : LECTURA_INCERTIDUMBRE;
 }
