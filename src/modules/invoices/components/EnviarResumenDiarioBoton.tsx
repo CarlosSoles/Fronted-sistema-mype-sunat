@@ -91,9 +91,9 @@ export const EnviarResumenDiarioBoton = ({
     return (
       <PageText variant="caption">
         {incluidos === 0
-          ? 'No hay ninguna boleta que informar en esta fecha: las que hay ya ' +
-            'tienen su CDR de SUNAT (o están fuera del plazo), así que volver a ' +
-            'enviarlas las duplicaría. El envío queda deshabilitado.'
+          ? 'No hay boletas elegibles para RC: revise el motivo de cada fila ' +
+            '(ya informada, canal individual en curso, transporte incierto, reserva o datos fiscales). ' +
+            'El envío queda deshabilitado.'
           : 'No hay líneas que informar en esta fecha, así que no se ofrece el envío.'}
       </PageText>
     );
