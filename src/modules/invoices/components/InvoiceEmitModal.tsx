@@ -66,6 +66,8 @@ import { liquidarDescuentoGlobal } from '../lib/invoiceDescuentoGlobal';
 import { MedioPagoDetraccionSelect } from './MedioPagoDetraccionSelect';
 import { calcularFlujo } from '../lib/invoiceFlujoPago';
 export { calcularFlujo } from '../lib/invoiceFlujoPago';
+import { InvoiceWarehouseSelect } from './InvoiceWarehouseSelect';
+import { cargarProductosAlmacen } from '../services/inventoryProductsApi';
 import { InvoiceEmitCampos } from './InvoiceEmitCampos';
 import { lineasParaNota } from '../lib/invoiceLineasOrigen';
 import { InvoiceEmitResumen } from './InvoiceEmitResumen';
@@ -212,12 +214,13 @@ export const InvoiceEmitModal = ({
   seriesConfiguradas = [],
   fecha,
   existentes,
-  productos = [],
+  productos: productosIniciales = [],
   clienteConCredito,
   perfilComercial,
   onEmitir,
   onCerrar,
 }: InvoiceEmitModalProps) => {
+  const [catalogoAlmacen, setCatalogoAlmacen] = useState<{ almacen: string; productos: readonly ProductoBuscado[] } | null>(null);
   const [b, setB] = useState<BorradorEmision>(() => {
     const tipoEfectivo: TipoEmisible =
       tipoInicial === '07' || tipoInicial === '08'
@@ -233,6 +236,14 @@ export const InvoiceEmitModal = ({
       correlativo: siguienteCorrelativo(existentes, inicial.serie),
     };
   });
+  const almacen = b.almacen ?? 'ALM-01';
+  const productos = useMemo(() => almacen === 'ALM-01' ? productosIniciales : catalogoAlmacen?.almacen === almacen ? catalogoAlmacen.productos : [], [almacen, productosIniciales, catalogoAlmacen]);
+  useEffect(() => {
+    if (almacen === 'ALM-01') return;
+    let vigente = true;
+    void cargarProductosAlmacen(almacen).then(productos => { if (vigente) setCatalogoAlmacen({ almacen, productos }); });
+    return () => { vigente = false; };
+  }, [almacen]);
 
   /** `true` mientras la emisión viaja al backend; bloquea el doble envío. */
   const intento = useRef(crearIntentoEmision());
@@ -440,6 +451,9 @@ export const InvoiceEmitModal = ({
         </DialogHeader>
 
         {avisoLineas && <p role="status">{avisoLineas}</p>}
+        <InvoiceWarehouseSelect value={b.almacen ?? 'ALM-01'} onChange={codigo => {
+          setB(prev => ({ ...prev, almacen: codigo }));
+        }} />
         <InvoiceEmitCampos
           borrador={b}
           series={seriesDelTipo}
