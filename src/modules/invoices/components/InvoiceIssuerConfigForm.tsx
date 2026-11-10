@@ -25,6 +25,7 @@ export const InvoiceIssuerConfigForm = ({ config, ruc, guardar }: {
   const [entorno, setEntorno] = useState(config.entorno ?? '');
   const [perfilComercial, setPerfilComercial] = useState<PerfilComercial | ''>(config.perfil_comercial ?? '');
   const [fiscal, setFiscal] = useState({
+    cuenta_banco_nacion: config.cuenta_banco_nacion ?? '',
     local_anexo: config.local_anexo ?? '',
     domicilio_fiscal: config.domicilio_fiscal ?? '',
     ubigeo_fiscal: config.ubigeo_fiscal ?? '',
@@ -86,6 +87,7 @@ export const InvoiceIssuerConfigForm = ({ config, ruc, guardar }: {
           <option value="MINORISTA">Minorista (preselecciona Boleta 03)</option>
         </select>
       </PageField>
+      <PageField label="Cuenta de detracciones del Banco de la Nación" htmlFor="cfg-cuenta-bn"><input id="cfg-cuenta-bn" className={clase} inputMode="numeric" pattern="[0-9]{11}" maxLength={11} value={fiscal.cuenta_banco_nacion} onChange={e => setFiscal({ ...fiscal, cuenta_banco_nacion: e.target.value })} /><p>Cuenta propia de la empresa (11 dígitos). Sin ella se bloquean las operaciones sujetas a SPOT.</p></PageField>
       <PageField label="Local anexo (Catálogo 59)" htmlFor="cfg-local_anexo"><input id="cfg-local_anexo" className={clase} maxLength={4} value={fiscal.local_anexo} onChange={e => setFiscal({ ...fiscal, local_anexo: e.target.value })} /></PageField>
       <PageField label="Domicilio fiscal" htmlFor="cfg-domicilio_fiscal"><input id="cfg-domicilio_fiscal" className={clase} maxLength={500} value={fiscal.domicilio_fiscal} onChange={e => setFiscal({ ...fiscal, domicilio_fiscal: e.target.value })} /></PageField>
       <PageField label="Ubigeo fiscal" htmlFor="cfg-ubigeo_fiscal"><input id="cfg-ubigeo_fiscal" className={clase} maxLength={6} value={fiscal.ubigeo_fiscal} onChange={e => setFiscal({ ...fiscal, ubigeo_fiscal: e.target.value })} /></PageField>

@@ -46,6 +46,7 @@ export const UNIDADES_MEDIDA: readonly UnidadMedida[] = [
   { codigo: 'MIL', descripcion: 'Millar' },
   { codigo: 'KGM', descripcion: 'Kilogramo' },
   { codigo: 'MTR', descripcion: 'Metro' },
+  { codigo: 'MTQ', descripcion: 'Metro cúbico (m³)' },
   { codigo: 'TNE', descripcion: 'Tonelada' },
   { codigo: 'LTR', descripcion: 'Litro' },
 ] as const;

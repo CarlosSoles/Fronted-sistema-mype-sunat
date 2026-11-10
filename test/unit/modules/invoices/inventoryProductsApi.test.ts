@@ -21,7 +21,7 @@ describe('precio de venta final, sin recambio por costo', () => {
   });
   it('consulta el almacén elegido y nunca recurre al costo si falla el catálogo', async () => {
     vi.mocked(apiClient.get).mockRejectedValueOnce(new Error('sin catálogo'));
-    expect(await cargarProductosAlmacen('ALM-02')).toEqual([]);
+    await expect(cargarProductosAlmacen('ALM-02')).rejects.toThrow('No se pudo cargar');
     expect(apiClient.get).toHaveBeenLastCalledWith('/invoices/products', { params: { almacen: 'ALM-02' } });
     expect(apiClient.get).toHaveBeenCalledTimes(1);
   });

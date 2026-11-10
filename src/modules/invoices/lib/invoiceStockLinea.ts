@@ -115,6 +115,7 @@ export const cantidadesPorProducto = (
 export const revisarGrilla = (
   items: readonly ItemBorrador[],
   productos: readonly ProductoBuscado[],
+  opciones: { nota?: boolean; estado?: 'listo' | 'cargando' | 'error' } = {},
 ): RevisionGrilla => {
   const pedidoPorProducto = cantidadesPorProducto(items, productos);
   const lineas: RevisionLinea[] = [];
@@ -136,6 +137,13 @@ export const revisarGrilla = (
     }
 
     const producto = productoDeLinea(item, productos);
+    if (opciones.estado && opciones.estado !== 'listo') {
+      avisos += 1; lineas.push({ indice, gravedad: 'aviso', mensaje: opciones.estado === 'cargando' ? 'Consultando catálogo del almacén…' : 'Catálogo no disponible; no se pudo comprobar existencia ni stock.' }); return;
+    }
+    if (opciones.nota) {
+      lineas.push({ indice, gravedad: producto ? 'ok' : 'aviso', mensaje: producto ? 'Línea del comprobante origen; conserva sus datos históricos.' : 'Línea histórica del origen: existencia actual no confirmada; no se reprecifica.' });
+      if (!producto) avisos += 1; return;
+    }
 
     if (!producto) {
       /**
@@ -159,8 +167,8 @@ export const revisarGrilla = (
           indice,
           gravedad: 'aviso',
           mensaje:
-            `El producto ${item.codigo.trim()} no está en el inventario: ` +
-            'no se pudo validar su stock ni descontará del Kardex.',
+            `El producto ${item.codigo.trim()} no se encuentra en el catálogo de venta consultado: ` +
+            'existencia y stock sin confirmar; revise su configuración.',
         });
       } else {
         lineas.push({

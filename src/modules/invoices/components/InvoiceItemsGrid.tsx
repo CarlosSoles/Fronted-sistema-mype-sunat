@@ -8,6 +8,8 @@
  * La lógica de cálculo y validación NO vive aquí: está en `../lib/invoiceItems`
  * para poder probarla sin montar React.
  */
+import { useInvoiceDuplicate } from './useInvoiceDuplicate';
+import { InvoiceMoneyInput } from './InvoiceMoneyInput';
 import { Fragment, useState } from 'react';
 import { Button, PageText } from '@/components/ui';
 import { InventoryProductSearchSelect } from './InventoryProductSearchSelect';
@@ -50,8 +52,8 @@ interface InvoiceItemsGridProps {
   onAgregarConProducto?: (producto: ProductoBuscado) => void;
   /** Si el cliente admite descuentos según el maestro de terceros (true por defecto en uso aislado). */
   admiteDescuento?: boolean;
-  /** Unidades del catálogo SUNAT; si no llegan se usa el subconjunto local. */
-  unidades?: readonly { codigo: string; descripcion: string }[];
+  esNota?: boolean;
+  catalogoEstado?: 'listo' | 'cargando' | 'error';
 }
 
 /** Tabla editable de líneas del comprobante. */
@@ -64,7 +66,7 @@ export const InvoiceItemsGrid = ({
   productos = [],
   onAgregarConProducto,
   admiteDescuento = true,
-  unidades = UNIDADES_MEDIDA,
+  esNota = false, catalogoEstado = 'listo',
 }: InvoiceItemsGridProps) => {
   const [avisoMinimo, setAvisoMinimo] = useState(false);
   /**
@@ -75,10 +77,12 @@ export const InvoiceItemsGrid = ({
    * aviso aparezca junto a la línea que lo causa, no en un bloque al final de
    * una grilla de diez filas.
    */
-  const revision = revisarGrilla(items, productos);
+  const duplicado = useInvoiceDuplicate(items, onCambiar, onEliminar, onAgregarConProducto, esNota);
+  const revision = revisarGrilla(items, productos, { nota: esNota, estado: catalogoEstado });
 
   return (
     <div className="min-w-0 space-y-2 sm:col-span-2">
+      {duplicado.dialogo}
       {avisoMinimo && items.length === 1 && <PageText role="alert" variant="error">Debe quedar al menos una línea</PageText>}
       <div className="flex items-center justify-between">
         <PageText variant="label">Detalle del comprobante</PageText>
@@ -101,7 +105,7 @@ export const InvoiceItemsGrid = ({
         <InventoryProductSearchSelect
           productos={productos}
           onElegir={(producto) => {
-            onAgregarConProducto(producto);
+            duplicado.elegir(producto);
           }}
           placeholder="Buscar por SKU o descripción para agregar una línea"
         />
@@ -147,6 +151,7 @@ export const InvoiceItemsGrid = ({
                     <input
                       aria-label={`Código de la línea ${i + 1}`}
                       className={CLASE_CELDA}
+                      onFocus={() => duplicado.recordarCodigo(i)} onBlur={() => duplicado.confirmarCodigo(i)}
                       value={item.codigo}
                       onChange={(e) => onCambiar(i, { codigo: e.target.value })}
                       placeholder="COD-001"
@@ -185,7 +190,7 @@ export const InvoiceItemsGrid = ({
                       title={item.unidadHeredada ? 'La unidad se configura en el producto' : undefined}
                       onChange={(e) => onCambiar(i, { unidad: e.target.value })}
                     >
-                      {unidades.map((u) => (
+                      {UNIDADES_MEDIDA.map((u) => (
                         <option key={u.codigo} value={u.codigo}>
                           {u.codigo}
                         </option>
@@ -206,18 +211,9 @@ export const InvoiceItemsGrid = ({
                     />
                   </td>
                   <td className="px-1 py-1">
-                    <input
-                      aria-label={`Valor unitario de la línea ${i + 1}`}
-                      title="Precio unitario final con IGV incluido"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      className={`${CLASE_CELDA} text-right`}
-                      value={item.precioUnitario ?? item.valorUnitario}
-                      onChange={(e) =>
-                        onCambiar(i, { valorUnitario: Number(e.target.value) })
-                      }
-                    />
+                    <InvoiceMoneyInput aria-label={`Valor unitario de la línea ${i + 1}`} title="Precio unitario final con IGV incluido"
+                      className={`${CLASE_CELDA} text-right`} value={item.precioUnitario ?? item.valorUnitario}
+                      onValue={valorUnitario => onCambiar(i, { valorUnitario })} />
                     <span className="block text-right text-[10px] text-muted-foreground">
                       Precio final con IGV incluido
                     </span>
@@ -286,7 +282,7 @@ export const InvoiceItemsGrid = ({
                       }
                     >
                       <option value="">No sujeta</option>
-                      {CODIGOS_DETRACCION.map((d) => (
+                      {CODIGOS_DETRACCION.filter(d => d.codigo === '009').map((d) => (
                         <option key={d.codigo} value={d.codigo}>
                           {d.codigo} - {d.porcentaje * 100}%
                         </option>

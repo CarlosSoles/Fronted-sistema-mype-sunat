@@ -37,7 +37,7 @@ it.each(['modal', 'pagina'])('%s: 409 conserva todos los datos y reintentar cons
   emitir();
   await screen.findByText(/Conflicto de emisión \(409\)/);
   const datos = () => ['Razón social / nombre', 'Descripción de la línea 1', 'Valor unitario de la línea 1'].map(label => (screen.getByLabelText(label) as HTMLInputElement).value);
-  expect(datos()).toEqual(['Cliente de prueba', 'Servicio', '100']);
+  expect(datos()).toEqual(['Cliente de prueba', 'Servicio', '100.00']);
   expect(onEmitir).not.toHaveBeenCalled();
   expect(enqueueInvoiceEmission).not.toHaveBeenCalled();
   const primera = vi.mocked(invoicesApi.emitirComprobante).mock.calls[0];
@@ -45,7 +45,7 @@ it.each(['modal', 'pagina'])('%s: 409 conserva todos los datos y reintentar cons
   await waitFor(() => expect(invoicesApi.emitirComprobante).toHaveBeenCalledTimes(2));
   await screen.findByText(/Conflicto de emisión \(409\)/);
   expect(vi.mocked(invoicesApi.emitirComprobante).mock.calls[1]).toEqual(primera);
-  expect(datos()).toEqual(['Cliente de prueba', 'Servicio', '100']);
+  expect(datos()).toEqual(['Cliente de prueba', 'Servicio', '100.00']);
   fireEvent.change(screen.getByLabelText('Descripción de la línea 1'), { target: { value: 'Otro servicio' } });
   emitir();
   await waitFor(() => expect(invoicesApi.emitirComprobante).toHaveBeenCalledTimes(3));

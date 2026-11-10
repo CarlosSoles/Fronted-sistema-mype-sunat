@@ -79,7 +79,7 @@ export const CustomerLookupField = ({ documento, razonSocial, onElegir, onDocume
     ) : respuesta?.clientes.length ? (
       <ul className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-md border bg-background shadow">
         {respuesta.clientes.map((cliente) => <li key={`${cliente.tipoDocumento}-${cliente.numeroDocumento}`}>
-          <button type="button" className="w-full px-3 py-2 text-left text-xs hover:bg-muted" onClick={() => { elegir(cliente); }}>
+          <button data-customer-option type="button" className="w-full px-3 py-2 text-left text-xs hover:bg-muted" onClick={() => { elegir(cliente); }}>
             <span className="block font-medium">{cliente.razonSocial || '(sin razón social)'}</span>
             <span className="block text-muted-foreground">{cliente.tipoDocumento === '6' ? 'RUC' : 'DNI'} {cliente.numeroDocumento}</span>
           </button>
@@ -88,22 +88,32 @@ export const CustomerLookupField = ({ documento, razonSocial, onElegir, onDocume
     ) : <PageText variant="caption">Sin coincidencias en el maestro. Puede escribirlo a mano.</PageText>
   ) : null;
 
-  return <div ref={contenedor} className="contents">
+  const navegar = (e: React.KeyboardEvent) => {
+    if (e.nativeEvent.isComposing) return;
+    if (e.key === 'Escape') { setConsulta(null); return; }
+    if (!['ArrowDown', 'ArrowUp'].includes(e.key)) return;
+    const opciones = [...(contenedor.current?.querySelectorAll<HTMLButtonElement>('button[data-customer-option]') ?? [])];
+    if (!opciones.length) return; e.preventDefault();
+    const actual = opciones.indexOf(document.activeElement as HTMLButtonElement);
+    opciones[(actual + (e.key === 'ArrowDown' ? 1 : opciones.length - 1) + opciones.length) % opciones.length]?.focus();
+  };
+  return <div onKeyDown={navegar} ref={contenedor} className="contents">
     <div className="relative space-y-1">
-      <label htmlFor="doc-cliente" className="text-xs font-medium">{labelDocumento}</label>
-      <input disabled={disabled} id="doc-cliente" className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={documento} placeholder={placeholderDocumento} autoComplete="off"
+      <label htmlFor="doc-cliente" className="text-xs font-medium">{labelDocumento}<span aria-hidden="true"> *</span></label>
+      <input aria-label={labelDocumento} aria-required={!disabled} aria-invalid={!disabled && Boolean(errorDocumento || !documento.trim())} aria-describedby="doc-cliente-error" disabled={disabled} id="doc-cliente" className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={documento} placeholder={placeholderDocumento} autoComplete="off"
         onFocus={() => { setRespuesta(null); setConsulta({ campo: 'documento', texto: documento }); }}
         onChange={(e) => { const valor = e.target.value.replace(/\D/g, ''); onDocumentoChange?.(valor); setRespuesta(null); setConsulta({ campo: 'documento', texto: valor }); }}
         onKeyDown={(e) => { if (e.key === 'Escape') setConsulta(null); }} />
-      {errorDocumento && <PageText variant="error">{errorDocumento}</PageText>}
+      {!disabled && (errorDocumento || !documento.trim()) && <PageText id="doc-cliente-error" variant="error">{errorDocumento || "Indique el documento del cliente."}</PageText>}
       {lista('documento')}
     </div>
     <div className="relative space-y-1">
-      <label htmlFor="razon-cliente" className="text-xs font-medium">Razón social / nombre</label>
-      <input disabled={disabled} id="razon-cliente" className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={razonSocial} placeholder="FERRETERÍA LOS ANDES S.A.C." autoComplete="off"
+      <label htmlFor="razon-cliente" className="text-xs font-medium">Razón social / nombre<span aria-hidden="true"> *</span></label>
+      <input aria-label="Razón social / nombre" aria-required={!disabled} aria-invalid={!disabled && !razonSocial.trim()} aria-describedby="razon-cliente-error" disabled={disabled} id="razon-cliente" className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={razonSocial} placeholder="FERRETERÍA LOS ANDES S.A.C." autoComplete="off"
         onFocus={() => { setRespuesta(null); setConsulta({ campo: 'nombre', texto: razonSocial }); }}
         onChange={(e) => { const valor = e.target.value; onRazonSocialChange?.(valor); setRespuesta(null); setConsulta({ campo: 'nombre', texto: valor }); }}
         onKeyDown={(e) => { if (e.key === 'Escape') setConsulta(null); }} />
+      {!disabled && !razonSocial.trim() && <PageText id="razon-cliente-error" variant="error">Indique la razón social o nombre del cliente.</PageText>}
       {lista('nombre')}
     </div>
     {!disabled && canEmitInvoices && <button type="button" className="text-xs text-primary underline" onClick={() => { setConsulta(null); setRegistering(true); }}>Registrar cliente nuevo</button>}

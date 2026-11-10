@@ -1,3 +1,5 @@
+import { problemaSpotMinimo } from '../lib/invoiceDetraccion';
+import { useInvoiceKeyboard } from '../components/useInvoiceKeyboard';
 /**
  * Emisión de comprobantes electrónicos (M1).
  *
@@ -63,7 +65,6 @@ import {
 import { FileText, Send, Plus } from 'lucide-react';
 import { documentoValidoParaTipo, mensajeErrorDocumento } from '../lib/invoiceEmitValidation';
 import { CustomerLookupField } from '../components/CustomerLookupField';
-import { inventoryApi } from '@/modules/inventory/services/inventoryApi';
 import { InvoiceItemsGrid } from '../components/InvoiceItemsGrid';
 import { InvoiceDescuentoGlobal } from '../components/InvoiceDescuentoGlobal';
 import { liquidarDescuentoGlobal, type DescuentoGlobal } from '../lib/invoiceDescuentoGlobal';
@@ -76,7 +77,6 @@ import {
   itemBolsa,
   itemDesdeProducto,
   itemVacio,
-  UNIDADES_MEDIDA,
   type ItemBorrador,
 } from '../lib/invoiceItems';
 import {
@@ -147,14 +147,6 @@ export default function InvoiceEmissionPage() {
   const [clienteDoc, setClienteDoc] = useState('');
   const [clienteRazonSocial, setClienteRazonSocial] = useState('');
   const [items, setItems] = useState<readonly ItemBorrador[]>([itemVacio('1')]);
-  const [unidades, setUnidades] = useState<readonly { codigo: string; descripcion: string }[]>(UNIDADES_MEDIDA);
-  useEffect(() => {
-    inventoryApi.getUnits()
-      .then((data) => {
-        if (data.length > 0) setUnidades(data.map((u) => ({ codigo: u.code, descripcion: u.name })));
-      })
-      .catch(() => {});
-  }, []);
   const [descuentoGlobal, setDescuentoGlobal] = useState<DescuentoGlobal | null>(null);
   const [agenteRetencion, setAgenteRetencion] = useState(false);
   const [correccionRetencion, setCorreccionRetencion] = useState(false);
@@ -166,6 +158,8 @@ export default function InvoiceEmissionPage() {
   const [cuotas, setCuotas] = useState<readonly CuotaBorrador[]>([]);
   const intento = useRef(crearIntentoEmision());
   const [enviando, setEnviando] = useState(false);
+  const [catalogoEstado, setCatalogoEstado] = useState<'listo' | 'cargando' | 'error'>('cargando');
+  const formRef = useRef<HTMLFormElement>(null);
   const [almacen, setAlmacen] = useState('ALM-01');
   const [productos, setProductos] = useState<readonly ProductoBuscado[]>([]);
   const [resultado, setResultado] = useState<{
@@ -181,8 +175,8 @@ export default function InvoiceEmissionPage() {
   useEffect(() => {
     let vivo = true;
     cargarProductosAlmacen(almacen).then((lista) => {
-      if (vivo) setProductos(lista);
-    });
+      if (vivo) { setProductos(lista); setCatalogoEstado('listo'); }
+    }).catch(() => { if (vivo) setCatalogoEstado('error'); });
     return () => {
       vivo = false;
     };
@@ -331,12 +325,15 @@ export default function InvoiceEmissionPage() {
 
   const emitir = async (evento: React.FormEvent) => {
     evento.preventDefault();
+    (evento.currentTarget.querySelector('[aria-invalid="true"]') as HTMLElement | null)?.focus();
     if (!serieActual) { setResultado({ ok: false, mensaje: 'Configure una serie activa para este tipo de comprobante.' }); return; }
 
     setResultado(null);
 
     // Validaciones locales para que el usuario vea el problema en el mismo
     // formulario. El backend las repite: esto no sustituye su validación.
+    const problemaSpot = problemaSpotMinimo(items, tipo);
+    if (problemaSpot) { setResultado({ ok: false, mensaje: problemaSpot }); return; }
     if (detraccion.aplica && !medioPagoDetraccion) {
       setResultado({ ok: false, mensaje: 'Seleccione el medio de pago de la detracción.' });
       return;
@@ -505,6 +502,7 @@ export default function InvoiceEmissionPage() {
     }
   };
 
+  const teclado = useInvoiceKeyboard(agregarItem, () => formRef.current?.requestSubmit(), enviando);
   return (
     <Page>
       <PageHeader
@@ -512,7 +510,8 @@ export default function InvoiceEmissionPage() {
         description="Facturas y boletas con detalle de varias líneas, stock validado y liquidación real"
       />
 
-      <form onSubmit={emitir} className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <form ref={formRef} onKeyDown={teclado.handler} onSubmit={emitir} className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-3">{teclado.ayuda}</div>
         <div className="space-y-6 lg:col-span-2">
           <Card>
             <CardHeader>
@@ -712,8 +711,7 @@ export default function InvoiceEmissionPage() {
             </CardHeader>
             <CardContent>
               <InvoiceWarehouseSelect value={almacen} onChange={setAlmacen} />
-              <InvoiceItemsGrid
-                unidades={unidades}
+              <InvoiceItemsGrid catalogoEstado={catalogoEstado}
                 items={items}
                 onCambiar={cambiarItem}
                 onEliminar={eliminarItem}
