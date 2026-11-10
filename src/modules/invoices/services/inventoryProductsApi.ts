@@ -9,21 +9,22 @@ export interface ProductoPrecio {
   currentStock?: number | string;
   salePrice?: number | string | null;
   vendible?: boolean;
+  activo?: boolean;
   motivo?: string | null;
 }
 interface RespuestaStocks {
   balances?: ProductoPrecio[];
 }
 export const productosDesdeStocks = (
-  respuesta: RespuestaStocks | null | undefined,
+  respuesta: RespuestaStocks | null | undefined, historicos = false,
 ): ProductoBuscado[] =>
   (respuesta?.balances ?? [])
     .filter(
       (b) =>
         b.sku?.trim() &&
-        Number.isFinite(Number(b.salePrice)) &&
+        (historicos || (Number.isFinite(Number(b.salePrice)) &&
         Number(b.salePrice) > 0 &&
-        b.vendible !== false,
+        b.vendible !== false)),
     )
     .map((b) => {
       const precio = Number(b.salePrice);
@@ -31,6 +32,7 @@ export const productosDesdeStocks = (
         b.taxAffectation?.trim().toUpperCase() ?? '',
       );
       return {
+        vendible: b.vendible !== false && Number(b.salePrice) > 0,
         sku: b.sku.trim(),
         descripcion: b.description?.trim() ?? '',
         unidad: b.sunatUnitCode?.trim().toUpperCase() ?? '',
@@ -56,17 +58,17 @@ export async function guardarPrecio(
   );
 }
 export async function cargarProductosAlmacen(
-  almacen = 'ALM-01',
+  almacen = 'ALM-01', historicos = false,
 ): Promise<ProductoBuscado[]> {
   try {
     return productosDesdeStocks(
       (
         await apiClient.get<RespuestaStocks>('/invoices/products', {
-          params: { almacen },
+          params: { almacen, ...(historicos ? { historicos: true } : {}) },
         })
-      ).data,
+      ).data, historicos,
     );
   } catch {
-    return [];
+    throw new Error('No se pudo cargar el catálogo del almacén; no se puede afirmar inexistencia de productos.');
   }
 }
