@@ -102,6 +102,7 @@ import { invoicesApi } from '../services/invoicesApi';
 import { apiClient } from '@/lib/axios';
 import { tipoComprobantePorPerfil, type ConfiguracionBackend } from '../hooks/useInvoiceConfig';
 import { enqueueInvoiceEmission } from '@/lib/outbox';
+import { InvoiceWarehouseSelect } from '../components/InvoiceWarehouseSelect';
 import { cargarProductosAlmacen } from '../services/inventoryProductsApi';
 import { revisarGrilla, primeraLineaConError } from '../lib/invoiceStockLinea';
 import type { ProductoBuscado } from '../lib/invoiceSearch';
@@ -165,6 +166,7 @@ export default function InvoiceEmissionPage() {
   const [cuotas, setCuotas] = useState<readonly CuotaBorrador[]>([]);
   const intento = useRef(crearIntentoEmision());
   const [enviando, setEnviando] = useState(false);
+  const [almacen, setAlmacen] = useState('ALM-01');
   const [productos, setProductos] = useState<readonly ProductoBuscado[]>([]);
   const [resultado, setResultado] = useState<{
     ok: boolean;
@@ -178,13 +180,13 @@ export default function InvoiceEmissionPage() {
   // queda vacía y la grilla sigue admitiendo líneas escritas a mano.
   useEffect(() => {
     let vivo = true;
-    cargarProductosAlmacen().then((lista) => {
+    cargarProductosAlmacen(almacen).then((lista) => {
       if (vivo) setProductos(lista);
     });
     return () => {
       vivo = false;
     };
-  }, []);
+  }, [almacen]);
 
   // Liquidación real línea por línea: cada línea aporta según su afectación y
   // las gratuitas no cobran. No hay un 18 % sobre el total.
@@ -427,6 +429,7 @@ export default function InvoiceEmissionPage() {
        * y reserva el correlativo; el número de la respuesta es el real.
        */
       const borradorCompleto: BorradorEmision = {
+        almacen,
         tipo,
         serie: serieActual,
         correlativo: 0, // lo asigna la serie en el backend
@@ -708,6 +711,7 @@ export default function InvoiceEmissionPage() {
               </Button>
             </CardHeader>
             <CardContent>
+              <InvoiceWarehouseSelect value={almacen} onChange={setAlmacen} />
               <InvoiceItemsGrid
                 unidades={unidades}
                 items={items}

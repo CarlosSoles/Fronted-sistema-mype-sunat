@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   Alert,
@@ -74,6 +75,7 @@ export default function InvoiceSettingsPage() {
       */}
       {data && <InvoiceConfigChecklist config={data} />}
 
+      <Link to="/invoices/configuracion/precios">Precios de venta</Link>
       <InvoiceStorageNote aceptados={aceptados} />
 
       <InvoiceSettingsTab

@@ -1,102 +1,72 @@
-/**
- * Productos del almacén para el buscador de la grilla de emisión.
- *
- * LO QUE PIDIÓ EL DOCENTE (31-10, parte 2)
- *
- *   "No lo describas, supone que lo tienes en tu inventario. ¿Por qué tendría
- *    que escribirlos? Eso de ahí tendría que buscarlo."
- *
- *   "Y ahora la cantidad tiene que ser validada dependiendo de lo que tienes."
- *
- * O sea: el producto se ELIGE del inventario, no se teclea. Y la cantidad no
- * puede superar el stock disponible.
- *
- * QUÉ SE CONSUME
- *
- * `GET /api/v1/inventory/stocks` devuelve la valorización por almacén. Cada
- * entrada de `balances` trae `sku`, `description`, `currentStock` y
- * `averageUnitCost`, que es justo lo que la línea necesita. NO se usa
- * `/inventory/movements` ni el kardex: el precio de venta parte del costo
- * promedio y el usuario lo ajusta en la grilla.
- */
+/** Catálogo M1: sale_price es precio final PEN. Nunca se utiliza el costo. */
 import { apiClient } from '@/lib/axios';
 import type { ProductoBuscado } from '../lib/invoiceSearch';
-
-/** Respuesta cruda de `/inventory/stocks`. */
-interface RespuestaStocks {
-  balances?: Array<{
-    sku?: string;
-    description?: string;
-    sunatUnitCode?: string;
-    taxAffectation?: string | null;
-    tax_affectation?: string | null;
-    currentStock?: number | string;
-    averageUnitCost?: number | string;
-  }>;
+export interface ProductoPrecio {
+  sku: string;
+  description: string;
+  sunatUnitCode?: string;
+  taxAffectation?: string | null;
+  currentStock?: number | string;
+  salePrice?: number | string | null;
+  vendible?: boolean;
+  motivo?: string | null;
 }
-
-const traducirAfectacionProducto = (codigo?: string | null): string | null => codigo?.trim() || null;
-
-/** Redondeo a céntimos para el valor unitario sugerido. */
-const r2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
-
-/**
- * Convierte la respuesta de stock a los productos que espera el buscador.
- *
- * Función pura y exportada para poder probarla sin red: lo que se rompe aquí
- * son las conversiones (un `currentStock` que llega como "12.000" del Decimal
- * de Prisma, un costo nulo), no la llamada HTTP.
- */
+interface RespuestaStocks {
+  balances?: ProductoPrecio[];
+}
 export const productosDesdeStocks = (
   respuesta: RespuestaStocks | null | undefined,
-): ProductoBuscado[] => {
-  const balances = respuesta?.balances ?? [];
-
-  return balances
+): ProductoBuscado[] =>
+  (respuesta?.balances ?? [])
+    .filter(
+      (b) =>
+        b.sku?.trim() &&
+        Number.isFinite(Number(b.salePrice)) &&
+        Number(b.salePrice) > 0 &&
+        b.vendible !== false,
+    )
     .map((b) => {
-      const sku = (b.sku ?? '').trim();
-      const stock = Number(b.currentStock ?? 0);
-      const costo = Number(b.averageUnitCost ?? 0);
-      const unidadRaw = (b.sunatUnitCode ?? '').trim().toUpperCase();
-
-      const afectacion = traducirAfectacionProducto(
-        b.taxAffectation ?? b.tax_affectation ?? null,
+      const precio = Number(b.salePrice);
+      const gravada = ['10', 'GRAVADA'].includes(
+        b.taxAffectation?.trim().toUpperCase() ?? '',
       );
-
       return {
-        sku,
-        descripcion: (b.description ?? '').trim(),
-        unidad: unidadRaw,
-        valorUnitario: Number.isFinite(costo) ? r2(costo) : 0,
-        stock: Number.isFinite(stock) ? stock : 0,
-        ...(afectacion ? { afectacion } : {}),
+        sku: b.sku.trim(),
+        descripcion: b.description?.trim() ?? '',
+        unidad: b.sunatUnitCode?.trim().toUpperCase() ?? '',
+        valorUnitario: gravada ? Number((precio / 1.18).toFixed(10)) : precio,
+        precioUnitario: precio,
+        stock: Number(b.currentStock) || 0,
+        ...(b.taxAffectation ? { afectacion: b.taxAffectation.trim() } : {}),
       };
-    })
-    // Un producto sin SKU no se puede rastrear en el Kardex: no se ofrece.
-    .filter((p) => p.sku !== '');
-};
-
-/**
- * Trae los productos con stock de la empresa.
- *
- * Si el endpoint falla se devuelve una lista vacía y la pantalla sigue
- * funcionando con la grilla manual: bloquear la emisión porque el almacén no
- * responde sería peor que el problema que el buscador resuelve.
- */
-export const cargarProductosAlmacen = async (): Promise<ProductoBuscado[]> => {
+    });
+export async function listarPrecios(): Promise<ProductoPrecio[]> {
+  return (
+    (await apiClient.get<RespuestaStocks>('/invoices/products')).data
+      .balances ?? []
+  );
+}
+export async function guardarPrecio(
+  sku: string,
+  sale_price: number,
+): Promise<void> {
+  await apiClient.patch(
+    `/inventory/stocks/products/${encodeURIComponent(sku)}`,
+    { sale_price },
+  );
+}
+export async function cargarProductosAlmacen(
+  almacen = 'ALM-01',
+): Promise<ProductoBuscado[]> {
   try {
-    const response = await apiClient.get<RespuestaStocks>(
-      '/invoices/products',
+    return productosDesdeStocks(
+      (
+        await apiClient.get<RespuestaStocks>('/invoices/products', {
+          params: { almacen },
+        })
+      ).data,
     );
-    return productosDesdeStocks(response.data);
   } catch {
-    try {
-      const fallback = await apiClient.get<RespuestaStocks>(
-        '/inventory/stocks',
-      );
-      return productosDesdeStocks(fallback.data);
-    } catch {
-      return [];
-    }
+    return [];
   }
-};
+}

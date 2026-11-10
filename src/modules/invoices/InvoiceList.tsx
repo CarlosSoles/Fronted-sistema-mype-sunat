@@ -51,6 +51,7 @@ import { TIPO_POR_OPCION } from './lib/invoiceEmitTipos';
 import { calcularResumenFiscal } from './lib/invoiceMetrics';
 import { aComprobanteDemo } from './lib/invoiceApiMapper';
 import { invoicesApi } from './services/invoicesApi';
+import { cargarProductosAlmacen } from './services/inventoryProductsApi';
 import { aplicarFiltros, porApartado } from './lib/invoiceFilters';
 import { descargarPdfComprobante } from './lib/invoiceExportPdf';
 import { exportarReporteSireCsv } from './lib/invoiceExportSire';
@@ -92,6 +93,7 @@ interface VisorState {
 }
 
 export const InvoiceList = () => {
+  const companyId = useAuthStore(state => state.activeCompany?.tenantId);
   const ruc = useAuthStore(state => state.activeCompany?.ruc) ?? '';
   const { data: configuracionFiscal } = useInvoiceConfig(ruc);
   const navigate = useNavigate();
@@ -99,6 +101,12 @@ export const InvoiceList = () => {
   const activeTab = tabDesdeRuta(pathname);
   const [filtros, setFiltros] = useInvoiceFiltros();
   const [modalEmision, setModalEmision] = useState<TipoEmision | null>(null);
+  const { data: productosEmision = [] } = useQuery({
+    queryKey: ['invoices', 'products', companyId, 'ALM-01'],
+    queryFn: () => cargarProductosAlmacen('ALM-01'),
+    enabled: modalEmision !== null,
+    staleTime: 0,
+  });
   const [visor, setVisor] = useState<VisorState | null>(null);
   // El modal de emisión muestra su propio error si el backend niega la emisión
   // (ya emite contra `POST /invoices/emitir`); este aviso queda para un fallo
@@ -326,6 +334,7 @@ export const InvoiceList = () => {
           tipoInicial={TIPO_POR_OPCION[modalEmision]}
           fecha={fechaHoy}
           existentes={comprobantes}
+          productos={productosEmision}
           seriesConfiguradas={configuracionFiscal?.series.map(s => ({ document_type: s.tipoComprobante, series: s.serie, is_active: s.activa }))}
           perfilComercial={configuracionFiscal?.perfil_comercial}
           onEmitir={agregarComprobante}

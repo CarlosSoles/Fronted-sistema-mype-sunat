@@ -224,7 +224,7 @@ it.each([['10', 118], ['20', 100], ['30', 100]])('seleccionar → no editar → 
 });
 import { productosDesdeStocks } from '@/modules/invoices/services/inventoryProductsApi';
 it.each(['12', '16', '21', '31', '37', '40'])('catálogo → selección → payload conserva código fiscal %s', codigo => {
-  const product = productosDesdeStocks({ balances: [{ sku: 'P1', description: 'Prueba', sunatUnitCode: 'KGM', averageUnitCost: 100, taxAffectation: codigo }] })[0];
+  const product = productosDesdeStocks({ balances: [{ sku: 'P1', description: 'Prueba', sunatUnitCode: 'KGM', salePrice: 118, taxAffectation: codigo }] })[0];
   const selected = itemDesdeProducto(product, 'k');
   const payload = borradorAPayloadEmision(factura({ items: [selected] }));
   expect(payload.items[0].afectacion).toBe(codigo);
