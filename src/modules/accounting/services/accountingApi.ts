@@ -32,6 +32,16 @@ export const accountingApi = {
     return response.data;
   },
 
+  getRules: async (): Promise<AccountingRule[]> => {
+    const response = await apiClient.get<AccountingRule[]>('/accounting/rules');
+    return response.data;
+  },
+
+  upsertRule: async (payload: AccountingRuleInput): Promise<AccountingRule> => {
+    const response = await apiClient.put<AccountingRule>('/accounting/rules', payload);
+    return response.data;
+  },
+
   getAccounts: async (): Promise<AccountingAccount[]> => {
     return cachedGet('accounting-accounts', async () => {
       const response = await apiClient.get<AccountingAccount[]>('/accounting/accounts');
@@ -114,3 +124,25 @@ export const accountingApi = {
     return response.data;
   },
 };
+
+export interface AccountingRule {
+  id: string;
+  process_code: string;
+  document_type: string;
+  line_order: number;
+  account_code: string;
+  side: 'DEBE' | 'HABER';
+  base_calculation: string;
+  description?: string | null;
+  is_active: boolean;
+}
+
+export interface AccountingRuleInput {
+  processCode: string;
+  documentType?: string;
+  lineOrder: number;
+  accountCode: string;
+  side: 'DEBE' | 'HABER';
+  baseCalculation: string;
+  description?: string;
+}
