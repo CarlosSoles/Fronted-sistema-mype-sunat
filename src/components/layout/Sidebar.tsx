@@ -115,16 +115,6 @@ const NAV_ITEMS: NavItem[] = [
     allowedRoles: ['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
     subItems: [
       { title: 'Registro de compras', path: '/purchases', icon: Receipt },
-    ],
-  },
-  {
-    title: 'Compras',
-    path: '/inventory/purchases',
-    icon: Receipt,
-    developer: 'Oliver Saldaña',
-    allowedRoles: ['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
-    subItems: [
-      { title: 'Compras nacionales', path: '/inventory/purchases', icon: Receipt },
       { title: 'Cuentas por pagar', path: '/inventory/purchases/payables', icon: WalletCards },
       { title: 'Proveedores', path: '/invoices/clientes', icon: Building2 },
     ],

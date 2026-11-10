@@ -78,6 +78,9 @@ export default function PurchasesPage() {
       setPaymentPurchase(null);
       setErrorMessage(null);
       await queryClient.invalidateQueries({ queryKey: ['purchases-module-list'] });
+      await queryClient.invalidateQueries({ queryKey: ['purchase-payables'] });
+      await queryClient.invalidateQueries({ queryKey: ['national-purchases'] });
+      await queryClient.invalidateQueries({ queryKey: ['accounting-entries'] });
     },
     onError: (err: any) => {
       setErrorMessage(
@@ -359,6 +362,12 @@ export default function PurchasesPage() {
         onClose={() => setIsCreateModalOpen(false)}
         onSuccess={() => {
           refetch();
+          void queryClient.invalidateQueries({ queryKey: ['purchase-payables'] });
+          void queryClient.invalidateQueries({ queryKey: ['national-purchases'] });
+          void queryClient.invalidateQueries({ queryKey: ['inventory-stocks'] });
+          void queryClient.invalidateQueries({ queryKey: ['inventory-movements'] });
+          void queryClient.invalidateQueries({ queryKey: ['inventory-dashboard'] });
+          void queryClient.invalidateQueries({ queryKey: ['accounting-entries'] });
         }}
       />
 

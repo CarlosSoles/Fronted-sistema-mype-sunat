@@ -60,8 +60,7 @@ export const useLandedCost = (shipmentId: string) => {
   const expensesQuery = useQuery<LocalExpenseInvoiceRecord[]>({
     queryKey: ['landed-cost-expenses', shipmentId],
     queryFn: async () => {
-      const data = await landedCostApi.getLocalExpenses(shipmentId);
-      return data.length > 0 ? data : DEFAULT_LOCAL_EXPENSES;
+      return landedCostApi.getLocalExpenses(shipmentId);
     },
     enabled: Boolean(shipmentId),
   });
@@ -89,6 +88,12 @@ export const useLandedCost = (shipmentId: string) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['landed-cost-sheet', shipmentId] });
       queryClient.invalidateQueries({ queryKey: ['customs-shipment', shipmentId] });
+      queryClient.invalidateQueries({ queryKey: ['customs', 'landed-cost', 'eligible-shipments'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-stocks'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-movements'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['kardex'] });
+      queryClient.invalidateQueries({ queryKey: ['accounting-entries'] });
     },
   });
 
@@ -98,6 +103,12 @@ export const useLandedCost = (shipmentId: string) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['landed-cost-sheet', shipmentId] });
       queryClient.invalidateQueries({ queryKey: ['customs-shipment', shipmentId] });
+      queryClient.invalidateQueries({ queryKey: ['customs', 'landed-cost', 'eligible-shipments'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-stocks'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-movements'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['kardex'] });
+      queryClient.invalidateQueries({ queryKey: ['accounting-entries'] });
     },
   });
 
@@ -119,6 +130,12 @@ export const useLandedCost = (shipmentId: string) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['landed-cost-sheet', shipmentId] });
       queryClient.invalidateQueries({ queryKey: ['customs-shipment', shipmentId] });
+      queryClient.invalidateQueries({ queryKey: ['customs', 'landed-cost', 'eligible-shipments'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-stocks'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-movements'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['kardex'] });
+      queryClient.invalidateQueries({ queryKey: ['accounting-entries'] });
     },
   });
 

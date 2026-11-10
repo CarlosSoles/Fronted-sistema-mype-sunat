@@ -252,11 +252,20 @@ export function PartnerFormDialog({
                   ref={!partner ? primaryInputRef : undefined}
                   aria-label="Número"
                   disabled={!!partner}
-                  placeholder="Ej. 20100000001 o TAX ID"
+                  placeholder={form.docType === '6' ? '20100000001' : form.docType === '1' ? '70123456' : 'TAX ID'}
                   value={form.docNumber}
+                  inputMode={form.docType === '6' || form.docType === '1' ? 'numeric' : 'text'}
+                  maxLength={form.docType === '6' ? 11 : form.docType === '1' ? 8 : 20}
                   onFocus={(e) => e.target.select()}
-                  onChange={(e) => setForm({ ...form, docNumber: e.target.value })}
+                  onChange={(e) => {
+                    const limpio =
+                      form.docType === '6' || form.docType === '1'
+                        ? e.target.value.replace(/\D/g, '')
+                        : e.target.value;
+                    setForm({ ...form, docNumber: limpio });
+                  }}
                 />
+                {mensajeDocumento ? <p className="mt-1 text-xs text-destructive">{mensajeDocumento}</p> : null}
               </div>
 
               <div className="sm:col-span-2">
@@ -525,7 +534,7 @@ export function PartnerFormDialog({
                 Cancelar
               </Button>
               <Button
-                disabled={save.isPending || !form.docNumber.trim() || !form.legalName.trim() || !roles.length}
+                disabled={save.isPending || (!partner && !documentoValido) || !form.docNumber.trim() || !form.legalName.trim() || !roles.length}
                 onClick={() => {
                   setError('');
                   save.mutate(false);
