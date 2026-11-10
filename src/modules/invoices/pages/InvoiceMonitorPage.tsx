@@ -298,7 +298,7 @@ export default function InvoiceMonitorPage() {
                   <TableCell align="center">
                     {/* Reintentar el CDR solo tiene sentido si no llegó
                         constancia: si SUNAT ya respondió, no hay nada que pedir. */}
-                    {estadoDeMonitor(inv) === 'ERROR_RED' && (
+                    {['ERROR_RED', 'DLQ'].includes(estadoDeMonitor(inv)) && !['ACEPTADO', 'OBSERVADO', 'ANULADO'].includes(inv.estadoBackend ?? '') && (
                       <Button
                         variant="outline"
                         size="sm"
