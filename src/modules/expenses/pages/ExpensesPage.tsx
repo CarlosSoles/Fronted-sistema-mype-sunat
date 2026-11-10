@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Card, Input, Page, PageHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
 import { expensesApi } from '../services/expensesApi';
+import { rucValido } from '@/modules/invoices/lib/invoiceEmitValidation';
 
 const money = (n: string | number) => `S/ ${Number(n).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -10,6 +11,7 @@ export default function ExpensesPage() {
   const { data = [], isLoading } = useQuery({ queryKey: ['expenses'], queryFn: expensesApi.list });
   const [form, setForm] = useState({ description: '', supplierName: '', supplierDoc: '', documentNumber: '', expenseDate: new Date().toISOString().slice(0, 10), baseAmount: '', igvAmount: '', totalAmount: '' });
   const [error, setError] = useState<string | null>(null);
+  const rucOk = !form.supplierDoc || rucValido(form.supplierDoc);
   const pagar = useMutation({ mutationFn: (id: string) => expensesApi.pay(id), onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ['expenses'] }); }, onError: () => setError('No se pudo pagar el gasto.') });
   const crear = useMutation({
     mutationFn: () => expensesApi.create({ description: form.description, supplierName: form.supplierName, supplierDoc: form.supplierDoc || undefined, documentNumber: form.documentNumber || undefined, expenseDate: form.expenseDate, baseAmount: Number(form.baseAmount), igvAmount: Number(form.igvAmount), totalAmount: Number(form.totalAmount) }),
@@ -24,13 +26,13 @@ export default function ExpensesPage() {
         <div className="grid gap-3 md:grid-cols-3">
           <label className="text-xs">Descripción<Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
           <label className="text-xs">Proveedor<Input value={form.supplierName} onChange={(e) => setForm({ ...form, supplierName: e.target.value })} /></label>
-          <label className="text-xs">RUC<Input value={form.supplierDoc} onChange={(e) => setForm({ ...form, supplierDoc: e.target.value.replace(/\D/g, '').slice(0, 11) })} /></label>
+          <label className="text-xs">RUC<Input value={form.supplierDoc} inputMode="numeric" maxLength={11} onChange={(e) => setForm({ ...form, supplierDoc: e.target.value.replace(/\D/g, '').slice(0, 11) })} />{!rucOk ? <span className="text-[10px] text-destructive">RUC inválido (módulo 11)</span> : null}</label>
           <label className="text-xs">Documento<Input value={form.documentNumber} onChange={(e) => setForm({ ...form, documentNumber: e.target.value })} /></label>
           <label className="text-xs">Fecha<Input type="date" value={form.expenseDate} onChange={(e) => setForm({ ...form, expenseDate: e.target.value })} /></label>
           <label className="text-xs">Base<Input type="number" value={form.baseAmount} onChange={(e) => setForm({ ...form, baseAmount: e.target.value })} /></label>
           <label className="text-xs">IGV<Input type="number" value={form.igvAmount} onChange={(e) => setForm({ ...form, igvAmount: e.target.value })} /></label>
           <label className="text-xs">Total<Input type="number" value={form.totalAmount} onChange={(e) => setForm({ ...form, totalAmount: e.target.value })} /></label>
-          <div className="flex items-end"><Button onClick={() => crear.mutate()} disabled={crear.isPending || !form.description || !form.supplierName}>{crear.isPending ? 'Registrando…' : 'Registrar gasto'}</Button></div>
+          <div className="flex items-end"><Button onClick={() => crear.mutate()} disabled={crear.isPending || !form.description || !form.supplierName || !rucOk}>{crear.isPending ? 'Registrando…' : 'Registrar gasto'}</Button></div>
         </div>
       </Card>
       <Card flush><Table><TableHeader><TableRow><TableHead>Fecha</TableHead><TableHead>Proveedor</TableHead><TableHead>Descripción</TableHead><TableHead align="right">Base</TableHead><TableHead align="right">IGV</TableHead><TableHead align="right">Total</TableHead><TableHead align="right">Pagado</TableHead><TableHead align="right">Saldo</TableHead><TableHead align="right">Acción</TableHead></TableRow></TableHeader><TableBody>
