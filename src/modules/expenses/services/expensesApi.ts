@@ -9,6 +9,8 @@ export interface ExpenseRecord {
 
 export const expensesApi = {
   list: async (): Promise<ExpenseRecord[]> => (await apiClient.get<ExpenseRecord[]>('/expenses')).data,
+  listPayments: async (id: string): Promise<Array<{ id: string; date: string; amount: number; paymentMethod: string; bankName?: string | null; concept: string }>> =>
+    (await apiClient.get(`/expenses/${id}/payments`)).data,
   annul: async (id: string): Promise<{ status: string }> =>
     (await apiClient.post(`/expenses/${id}/annul`)).data,
   pay: async (id: string, amount?: number): Promise<{ status: string; paidAmount: number; balance: number }> =>
