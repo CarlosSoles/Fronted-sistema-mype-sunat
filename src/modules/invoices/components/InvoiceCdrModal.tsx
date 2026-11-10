@@ -32,6 +32,7 @@ import {
   type FormatoDescarga,
 } from '../lib/invoiceDescarga';
 import { InvoiceStatusBadge } from './InvoiceStatusBadge';
+import { InvoiceBridgeReprocess } from './InvoiceBridgeReprocess';
 import { InvoiceSunatConsulta } from './InvoiceSunatConsulta';
 import { InvoiceAuditTrail } from './InvoiceAuditTrail';
 import { invoicesApi } from '../services/invoicesApi';
@@ -205,6 +206,7 @@ export const InvoiceCdrModal = ({
         </DialogHeader>
 
         <InvoiceSunatConsulta key={c.id} id={c.id} />
+        <InvoiceBridgeReprocess key={`puente-${c.id}`} id={c.id} estado={c.estado} />
 
         <Tabs value={modo} onValueChange={(v) => setModo(v as 'cdr' | 'xml')}>
           <TabsList>
