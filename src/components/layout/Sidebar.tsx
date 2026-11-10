@@ -148,6 +148,13 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
+    title: 'Cobros',
+    path: '/collections',
+    icon: WalletCards,
+    developer: 'Oliver Saldaña',
+    allowedRoles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
+  },
+  {
     title: 'Gastos',
     path: '/expenses',
     icon: Receipt,
