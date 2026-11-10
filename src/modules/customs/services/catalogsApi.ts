@@ -1,4 +1,5 @@
 import { apiClient } from '@/lib/axios';
+import { masterDataApi } from './masterDataApi';
 import { type ForeignSupplierSummary, type CustomsBrokerSummary } from '../types';
 
 export interface CustomsOfficeItem {
@@ -206,5 +207,13 @@ export const catalogsApi = {
 
   deleteForeignSupplier: async (id: string): Promise<void> => {
     await apiClient.delete(`/customs/suppliers/${id}`);
+  },
+
+  getPorts: async (type?: string) => {
+    return masterDataApi.getPorts(type);
+  },
+
+  getCountries: async () => {
+    return masterDataApi.getCountries();
   },
 };

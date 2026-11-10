@@ -56,16 +56,24 @@ export const GoodsReceiptItemsTable: React.FC<GoodsReceiptItemsTableProps> = ({
                   <Input
                     type="number"
                     step="any"
+                    min="0"
+                    placeholder="0"
+                    title="Cantidad física recibida en buen estado"
+                    aria-label="Cantidad recibida conforme"
                     {...register(`items.${idx}.receivedQuantity`, { valueAsNumber: true })}
-                    className="h-8 w-24 bg-slate-800 text-slate-100"
+                    className="h-8 w-24 bg-slate-800 text-slate-100 font-mono font-bold"
                   />
                 </td>
                 <td className="p-3">
                   <Input
                     type="number"
                     step="any"
+                    min="0"
+                    placeholder="0"
+                    title="Cantidad física con averías, roturas o mermas"
+                    aria-label="Cantidad averiada o dañada"
                     {...register(`items.${idx}.damagedQuantity`, { valueAsNumber: true })}
-                    className="h-8 w-24 bg-slate-800 text-slate-100"
+                    className="h-8 w-24 bg-slate-800 text-rose-300 font-mono"
                   />
                 </td>
                 <td className="p-3 font-bold">

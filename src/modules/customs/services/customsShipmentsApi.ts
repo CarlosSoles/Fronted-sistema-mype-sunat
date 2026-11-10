@@ -67,11 +67,11 @@ export const customsShipmentsApi = {
         params: filters,
       });
       const resData = response.data;
-      if (Array.isArray(resData) && resData.length > 0) return resData;
-      if (resData && typeof resData === 'object' && 'data' in resData && Array.isArray(resData.data) && resData.data.length > 0) {
+      if (Array.isArray(resData)) return resData;
+      if (resData && typeof resData === 'object' && 'data' in resData && Array.isArray(resData.data)) {
         return resData.data;
       }
-      return getStoredCustomsShipments();
+      return [];
     } catch {
       return getStoredCustomsShipments();
     }
@@ -93,33 +93,9 @@ export const customsShipmentsApi = {
    * Apertura un nuevo expediente comercial de importación.
    */
   createShipment: async (payload: CreateShipmentPayload): Promise<CustomsShipmentSummary> => {
-    try {
-      const response = await apiClient.post<CustomsShipmentSummary>('/customs/shipments', payload);
-      saveStoredCustomsShipment(response.data);
-      return response.data;
-    } catch {
-      const fallbackShipment: CustomsShipmentSummary = {
-        id: payload.shipment_number,
-        company_id: 'demo-company',
-        shipment_number: payload.shipment_number,
-        supplier_id: payload.supplier_id,
-        supplier_name: payload.order_reference || 'Proveedor internacional registrado',
-        incoterm: payload.incoterm,
-        currency_code: payload.currency_code || 'USD',
-        transport_mode: payload.transport_mode,
-        origin_country_code: payload.origin_country_code,
-        destination_customs: payload.destination_customs,
-        etd_date: payload.etd_date,
-        eta_date: payload.eta_date,
-        status: 'CON_LEVANTE',
-        is_observed: false,
-        declarations_count: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      saveStoredCustomsShipment(fallbackShipment);
-      return fallbackShipment;
-    }
+    const response = await apiClient.post<CustomsShipmentSummary>('/customs/shipments', payload);
+    saveStoredCustomsShipment(response.data);
+    return response.data;
   },
 
   /**

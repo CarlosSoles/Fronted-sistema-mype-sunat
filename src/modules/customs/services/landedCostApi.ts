@@ -96,4 +96,38 @@ export const landedCostApi = {
     );
     return response.data || null;
   },
+
+  /**
+   * Obtiene la lista de expedientes de importación elegibles para costeo Landed Cost.
+   */
+  getEligibleShipments: async (): Promise<Array<{
+    id: string;
+    shipment_number: string;
+    incoterm: string;
+    status: string;
+    currency_code: string;
+    supplier?: { business_name: string; country_code: string };
+    declarations?: Array<{ id: string; dua_number: string; channel: string; status: string }>;
+  }>> => {
+    const response = await apiClient.get('/customs/landed-cost/eligible-shipments');
+    return Array.isArray(response.data) ? response.data : [];
+  },
+
+  /**
+   * Obtiene las facturas de compras locales registradas en el ERP elegibles para gastos de desaduanaje.
+   */
+  getEligibleInvoices: async (): Promise<Array<{
+    id: string;
+    supplier_doc_number: string;
+    supplier_name: string;
+    document_serial: string;
+    document_number: string;
+    issue_date: string;
+    net_amount: number | string;
+    igv_amount: number | string;
+    total_amount: number | string;
+  }>> => {
+    const response = await apiClient.get('/customs/landed-cost/eligible-invoices');
+    return Array.isArray(response.data) ? response.data : [];
+  },
 };

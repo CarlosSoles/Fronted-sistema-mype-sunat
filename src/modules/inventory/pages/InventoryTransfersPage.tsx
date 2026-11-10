@@ -32,6 +32,7 @@ import {
   type TransferItemRecord,
 } from '../services/inventoryLedgerApi';
 import { inventoryApi } from '../services/inventoryApi';
+import { useAuth } from '@/hooks/useAuth';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -44,6 +45,7 @@ const apiError = (error: unknown): string => {
 };
 
 export default function InventoryTransfersPage() {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedTransfer, setSelectedTransfer] = useState<InventoryTransferRecord | null>(null);
@@ -54,11 +56,15 @@ export default function InventoryTransfersPage() {
   const [originFilter, setOriginFilter] = useState('ALL');
   const [destFilter, setDestFilter] = useState('ALL');
 
+  const defaultUserResponsible = user?.fullName
+    ? `${user.fullName} (${user.role || 'OPERADOR'})`
+    : '';
+
   const [form, setForm] = useState({
     fromWarehouseCode: 'ALM-01',
     toWarehouseCode: 'ALM-02',
     transferDate: today(),
-    responsible: '',
+    responsible: defaultUserResponsible,
     notes: '',
   });
   const [items, setItems] = useState([{ sku: '', quantity: 1 }]);
@@ -78,14 +84,23 @@ export default function InventoryTransfersPage() {
     queryFn: inventoryApi.getStockBalances,
   });
 
+  const responsiblesQuery = useQuery({
+    queryKey: ['inventory', 'responsibles'],
+    queryFn: inventoryApi.getAuthorizedResponsibles,
+  });
+
   const createMutation = useMutation({
-    mutationFn: () =>
-      inventoryLedgerApi.createTransfer({
+    mutationFn: () => {
+      if (!form.responsible.trim()) {
+        throw new Error('Debe asignar un responsable autorizado para realizar la transferencia de mercadería.');
+      }
+      return inventoryLedgerApi.createTransfer({
         ...form,
         items: items
           .filter((i) => i.sku.trim() && i.quantity > 0)
           .map((i) => ({ sku: i.sku.trim().toUpperCase(), quantity: Number(i.quantity) })),
-      }),
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inventory', 'transfers'] });
       queryClient.invalidateQueries({ queryKey: ['inventory', 'stocks'] });
@@ -229,9 +244,13 @@ export default function InventoryTransfersPage() {
           size="sm"
           onClick={() => {
             setError(null);
+            setForm((prev) => ({
+              ...prev,
+              responsible: prev.responsible || defaultUserResponsible,
+            }));
             setIsOpen(true);
           }}
-          className="gap-1.5"
+          className="gap-1.5 font-semibold"
         >
           <Plus className="h-3.5 w-3.5" />
           Nueva transferencia
@@ -583,12 +602,37 @@ export default function InventoryTransfersPage() {
               />
             </div>
             <div>
-              <p className="mb-1 font-semibold uppercase text-muted-foreground text-[10px]">Responsable / Conductor</p>
-              <Input
-                placeholder="Nombre del encargado o transportista"
+              <p className="mb-1 font-semibold uppercase text-muted-foreground text-[10px]">
+                Responsable Autorizado * (Obs 19)
+              </p>
+              <select
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring font-medium"
                 value={form.responsible}
                 onChange={(e) => setForm({ ...form, responsible: e.target.value })}
-              />
+              >
+                <option value="">(Seleccione responsable autorizado)</option>
+                {defaultUserResponsible && (
+                  <option value={defaultUserResponsible}>
+                    ⭐ Mi Usuario: {defaultUserResponsible}
+                  </option>
+                )}
+                {(responsiblesQuery.data?.users ?? [])
+                  .filter((u) => `${u.name} (${u.role})` !== defaultUserResponsible)
+                  .map((u) => (
+                    <option key={u.id} value={`${u.name} (${u.role})`}>
+                      👤 {u.name} — Rol: {u.role}
+                    </option>
+                  ))}
+                {(responsiblesQuery.data?.transporters ?? []).length > 0 && (
+                  <optgroup label="Transportistas Registrados">
+                    {(responsiblesQuery.data?.transporters ?? []).map((t) => (
+                      <option key={t.id} value={`${t.name} (TRANSPORTISTA)`}>
+                        🚚 {t.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+              </select>
             </div>
           </div>
 
@@ -682,6 +726,7 @@ export default function InventoryTransfersPage() {
               onClick={() => createMutation.mutate()}
               disabled={
                 createMutation.isPending ||
+                !form.responsible.trim() ||
                 form.fromWarehouseCode === form.toWarehouseCode ||
                 items.every((i) => !i.sku.trim())
               }

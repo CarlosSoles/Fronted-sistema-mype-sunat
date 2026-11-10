@@ -28,6 +28,7 @@ import {
   ClipboardCheck,
   Settings,
   Ship,
+  ShoppingBag,
   Sparkles,
 } from 'lucide-react';
 
@@ -108,6 +109,16 @@ const NAV_ITEMS: NavItem[] = [
   },
   {
     title: 'Compras',
+    path: '/purchases',
+    icon: ShoppingBag,
+    developer: 'Carlos Ahumada',
+    allowedRoles: ['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
+    subItems: [
+      { title: 'Registro de compras', path: '/purchases', icon: Receipt },
+    ],
+  },
+  {
+    title: 'Compras',
     path: '/inventory/purchases',
     icon: Receipt,
     developer: 'Oliver Saldaña',
@@ -132,6 +143,7 @@ const NAV_ITEMS: NavItem[] = [
       { title: 'Ajustes y toma física', path: '/inventory/adjustments', icon: ClipboardCheck, allowedRoles: ['ADMIN'], group: 'Inventario' },
       { title: 'Saldo inicial', path: '/inventory/opening', icon: FileUp, allowedRoles: ['ADMIN'], group: 'Inventario' },
       { title: 'Kardex valorizado', path: '/kardex/general', icon: BookOpen, group: 'Kardex' },
+      { title: 'Configuración y Costeo', path: '/inventory/config', icon: Settings, allowedRoles: ['ADMIN', 'CONTADOR', 'ACCOUNTANT'], group: 'Kardex' },
     ],
   },
   {

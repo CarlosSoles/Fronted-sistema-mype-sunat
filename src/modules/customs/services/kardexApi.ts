@@ -12,7 +12,7 @@ export const kardexApi = {
     params?: KardexFilterParams
   ): Promise<KardexMovementEntry[]> => {
     try {
-      const response = await apiClient.get<KardexMovementEntry[]>('/customs/kardex', {
+      const response = await apiClient.get<KardexMovementEntry[]>('/inventory/kardex', {
         params,
       });
       return Array.isArray(response.data) ? response.data : [];

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { useQuery } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -18,8 +18,9 @@ import { SupplierSelector } from './SupplierSelector';
 import { CountrySelector } from './CountrySelector';
 import { FALLBACK_CURRENCIES, FALLBACK_INCOTERMS } from '../lib/customsConstants';
 import { masterDataApi } from '../services/masterDataApi';
+import { importOrdersApi } from '../services/importOrdersApi';
 import { type ForeignSupplierSummary } from '../types';
-import { Globe, Ship } from 'lucide-react';
+import { Globe, Ship, ClipboardList, Info } from 'lucide-react';
 
 interface NewShipmentModalProps {
   isOpen: boolean;
@@ -60,6 +61,24 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
       ? currenciesQuery.data
       : FALLBACK_CURRENCIES;
 
+  const ordersQuery = useQuery({
+    queryKey: ['customs', 'orders-for-shipment'],
+    queryFn: () => importOrdersApi.listOrders(),
+    enabled: isOpen,
+    staleTime: 1000 * 60 * 2,
+  });
+  const [selectedOrderId, setSelectedOrderId] = useState<string>('NONE');
+  const firstInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => {
+        firstInputRef.current?.focus();
+        firstInputRef.current?.select();
+      }, 80);
+    }
+  }, [isOpen]);
+
   const {
     register,
     handleSubmit,
@@ -84,6 +103,35 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
   });
 
   const selectedSupplierId = watch('supplier_id');
+
+  const handleSelectOrder = (orderId: string) => {
+    setSelectedOrderId(orderId);
+    if (orderId === 'NONE') return;
+    const order = ordersQuery.data?.items.find((o) => o.id === orderId);
+    if (!order) return;
+
+    const descItems = order.items.map((i) => i.description).join(', ');
+    setValue('order_reference', `${order.orderNumber}: ${descItems}`.slice(0, 100));
+    setValue('incoterm', (order.incoterm || 'FOB') as any);
+    setValue('currency_code', order.currencyCode || 'USD');
+    if (['MARITIMO', 'AEREO', 'TERRESTRE', 'FLUVIAL'].includes(order.transportMode)) {
+      setValue('transport_mode', order.transportMode as any);
+    }
+    if (order.supplierCountry) {
+      setValue('origin_country_code', order.supplierCountry);
+    }
+    if (order.expectedArrivalDate) {
+      setValue('eta_date', order.expectedArrivalDate.slice(0, 10));
+    }
+    const matchedSupplier = suppliers.find(
+      (s) =>
+        s.business_name.toLowerCase().includes(order.supplierName.toLowerCase()) ||
+        (order.supplierTaxId && s.tax_id === order.supplierTaxId)
+    );
+    if (matchedSupplier) {
+      setValue('supplier_id', matchedSupplier.id);
+    }
+  };
 
   useEffect(() => {
     void catalogsApi.getForeignSuppliers().then(setSuppliers).catch(() => setSuppliers([]));
@@ -114,6 +162,35 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
         </DialogHeader>
 
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4 py-2">
+          {/* Selector de Pedido Previo para Autocompletar */}
+          <div className="bg-primary/5 p-3 rounded-xl border border-primary/20 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="font-semibold text-primary flex items-center gap-1.5 text-xs">
+                <ClipboardList className="h-4 w-4 text-primary" />
+                Vincular a Pedido de Importación Previo (Recomendado)
+              </label>
+              <span className="text-[10px] text-muted-foreground hidden sm:inline">
+                Importa automáticamente proveedor, incoterm y mercancía
+              </span>
+            </div>
+            <select
+              value={selectedOrderId}
+              onChange={(e) => handleSelectOrder(e.target.value)}
+              className="w-full h-8 px-2 text-xs rounded-md border border-input bg-background font-medium"
+            >
+              <option value="NONE">— Registrar embarque independiente (sin orden previa) —</option>
+              {(ordersQuery.data?.items ?? []).map((ord) => (
+                <option key={ord.id} value={ord.id}>
+                  {ord.orderNumber} · {ord.supplierName} ({ord.currencyCode} {Number(ord.totalFob).toFixed(2)}) — {ord.currentStage}
+                </option>
+              ))}
+            </select>
+            <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+              <Info className="h-3 w-3 text-primary shrink-0" />
+              El pedido formaliza la compraventa; el embarque formaliza la entrega al transportista y emisión de B/L.
+            </p>
+          </div>
+
           {/* Bloque 1: Datos Comerciales */}
           <div className="bg-muted/20 p-4 rounded-xl border border-border space-y-3">
             <div className="flex items-center gap-2 pb-1 border-b border-border/50">
@@ -126,7 +203,15 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="font-medium text-foreground block mb-1">N° Expediente *</label>
-                <Input {...register('shipment_number')} className="h-8 text-xs font-mono font-semibold" />
+                <Input
+                  {...register('shipment_number')}
+                  ref={(e) => {
+                    register('shipment_number').ref(e);
+                    firstInputRef.current = e;
+                  }}
+                  onFocus={(e) => e.target.select()}
+                  className="h-8 text-xs font-mono font-semibold"
+                />
                 {errors.shipment_number && (
                   <p className="text-[11px] text-red-500 mt-0.5">{errors.shipment_number.message}</p>
                 )}
@@ -173,7 +258,12 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
 
               <div>
                 <label className="font-medium text-foreground block mb-1">Referencia Comercial / O.C.</label>
-                <Input {...register('order_reference')} placeholder="PO-2026-88: 100 Laptops" className="h-8 text-xs" />
+                <Input
+                  {...register('order_reference')}
+                  placeholder="PO-2026-88: 100 Laptops"
+                  onFocus={(e) => e.target.select()}
+                  className="h-8 text-xs"
+                />
               </div>
             </div>
           </div>
