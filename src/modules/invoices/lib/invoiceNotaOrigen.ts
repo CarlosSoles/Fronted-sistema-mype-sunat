@@ -59,7 +59,7 @@ export type { ComprobanteElegible };
  */
 export const admiteNota = (comprobante: ComprobanteElegible): boolean => {
   if (comprobante.tipo === '07' || comprobante.tipo === '08') return false;
-  return comprobante.estado === 'ACEPTADO';
+  return ['ACEPTADO', 'OBSERVADO'].includes(comprobante.estado);
 };
 
 /**
