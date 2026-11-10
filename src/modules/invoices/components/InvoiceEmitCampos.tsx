@@ -26,7 +26,7 @@ import { minimoDeFechaEmision, topeDeFechaEmision } from '../lib/invoiceEmitFech
 import { admiteNota, buscarAfectado } from '../lib/invoiceNotaOrigen';
 import type { ComprobanteDemo } from '../data/invoiceDemoTypes';
 import type { ProductoBuscado } from '../lib/invoiceSearch';
-import { CampoFecha, CampoSelect, CampoTexto } from './InvoiceEmitCamposBase';
+import { CampoFecha, CampoSelect } from './InvoiceEmitCamposBase';
 import { CustomerLookupField } from './CustomerLookupField';
 import { InvoiceEmitCamposTributarios } from './InvoiceEmitCamposTributarios';
 import { InvoiceItemsGrid } from './InvoiceItemsGrid';
@@ -48,6 +48,7 @@ interface InvoiceEmitCamposProps {
   onBolsaAgregada: () => void;
   /** TA-61: productos del almacén para el buscador de la grilla. */
   productos?: readonly ProductoBuscado[];
+  catalogoEstado?: 'listo' | 'cargando' | 'error';
   /** TA-61: agrega una línea con los datos del producto elegido. */
   onItemDesdeProducto?: (producto: ProductoBuscado) => void;
 }
@@ -71,7 +72,7 @@ export const InvoiceEmitCampos = ({
   onItemEliminado,
   onItemAgregado,
   onBolsaAgregada,
-  productos,
+  productos, catalogoEstado,
   onItemDesdeProducto,
 }: InvoiceEmitCamposProps) => {
   const esNota = esTipoNota(b.tipo);
@@ -119,37 +120,15 @@ export const InvoiceEmitCampos = ({
       {esNota && (
         <>
           <div className="sm:col-span-2" data-testid="paso-origen-nota">
-            <CampoTexto
-              id="doc-afectado"
-              list="documentos-aceptados"
-              label="Documento afectado"
-              value={b.documentoAfectado}
-              onChange={(v) =>
-                actualizar(
-                  vincularDocumentoAfectado(
-                    { ...b, documentoAfectado: v },
-                    existentes,
-                  ).borrador,
-                )
-              }
-              placeholder="F001-0042"
-              error={
-                b.documentoAfectado.trim() && !afectado
-                  ? 'Seleccione una factura o boleta ACEPTADA por SUNAT.'
-                  : undefined
-              }
-            />
+            <label htmlFor="doc-afectado">Documento afectado *</label>
+            <select id="doc-afectado" aria-label="Documento afectado" aria-required="true" aria-invalid={!afectado} aria-describedby={!afectado ? 'doc-afectado-error' : undefined}
+              className="h-9 w-full rounded border bg-background px-3" value={b.documentoAfectado}
+              onChange={e => actualizar(vincularDocumentoAfectado({ ...b, documentoAfectado: e.target.value }, existentes).borrador)}>
+              <option value="">Seleccione el comprobante origen</option>
+              {elegibles.map(c => <option key={c.id} value={`${c.serie}-${String(c.correlativo).padStart(8, '0')}`}>{c.serie}-{String(c.correlativo).padStart(8, '0')} · {c.clienteRazonSocial}</option>)}
+            </select>
+            {!afectado && <p id="doc-afectado-error" className="text-xs text-destructive">Seleccione una factura o boleta ACEPTADA u OBSERVADA por SUNAT.</p>}
           </div>
-          <datalist id="documentos-aceptados">
-            {elegibles.map((c) => (
-              <option
-                key={c.id}
-                value={`${c.serie}-${String(c.correlativo).padStart(8, '0')}`}
-              >
-                {c.clienteRazonSocial}
-              </option>
-            ))}
-          </datalist>
           {afectado ? (
             <div
               className="sm:col-span-2 rounded-lg border bg-muted/40 p-2.5 space-y-1"
@@ -308,7 +287,7 @@ export const InvoiceEmitCampos = ({
       />
 
 
-      <InvoiceItemsGrid
+      <InvoiceItemsGrid esNota={esNota} catalogoEstado={catalogoEstado}
         items={b.items}
         onCambiar={onItemCambiado}
         onEliminar={onItemEliminado}

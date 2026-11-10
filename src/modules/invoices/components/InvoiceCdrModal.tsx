@@ -1,3 +1,4 @@
+import { InvoiceForcedResend } from './InvoiceForcedResend';
 import { lecturaRechazo } from '../lib/invoiceResultPresentation';
 /**
  * Modal de auditoría CDR y visor XML del comprobante (M1).
@@ -209,6 +210,7 @@ export const InvoiceCdrModal = ({
           </PageText>
         </DialogHeader>
 
+        <InvoiceForcedResend key={`forzar-${c.id}`} id={c.id} incierto={c.resultadoPresentacion?.origen === 'TRANSPORTE_INCIERTO' && !['ACEPTADO','OBSERVADO'].includes(c.estado)} />
         <InvoiceSunatConsulta key={c.id} id={c.id} />
         <InvoiceBridgeReprocess key={`puente-${c.id}`} id={c.id} estado={c.estado} />
 

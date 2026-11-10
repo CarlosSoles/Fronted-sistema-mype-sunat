@@ -1,3 +1,5 @@
+import { problemaSpotMinimo } from '../lib/invoiceDetraccion';
+import { useInvoiceKeyboard } from './useInvoiceKeyboard';
 /**
  * Modal interactivo de emisión de comprobantes (M1).
  *
@@ -144,7 +146,7 @@ const motivosPendientes = (
    * cantidad positiva y valor unitario. El stock vive en `revisarGrilla`, que
    * suma además las cantidades del MISMO SKU repartidas en varias líneas.
    */
-  for (const linea of revisarGrilla(b.items, productos).lineas) {
+  for (const linea of revisarGrilla(b.items, productos, { nota: esTipoNota(b.tipo) }).lineas) {
     if (linea.gravedad === 'error') {
       motivos.push(`Línea ${linea.indice + 1}: ${linea.mensaje}`);
     }
@@ -152,6 +154,8 @@ const motivosPendientes = (
 
   const esNota = esTipoNota(b.tipo);
   const { importeTotal, neto, detraccion } = calcularFlujo(b);
+  const problemaSpot = problemaSpotMinimo(b.items, b.tipo);
+  if (problemaSpot) motivos.push(problemaSpot);
   if (detraccion > 0 && !b.medioPagoDetraccion) motivos.push('Seleccione el medio de pago de la detracción.');
 
   if (!esNota && b.codigoDetraccion) {
@@ -220,6 +224,7 @@ export const InvoiceEmitModal = ({
   onEmitir,
   onCerrar,
 }: InvoiceEmitModalProps) => {
+  const [errorCatalogo, setErrorCatalogo] = useState(false);
   const [catalogoAlmacen, setCatalogoAlmacen] = useState<{ almacen: string; productos: readonly ProductoBuscado[] } | null>(null);
   const [b, setB] = useState<BorradorEmision>(() => {
     const tipoEfectivo: TipoEmisible =
@@ -237,13 +242,12 @@ export const InvoiceEmitModal = ({
     };
   });
   const almacen = b.almacen ?? 'ALM-01';
-  const productos = useMemo(() => almacen === 'ALM-01' ? productosIniciales : catalogoAlmacen?.almacen === almacen ? catalogoAlmacen.productos : [], [almacen, productosIniciales, catalogoAlmacen]);
+  const productos = useMemo(() => catalogoAlmacen?.almacen === almacen ? catalogoAlmacen.productos : almacen === 'ALM-01' ? productosIniciales : [], [almacen, productosIniciales, catalogoAlmacen]);
   useEffect(() => {
-    if (almacen === 'ALM-01') return;
     let vigente = true;
-    void cargarProductosAlmacen(almacen).then(productos => { if (vigente) setCatalogoAlmacen({ almacen, productos }); });
+    void cargarProductosAlmacen(almacen, esTipoNota(b.tipo)).then(productos => { if (vigente) { setCatalogoAlmacen({ almacen, productos }); setErrorCatalogo(false); } }).catch(() => { if (vigente) setErrorCatalogo(true); });
     return () => { vigente = false; };
-  }, [almacen]);
+  }, [almacen, b.tipo]);
 
   /** `true` mientras la emisión viaja al backend; bloquea el doble envío. */
   const intento = useRef(crearIntentoEmision());
@@ -439,11 +443,13 @@ export const InvoiceEmitModal = ({
     }
   };
 
+  const teclado = useInvoiceKeyboard(nuevoItem, () => { void confirmar(); }, enviando);
   return (
     <Dialog open onOpenChange={(abierto) => !abierto && onCerrar()}>
-      <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-4xl">
+      <DialogContent onKeyDown={teclado.handler} onEscapeKeyDown={e => e.preventDefault()} className="max-h-[88vh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader className="pr-8">
           <DialogTitle>Emitir Comprobante Electrónico</DialogTitle>
+          {teclado.ayuda}
           <PageText variant="caption">
             Los montos se calculan con el motor tributario UBL 2.1 del módulo.
             El comprobante entra a la cola Outbox y sale con el CDR de SUNAT.
@@ -465,6 +471,7 @@ export const InvoiceEmitModal = ({
           onItemEliminado={quitarItem}
           onItemAgregado={nuevoItem}
           onBolsaAgregada={nuevaBolsa}
+          catalogoEstado={errorCatalogo ? 'error' : catalogoAlmacen?.almacen === almacen ? 'listo' : 'cargando'}
           productos={productos}
           onItemDesdeProducto={itemDeProducto}
         />
