@@ -65,7 +65,7 @@ interface InvoiceStatusBadgeProps {
 }
 
 export const InvoiceStatusBadge = ({ estado, codigo, resultado }: InvoiceStatusBadgeProps) => {
-  const lectura = estado === 'RECHAZADO' ? lecturaRechazo(resultado) : null;
+  const lectura = (estado === 'RECHAZADO' || resultado?.origen === 'PREPARACION_LOCAL') ? lecturaRechazo(resultado) : null;
   const incierto = resultado?.origen === 'TRANSPORTE_INCIERTO';
   const meta = incierto ? ESTADOS.SIN_CONFIRMAR : lectura ? { ...ESTADOS[estado], label: lectura.etiqueta, ariaLabel: lectura.etiqueta } : ESTADOS[estado];
 

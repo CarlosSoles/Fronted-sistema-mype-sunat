@@ -47,14 +47,14 @@ const LECTURA_DEL_ESTADO: Record<string, string> = {
 
 /** Bitácora con los datos reales del comprobante. */
 export const InvoiceAuditTrail = ({ comprobante, digest, historial, errorHistorial }: InvoiceAuditTrailProps) => {
-  const rechazo = comprobante.estado === 'RECHAZADO' ? lecturaRechazo(comprobante.resultadoPresentacion) : null;
+  const rechazo = (comprobante.estado === 'RECHAZADO' || comprobante.resultadoPresentacion?.origen === 'PREPARACION_LOCAL') ? lecturaRechazo(comprobante.resultadoPresentacion) : null;
   const aceptado =
     comprobante.estado === 'ACEPTADO' || comprobante.estado === 'OBSERVADO';
   // Desde que ERROR_RED llega como SIN_CONFIRMAR, el estado se basta a sí
   // mismo. `esErrorDeRed` se conserva como respaldo para filas antiguas que
   // todavía traigan el estado colapsado desde el backend.
-  const falloDeRed =
-    comprobante.resultadoPresentacion?.origen === 'TRANSPORTE_INCIERTO' || comprobante.estado === 'SIN_CONFIRMAR' || esErrorDeRed(comprobante);
+  const falloDeRed = comprobante.resultadoPresentacion?.origen !== 'PREPARACION_LOCAL' && (
+    comprobante.resultadoPresentacion?.origen === 'TRANSPORTE_INCIERTO' || comprobante.estado === 'SIN_CONFIRMAR' || esErrorDeRed(comprobante));
 
   const filas: { etiqueta: string; valor: string }[] = [
     {
@@ -79,7 +79,7 @@ export const InvoiceAuditTrail = ({ comprobante, digest, historial, errorHistori
     },
     {
       etiqueta: 'Código CDR',
-      valor: comprobante.resultadoPresentacion?.origen === 'VALIDACION_LOCAL' ? rechazo!.sinCdr : comprobante.cdrCodigo?.trim()
+      valor: ['VALIDACION_LOCAL', 'PREPARACION_LOCAL'].includes(comprobante.resultadoPresentacion?.origen ?? '') ? rechazo!.sinCdr : comprobante.cdrCodigo?.trim()
         ? comprobante.cdrCodigo
         : rechazo ? rechazo.sinCdr : falloDeRed
           // Sin CDR no se afirma que el comprobante nunca llegó a SUNAT.

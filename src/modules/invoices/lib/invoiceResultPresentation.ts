@@ -1,10 +1,20 @@
 export interface ResultadoPresentacion {
-  origen: 'VALIDACION_LOCAL' | 'SUNAT' | 'NO_DETERMINADO' | 'TRANSPORTE_INCIERTO';
+  origen: 'VALIDACION_LOCAL' | 'SUNAT' | 'NO_DETERMINADO' | 'TRANSPORTE_INCIERTO' | 'PREPARACION_LOCAL';
+  categoria?: string;
+  etapa?: string;
+  recuperable?: boolean;
   codigo: string | null;
   motivo: string | null;
 }
 /** Lectura visual separada del estado fiscal persistido. */
 export function lecturaRechazo(resultado?: ResultadoPresentacion) {
+  if (resultado?.origen === 'PREPARACION_LOCAL') return {
+    etiqueta: 'Bloqueado en preparación local',
+    lectura: resultado.recuperable ? 'Preparación local pendiente: revise certificado, configuración o infraestructura y reintente.' : 'Preparación local bloqueada por datos inválidos; revise los datos fiscales.',
+    sinCdr: 'Sin CDR: bloqueo en preparación local',
+    codigo: resultado.codigo ?? 'Preparación local',
+    motivo: resultado.motivo ?? 'Revise la preparación local del comprobante.',
+  };
   if (resultado?.origen === 'VALIDACION_LOCAL') return {
     etiqueta: 'Bloqueado por validación local',
     lectura: 'La validación local bloqueó el comprobante antes de enviarlo a SUNAT.',
