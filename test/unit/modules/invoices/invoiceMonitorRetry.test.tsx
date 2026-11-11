@@ -82,7 +82,7 @@ it('F8 distingue DLQ por bitácora y filtra la misma tabla por estado', async ()
   fireEvent.change(screen.getByLabelText('Filtrar estado del monitor'), { target: { value: 'DLQ' } });
   expect(screen.getByText(dlq.numero)).toBeTruthy(); expect(screen.queryByText(pendiente.numero)).toBeNull(); expect(screen.queryByText(comprobante.numero)).toBeNull();
   expect(screen.getByText('Comprobantes en vuelo (1)')).toBeTruthy();
-  fireEvent.change(screen.getByLabelText('Filtrar estado del monitor'), { target: { value: 'ERROR_RED' } });
+  fireEvent.change(screen.getByLabelText('Filtrar estado del monitor'), { target: { value: 'INCERTIDUMBRE_TRANSPORTE' } });
   expect(screen.getByText(comprobante.numero)).toBeTruthy(); expect(screen.queryByText(dlq.numero)).toBeNull();
 });
 
@@ -124,4 +124,14 @@ it('incertidumbre de transporte muestra motivo y permite conciliar sin llamarlo 
   expect(within(fila).queryByText(/Error de red|No llegó a SUNAT/)).toBeNull();
   fireEvent.click(boton);
   await waitFor(() => expect(invoicesApi.retryCdr).toHaveBeenCalledWith(incierto.id));
+});
+
+it('6c-5 ofrece una opción de incertidumbre que incluye ERROR_RED y la clase explícita',async()=>{
+ const incierto={...comprobante,id:'incierto',clienteRazonSocial:'Fila incierta',resultadoPresentacion:{origen:'TRANSPORTE_INCIERTO' as const,codigo:null,motivo:'Consulta pendiente'}};
+ vi.mocked(invoicesApi.getInvoices).mockImplementation(async(_p,f)=>({data:f?.estado==='ERROR_RED'?[comprobante,incierto]:[],total:2,page:1,pageSize:20,totalPages:1}));
+ render(<InvoiceMonitorPage/>);await screen.findByText('Fila incierta');
+ expect(screen.getAllByRole('option',{name:'Incertidumbre de transporte'})).toHaveLength(1);
+ fireEvent.change(screen.getByLabelText('Filtrar estado del monitor'),{target:{value:'INCERTIDUMBRE_TRANSPORTE'}});
+ expect(screen.getByText('Cliente de prueba')).toBeTruthy();expect(screen.getByText('Fila incierta')).toBeTruthy();
+ expect(invoicesApi.getInvoices).toHaveBeenCalledWith(expect.anything(),expect.objectContaining({estado:'ERROR_RED'}));
 });

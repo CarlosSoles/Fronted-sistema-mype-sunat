@@ -15,6 +15,7 @@ it.each(['07', '08'] as const)('precarga y permite editar las líneas reales en 
   vi.mocked(apiClient.get).mockImplementation(async (url) => ({ data: String(url).endsWith('/saldo') ? { total: 118, devuelto: 0, disponible: 118 } : { ...fila, lineas_origen: [{ codigo: 'MAT-1', descripcion: 'Cemento real', unidad: 'NIU', cantidad: 2, valor_unitario: 50, precio_unitario: 59, afectacion: '10' }] } }) as never);
   const query = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(<QueryClientProvider client={query}><InvoiceEmitModal seriesConfiguradas={seriesConfiguradasPrueba} tipoInicial={tipo} fecha="2026-11-05" existentes={[factura]} onEmitir={vi.fn()} onCerrar={vi.fn()} /></QueryClientProvider>);
+  expect(screen.getByText(/Factura o Boleta aceptada u observada/)).toBeTruthy();
   fireEvent.change(screen.getByLabelText('Documento afectado'), { target: { value: 'F001-00000056' } });
   await waitFor(() => expect((screen.getByLabelText('Descripción de la línea 1') as HTMLInputElement).value).toBe('Cemento real'));
   expect((screen.getByLabelText('Valor unitario de la línea 1') as HTMLInputElement).value).toBe('59.00');
