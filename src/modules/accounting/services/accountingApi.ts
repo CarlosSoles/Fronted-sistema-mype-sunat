@@ -90,6 +90,11 @@ export const accountingApi = {
     });
   },
 
+  getIgvReconciliation: async (period: string) => {
+    const { data } = await apiClient.get('/accounting/reconciliation/igv', { params: { period } });
+    return data as { period: string; sales: { igv: number }; purchases: { igv: number }; expenses: { igv: number }; expected: number; accounting: number; difference: number; reconciled: boolean };
+  },
+
   getTrialBalance: async (period: string): Promise<TrialBalanceResponse> => {
     return cachedGet(`accounting-trial-balance:${period}`, async () => {
       const response = await apiClient.get<TrialBalanceResponse>('/accounting/trial-balance', {
