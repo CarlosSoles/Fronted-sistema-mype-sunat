@@ -26,27 +26,29 @@ export default function InvoicesDashboardPage() {
     { label: 'Facturado neto', value: money(m?.facturado ?? 0), icon: TrendingUp },
     { label: 'Comprobantes registrados (total)', value: m?.total ?? '—', icon: FileText },
     { label: 'Aceptados / observados', value: m?.aceptados ?? 0, icon: CheckCircle2 },
-    { label: 'Pendientes SUNAT', value: m?.pendientes ?? 0, icon: Clock },
+    { label: 'Sin confirmación SUNAT (incluye cola)', value: m?.pendientes ?? 0, icon: Clock },
     { label: 'Rechazados', value: m?.rechazados ?? 0, icon: AlertTriangle },
     { label: 'Tasa de aceptación', value: `${(m?.tasaAceptacion ?? 0).toFixed(1)} %`, icon: Activity },
   ];
 
   return (
     <Page>
-      <PageHeader title="Resumen de facturación" description="Total de documentos del período; neto solo de aceptados/observados: facturas y boletas menos NC más ND" />
+      <PageHeader title="Resumen de facturación" />
+      <p className="min-w-0 whitespace-normal break-words text-sm text-muted-foreground">Total de documentos del período; neto solo de aceptados/observados: facturas y boletas menos NC más notas de débito (ND).</p>
+      <p className="text-xs text-muted-foreground">Sin confirmación incluye comprobantes en cola o enviados sin respuesta definitiva.</p>
       <div className="flex flex-wrap items-end gap-3 mb-5">
         <div className="space-y-1.5">
           <label htmlFor="invoices-dashboard-period" className="text-xs font-medium">Período</label>
           <PeriodInput id="invoices-dashboard-period" value={period} onChange={setPeriod} />
         </div>
         <Badge variant={m && m.rechazados > 0 ? 'destructive' : 'outline'}>
-          {m && m.rechazados > 0 ? 'Requiere revisión' : 'Sin rechazos'}
+          {!m ? metricas.isError ? 'Indicadores no disponibles' : 'Cargando métricas…' : m.rechazados > 0 ? 'Requiere revisión' : 'Sin rechazos'}
         </Badge>
         <Badge
           variant={alertas.data?.gravedadGlobal === 'CRITICO' ? 'destructive' : 'secondary'}
           title={alertas.data ? `${alertas.data.certificado.mensaje} ${alertas.data.dlq.mensaje}` : undefined}
         >
-          Alerta: {alertas.data?.gravedadGlobal ?? 'SIN_DATOS'}
+          {alertas.isPending ? 'Cargando alertas…' : alertas.isError ? 'Alertas no disponibles' : `Alerta: ${alertas.data?.gravedadGlobal ?? 'SIN_DATOS'}`}
           {alertas.data?.gravedadGlobal === 'CRITICO' ? ` · ${motivoAlerta}` : ''}
         </Badge>
       </div>
@@ -55,11 +57,12 @@ export default function InvoicesDashboardPage() {
         {kpis.map(({ label, value, icon: Icon }) => (
           <Card key={label} className="p-4">
             <div className="flex items-center justify-between text-muted-foreground"><span className="text-xs">{label}</span><Icon className="h-4 w-4" /></div>
-            <p className="text-2xl font-bold mt-2">{value}</p>
+            <p className="text-2xl font-bold mt-2">{!m ? metricas.isError ? 'No disponible' : 'Cargando…' : value}</p>
           </Card>
         ))}
       </div>
 
+      {metricas.isError && !m && <p role="alert">No se pudieron cargar los indicadores.</p>}
       {alertas.data && alertas.data.gravedadGlobal !== 'OK' ? (
         <Card className="p-4 mb-5 text-sm">
           <p className="font-semibold mb-1">Alertas operativas</p>

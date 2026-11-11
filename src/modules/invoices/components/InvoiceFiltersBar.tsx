@@ -49,6 +49,7 @@ interface InvoiceFiltersBarProps {
   onFiltrosChange: (filtros: InvoiceFiltros) => void;
   onActualizar: () => void;
   actualizando?: boolean;
+  ultimaActualizacion?: string | null;
   onEmitir: (tipo: TipoEmision) => void;
 }
 
@@ -57,6 +58,7 @@ export const InvoiceFiltersBar = ({
   onFiltrosChange,
   onActualizar,
   actualizando = false,
+  ultimaActualizacion,
   onEmitir,
 }: InvoiceFiltersBarProps) => {
   const [menuAbierto, setMenuAbierto] = useState(false);
@@ -128,6 +130,8 @@ export const InvoiceFiltersBar = ({
           <RefreshCw aria-hidden="true" />
           {actualizando ? 'Actualizando…' : 'Actualizar'}
         </Button>
+
+        {ultimaActualizacion && <span className="text-xs text-muted-foreground">Actualizado a las {ultimaActualizacion}</span>}
 
         <InvoiceEmitMenu
           abierto={menuAbierto}

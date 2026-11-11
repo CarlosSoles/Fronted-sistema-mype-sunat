@@ -48,6 +48,7 @@ export interface ComprobanteOrigenNota {
 }
 
 export interface Invoice {
+  transporteAcreditado?: boolean;
   montoDetraccion?: number | null;
   montoRetencion?: number | null;
   resultadoPresentacion?: ResultadoPresentacion;
@@ -154,6 +155,7 @@ export interface CreateInvoiceDto {
 
 /** Fila del listado tal como la devuelve el backend (TA-29, snake_case). */
 export interface InvoiceListado {
+  transporte_acreditado?: boolean;
   monto_detraccion?: number | null;
   monto_retencion?: number | null;
   resultado_presentacion?: ResultadoPresentacion;

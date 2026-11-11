@@ -24,7 +24,7 @@ function mount() {
 }
 it('carga el GET, presenta origen por grupo y MOCK, sin rellenar secretos', async () => {
   const client = mount();
-  await screen.findByText('Ambiente efectivo: MOCK (simulado)');
+  await screen.findByText('Ambiente efectivo: SIMULADO (pruebas)');
   expect(screen.getByText('Origen efectivo: Configuración guardada de la empresa')).toBeTruthy();
   expect(screen.getByText('Origen SOL: Respaldo del despliegue')).toBeTruthy();
   expect(screen.getByText('Contraseña SOL: configurado')).toBeTruthy();

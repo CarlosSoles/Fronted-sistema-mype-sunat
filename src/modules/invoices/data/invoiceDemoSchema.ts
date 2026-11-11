@@ -73,6 +73,7 @@ export type TipoDocIdentidad = '1' | '6';
 
 /** Fila enriquecida que consume la tabla del módulo. */
 export interface ComprobanteDemo {
+  transporteAcreditado?: boolean;
   resultadoPresentacion?: ResultadoPresentacion;
   id: string;
   /**

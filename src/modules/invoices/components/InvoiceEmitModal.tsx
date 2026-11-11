@@ -1,3 +1,4 @@
+import { XIcon } from 'lucide-react';
 import { problemaSpotMinimo } from '../lib/invoiceDetraccion';
 import { useInvoiceKeyboard } from './useInvoiceKeyboard';
 /**
@@ -22,6 +23,7 @@ import {
   Button,
   Dialog,
   DialogContent,
+  DialogClose,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -78,6 +80,8 @@ import { problemasDeNota } from '../lib/invoiceNotaOrigen';
 
 interface InvoiceEmitModalProps {
   tipoInicial: TipoEmisible;
+  configuracionCargando?: boolean;
+  configuracionError?: boolean;
   seriesConfiguradas?: readonly { document_type: string; series: string; is_active: boolean; current_correlative?: number }[];
   fecha: string;
   /** Comprobantes ya emitidos: de aquí salen el correlativo y las notas. */
@@ -215,6 +219,8 @@ const motivosPendientes = (
 export const InvoiceEmitModal = ({
   tipoInicial,
   seriesConfiguradas = [],
+  configuracionCargando = false,
+  configuracionError = false,
   fecha,
   existentes,
   productos: productosIniciales = [],
@@ -438,7 +444,7 @@ export const InvoiceEmitModal = ({
   const teclado = useInvoiceKeyboard(nuevoItem, () => { void confirmar(); }, enviando);
   return (
     <Dialog open onOpenChange={(abierto) => !abierto && onCerrar()}>
-      <DialogContent onKeyDown={teclado.handler} onEscapeKeyDown={e => e.preventDefault()} className="max-h-[88vh] overflow-y-auto sm:max-w-4xl">
+      <DialogContent showCloseButton={false} onKeyDown={teclado.handler} onEscapeKeyDown={e => e.preventDefault()} className="max-h-[88vh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader className="pr-8">
           <DialogTitle>Emitir Comprobante Electrónico</DialogTitle>
           {teclado.ayuda}
@@ -454,6 +460,8 @@ export const InvoiceEmitModal = ({
         }} />
         <InvoiceEmitCampos
           borrador={b}
+          configuracionCargando={configuracionCargando}
+          configuracionError={configuracionError}
           series={seriesDelTipo}
           correlativoActual={seriesConfiguradas.find(s => s.document_type === b.tipo && s.series === b.serie && s.is_active)?.current_correlative}
           actualizar={actualizar}
@@ -547,6 +555,7 @@ export const InvoiceEmitModal = ({
             {enviando ? 'Emitiendo…' : `Emitir ${nombreDocumento}`}
           </Button>
         </DialogFooter>
+        <DialogClose asChild><Button type="button" variant="ghost" size="icon-sm" className="absolute top-2 right-2" aria-label="Cerrar"><XIcon aria-hidden="true" /><span className="sr-only">Cerrar</span></Button></DialogClose>
       </DialogContent>
     </Dialog>
   );

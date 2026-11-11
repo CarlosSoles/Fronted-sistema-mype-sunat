@@ -6,6 +6,7 @@ export function useInvoiceRefresh() {
  const client = useQueryClient();
  const lock = useRef(false);
  const [actualizando, setActualizando] = useState(false);
+ const [ultimaActualizacion, setUltimaActualizacion] = useState<string | null>(null);
  const [resultado, setResultado] = useState<{ ok: boolean; mensaje: string } | null>(null);
  const actualizar = async () => {
   if (lock.current) return;
@@ -20,9 +21,11 @@ export function useInvoiceRefresh() {
     client.invalidateQueries({ queryKey: ['invoices-dashboard-metrics'] }),
     client.invalidateQueries({ queryKey: ['invoices', 'metrics'] }),
    ]);
-   setResultado({ ok: true, mensaje: 'Lista y contadores actualizados desde el servidor.' });
+   const hora = new Intl.DateTimeFormat('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }).format(new Date());
+   setUltimaActualizacion(hora);
+   setResultado({ ok: true, mensaje: `Actualizado a las ${hora}` });
   } catch { setResultado({ ok: false, mensaje: 'No se pudo actualizar desde el servidor. Los datos anteriores no confirman el estado actual.' }); }
   finally { lock.current = false; setActualizando(false); }
  };
- return { actualizar, actualizando, resultado };
+ return { actualizar, actualizando, resultado, ultimaActualizacion };
 }

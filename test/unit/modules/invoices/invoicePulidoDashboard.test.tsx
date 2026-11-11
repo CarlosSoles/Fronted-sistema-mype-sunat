@@ -21,3 +21,11 @@ it('transporta el total explícito y no inventa un total para un contrato antigu
   expect(normalizarMetricas({ total: 8, emitidos: 6 }).total).toBe(8);
   expect(normalizarMetricas({ emitidos: 6 }).total).toBeUndefined();
 });
+
+it('6c-3 texto completo y contador rotulado sin cambiar su cifra', async () => {
+ const q = new QueryClient({defaultOptions:{queries:{retry:false,gcTime:0}}});
+ render(<QueryClientProvider client={q}><MemoryRouter><InvoicesDashboardPage/></MemoryRouter></QueryClientProvider>);
+ await screen.findByText('8');
+ expect(screen.getByText(/menos NC más notas de débito \(ND\)/)).toBeTruthy();
+ expect(screen.getByText('Sin confirmación SUNAT (incluye cola)').parentElement?.parentElement?.textContent).toContain('2');q.clear();
+});

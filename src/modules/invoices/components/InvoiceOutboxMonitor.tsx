@@ -1,3 +1,4 @@
+import { numeroVisible } from '../lib/invoiceVisibleNumber';
 /**
  * Panel del Monitor Outbox y Auditoría CDR (pestaña 4, M1).
  *
@@ -87,7 +88,7 @@ export const InvoiceOutboxMonitor = ({
           {pendientes.length > 0 ? (
             pendientes.map((c) => (
               <PageText key={c.id} variant="caption">
-                {c.serie}-{c.correlativo} · en espera desde{' '}
+                {numeroVisible(c.serie, c.correlativo)} · en espera desde{' '}
                 {c.fechaEmision}
               </PageText>
             ))
