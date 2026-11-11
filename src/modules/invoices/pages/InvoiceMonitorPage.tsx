@@ -71,7 +71,7 @@ export default function InvoiceMonitorPage() {
   const [alertas, setAlertas] = useState<AlertasOperativas | null>(null);
   const [enVuelo, setEnVuelo] = useState<readonly Invoice[]>([]);
   const [filtroEstado, setFiltroEstado] = useState('TODOS');
-  const visibles = enVuelo.filter((inv) => filtroEstado === 'TODOS' || estadoDeMonitor(inv) === filtroEstado);
+  const visibles = enVuelo.filter((inv) => filtroEstado === 'TODOS' || (filtroEstado === 'INCERTIDUMBRE_TRANSPORTE' ? ['ERROR_RED', 'INCERTIDUMBRE_TRANSPORTE'].includes(estadoDeMonitor(inv)) : estadoDeMonitor(inv) === filtroEstado));
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reintentando, setReintentando] = useState<string | null>(null);
@@ -252,7 +252,7 @@ export default function InvoiceMonitorPage() {
           Estado de los comprobantes en vuelo
           <select aria-label="Filtrar estado del monitor" value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)} className="ml-2 rounded border bg-background p-2">
             <option value="TODOS">Todos los estados</option>
-            {[...ESTADOS_EN_VUELO, 'DLQ', 'INCERTIDUMBRE_TRANSPORTE'].map((estado) => <option key={estado} value={estado}>{['ERROR_RED', 'INCERTIDUMBRE_TRANSPORTE'].includes(estado) ? 'Incertidumbre de transporte' : estado}</option>)}
+            {[...ESTADOS_EN_VUELO.filter(e => e !== 'ERROR_RED'), 'DLQ', 'INCERTIDUMBRE_TRANSPORTE'].map((estado) => <option key={estado} value={estado}>{['ERROR_RED', 'INCERTIDUMBRE_TRANSPORTE'].includes(estado) ? 'Incertidumbre de transporte' : estado}</option>)}
           </select>
         </label>
         <Table>

@@ -127,6 +127,7 @@ export default function InvoiceEmissionPage() {
   );
 
   const [seriesConfiguradas, setSeriesConfiguradas] = useState<NonNullable<ConfiguracionBackend['series']>>([]);
+  const [estadoConfiguracion, setEstadoConfiguracion] = useState<'cargando' | 'listo' | 'error'>('cargando');
   const [serieElegida, setSerieElegida] = useState('');
   const seriesDelTipo = seriesConfiguradas.filter(s => s.document_type === tipo && s.is_active);
   const serieActual = seriesDelTipo.find(s => s.series === serieElegida)?.series ?? seriesDelTipo[0]?.series ?? '';
@@ -138,9 +139,10 @@ export default function InvoiceEmissionPage() {
         if (!vivo) return;
         const sugerido = tipoComprobantePorPerfil(data?.perfil_comercial);
         setSeriesConfiguradas(data.series ?? []);
+        setEstadoConfiguracion('listo');
         if (sugerido && tipoQuery !== '01' && tipoQuery !== '03') setTipo(sugerido);
       })
-      .catch(() => {});
+      .catch(() => { if (vivo) setEstadoConfiguracion('error'); });
     return () => {
       vivo = false;
     };
@@ -547,10 +549,10 @@ export default function InvoiceEmissionPage() {
                   </select>
                   <label htmlFor="serie-cpe">Serie configurada</label>
                   <select id="serie-cpe" value={serieActual} onChange={e => setSerieElegida(e.target.value)} className="h-9 w-full rounded-md border bg-background px-3 text-sm">
-                    {!seriesDelTipo.length && <option value="">Sin serie activa</option>}
+                    {!seriesDelTipo.length && <option value="">{estadoConfiguracion === 'cargando' ? 'Cargando configuración…' : estadoConfiguracion === 'error' ? 'No se pudo cargar la configuración' : 'Sin serie activa'}</option>}
                     {seriesDelTipo.map(s => <option key={s.series} value={s.series}>{s.series}</option>)}
                   </select>
-                  <InvoiceNextNumber serie={serieActual} actual={seriesDelTipo.find(s => s.series === serieActual)?.current_correlative} />
+                  <InvoiceNextNumber cargando={estadoConfiguracion === 'cargando'} error={estadoConfiguracion === 'error'} serie={serieActual} actual={seriesDelTipo.find(s => s.series === serieActual)?.current_correlative} />
                 </div>
 
                 {/*
