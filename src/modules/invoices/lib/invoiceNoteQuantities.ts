@@ -16,3 +16,23 @@ export function limitesNota(items: readonly ItemBorrador[], cantidades: readonly
   const errores = items.flatMap((item, i) => item.cantidad > maximos[i] ? [`La línea ${i + 1} supera las unidades disponibles del origen para ${item.codigo || 'el producto'} (máximo ${maximos[i]}).`] : []);
   return { maximos, errores };
 }
+
+/** Precarga determinista por orden del origen; no cambia precios ni muta las líneas recibidas. */
+export function precargarCantidadesNota(items: readonly ItemBorrador[], cantidades: readonly CantidadNota[], motivo: string): ItemBorrador[] {
+  const devuelve = ['01', '06', '07'].includes(motivo);
+  const pools = new Map(cantidades.map(c => [c.codigo, new Decimal(devuelve ? c.pendiente : c.original)]));
+  const prorratear = (monto: number, cantidad: number, original: number) => new Decimal(monto).times(cantidad).div(original).toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toNumber();
+  return items.flatMap(item => {
+    const sku = item.codigo.trim();
+    const pool = pools.get(sku) ?? new Decimal(0);
+    const cantidad = Decimal.min(pool, item.cantidad).toNumber();
+    if (cantidad <= 0) return [];
+    pools.set(sku, pool.minus(cantidad));
+    if (cantidad === item.cantidad) return [item];
+    const monto = item.descuento ? prorratear(item.descuento.monto, cantidad, item.cantidad) : 0;
+    return [{ ...item, cantidad,
+      descuento: item.descuento && monto > 0 ? { ...item.descuento, monto } : null,
+      icbper: prorratear(item.icbper, cantidad, item.cantidad),
+    }];
+  });
+}
