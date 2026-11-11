@@ -1,3 +1,5 @@
+import { extractApiErrorMessage } from '@/lib/apiErrors';
+
 /** Una instancia por formulario: el mismo cuerpo conserva la clave hasta el éxito. */
 export function crearIntentoEmision() {
   let pendiente: { cuerpo: string; clave: string } | undefined;
@@ -14,8 +16,14 @@ export function crearIntentoEmision() {
 }
 
 export function mensajeErrorEmision(error: unknown): string {
-  if ((error as { response?: { status?: number } })?.response?.status === 409) {
+  const respuesta = (error as { response?: { status?: number; data?: { code?: unknown } } })?.response;
+  const fallback = respuesta?.status === 409
+    ? 'Conflicto de emisión (409). Revisa el estado del comprobante y los datos del formulario.'
+    : 'No se pudo completar la solicitud de emisión.';
+  const mensaje = extractApiErrorMessage(error, fallback);
+  const codigo = 'IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_BODY';
+  if (respuesta?.status === 409 && (respuesta.data?.code === codigo || mensaje === codigo)) {
     return 'Conflicto de emisión (409): la clave de este intento ya se usó con otros datos. Tus datos se conservan. Verifica si el comprobante ya fue creado antes de iniciar uno nuevo.';
   }
-  return error instanceof Error ? error.message : 'Error desconocido';
+  return mensaje;
 }
