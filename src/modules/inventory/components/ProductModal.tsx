@@ -294,6 +294,14 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     }
   };
 
+  const onInvalid = (errores: Record<string, { message?: string }>) => {
+    setServerError('Revisa los campos obligatorios marcados en el formulario.');
+    if (errores.sku || errores.description || errores.sunat_unit_code) setActiveTab('general');
+    else if (errores.barcode || errores.hs_code || errores.weight_kg || errores.volume_m3) setActiveTab('origin');
+    else if (errores.presentations) setActiveTab('presentations');
+    else if (errores.variants) setActiveTab('variants');
+  };
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -336,7 +344,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
             </Alert>
           )}
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-4">
             {/* SELECTOR DE ORIGEN (OBS 3: DIFERENCIAR NACIONAL VS IMPORTADO) */}
             <div className="grid grid-cols-2 gap-2 p-1.5 bg-muted/40 rounded-lg border">
               <button
@@ -612,7 +620,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div>
                         <label className="font-medium text-foreground text-[11px]">
-                          Partida Arancelaria (Subpartida Nal. 10 dígitos) *
+                          Partida Arancelaria (Subpartida Nal. 10 dígitos)
                         </label>
                         <Input
                           placeholder="ej: 8481.80.90.00"
@@ -654,6 +662,15 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                           {...register('volume_m3', { valueAsNumber: true })}
                           className="mt-1 h-8 text-xs font-mono"
                         />
+                      </div>
+                      <div>
+                        <label className="font-medium text-foreground text-[11px]">Código de Barras Comercial</label>
+                        <Input
+                          placeholder="8, 12 o 13 dígitos"
+                          {...register('barcode')}
+                          className="mt-1 h-8 text-xs font-mono"
+                        />
+                        {errors.barcode && <p className="text-destructive text-[11px] mt-0.5">{errors.barcode.message}</p>}
                       </div>
                     </div>
                   </div>

@@ -41,5 +41,15 @@ describe('productSchema', () => {
     const res = productSchema.safeParse(invalid);
     expect(res.success).toBe(false);
   });
+
+  it('acepta código de barras EAN-13 de 13 dígitos', () => {
+    const res = productSchema.safeParse({ sku: 'LAP-001', description: 'Laptop Gamer', barcode: '7751234567890' });
+    expect(res.success).toBe(true);
+  });
+
+  it('rechaza código de barras con longitud inválida', () => {
+    const res = productSchema.safeParse({ sku: 'LAP-001', description: 'Laptop Gamer', barcode: '12345' });
+    expect(res.success).toBe(false);
+  });
 });
 
