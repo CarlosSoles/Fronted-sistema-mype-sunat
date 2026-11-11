@@ -135,3 +135,17 @@ it('6c-5 ofrece una opción de incertidumbre que incluye ERROR_RED y la clase ex
  expect(screen.getByText('Cliente de prueba')).toBeTruthy();expect(screen.getByText('Fila incierta')).toBeTruthy();
  expect(invoicesApi.getInvoices).toHaveBeenCalledWith(expect.anything(),expect.objectContaining({estado:'ERROR_RED'}));
 });
+
+it('preparación local conserva Reintentar y no entra al filtro de incertidumbre', async () => {
+  const local = { ...comprobante, resultadoPresentacion: { origen: 'PREPARACION_LOCAL' as const, codigo: 'M1_PREPARATION_DATOS_INVALIDOS', motivo: 'Datos inválidos', recuperable: false } };
+  vi.mocked(invoicesApi.getInvoices).mockImplementation(async (_page, filtros) => ({ data: filtros?.estado === 'ERROR_RED' ? [local] : [], total: 1, page: 1, pageSize: 20, totalPages: 1 }));
+  render(<InvoiceMonitorPage />);
+  await screen.findByRole('button', { name: 'Reintentar' });
+  const row = screen.getByText(local.numero).closest('tr')!;
+  expect(within(row).getByText('Bloqueado en preparación local')).toBeTruthy();
+  expect(within(row).getByText('Datos inválidos')).toBeTruthy();
+  fireEvent.change(screen.getByLabelText('Filtrar estado del monitor'), { target: { value: 'INCERTIDUMBRE_TRANSPORTE' } });
+  expect(screen.queryByText(local.numero)).toBeNull();
+  fireEvent.change(screen.getByLabelText('Filtrar estado del monitor'), { target: { value: 'PREPARACION_LOCAL' } });
+  expect(screen.getByText(local.numero)).toBeTruthy();
+});
