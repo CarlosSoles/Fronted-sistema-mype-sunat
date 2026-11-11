@@ -21,6 +21,7 @@ export default function AccountingDashboardPage() {
   const entries = useQuery({ queryKey: ['accounting-dashboard-entries', period], queryFn: () => accountingApi.getEntries(period) });
   const accounts = useQuery({ queryKey: ['accounting-accounts'], queryFn: () => accountingApi.getAccounts() });
   const periods = useQuery({ queryKey: ['accounting-periods'], queryFn: () => accountingApi.getPeriods() });
+  const igv = useQuery({ queryKey: ['accounting-igv-reconciliation', period], queryFn: () => accountingApi.getIgvReconciliation(period) });
 
   const cuadrado = Math.abs((balance.data?.totalDebit ?? 0) - (balance.data?.totalCredit ?? 0)) < 0.01;
   const periodoAbierto = periods.data?.find((p) => p.period === period)?.status === 'ABIERTO';
@@ -73,6 +74,7 @@ export default function AccountingDashboardPage() {
           </Link>
         ))}
       </div>
+      {igv.data ? <Card className={`p-4 mb-4 text-sm ${igv.data.reconciled ? 'text-emerald-600' : 'text-destructive'}`}>IGV {igv.data.period}: ventas {money(igv.data.sales.igv)} · compras/gastos {money(igv.data.purchases.igv + igv.data.expenses.igv)} · contable {money(igv.data.accounting)} · diferencia {money(igv.data.difference)} · {igv.data.reconciled ? 'conciliado' : 'revisar'}</Card> : null}
     </Page>
   );
 }
