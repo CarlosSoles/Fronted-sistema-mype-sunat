@@ -20,6 +20,7 @@ import {
   baseDesdeTotal,
   calcularLinea,
   round2,
+  multiplyMoney,
   type AfectacionIgv,
   type LineaComprobante,
 } from './invoiceTaxes';
@@ -129,12 +130,12 @@ export const calcularItem = (item: ItemBorrador): TotalesItem => {
       : 0;
 
   const totalBrutoConIgv = tienePrecioConIgv
-    ? round2(cantidad * precioFinalUnitario)
+    ? multiplyMoney(cantidad, precioFinalUnitario)
     : null;
   const baseBruta =
-    tienePrecioConIgv && item.afectacion === 'GRAVADA'
-      ? baseDesdeTotal(totalBrutoConIgv!)
-      : round2(cantidad * valor);
+    tienePrecioConIgv
+      ? item.afectacion === 'GRAVADA' ? baseDesdeTotal(totalBrutoConIgv!) : totalBrutoConIgv!
+      : multiplyMoney(cantidad, valor);
 
   const linea = calcularLinea({
     base: round2(Math.max(0, baseBruta - (item.descuento?.codigo === '00' ? item.descuento.monto : 0))),
@@ -144,10 +145,10 @@ export const calcularItem = (item: ItemBorrador): TotalesItem => {
   // Regla 3278: la gratuita se declara en cero aunque tenga valor referencial.
   const esGratuita = item.afectacion === 'GRATUITA';
   const base = esGratuita ? 0 : linea.base;
-  const sinDescuentoAfecto = !item.descuento || item.descuento.codigo !== '00';
+  const sinDescuento = !item.descuento;
   const igv = esGratuita
     ? 0
-    : tienePrecioConIgv && item.afectacion === 'GRAVADA' && sinDescuentoAfecto
+    : tienePrecioConIgv && item.afectacion === 'GRAVADA' && sinDescuento
       ? round2(totalBrutoConIgv! - base)
       : linea.igv;
   const icbper = Number.isFinite(item.icbper) ? Math.max(0, item.icbper) : 0;
@@ -336,7 +337,7 @@ export const itemBolsa = (
   cantidad,
   valorUnitario,
   afectacion: 'GRAVADA',
-  icbper: round2(cantidad * ICBPER_POR_UNIDAD),
+  icbper: multiplyMoney(cantidad, ICBPER_POR_UNIDAD),
 });
 
 /**
@@ -369,7 +370,7 @@ export const sincronizarIcbper = (item: ItemBorrador): ItemBorrador => {
   if (!esLineaBolsa(item)) return item;
 
   const cantidad = Number.isFinite(item.cantidad) ? Math.max(0, item.cantidad) : 0;
-  return { ...item, icbper: round2(cantidad * ICBPER_POR_UNIDAD) };
+  return { ...item, icbper: multiplyMoney(cantidad, ICBPER_POR_UNIDAD) };
 };
 
 /**
