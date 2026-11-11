@@ -8,6 +8,9 @@ export default function CollectionsPage() {
   const { data = [], isLoading } = useQuery({ queryKey: ['collections'], queryFn: collectionsApi.list });
   const cartera = useQuery({ queryKey: ['collections-receivables'], queryFn: collectionsApi.receivables });
   const [facturaId, setFacturaId] = useState('');
+  const [docEstado, setDocEstado] = useState('');
+  const [docConsultado, setDocConsultado] = useState('');
+  const estado = useQuery({ queryKey: ['collections-statement', docConsultado], queryFn: () => collectionsApi.statement(docConsultado), enabled: Boolean(docConsultado) });
   const factura = (cartera.data ?? []).find((f) => f.id === facturaId);
   const [form, setForm] = useState({ customerName: '', customerDoc: '', invoiceNumber: '', amount: '', date: new Date().toISOString().slice(0, 10), method: 'TRANSFERENCIA', bank: '' });
   const [error, setError] = useState<string | null>(null);
@@ -30,5 +33,13 @@ export default function CollectionsPage() {
       {!isLoading && data.length === 0 ? <TableRow><TableCell colSpan={7}>Sin cobros registrados.</TableCell></TableRow> : null}
       {data.map((c) => <TableRow key={c.id}><TableCell>{new Date(c.collection_date).toLocaleDateString('es-PE')}</TableCell><TableCell>{c.customer_name}</TableCell><TableCell>{c.invoice_number ?? '—'}</TableCell><TableCell>{c.payment_method}</TableCell><TableCell>{c.status}</TableCell><TableCell align="right">{money(c.amount)}</TableCell><TableCell align="right">{c.status !== 'ANULADO' ? <Button size="sm" variant="ghost" onClick={() => { if (window.confirm('¿Anular este cobro?')) anular.mutate(c.id); }}>Anular</Button> : null}</TableCell></TableRow>)}
     </TableBody></Table></Card>
+<Card className="p-4 mt-5 space-y-3">
+        <p className="font-semibold text-sm">Estado de cuenta por cliente</p>
+        <div className="flex gap-2 items-end"><label className="text-xs flex-1">RUC / DNI<Input value={docEstado} inputMode="numeric" onChange={(e) => setDocEstado(e.target.value.replace(/\D/g, '').slice(0, 11))} /></label><Button variant="outline" onClick={() => setDocConsultado(docEstado)} disabled={!docEstado}>Consultar</Button></div>
+        {estado.data ? <div className="space-y-3">
+          <div className="grid gap-2 sm:grid-cols-4 text-xs"><span>Total: <strong>S/ {estado.data.totals.total.toFixed(2)}</strong></span><span>NC: <strong>S/ {estado.data.totals.credited.toFixed(2)}</strong></span><span>Cobrado: <strong>S/ {estado.data.totals.paid.toFixed(2)}</strong></span><span>Saldo: <strong>S/ {estado.data.totals.balance.toFixed(2)}</strong></span></div>
+          <Table><TableHeader><TableRow><TableHead>Factura</TableHead><TableHead>Fecha</TableHead><TableHead align="right">Total</TableHead><TableHead align="right">NC</TableHead><TableHead align="right">Cobrado</TableHead><TableHead align="right">Saldo</TableHead></TableRow></TableHeader><TableBody>{estado.data.invoices.map((f) => <TableRow key={f.id}><TableCell>{f.numero}</TableCell><TableCell>{new Date(f.date).toLocaleDateString('es-PE')}</TableCell><TableCell align="right">{money(f.total)}</TableCell><TableCell align="right">{money(f.credited)}</TableCell><TableCell align="right">{money(f.paid)}</TableCell><TableCell align="right">{money(f.balance)}</TableCell></TableRow>)}</TableBody></Table>
+        </div> : docConsultado ? <p className="text-xs text-muted-foreground">Sin facturas para ese documento.</p> : null}
+      </Card>
   </Page>;
 }
