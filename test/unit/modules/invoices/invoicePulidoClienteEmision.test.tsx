@@ -20,7 +20,10 @@ beforeEach(() => {
   vi.mocked(invoicesApi.emitirComprobante).mockResolvedValue({ numero: 'F001-66', monto_total: 118, lineas: [], avisos: [] } as never);
 });
 afterEach(() => { cleanup(); clients.splice(0).forEach(c => c.clear()); vi.resetAllMocks(); });
-it.each(['pagina', 'modal'].flatMap(via => ['clic', 'teclado', 'texto-sin-confirmar'].map(modo => [via, modo])))('%s: %s vincula documento/nombre al payload del PRIMER intento sin reescribirlos', async (via, modo) => {
+// El caso "texto-sin-confirmar" espera el debounce de búsqueda (300 ms) además
+// del tipeo. Bajo carga, el timeout global de 5 s se queda corto y el test falla
+// sin que exista un error funcional. Se le da un margen propio.
+it.each(['pagina', 'modal'].flatMap(via => ['clic', 'teclado', 'texto-sin-confirmar'].map(modo => [via, modo])))('%s: %s vincula documento/nombre al payload del PRIMER intento sin reescribirlos', { timeout: 15000 }, async (via, modo) => {
   const usuario = userEvent.setup(); const q = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } }); clients.push(q);
   render(<QueryClientProvider client={q}><MemoryRouter>{via === 'pagina' ? <InvoiceEmissionPage /> : <InvoiceEmitModal tipoInicial="01" seriesConfiguradas={seriesConfiguradasPrueba} fecha={hoyEnLima()} existentes={[]} onEmitir={vi.fn()} onCerrar={vi.fn()} />}</MemoryRouter></QueryClientProvider>);
   if (via === 'pagina') await waitFor(() => expect((screen.getByLabelText('Serie configurada') as HTMLSelectElement).value).toBe('F001'));
