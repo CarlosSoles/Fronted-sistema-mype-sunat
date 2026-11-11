@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Input, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui';
 import { masterDataApi, type BusinessPartnerRecord, type PartnerRole } from '../services/masterDataApi';
 import { enqueuePartnerCreate } from '@/lib/outbox';
+import { apiClient } from '@/lib/axios';
 
 export const PARTNER_ROLES: PartnerRole[] = ['CLIENTE', 'PROVEEDOR', 'IMPORTADOR', 'AGENTE', 'TRANSPORTISTA'];
 export const partnerApiError = (error: unknown): string => {
@@ -40,7 +41,27 @@ export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PR
   const [roles, setRoles] = useState<PartnerRole[]>(partner ? [...partner.roles] : [initialRole]);
   const [error, setError] = useState('');
   const [existing, setExisting] = useState<BusinessPartnerRecord | null>(null);
+  const [retencion, setRetencion] = useState(false);
+  const [percepcion, setPercepcion] = useState(false);
+  useQuery({
+    queryKey: ['master-data', 'partner-tax-status', 'form', partner?.id],
+    enabled: Boolean(partner?.id),
+    queryFn: async () => {
+      const { data } = await apiClient.get<Array<{ indicator: string; value: boolean }>>(`/master-data/partners/${partner!.id}/tax-status`);
+      setRetencion(data.find((x) => x.indicator === 'RETENCION')?.value ?? false);
+      setPercepcion(data.find((x) => x.indicator === 'PERCEPCION')?.value ?? false);
+      return data;
+    },
+  });
   const toggleRole = (role: PartnerRole) => setRoles((prev) => prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]);
+  const guardarIndicadores = async (partnerId: string) => {
+    const hoy = new Date().toISOString().slice(0, 10);
+    await Promise.all([
+      apiClient.put(`/master-data/partners/${partnerId}/tax-status`, { indicator: 'RETENCION', value: retencion, validFrom: hoy, source: 'MANUAL' }),
+      apiClient.put(`/master-data/partners/${partnerId}/tax-status`, { indicator: 'PERCEPCION', value: percepcion, validFrom: hoy, source: 'MANUAL' }),
+    ]);
+  };
+
   const save = useMutation({
     mutationFn: async (addRole: boolean) => {
       if (addRole && existing && requiredRole) {
@@ -77,8 +98,11 @@ export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PR
         throw error;
       }
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       if (!data) return;
+      if (!('offline' in data) && data.id) {
+        try { await guardarIndicadores(data.id); } catch { /* el tercero ya se guardó; el indicador se puede reintentar */ }
+      }
       void queryClient.invalidateQueries({ queryKey: ['master-data', 'partners'] });
       void queryClient.invalidateQueries({ queryKey: ['master-data', 'partner'] });
       void queryClient.invalidateQueries({ queryKey: ['master-data', 'partner-tax-status'] });
@@ -201,6 +225,13 @@ export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PR
             </div>
             {partner && <label>Estado<select aria-label="Estado" value={form.isActive ? '1' : '0'} onChange={(e) => setForm({ ...form, isActive: e.target.value === '1' })}><option value="1">Activo</option><option value="0">Inactivo</option></select></label>}
           </div>
+
+      <div className="space-y-2 rounded-md border p-3 text-xs">
+        <p className="font-medium">Indicadores tributarios</p>
+        {roles.includes('CLIENTE') ? <label className="flex items-center gap-2"><input type="checkbox" checked={retencion} onChange={(e) => setRetencion(e.target.checked)} />Cliente es agente de retención del IGV (3 %)</label> : null}
+        {roles.includes('PROVEEDOR') ? <label className="flex items-center gap-2"><input type="checkbox" checked={percepcion} onChange={(e) => setPercepcion(e.target.checked)} />Proveedor es agente de percepción del IGV (2 %)</label> : null}
+        {!roles.includes('CLIENTE') && !roles.includes('PROVEEDOR') ? <p className="text-muted-foreground">Seleccione CLIENTE o PROVEEDOR para configurar indicadores.</p> : null}
+      </div>
 
       <DialogFooter>
         <Button variant="outline" disabled={save.isPending} onClick={onClose}>Cancelar</Button>
