@@ -27,6 +27,7 @@ const InvoiceSettingsPage = React.lazy(() => import('@/modules/invoices/pages/In
 const InvoiceBajasPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceBajasPage'));
 const InvoiceMonitorPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceMonitorPage'));
 const SalesReportPage = React.lazy(() => import('@/modules/invoices/pages/SalesReportPage'));
+const InvoiceDetractionsPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceDetractionsPage'));
 const CustomsDashboardPage = React.lazy(() => import('@/modules/customs/pages/CustomsDashboardPage'));
 const ImportOrdersPage = React.lazy(() => import('@/modules/customs/pages/ImportOrdersPage'));
 const ShipmentsListPage = React.lazy(() => import('@/modules/customs/pages/ShipmentsListPage'));
@@ -109,6 +110,14 @@ export const AppRoutes = () => {
               element={
                 <RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT']}>
                   <InvoicesDashboardPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/invoices/detracciones"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <InvoiceDetractionsPage />
                 </RoleProtectedRoute>
               }
             />
