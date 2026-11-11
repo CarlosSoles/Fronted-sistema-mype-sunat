@@ -71,6 +71,11 @@ export const accountingApi = {
     return response.data;
   },
 
+  closeAnnual: async (year: number): Promise<{ closingEntryCreated: boolean; periods: AccountingPeriod[] }> => {
+    const { data } = await apiClient.post(`/accounting/periods/year/${year}/close-annual`);
+    return data;
+  },
+
   closeFiscalYear: async (year: number): Promise<AccountingPeriod[]> => {
     const response = await apiClient.post<AccountingPeriod[]>(`/accounting/periods/year/${year}/close`);
     return response.data;
