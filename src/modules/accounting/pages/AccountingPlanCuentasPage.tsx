@@ -82,6 +82,8 @@ export default function AccountingPlanCuentasPage() {
     queryFn: () => accountingApi.getAccounts(),
   });
 
+  const padresPosibles = useMemo(() => accounts.filter((a) => a.code.length < nueva.code.length && nueva.code.startsWith(a.code)).sort((a, b) => b.code.length - a.code.length), [accounts, nueva.code]);
+  const padreExiste = !nueva.code || nueva.code.length === 1 || accounts.some((a) => a.code === nueva.parentCode);
   const tree = useMemo(() => buildTree(accounts), [accounts]);
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -231,12 +233,19 @@ export default function AccountingPlanCuentasPage() {
         <DialogContent>
           <DialogHeader><DialogTitle>Nueva subcuenta PCGE</DialogTitle><DialogDescription>Agrega una divisionaria al catálogo. El código padre debe existir.</DialogDescription></DialogHeader>
           <div className="space-y-3 py-2">
-            <div className="space-y-1.5"><label className="text-xs font-medium">Código</label><Input value={nueva.code} onChange={(e) => setNueva({ ...nueva, code: e.target.value })} placeholder="2011101" /></div>
+            <div className="space-y-1.5"><label className="text-xs font-medium">Código</label><Input value={nueva.code} inputMode="numeric" onChange={(e) => { const code = e.target.value.replace(/\D/g, ""); setNueva({ ...nueva, code, parentCode: code.length > 1 ? code.slice(0, -1) : "" }); }} placeholder="2011101" /></div>
             <div className="space-y-1.5"><label className="text-xs font-medium">Nombre</label><Input value={nueva.name} onChange={(e) => setNueva({ ...nueva, name: e.target.value })} placeholder="Almacén principal" /></div>
-            <div className="space-y-1.5"><label className="text-xs font-medium">Cuenta padre (opcional)</label><Input value={nueva.parentCode} onChange={(e) => setNueva({ ...nueva, parentCode: e.target.value })} placeholder="20111" /></div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">Cuenta padre</label>
+              <select className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={nueva.parentCode} onChange={(e) => setNueva({ ...nueva, parentCode: e.target.value })}>
+                <option value="">Sin padre (cuenta raíz)</option>
+                {padresPosibles.map((a) => <option key={a.code} value={a.code}>{a.code} · {a.name}</option>)}
+              </select>
+              {nueva.code.length > 1 && !padreExiste ? <p className="text-xs text-destructive">No existe la cuenta padre {nueva.parentCode}. Créala primero.</p> : null}
+            </div>
             {errorAlta ? <p className="text-xs text-destructive">{errorAlta}</p> : null}
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setAbrirAlta(false)}>Cancelar</Button><Button onClick={() => crear.mutate()} disabled={crear.isPending || !nueva.code || !nueva.name}>{crear.isPending ? 'Creando…' : 'Crear cuenta'}</Button></DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => setAbrirAlta(false)}>Cancelar</Button><Button onClick={() => crear.mutate()} disabled={crear.isPending || !nueva.code || !nueva.name || !padreExiste}>{crear.isPending ? 'Creando…' : 'Crear cuenta'}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </Page>
