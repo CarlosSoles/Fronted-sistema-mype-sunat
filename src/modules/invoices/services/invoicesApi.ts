@@ -103,6 +103,7 @@ export const invoicesApi = {
   getInvoices: async (
     page = 1,
     filtros: FiltrosInvoices = {},
+    forzarRed = false,
   ): Promise<{
     data: Invoice[];
     total: number;
@@ -118,10 +119,11 @@ export const invoicesApi = {
       }
     }
 
-    return cachedGet(`invoices:${JSON.stringify(params)}`, async () => {
+    const leerRed = async () => {
       const response = await apiClient.get<PaginaBackend>('/invoices', { params });
       return aPaginaInvoices(response.data);
-    });
+    };
+    return forzarRed ? leerRed() : cachedGet(`invoices:${JSON.stringify(params)}`, leerRed);
   },
 
   getInvoiceById: async (id: string): Promise<Invoice> => {
