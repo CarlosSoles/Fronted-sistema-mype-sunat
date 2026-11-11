@@ -28,6 +28,7 @@ import { MOTIVOS_NC, MOTIVOS_ND } from './invoiceEmitValidation';
 
 /** Fila del backend tal como llega por HTTP. */
 export interface ComprobanteBackend {
+  transporte_acreditado?: boolean;
   monto_detraccion?: number | null;
   monto_retencion?: number | null;
   resultado_presentacion?: ResultadoPresentacion;
@@ -244,6 +245,7 @@ export const aInvoice = (fila: ComprobanteBackend): Invoice => {
     total,
     montoDetraccion: fila.monto_detraccion ?? null,
     montoRetencion: fila.monto_retencion ?? null,
+    transporteAcreditado: fila.transporte_acreditado === true,
     resultadoPresentacion: fila.resultado_presentacion,
     cdrStatus: aCdrStatus(fila.estado),
     cdrCodigo: fila.cdr_codigo ?? undefined,

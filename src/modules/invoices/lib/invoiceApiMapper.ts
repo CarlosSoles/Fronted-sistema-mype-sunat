@@ -59,6 +59,7 @@ function fechaLocal(iso: string): string {
  */
 /** Datos del comprobante que la grilla necesita, ya sin depender del contrato. */
 interface FilaComprobante {
+  transporteAcreditado?: boolean;
   montoDetraccion?: number | null;
   montoRetencion?: number | null;
   resultadoPresentacion?: ResultadoPresentacion;
@@ -91,6 +92,7 @@ const esInvoiceNormalizado = (item: Invoice | InvoiceListado): item is Invoice =
 const desdeNormalizado = (item: Invoice): FilaComprobante => ({
   montoDetraccion: item.montoDetraccion,
   montoRetencion: item.montoRetencion,
+  transporteAcreditado: item.transporteAcreditado,
   resultadoPresentacion: item.resultadoPresentacion,
   id: item.id,
   serie: item.serie,
@@ -119,6 +121,7 @@ const desdeCrudo = (item: InvoiceListado): FilaComprobante => {
   return {
     montoDetraccion: item.monto_detraccion,
     montoRetencion: item.monto_retencion,
+    transporteAcreditado: item.transporte_acreditado === true,
     resultadoPresentacion: item.resultado_presentacion,
     id: item.id,
     serie: item.serie,
@@ -168,6 +171,7 @@ export function aComprobanteDemo(item: InvoiceListado | Invoice): ComprobanteDem
   const correlativoNum = Number(fila.correlativo) || 0;
 
   return {
+    transporteAcreditado: fila.transporteAcreditado === true,
     resultadoPresentacion: fila.resultadoPresentacion,
     id: fila.id,
     numero: `${fila.serie}-${String(correlativoNum).padStart(8, '0')}`,

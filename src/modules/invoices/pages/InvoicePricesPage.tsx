@@ -13,7 +13,7 @@ export default function InvoicePricesPage() {
     let vivo = true;
     listarPrecios()
       .then((p) => {
-        if (vivo) setProductos(p);
+        if (vivo) setProductos(p.map(producto => ({ ...producto, salePrice: producto.salePrice == null || producto.salePrice === '' || !Number.isFinite(Number(producto.salePrice)) ? '' : Number(producto.salePrice).toFixed(2) })));
       })
       .catch(() => {
         if (vivo) setMensaje('No se pudieron cargar los precios.');

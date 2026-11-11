@@ -7,9 +7,10 @@ export function InvoiceAggregateMonitor() {
   const [rows, setRows] = useState<AgregadoFiscal[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
-  const [ocupado, setOcupado] = useState(false);
+  const [ocupado, setOcupado] = useState(true);
+  const [cargado, setCargado] = useState(false);
   const [consultando, setConsultando] = useState<string | null>(null);
-  const cargar = useCallback(async () => { setOcupado(true); try { setRows(await invoicesApi.getAgregados()); setError(null); } catch (e) { setError(extractApiErrorMessage(e, 'No se pudieron cargar los agregados.')); } finally { setOcupado(false); } }, []);
+  const cargar = useCallback(async () => { setOcupado(true); try { setRows(await invoicesApi.getAgregados()); setCargado(true); setError(null); } catch (e) { setError(extractApiErrorMessage(e, 'No se pudieron cargar los agregados.')); } finally { setOcupado(false); } }, []);
   useEffect(() => { let vivo = true; void Promise.resolve().then(() => { if (vivo) void cargar(); }); return () => { vivo = false; }; }, [cargar]);
   const consultar = async (id: string) => {
     setOcupado(true); setConsultando(id); setMensaje(null); setError(null);
@@ -21,7 +22,8 @@ export function InvoiceAggregateMonitor() {
     <Button variant="outline" disabled={ocupado} onClick={() => void cargar()}>Actualizar agregados</Button>
     {consultando && <p role="status">Consultando… {consultando}</p>}
     {error && <p role="alert">{error}</p>}{mensaje && <p role="status">{mensaje}</p>}
-    {!rows.length && <p>No hay agregados registrados.</p>}
+    {ocupado && !consultando && <p role="status">Cargando agregados…</p>}
+    {cargado && !ocupado && !error && !rows.length && <p>No hay agregados registrados.</p>}
     {rows.map(r => <div key={r.id} className="rounded border p-3 space-y-1"><p>{r.identifier} · {r.state} · fecha {r.reference_date}</p><p>Ticket: {r.ticket ?? 'No disponible'} · Código: {r.result?.codigo ?? 'No informado'}</p><p>{r.result?.mensaje ?? r.error ?? 'Pendiente de resultado'}</p>{r.transport_uncertain && <p>Transporte incierto: revisión requerida.</p>}{r.ticket && !['ACCEPTED', 'REJECTED'].includes(r.state) && <Button disabled={ocupado} onClick={() => void consultar(r.identifier)}>{consultando === r.identifier ? 'Consultando…' : `Consultar ticket ${r.identifier}`}</Button>}</div>)}
   </CardContent></Card>;
 }

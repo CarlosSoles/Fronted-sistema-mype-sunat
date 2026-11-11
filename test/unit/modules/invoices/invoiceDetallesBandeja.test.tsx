@@ -29,13 +29,13 @@ describe('detalles de bandeja', () => {
   it('abre XML al pulsar la fila o Enter, sin interferir con CDR ni PDF', () => {
     const xml = vi.fn(), cdr = vi.fn(), pdf = vi.fn();
     render(<InvoiceTable comprobantes={[factura]} onVerXml={xml} onVerCdr={cdr} onDescargarPdf={pdf} onReintentarCdr={vi.fn()} />);
-    const row = screen.getByLabelText('Ver detalle XML de F001-56');
+    const row = screen.getByLabelText('Ver detalle XML de F001-00000056');
     fireEvent.click(row); fireEvent.keyDown(row, { key: 'Enter' });
     expect(xml).toHaveBeenCalledTimes(2);
-    fireEvent.click(screen.getByRole('button', { name: 'Ver CDR de F001-56' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Descargar PDF de F001-56' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ver CDR de F001-00000056' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Descargar PDF de F001-00000056' }));
     expect(cdr).toHaveBeenCalledTimes(1); expect(pdf).toHaveBeenCalledTimes(1); expect(xml).toHaveBeenCalledTimes(2);
-    fireEvent.click(screen.getByRole('button', { name: 'Ver XML de F001-56' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ver XML de F001-00000056' }));
     expect(xml).toHaveBeenCalledTimes(3);
   });
 });
