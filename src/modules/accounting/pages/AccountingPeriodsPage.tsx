@@ -31,6 +31,9 @@ export default function AccountingPeriodsPage() {
   });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['accounting-periods'] });
+  const actualizarPeriodo = (periodo: { period: string }) => {
+    queryClient.setQueryData<any[]>(['accounting-periods'], (prev) => prev?.map((p) => p.period === periodo.period ? { ...p, ...periodo } : p));
+  };
 
   const openYear = useMutation({
     mutationFn: (y: number) => accountingApi.openFiscalYear(y),
@@ -52,8 +55,9 @@ export default function AccountingPeriodsPage() {
 
   const openPeriod = useMutation({
     mutationFn: ({ y, m }: { y: number; m: number }) => accountingApi.openPeriod(y, m),
-    onSuccess: async () => {
+    onSuccess: async (periodo) => {
       setError(null);
+      actualizarPeriodo(periodo);
       await invalidate();
     },
     onError: () => setError('No se pudo abrir el período. Verifica la empresa activa.'),
@@ -61,8 +65,9 @@ export default function AccountingPeriodsPage() {
 
   const closePeriod = useMutation({
     mutationFn: (period: string) => accountingApi.closePeriod(period),
-    onSuccess: async () => {
+    onSuccess: async (periodo) => {
       setError(null);
+      actualizarPeriodo(periodo);
       await invalidate();
     },
     onError: () => setError('No se pudo cerrar el período.'),
