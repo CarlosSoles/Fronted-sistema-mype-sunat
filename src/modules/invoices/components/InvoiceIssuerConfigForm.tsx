@@ -66,14 +66,14 @@ export const InvoiceIssuerConfigForm = ({ config, ruc, guardar }: {
     finally { setEnviando(false); }
   };
   return <form onSubmit={guardarCambios} className="grid gap-4">
-    <p>Ambiente efectivo: {config.entorno === 'MOCK' ? 'MOCK (simulado)' : config.entorno}</p>
+    <p>Ambiente efectivo: {config.entorno === 'MOCK' ? 'SIMULADO (pruebas)' : config.entorno}</p>
     <p>Origen efectivo: {origen(config.origen_efectivo)}</p>
     <p>Origen SOL: {origen(config.origen_sol)}</p>
     <p>Origen certificado: {origen(config.origen_certificado)}</p>
     <PageField label="RUC (no editable)" htmlFor="cfg-ruc"><input id="cfg-ruc" className={clase} readOnly value={config.ruc ?? ruc} /></PageField>
     <fieldset disabled={enviando} className="grid gap-4">
       <PageField label="Ambiente" htmlFor="cfg-entorno"><select id="cfg-entorno" className={clase} value={entorno} onChange={(e) => setEntorno(e.target.value)}>
-        <option value="" disabled>Sin configurar</option><option value="MOCK">MOCK (simulado)</option><option value="BETA">BETA (pruebas)</option><option value="PRODUCCION">PRODUCCIÓN</option>
+        <option value="" disabled>Sin configurar</option><option value="MOCK">SIMULADO (pruebas)</option><option value="BETA">BETA (pruebas)</option><option value="PRODUCCION">PRODUCCIÓN</option>
       </select></PageField>
       <PageField label="Perfil comercial de la empresa" htmlFor="cfg-perfil-comercial">
         <select
