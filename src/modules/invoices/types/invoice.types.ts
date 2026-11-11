@@ -48,6 +48,8 @@ export interface ComprobanteOrigenNota {
 }
 
 export interface Invoice {
+  montoDetraccion?: number | null;
+  montoRetencion?: number | null;
   resultadoPresentacion?: ResultadoPresentacion;
   tieneCdr?: boolean;
   lineasOrigen?: readonly LineaOrigen[];
@@ -152,6 +154,8 @@ export interface CreateInvoiceDto {
 
 /** Fila del listado tal como la devuelve el backend (TA-29, snake_case). */
 export interface InvoiceListado {
+  monto_detraccion?: number | null;
+  monto_retencion?: number | null;
   resultado_presentacion?: ResultadoPresentacion;
   id: string;
   tipo_comprobante: string;

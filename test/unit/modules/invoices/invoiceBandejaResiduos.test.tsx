@@ -17,7 +17,7 @@ describe('residuos de bandeja', () => {
     const { container } = render(<InvoiceKpiCards resumen={calcularResumenFiscal([error, rechazado])} />);
     const card = container.querySelector('[data-kpi="rechazados"]')!;
     expect(within(card as HTMLElement).getByText('2')).toBeDefined();
-    expect(within(card as HTMLElement).getByText(/Rechazos SUNAT: 1.*Errores de red: 1/)).toBeDefined();
+    expect(within(card as HTMLElement).getByText(/Rechazos SUNAT: 0.*Origen no confirmado: 1.*Errores de red: 1/)).toBeDefined();
   });
   it('muestra el bruto, acreditado y neto de facturas y notas aceptadas', () => {
     render(<InvoiceCombinedSummary resumen={calcularResumenFiscal([factura, nota, error])} />);
