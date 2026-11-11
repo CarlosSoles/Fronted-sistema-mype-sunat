@@ -68,6 +68,7 @@ const NAV_ITEMS: NavItem[] = [
     subItems: [
       { title: 'Resumen de facturación', path: '/invoices/dashboard', icon: LayoutDashboard },
       { title: 'Reporte de ventas', path: '/invoices/reportes/ventas', icon: LayoutDashboard },
+      { title: 'Detracciones', path: '/invoices/detracciones', icon: WalletCards },
       { title: 'Facturas y Boletas', path: '/invoices/facturas', icon: FileText },
       { title: 'Clientes y proveedores', path: '/invoices/clientes', icon: Building2 },
       // La pantalla de emisión existía y funcionaba desde el Sprint 1, pero
