@@ -1,3 +1,4 @@
+import { InvoiceMoneyInput } from './InvoiceMoneyInput';
 import type { DescuentoGlobal } from '../lib/invoiceDescuentoGlobal';
 
 export const InvoiceDescuentoGlobal = ({
@@ -18,7 +19,7 @@ export const InvoiceDescuentoGlobal = ({
         <option value="02">02 - Afecta la base IGV</option>
         <option value="03">03 - No afecta la base IGV</option>
       </select>
-      {valor && <input aria-label="Monto del descuento global" disabled={disabled} type="number" min="0" step="0.01" className="h-9 rounded border bg-background px-2 text-sm" value={valor.monto} onChange={(e) => onChange({ ...valor, monto: Number(e.target.value) })} />}
+      {valor && <InvoiceMoneyInput aria-label="Monto del descuento global" disabled={disabled} className="h-9 rounded border bg-background px-2 text-sm" value={valor.monto} onValue={monto => onChange({ ...valor, monto })} />}
     </div>
     {disabled && <p className="text-xs text-muted-foreground">El descuento solo se habilita para clientes que admiten descuento en el maestro de terceros.</p>}
     {valor?.codigo === '03' && <p className="text-xs text-amber-700">El asiento automático utiliza la cuenta 74. Podría quedar pendiente de revisión si la cuenta no está activa en el plan de la empresa o los importes no concuerdan.</p>}
