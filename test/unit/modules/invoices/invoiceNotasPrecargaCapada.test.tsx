@@ -15,7 +15,7 @@ afterEach(() => { cleanup(); qs.forEach(q => q.clear()); qs.length = 0; vi.reset
 it('F001-67: 2+3 precarga 2+2, sin mutar origen y sin errores condicionales', () => {
  const items=lineasParaNota(origen)!; const antes=JSON.stringify(items);
  const r=precargarCantidadesNota(items,cantidades,'06');
- expect(r.map(l=>l.cantidad)).toEqual([2,2]); expect(limitesNota(r,cantidades,'06').errores).toEqual([]); expect(JSON.stringify(items)).toBe(antes);
+ expect(r.map(l=>l.cantidad)).toEqual([2,2]); expect(limitesNota(r,cantidades,'06', ['01', '02', '06']).errores).toEqual([]); expect(JSON.stringify(items)).toBe(antes);
 });
 it('excluye filas agotadas y conserva el pool original para motivo 13', () => {
  const items=lineasParaNota(origen)!;
@@ -36,7 +36,7 @@ it('si el descuento proporcional redondea a cero, no envía un descuento cero in
 function montar(opciones: { saldo?: Promise<unknown>; detalle?: Promise<unknown> } = {}) {
  const factura=construir({tipo:'01',serie:'F001',correlativo:67,ruc:'20100070970',razonSocial:'Cliente',fecha:'2026-11-11',base:175,estado:'ACEPTADO'});
  const detalle={id:factura.id,tipo_comprobante:'01',serie:'F001',correlativo:67,numero:'F001-00000067',fecha_emision:'2026-11-11',estado:'ACEPTADO',monto_total:206.5,moneda:'PEN',cliente_documento:'20100070970',cliente_nombre:'Cliente',cdr_codigo:'0',lineas_origen:origen};
- const saldo={total:206.5,devuelto:41.3,disponible:165.2,cantidades_pendientes:cantidades};
+ const saldo={total:206.5,devuelto:41.3,disponible:165.2,motivos_totales: ['01', '02', '06'], cantidades_pendientes:cantidades};
  vi.mocked(apiClient.get).mockImplementation(async url => ({data: String(url).endsWith('/saldo') ? await (opciones.saldo ?? Promise.resolve(saldo)) : String(url).includes(`/invoices/${factura.id}`) ? await (opciones.detalle ?? Promise.resolve(detalle)) : []}) as never);
  const q=new QueryClient({defaultOptions:{queries:{retry:false}}});qs.push(q);
  render(<QueryClientProvider client={q}><InvoiceEmitModal seriesConfiguradas={seriesConfiguradasPrueba} tipoInicial="07" fecha="2026-11-11" existentes={[factura]} onEmitir={vi.fn()} onCerrar={vi.fn()} /></QueryClientProvider>);

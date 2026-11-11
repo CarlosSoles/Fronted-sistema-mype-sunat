@@ -22,7 +22,7 @@ const dlq = { ...origen, id: 'dlq', correlativo: 58, estado: 'EN_COLA' as const,
 const clientes: QueryClient[] = [];
 function montar(ui: ReactNode) { const q = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } }); clientes.push(q); return render(<QueryClientProvider client={q}><MemoryRouter>{ui}</MemoryRouter></QueryClientProvider>); }
 function modal(tipo: '01' | '07' | '08' = '07') { return <InvoiceEmitModal seriesConfiguradas={seriesConfiguradasPrueba} tipoInicial={tipo} fecha="2026-11-07" existentes={[origen, red, dlq]} onEmitir={vi.fn()} onCerrar={vi.fn()} />; }
-beforeEach(() => { vi.mocked(invoicesApi.getSaldoNota).mockResolvedValue({ total: 118, devuelto: 0, disponible: 118, cantidades_pendientes: [] }); vi.mocked(invoicesApi.getInvoiceById).mockResolvedValue({ lineasOrigen: [] } as never); });
+beforeEach(() => { vi.mocked(invoicesApi.getSaldoNota).mockResolvedValue({ total: 118, devuelto: 0, disponible: 118, motivos_totales: ['01', '02', '06'], cantidades_pendientes: [] }); vi.mocked(invoicesApi.getInvoiceById).mockResolvedValue({ lineasOrigen: [] } as never); });
 afterEach(() => { cleanup(); clientes.splice(0).forEach((q) => q.clear()); vi.resetAllMocks(); });
 
 describe('F1 notas sobre aceptados', () => {
