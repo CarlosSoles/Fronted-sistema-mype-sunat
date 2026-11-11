@@ -1,4 +1,4 @@
-import { limitesNota } from '../lib/invoiceNoteQuantities';
+import { limitesNota, precargarCantidadesNota } from '../lib/invoiceNoteQuantities';
 import { XIcon } from 'lucide-react';
 import { problemaSpotMinimo } from '../lib/invoiceDetraccion';
 import { useInvoiceKeyboard } from './useInvoiceKeyboard';
@@ -273,22 +273,6 @@ export const InvoiceEmitModal = ({
   const drafts = useRef<Partial<Record<TipoEmisible, BorradorEmision>>>({});
   useEffect(() => { setErrorEmision(null); }, [b]);
   const afectado = buscarAfectado(existentes.filter(admiteNota), b.documentoAfectado);
-  useEffect(() => {
-    if (!esTipoNota(b.tipo) || !afectado) return;
-    let vigente = true;
-    const itemsIniciales = b.items;
-    void Promise.resolve().then(() => invoicesApi.getInvoiceById(afectado.id)).then((detalle) => {
-      if (!vigente) return;
-      const lineas = lineasParaNota(detalle.lineasOrigen ?? []);
-      if (lineas === null) {
-        setAvisoLineas('Las líneas del origen contienen datos incompletos o no compatibles; ingréselas manualmente.');
-        return;
-      }
-      setAvisoLineas('');
-      if (lineas.length) setB((previo) => previo.items === itemsIniciales ? { ...previo, items: lineas } : previo);
-    }).catch(() => { if (vigente) setAvisoLineas('No se pudieron cargar las líneas del origen; ingréselas manualmente.'); });
-    return () => { vigente = false; };
-  }, [afectado?.id, b.tipo]);
   const saldoNota = useQuery({
     queryKey: ['invoice-saldo-nota', afectado?.id],
     queryFn: () => invoicesApi.getSaldoNota(afectado!.id),
@@ -296,6 +280,31 @@ export const InvoiceEmitModal = ({
     staleTime: 0,
     retry: false,
   });
+  const precargaNota = useRef<{ clave: string; iniciales: BorradorEmision['items']; aplicada: boolean } | null>(null);
+  useEffect(() => {
+    if (!esTipoNota(b.tipo) || !afectado) { precargaNota.current = null; return; }
+    const clave = `${b.tipo}:${afectado.id}`;
+    if (precargaNota.current?.clave !== clave) precargaNota.current = { clave, iniciales: b.items, aplicada: false };
+    const intentoPrecarga = precargaNota.current;
+    if (intentoPrecarga.aplicada) return;
+    if (b.items !== intentoPrecarga.iniciales) { intentoPrecarga.aplicada = true; return; }
+    if (b.tipo === '07' && (!saldoNota.data || saldoNota.isFetching)) return;
+    let vigente = true;
+    void Promise.resolve().then(() => invoicesApi.getInvoiceById(afectado.id)).then(detalle => {
+      if (!vigente) return;
+      const originales = lineasParaNota(detalle.lineasOrigen ?? []);
+      intentoPrecarga.aplicada = true;
+      if (originales === null) {
+        setAvisoLineas('Las líneas del origen contienen datos incompletos o no compatibles; ingréselas manualmente.');
+        return;
+      }
+      const lineas = b.tipo === '07' ? precargarCantidadesNota(originales, saldoNota.data!.cantidades_pendientes, b.motivoCodigo) : originales;
+      setAvisoLineas(originales.length > 0 && lineas.length === 0 ? 'No quedan unidades pendientes del comprobante origen.' : '');
+      if (originales.length) setB(previo => previo.items === intentoPrecarga.iniciales ? { ...previo, items: lineas } : previo);
+    }).catch(() => { if (vigente) { intentoPrecarga.aplicada = true; setAvisoLineas('No se pudieron cargar las líneas del origen; ingréselas manualmente.'); } });
+    return () => { vigente = false; };
+  }, [afectado, b.tipo, b.items, b.motivoCodigo, saldoNota.data, saldoNota.isFetching]);
+
 
   const pendientesBase = useMemo(
     () => motivosPendientes(b, existentes, productos),
