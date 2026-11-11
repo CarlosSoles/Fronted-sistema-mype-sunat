@@ -47,6 +47,12 @@ export default function AccountingPeriodsPage() {
     onError: () => setError('No se pudo generar el asiento de cierre. Verifique que el año tenga asientos y no esté cerrado.'),
   });
 
+  const closeAnnual = useMutation({
+    mutationFn: (y: number) => accountingApi.closeAnnual(y),
+    onSuccess: async () => { setError(null); await invalidate(); },
+    onError: (e: any) => setError(e?.response?.data?.message ?? 'No se pudo cerrar el año completo.'),
+  });
+
   const closeYear = useMutation({
     mutationFn: (y: number) => accountingApi.closeFiscalYear(y),
     onSuccess: async () => { setError(null); await invalidate(); },
@@ -119,6 +125,10 @@ export default function AccountingPeriodsPage() {
           <Button variant="outline" onClick={() => closeYear.mutate(year)} disabled={closeYear.isPending}>
             <Lock className="w-4 h-4 mr-1" />
             {closeYear.isPending ? 'Cerrando año…' : 'Cerrar año fiscal'}
+          </Button>
+          <Button onClick={() => { if (window.confirm('¿Generar asiento de cierre y bloquear todo el año?')) closeAnnual.mutate(year); }} disabled={closeAnnual.isPending}>
+            <Lock className="w-4 h-4 mr-1" />
+            {closeAnnual.isPending ? 'Cerrando…' : 'Cerrar año completo'}
           </Button>
         </div>
       </Card>
