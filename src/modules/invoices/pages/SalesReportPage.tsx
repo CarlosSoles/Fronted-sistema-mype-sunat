@@ -6,9 +6,9 @@ import { formatCurrency } from '@/lib/formatters';
 
 interface Reporte {
   from: string; to: string;
-  totals: { sales: number; taxable: number; igv: number; cost: number; profit: number; margin: number; documents: number };
+  totals: { sales: number; taxable: number; igv: number; cost: number; profit: number; margin: number; documents: number; withoutCost: { count: number; sales: number } };
   byCustomer: Array<{ document: string; customer: string; sales: number; cost: number; profit: number; documents: number }>;
-  byDocument: Array<{ id: string; number: string; date: string; customer: string; total: number; cost: number; profit: number }>;
+  byDocument: Array<{ id: string; number: string; date: string; customer: string; total: number; cost: number; profit: number; hasCost: boolean }>;
   daily: Array<{ date: string; sales: number; cost: number; profit: number }>;
 }
 
@@ -33,7 +33,7 @@ export default function SalesReportPage() {
   const filas = useMemo(() => {
     if (!data) return [];
     if (tab === 'clientes') return data.byCustomer.map((c) => [c.document, c.customer, c.documents, c.sales.toFixed(2), c.cost.toFixed(2), c.profit.toFixed(2)]);
-    if (tab === 'documentos') return data.byDocument.map((d) => [d.number, d.date, d.customer, d.total.toFixed(2), d.cost.toFixed(2), d.profit.toFixed(2)]);
+    if (tab === 'documentos') return data.byDocument.map((d) => [d.number, d.date, d.customer, d.total.toFixed(2), d.cost.toFixed(2), d.profit.toFixed(2), d.hasCost ? 'Con costo' : 'Sin costo']);
     return data.daily.map((d) => [d.date, d.sales.toFixed(2), d.cost.toFixed(2), d.profit.toFixed(2)]);
   }, [data, tab]);
 
@@ -50,14 +50,15 @@ export default function SalesReportPage() {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 mb-4">
         {[['Ventas', formatCurrency(data.totals.sales, 'PEN')], ['Base', formatCurrency(data.totals.taxable, 'PEN')], ['IGV', formatCurrency(data.totals.igv, 'PEN')], ['Costo', formatCurrency(data.totals.cost, 'PEN')], ['Utilidad', `${formatCurrency(data.totals.profit, 'PEN')} · ${pct(data.totals.margin)}`]].map(([k, v]) => <Card key={k} className="p-3"><p className="text-xs text-muted-foreground">{k}</p><p className="font-semibold">{v}</p></Card>)}
       </div>
+      {data.totals.withoutCost.count > 0 ? <Card className="p-3 mb-4 text-xs text-amber-600">{data.totals.withoutCost.count} comprobantes sin costo registrado por {formatCurrency(data.totals.withoutCost.sales, 'PEN')}. El margen excluye esas ventas.</Card> : null}
       <div className="flex gap-1 mb-3">{([['clientes', 'Clientes'], ['documentos', 'Comprobantes'], ['dias', 'Días']] as const).map(([k, l]) => <Button key={k} size="sm" variant={tab === k ? 'default' : 'ghost'} onClick={() => setTab(k)}>{l}</Button>)}</div>
       <Card flush><Table><TableHeader><TableRow>
         {tab === 'clientes' ? <><TableHead>Documento</TableHead><TableHead>Cliente</TableHead><TableHead align="right">Docs</TableHead><TableHead align="right">Ventas</TableHead><TableHead align="right">Costo</TableHead><TableHead align="right">Utilidad</TableHead></> : null}
-        {tab === 'documentos' ? <><TableHead>Comprobante</TableHead><TableHead>Fecha</TableHead><TableHead>Cliente</TableHead><TableHead align="right">Venta</TableHead><TableHead align="right">Costo</TableHead><TableHead align="right">Utilidad</TableHead></> : null}
+        {tab === 'documentos' ? <><TableHead>Comprobante</TableHead><TableHead>Fecha</TableHead><TableHead>Cliente</TableHead><TableHead align="right">Venta</TableHead><TableHead align="right">Costo</TableHead><TableHead align="right">Utilidad</TableHead><TableHead>Estado costo</TableHead></> : null}
         {tab === 'dias' ? <><TableHead>Fecha</TableHead><TableHead align="right">Ventas</TableHead><TableHead align="right">Costo</TableHead><TableHead align="right">Utilidad</TableHead></> : null}
       </TableRow></TableHeader><TableBody>
-        {isLoading ? <TableRow><TableCell colSpan={6}>Cargando…</TableCell></TableRow> : null}
-        {!isLoading && filas.length === 0 ? <TableRow><TableCell colSpan={6}>Sin ventas en el rango.</TableCell></TableRow> : null}
+        {isLoading ? <TableRow><TableCell colSpan={7}>Cargando…</TableCell></TableRow> : null}
+        {!isLoading && filas.length === 0 ? <TableRow><TableCell colSpan={7}>Sin ventas en el rango.</TableCell></TableRow> : null}
         {filas.map((f, i) => <TableRow key={i}>{f.map((v, j) => <TableCell key={j} align={j >= 2 && tab !== 'documentos' ? 'right' : j >= 3 ? 'right' : 'left'}>{typeof v === 'number' ? v : String(v)}</TableCell>)}</TableRow>)}
       </TableBody></Table></Card>
     </> : null}
