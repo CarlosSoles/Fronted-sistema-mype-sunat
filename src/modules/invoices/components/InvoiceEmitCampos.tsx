@@ -298,7 +298,7 @@ export const InvoiceEmitCampos = ({
 
 
       <InvoiceItemsGrid esNota={esNota} catalogoEstado={catalogoEstado}
-        cantidadesMaximas={b.tipo === '07' ? limitesNota(b.items, saldoNota?.cantidades_pendientes, b.motivoCodigo).maximos : undefined}
+        cantidadesMaximas={b.tipo === '07' ? limitesNota(b.items, saldoNota?.cantidades_pendientes, b.motivoCodigo, saldoNota?.motivos_totales).maximos : undefined}
         items={b.items}
         onCambiar={onItemCambiado}
         onEliminar={onItemEliminado}
