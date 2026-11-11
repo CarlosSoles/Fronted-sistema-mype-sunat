@@ -7,7 +7,7 @@ import { InvoiceIssuerConfigForm } from '@/modules/invoices/components/InvoiceIs
 import { invoicesApi } from '@/modules/invoices/services/invoicesApi';
 import { construir } from '@/modules/invoices/data/invoiceDemoTypes';
 
-vi.mock('@/modules/invoices/services/invoicesApi', () => ({ invoicesApi: { buscarClientes: vi.fn(async () => []), getSaldoNota: vi.fn(async () => ({ total: 1770, devuelto: 100.01, disponible: 1669.99 })), emitirComprobante: vi.fn() } }));
+vi.mock('@/modules/invoices/services/invoicesApi', () => ({ invoicesApi: { buscarClientes: vi.fn(async () => []), getSaldoNota: vi.fn(async () => ({ total: 1770, devuelto: 100.01, disponible: 1669.99, cantidades_pendientes: [] })), emitirComprobante: vi.fn() } }));
 describe('saldo de nota de crédito', () => {
   it('consulta y muestra el saldo y bloquea exceso sin emitir', async () => {
     const factura = construir({ tipo: '01', serie: 'F001', correlativo: 56, ruc: '20100070970', razonSocial: 'Cliente', fecha: '2026-11-05', base: 1500, estado: 'ACEPTADO' });
@@ -34,7 +34,7 @@ it('muestra saldo en nota de débito y parte de línea vacía', async () => {
   cleanup(); query.clear();
 });
 it('avisa el acreditado superior al total sin esconder el saldo', async () => {
-  vi.mocked(invoicesApi.getSaldoNota).mockResolvedValueOnce({ total: 1003, devuelto: 1053.01, disponible: 0 });
+  vi.mocked(invoicesApi.getSaldoNota).mockResolvedValueOnce({ total: 1003, devuelto: 1053.01, disponible: 0, cantidades_pendientes: [] });
   const factura = construir({ tipo: '01', serie: 'F001', correlativo: 53, ruc: '20100070970', razonSocial: 'Cliente', fecha: '2026-11-05', base: 850, estado: 'ACEPTADO' });
   const query = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(<QueryClientProvider client={query}><InvoiceEmitModal seriesConfiguradas={seriesConfiguradasPrueba} tipoInicial="07" fecha="2026-11-05" existentes={[factura]} onEmitir={vi.fn()} onCerrar={vi.fn()} /></QueryClientProvider>);

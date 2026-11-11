@@ -1,3 +1,4 @@
+import type { CantidadNota } from '../lib/invoiceNoteQuantities';
 import type { SeleccionBaja, AgregadoFiscal } from '../types/invoiceAggregate.types';
 import { apiClient } from '@/lib/axios';
 import { cachedGet } from '@/lib/offlineCache';
@@ -60,7 +61,7 @@ export interface FiltrosInvoices {
  * Los filtros se envían solo si tienen valor: mandar `estado=` (vacío) hace que
  * el backend filtre por una cadena vacía y no devuelva nada.
  */
-export interface SaldoNota { total: number; devuelto: number; disponible: number; }
+export interface SaldoNota { cantidades_pendientes: CantidadNota[]; total: number; devuelto: number; disponible: number; }
 
 export type ResultadoConsultaSunat =
   | { tipo: 'RECUPERADO'; estado: string; codigo: string | null; mensaje?: string | null; referencia?: string | null }
@@ -98,6 +99,7 @@ export const invoicesApi = {
   getSaldoNota: async (id: string): Promise<SaldoNota> => {
     const { data } = await apiClient.get<SaldoNota>(`/invoices/${encodeURIComponent(id)}/saldo`);
     if (![data.total, data.devuelto, data.disponible].every((n) => typeof n === 'number' && Number.isFinite(n) && n >= 0)) throw new Error('El saldo recibido no es válido.');
+    if (!Array.isArray(data.cantidades_pendientes) || data.cantidades_pendientes.some(c => !c || typeof c.codigo !== 'string' || !c.codigo.trim() || ![c.original, c.pendiente].every(n => typeof n === 'number' && Number.isFinite(n) && n >= 0))) throw new Error('Las cantidades pendientes recibidas no son válidas.');
     return data;
   },
   getInvoices: async (
