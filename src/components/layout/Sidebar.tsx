@@ -115,8 +115,9 @@ const NAV_ITEMS: NavItem[] = [
     developer: 'Carlos Ahumada',
     allowedRoles: ['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
     subItems: [
+      { title: 'Resumen de compras', path: '/purchases/dashboard', icon: LayoutDashboard },
       { title: 'Registro de compras', path: '/purchases', icon: Receipt },
-      { title: 'Cuentas por pagar', path: '/inventory/purchases/payables', icon: WalletCards },
+      { title: 'Cuentas por pagar', path: '/purchases/payables', icon: WalletCards },
       { title: 'Proveedores', path: '/invoices/clientes', icon: Building2 },
     ],
   },

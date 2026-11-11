@@ -43,6 +43,7 @@ const DuaCalculatorPage = React.lazy(() => import('@/modules/customs/pages/DuaCa
 const InventoryStocksPage = React.lazy(() => import('@/modules/inventory/pages/InventoryStocksPage'));
 const InventoryDashboardPage = React.lazy(() => import('@/modules/inventory/pages/InventoryDashboardPage'));
 const PurchasesPage = React.lazy(() => import('@/modules/purchases/pages/PurchasesPage'));
+const PurchasesDashboardPage = React.lazy(() => import('@/modules/purchases/pages/PurchasesDashboardPage'));
 const PurchasesPayablesPage = React.lazy(() => import('@/modules/inventory/pages/PurchasesPayablesPage'));
 const InventoryTransfersPage = React.lazy(() => import('@/modules/inventory/pages/InventoryTransfersPage'));
 const InventoryAdjustmentsPage = React.lazy(() => import('@/modules/inventory/pages/InventoryAdjustmentsPage'));
@@ -344,6 +345,22 @@ export const AppRoutes = () => {
 
             {/* [Módulo de Compras Autónomo - Fase 1] */}
             <Route
+              path="/purchases/dashboard"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <PurchasesDashboardPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/purchases/payables"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <PurchasesPayablesPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
               path="/purchases"
               element={
                 <RoleProtectedRoute
@@ -365,14 +382,7 @@ export const AppRoutes = () => {
               }
             />
             <Route path="/inventory/purchases" element={<Navigate to="/purchases" replace />} />
-            <Route
-              path="/inventory/purchases/payables"
-              element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
-                  <PurchasesPayablesPage />
-                </RoleProtectedRoute>
-              }
-            />
+            <Route path="/inventory/purchases/payables" element={<Navigate to="/purchases/payables" replace />} />
             <Route
               path="/inventory/stocks"
               element={
