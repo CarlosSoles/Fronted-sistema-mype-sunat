@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Card, Input, Page, PageHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
+import { Button, Card, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Input, Page, PageHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
 import { collectionsApi } from '../services/collectionsApi';
 const descargarCsv = (nombre: string, filas: Array<Array<string | number>>) => {
   const contenido = filas.map((f) => f.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
@@ -18,6 +18,7 @@ export default function CollectionsPage() {
   const [facturaId, setFacturaId] = useState('');
   const [docEstado, setDocEstado] = useState('');
   const [docConsultado, setDocConsultado] = useState('');
+  const [historial, setHistorial] = useState<{ invoice: { numero: string; customerName: string; total: number }; collections: Array<{ id: string; date: string; amount: number; paymentMethod: string; bankName?: string | null; status: string }>; paid: number } | null>(null);
   const estado = useQuery({ queryKey: ['collections-statement', docConsultado], queryFn: () => collectionsApi.statement(docConsultado), enabled: Boolean(docConsultado) });
   const factura = (cartera.data ?? []).find((f) => f.id === facturaId);
   const [form, setForm] = useState({ customerName: '', customerDoc: '', invoiceNumber: '', amount: '', date: new Date().toISOString().slice(0, 10), method: 'TRANSFERENCIA', bank: '' });
@@ -48,8 +49,14 @@ export default function CollectionsPage() {
         {estado.data ? <div className="space-y-3">
           <div className="grid gap-2 sm:grid-cols-4 text-xs"><span>Total: <strong>S/ {estado.data.totals.total.toFixed(2)}</strong></span><span>NC: <strong>S/ {estado.data.totals.credited.toFixed(2)}</strong></span><span>Cobrado: <strong>S/ {estado.data.totals.paid.toFixed(2)}</strong></span><span>Saldo: <strong>S/ {estado.data.totals.balance.toFixed(2)}</strong></span></div>
           <div className="grid gap-2 sm:grid-cols-4 text-xs"><span>0–30 días: <strong>S/ {estado.data.aging.d0_30.toFixed(2)}</strong></span><span>31–60: <strong>S/ {estado.data.aging.d31_60.toFixed(2)}</strong></span><span>61–90: <strong>S/ {estado.data.aging.d61_90.toFixed(2)}</strong></span><span>+90: <strong>S/ {estado.data.aging.d90_plus.toFixed(2)}</strong></span></div>
-          <Table><TableHeader><TableRow><TableHead>Factura</TableHead><TableHead>Fecha</TableHead><TableHead align="right">Total</TableHead><TableHead align="right">NC</TableHead><TableHead align="right">Cobrado</TableHead><TableHead align="right">Saldo</TableHead></TableRow></TableHeader><TableBody>{estado.data.invoices.map((f) => <TableRow key={f.id}><TableCell>{f.numero}</TableCell><TableCell>{new Date(f.date).toLocaleDateString('es-PE')}</TableCell><TableCell align="right">{money(f.total)}</TableCell><TableCell align="right">{money(f.credited)}</TableCell><TableCell align="right">{money(f.paid)}</TableCell><TableCell align="right">{money(f.balance)}</TableCell></TableRow>)}</TableBody></Table>
+          <Table><TableHeader><TableRow><TableHead>Factura</TableHead><TableHead>Fecha</TableHead><TableHead align="right">Total</TableHead><TableHead align="right">NC</TableHead><TableHead align="right">Cobrado</TableHead><TableHead align="right">Saldo</TableHead><TableHead align="right">Cobros</TableHead></TableRow></TableHeader><TableBody>{estado.data.invoices.map((f) => <TableRow key={f.id}><TableCell>{f.numero}</TableCell><TableCell>{new Date(f.date).toLocaleDateString('es-PE')}</TableCell><TableCell align="right">{money(f.total)}</TableCell><TableCell align="right">{money(f.credited)}</TableCell><TableCell align="right">{money(f.paid)}</TableCell><TableCell align="right">{money(f.balance)}</TableCell><TableCell align="right"><Button size="sm" variant="ghost" onClick={async () => { try { setHistorial(await collectionsApi.invoiceCollections(f.id)); } catch { setError('No se pudo cargar el historial.'); } }}>Ver</Button></TableCell></TableRow>)}</TableBody></Table>
         </div> : docConsultado ? <p className="text-xs text-muted-foreground">Sin facturas para ese documento.</p> : null}
       </Card>
+<Dialog open={historial !== null} onOpenChange={(open) => { if (!open) setHistorial(null); }}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader><DialogTitle>Cobros de {historial?.invoice.numero}</DialogTitle><DialogDescription>{historial?.invoice.customerName} · Total {historial ? money(historial.invoice.total) : ''} · Abonado {historial ? money(historial.paid) : ''}</DialogDescription></DialogHeader>
+          <Table><TableHeader><TableRow><TableHead>Fecha</TableHead><TableHead>Método</TableHead><TableHead>Cobro</TableHead><TableHead align="right">Monto</TableHead></TableRow></TableHeader><TableBody>{(historial?.collections ?? []).map((c) => <TableRow key={c.id}><TableCell>{new Date(c.date).toLocaleDateString('es-PE')}</TableCell><TableCell>{c.paymentMethod}{c.bankName ? ` · ${c.bankName}` : ''}</TableCell><TableCell>{c.status}</TableCell><TableCell align="right">{money(c.amount)}</TableCell></TableRow>)}{(historial?.collections ?? []).length === 0 ? <TableRow><TableCell colSpan={4}>Sin cobros.</TableCell></TableRow> : null}</TableBody></Table>
+        </DialogContent>
+      </Dialog>
   </Page>;
 }
