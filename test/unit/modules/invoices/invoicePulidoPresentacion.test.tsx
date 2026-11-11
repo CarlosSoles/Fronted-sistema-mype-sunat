@@ -51,3 +51,14 @@ it('el detalle conserva incertidumbre y motivo desde el mapper sin afirmar que n
   expect(screen.getByText('Sin CDR concluyente: recepción sin confirmar')).toBeTruthy();
   expect(screen.queryByText(/Error de red|No llegó a SUNAT|SUNAT todavía no respondió/)).toBeNull();
 });
+
+it.each([false, true])('ERROR_RED presenta preparación durable, recuperable=%s, sin incertidumbre ficticia', recuperable => {
+  const raw = { ...fila({ origen: 'PREPARACION_LOCAL', codigo: recuperable ? 'M1_PREPARATION_CERTIFICADO' : 'M1_PREPARATION_DATOS_INVALIDOS', motivo: 'Causa saneada', recuperable }), estado: 'ERROR_RED' };
+  const c = aComprobanteDemo(aInvoice(raw));
+  expect(c.estadoBackend).toBe('ERROR_RED');
+  render(<><InvoiceStatusBadge estado={c.estado} resultado={c.resultadoPresentacion} /><InvoiceAuditTrail comprobante={c} digest={null} /></>);
+  expect(screen.getByLabelText('Bloqueado en preparación local')).toBeTruthy();
+  expect(screen.getByText('Sin CDR: bloqueo en preparación local')).toBeTruthy();
+  expect(screen.getByText(recuperable ? /revise certificado, configuración o infraestructura/ : /bloqueada por datos inválidos/)).toBeTruthy();
+  expect(screen.queryByText(/Incertidumbre de transporte|SUNAT todavía no respondió/)).toBeNull();
+});

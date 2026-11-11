@@ -55,6 +55,7 @@ const ESTADOS_EN_VUELO = ['EN_COLA', 'ENVIADO', 'PENDIENTE', 'ERROR_RED'];
 /** El último resultado explícito de cola evita perpetuar una DLQ ya rescatada. */
 export const estadoDeMonitor = (inv: Invoice): string => {
   if (inv.resultadoPresentacion?.origen === 'TRANSPORTE_INCIERTO') return 'INCERTIDUMBRE_TRANSPORTE';
+  if (inv.resultadoPresentacion?.origen === 'PREPARACION_LOCAL') return 'PREPARACION_LOCAL';
   const evento = [...(inv.historial ?? [])].reverse().find((e) => /\b(EN_DLQ|ENCOLADO|YA_EN_COLA)\b/.test(e.mensaje ?? ''));
   return evento?.mensaje?.includes('EN_DLQ') ? 'DLQ' : inv.estadoBackend ?? inv.cdrStatus;
 };
@@ -252,7 +253,7 @@ export default function InvoiceMonitorPage() {
           Estado de los comprobantes en vuelo
           <select aria-label="Filtrar estado del monitor" value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)} className="ml-2 rounded border bg-background p-2">
             <option value="TODOS">Todos los estados</option>
-            {[...ESTADOS_EN_VUELO.filter(e => e !== 'ERROR_RED'), 'DLQ', 'INCERTIDUMBRE_TRANSPORTE'].map((estado) => <option key={estado} value={estado}>{['ERROR_RED', 'INCERTIDUMBRE_TRANSPORTE'].includes(estado) ? 'Incertidumbre de transporte' : estado}</option>)}
+            {[...ESTADOS_EN_VUELO.filter(e => e !== 'ERROR_RED'), 'DLQ', 'INCERTIDUMBRE_TRANSPORTE', 'PREPARACION_LOCAL'].map((estado) => <option key={estado} value={estado}>{['ERROR_RED', 'INCERTIDUMBRE_TRANSPORTE'].includes(estado) ? 'Incertidumbre de transporte' : estado === 'PREPARACION_LOCAL' ? 'Bloqueado en preparación local' : estado}</option>)}
           </select>
         </label>
         <Table>
@@ -293,13 +294,13 @@ export default function InvoiceMonitorPage() {
                           : 'outline'
                       }
                     >
-                      {['ERROR_RED', 'INCERTIDUMBRE_TRANSPORTE'].includes(estadoDeMonitor(inv)) ? 'Incertidumbre de transporte' : estadoDeMonitor(inv)}
+                      {['ERROR_RED', 'INCERTIDUMBRE_TRANSPORTE'].includes(estadoDeMonitor(inv)) ? 'Incertidumbre de transporte' : estadoDeMonitor(inv) === 'PREPARACION_LOCAL' ? 'Bloqueado en preparación local' : estadoDeMonitor(inv)}
                     </Badge>
                   </TableCell>
                   <TableCell align="center">
                     {/* El servidor concilia antes de autorizar cualquier reenvío. */}
-                    {inv.resultadoPresentacion?.origen === 'TRANSPORTE_INCIERTO' && <p className="text-xs text-muted-foreground">{inv.resultadoPresentacion.motivo}</p>}
-                    {['ERROR_RED', 'DLQ', 'INCERTIDUMBRE_TRANSPORTE'].includes(estadoDeMonitor(inv)) && !['ACEPTADO', 'OBSERVADO', 'ANULADO'].includes(inv.estadoBackend ?? '') && (
+                    {['TRANSPORTE_INCIERTO', 'PREPARACION_LOCAL'].includes(inv.resultadoPresentacion?.origen ?? '') && <p className="text-xs text-muted-foreground">{inv.resultadoPresentacion?.motivo}</p>}
+                    {['ERROR_RED', 'DLQ', 'INCERTIDUMBRE_TRANSPORTE', 'PREPARACION_LOCAL'].includes(estadoDeMonitor(inv)) && !['ACEPTADO', 'OBSERVADO', 'ANULADO'].includes(inv.estadoBackend ?? '') && (
                       <Button
                         variant="outline"
                         size="sm"
