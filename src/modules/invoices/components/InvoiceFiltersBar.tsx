@@ -48,6 +48,7 @@ interface InvoiceFiltersBarProps {
   filtros: InvoiceFiltros;
   onFiltrosChange: (filtros: InvoiceFiltros) => void;
   onActualizar: () => void;
+  actualizando?: boolean;
   onEmitir: (tipo: TipoEmision) => void;
 }
 
@@ -55,6 +56,7 @@ export const InvoiceFiltersBar = ({
   filtros,
   onFiltrosChange,
   onActualizar,
+  actualizando = false,
   onEmitir,
 }: InvoiceFiltersBarProps) => {
   const [menuAbierto, setMenuAbierto] = useState(false);
@@ -122,9 +124,9 @@ export const InvoiceFiltersBar = ({
       </FilterItem>
 
       <FilterItem className="flex-none">
-        <Button variant="outline" size="sm" onClick={onActualizar}>
+        <Button variant="outline" size="sm" disabled={actualizando} onClick={onActualizar}>
           <RefreshCw aria-hidden="true" />
-          Actualizar
+          {actualizando ? 'Actualizando…' : 'Actualizar'}
         </Button>
 
         <InvoiceEmitMenu

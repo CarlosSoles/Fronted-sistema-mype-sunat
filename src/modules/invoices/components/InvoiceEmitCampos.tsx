@@ -1,3 +1,4 @@
+import { InvoiceNextNumber } from './InvoiceNextNumber';
 /**
  * Campos del formulario de emisión de comprobantes (M1).
  *
@@ -36,6 +37,7 @@ import type { SaldoNota } from '../services/invoicesApi';
 interface InvoiceEmitCamposProps {
   borrador: BorradorEmision;
   series?: readonly string[];
+  correlativoActual?: number;
   actualizar: (parcial: Partial<BorradorEmision>) => void;
   /** Comprobantes ya emitidos: se usan para vincular las notas. */
   existentes: readonly ComprobanteDemo[];
@@ -64,6 +66,7 @@ const OPCIONES_TIPO = [
 export const InvoiceEmitCampos = ({
   borrador: b,
   series = [],
+  correlativoActual,
   actualizar,
   existentes,
   total,
@@ -116,6 +119,8 @@ export const InvoiceEmitCampos = ({
         // La serie F/B de una Nota debe coincidir con el documento que afecta.
         disabled={esNota && Boolean(b.documentoAfectado.trim())}
       />
+
+      <InvoiceNextNumber serie={b.serie} actual={correlativoActual} />
 
       {esNota && (
         <>

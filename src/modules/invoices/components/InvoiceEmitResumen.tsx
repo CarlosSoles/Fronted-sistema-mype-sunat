@@ -1,3 +1,4 @@
+import { pagoSegunDeposito } from '../lib/invoicePagoPresentacion';
 /**
  * Resumen en tiempo real del comprobante que se está emitiendo (M1).
  *
@@ -96,11 +97,13 @@ export const InvoiceEmitResumen = ({ borrador }: InvoiceEmitResumenProps) => {
         </PageText>
       )}
 
+      {detraccion > 0 && <PageText variant="label">Pago directo al proveedor {soles(pagoSegunDeposito(importeTotal, detraccion, retencion).pagoDirecto)}</PageText>}
       <PageText variant="label">Importe total {soles(importeTotal)}</PageText>
       {neto !== importeTotal && (
         <PageText variant="label">Neto pendiente {soles(neto)}</PageText>
       )}
 
+      {detraccion > 0 && borrador.formaPago === 'Credito' && <PageText variant="caption">El neto fiscal de las cuotas conserva la detracción exacta; el pago directo mostrado usa el depósito BN redondeado.</PageText>}
       {borrador.cuotas.length > 0 && (
         <PageText variant="caption">
           {borrador.cuotas

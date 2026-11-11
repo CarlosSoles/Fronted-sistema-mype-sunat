@@ -24,6 +24,9 @@ export interface ResumenFiscal {
   enCola: number;
   despachoPromedioMs: number;
   rechazados: number;
+  rechazosSunat?: number;
+  bloqueadosLocalmente?: number;
+  rechazosSinOrigen?: number;
   erroresRed: number;
   acreditado: number;
   debitado: number;
@@ -105,6 +108,9 @@ export const calcularResumenFiscal = (
     enCola,
     despachoPromedioMs,
     rechazados,
+    rechazosSunat: comprobantes.filter(c => c.estado === 'RECHAZADO' && c.resultadoPresentacion?.origen === 'SUNAT').length,
+    bloqueadosLocalmente: comprobantes.filter(c => c.estado === 'RECHAZADO' && c.resultadoPresentacion?.origen === 'VALIDACION_LOCAL').length,
+    rechazosSinOrigen: comprobantes.filter(c => c.estado === 'RECHAZADO' && !['SUNAT', 'VALIDACION_LOCAL'].includes(c.resultadoPresentacion?.origen ?? '')).length,
     erroresRed: comprobantes.filter((c) => c.estado === 'SIN_CONFIRMAR').length,
     acreditado,
     debitado: round2(afectanTotales.filter((c) => c.tipo === '08').reduce((acc, c) => acc + c.totalNeto, 0)),

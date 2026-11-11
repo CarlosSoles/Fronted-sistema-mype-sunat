@@ -59,6 +59,8 @@ function fechaLocal(iso: string): string {
  */
 /** Datos del comprobante que la grilla necesita, ya sin depender del contrato. */
 interface FilaComprobante {
+  montoDetraccion?: number | null;
+  montoRetencion?: number | null;
   resultadoPresentacion?: ResultadoPresentacion;
   id: string;
   serie: string;
@@ -87,6 +89,8 @@ const esInvoiceNormalizado = (item: Invoice | InvoiceListado): item is Invoice =
   'estadoBackend' in item;
 
 const desdeNormalizado = (item: Invoice): FilaComprobante => ({
+  montoDetraccion: item.montoDetraccion,
+  montoRetencion: item.montoRetencion,
   resultadoPresentacion: item.resultadoPresentacion,
   id: item.id,
   serie: item.serie,
@@ -113,6 +117,8 @@ const desdeNormalizado = (item: Invoice): FilaComprobante => ({
 const desdeCrudo = (item: InvoiceListado): FilaComprobante => {
   const total = Number(item.monto_total) || 0;
   return {
+    montoDetraccion: item.monto_detraccion,
+    montoRetencion: item.monto_retencion,
     resultadoPresentacion: item.resultado_presentacion,
     id: item.id,
     serie: item.serie,
@@ -175,9 +181,9 @@ export function aComprobanteDemo(item: InvoiceListado | Invoice): ComprobanteDem
     moneda: fila.moneda === 'USD' ? 'USD' : 'PEN',
     baseImponible: fila.base,
     igv: fila.igv,
-    // El backend todavía no persiste detracción ni retención por comprobante.
-    detraccion: 0,
-    retencion: 0,
+    // Cero solo representa ausencia de importe visible en la grilla; el DTO conserva null.
+    detraccion: fila.montoDetraccion ?? 0,
+    retencion: fila.montoRetencion ?? 0,
     totalNeto: fila.total,
     estado: ESTADOS[fila.estado] ?? 'EN_COLA',
     estadoBackend: fila.estado,

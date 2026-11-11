@@ -109,7 +109,7 @@ export const InvoiceKpiCards = ({
             {resumen.rechazados + resumen.erroresRed}
           </PageText>
           <PageText variant="caption">
-            Rechazos SUNAT: {resumen.rechazados} · Errores de red: {resumen.erroresRed}
+            Rechazos SUNAT: {resumen.rechazosSunat ?? 0} · Bloqueados localmente: {resumen.bloqueadosLocalmente ?? 0} · Origen no confirmado: {resumen.rechazosSinOrigen ?? resumen.rechazados} · Errores de red: {resumen.erroresRed}
           </PageText>
         </CardContent>
       </Card>
