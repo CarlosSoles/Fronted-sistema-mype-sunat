@@ -56,6 +56,7 @@ interface Entry {
   totalHaber: number;
   estaCuadrado: boolean;
   sourceModule: string;
+  journalCode?: string;
   sourceReferenceId?: string;
   lines: AccountingLine[];
 }
@@ -89,6 +90,8 @@ interface AsientoBackend {
   totalHaber?: number | string;
   sourceModule?: string;
   source_module?: string;
+  journalCode?: string;
+  journal_code?: string;
   sourceReferenceId?: string;
   source_reference_id?: string;
   lines?: LineaAsientoBackend[];
@@ -147,6 +150,7 @@ const mapearAsiento = (
     totalHaber,
     estaCuadrado: Math.abs(totalDebe - totalHaber) <= 0.01,
     sourceModule: item.sourceModule ?? item.source_module ?? 'MANUAL',
+    journalCode: item.journalCode ?? item.journal_code,
     sourceReferenceId: item.sourceReferenceId ?? item.source_reference_id,
     lines,
   };
@@ -164,6 +168,9 @@ const etiquetaOrigen = (source: string): string => {
 type Diario = 'TODOS' | 'VEN' | 'COM' | 'CAJ' | 'OPV';
 
 const diarioDe = (entry: Entry): Exclude<Diario, 'TODOS'> => {
+  if (entry.journalCode && ['VEN', 'COM', 'CAJ', 'OPV', 'GAS'].includes(entry.journalCode)) {
+    return entry.journalCode === 'GAS' ? 'OPV' : entry.journalCode as Exclude<Diario, 'TODOS'>;
+  }
   const codigos = entry.lines.map((l) => l.accountCode);
   if (codigos.some((c) => c.startsWith('70'))) return 'VEN';
   if (codigos.some((c) => c.startsWith('10')) && codigos.some((c) => c.startsWith('12'))) return 'CAJ';
