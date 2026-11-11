@@ -1,5 +1,5 @@
 import { calcularItem, totalizarItems, type ItemBorrador } from './invoiceItems';
-import { round2 } from './invoiceTaxes';
+import { round2, multiplyMoney } from './invoiceTaxes';
 
 export interface DescuentoGlobal { codigo: '02' | '03'; monto: number }
 
@@ -12,7 +12,7 @@ export function liquidarDescuentoGlobal(items: readonly ItemBorrador[], descuent
   if (!Number.isFinite(descuento.monto) || descuento.monto <= 0 || round2(descuento.monto) !== descuento.monto || descuento.monto > base) {
     return { ...totales, gravado, error: 'El descuento global debe ser positivo y no exceder su base.' };
   }
-  const rebajaIgv = descuento.codigo === '02' ? Math.min(totales.igv, round2(descuento.monto * 0.18)) : 0;
+  const rebajaIgv = descuento.codigo === '02' ? Math.min(totales.igv, multiplyMoney(descuento.monto, 0.18)) : 0;
   return {
     ...totales,
     base: round2(totales.base - (descuento.codigo === '02' ? descuento.monto : 0)),
