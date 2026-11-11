@@ -318,7 +318,7 @@ export const InvoiceEmitModal = ({
     if (!saldoNota.data || saldoNota.isFetching || saldoNota.isError) pendientes.push(saldoNota.isError ? extractApiErrorMessage(saldoNota.error, 'No se pudo consultar el saldo de la nota; inténtelo de nuevo.') : 'Consultando saldo del comprobante…');
     else {
       if (Math.round(flujo.importeTotal * 100) > Math.round(saldoNota.data.disponible * 100)) pendientes.push(`La nota supera el saldo disponible informado por el servidor (S/ ${saldoNota.data.disponible.toFixed(2)}).`);
-      pendientes.push(...limitesNota(b.items, saldoNota.data.cantidades_pendientes, b.motivoCodigo).errores);
+      pendientes.push(...limitesNota(b.items, saldoNota.data.cantidades_pendientes, b.motivoCodigo, saldoNota.data.motivos_totales).errores);
     }
   }
   const puedeEmitir = pendientes.length === 0;
@@ -428,7 +428,7 @@ export const InvoiceEmitModal = ({
     try {
       if (b.tipo === '07' && afectado) {
         const actual = await invoicesApi.getSaldoNota(afectado.id);
-        const errorCantidad = limitesNota(b.items, actual.cantidades_pendientes, b.motivoCodigo).errores[0];
+        const errorCantidad = limitesNota(b.items, actual.cantidades_pendientes, b.motivoCodigo, actual.motivos_totales).errores[0];
         if (errorCantidad) throw new Error(errorCantidad);
         if (Math.round(flujo.importeTotal * 100) > Math.round(actual.disponible * 100)) throw new Error('La nota supera el saldo actualizado del comprobante.');
       }

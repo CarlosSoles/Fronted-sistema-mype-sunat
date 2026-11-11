@@ -30,7 +30,7 @@ it('otros 409 conservan su causa; un 409 sin detalle no afirma reutilización de
 });
 it('nota 400 muestra el motivo del servidor, conserva edición y la misma clave al reintentar',async()=>{
  const factura=construir({tipo:'01',serie:'F001',correlativo:69,ruc:'20100070970',razonSocial:'Cliente',fecha:'2026-11-11',base:100,estado:'ACEPTADO'});
- const saldo={total:118,devuelto:0,disponible:118,cantidades_pendientes:[{codigo:'CEM-001',original:1,pendiente:1}]};
+ const saldo={total:118,devuelto:0,disponible:118,motivos_totales: ['01', '02', '06'], cantidades_pendientes:[{codigo:'CEM-001',original:1,pendiente:1}]};
  const detalle={id:factura.id,tipo_comprobante:'01',serie:'F001',correlativo:69,numero:'F001-00000069',fecha_emision:'2026-11-11',estado:'ACEPTADO',monto_total:118,moneda:'PEN',cliente_documento:'20100070970',cliente_nombre:'Cliente',cdr_codigo:'0',lineas_origen:[{codigo:'CEM-001',descripcion:'Cemento real',unidad:'NIU',cantidad:1,valor_unitario:100,precio_unitario:118,afectacion:'10'}]};
  vi.mocked(apiClient.get).mockImplementation(async url=>({data:String(url).endsWith('/saldo')?saldo:String(url).includes(`/invoices/${factura.id}`)?detalle:[]}) as never);
  const error=Object.assign(new Error('Request failed with status code 400'),{response:{status:400,data:{detail:'NOTA_DEVOLUCION_TOTAL_INCOMPLETA: debe devolver todas las unidades pendientes de CEM-001'}}});
@@ -40,12 +40,14 @@ it('nota 400 muestra el motivo del servidor, conserva edición y la misma clave 
  fireEvent.change(screen.getByLabelText('Documento afectado'),{target:{value:'F001-00000069'}});
  await waitFor(()=>expect((screen.getByLabelText('Descripción de la línea 1') as HTMLInputElement).value).toBe('Cemento real'));
  fireEvent.change(screen.getByLabelText('Motivo de la nota'),{target:{value:'06'}});
- fireEvent.change(screen.getByLabelText('Cantidad de la línea 1'),{target:{value:'0.5'}});
+ // La cantidad local está completa; el 400 puede surgir por un cambio concurrente posterior al refresco.
+ fireEvent.change(screen.getByLabelText('Descripción de la línea 1'),{target:{value:'Cemento editado'}});
  const boton=screen.getByRole('button',{name:'Emitir Nota de Crédito'}) as HTMLButtonElement;
  await waitFor(()=>expect(boton.disabled).toBe(false));fireEvent.click(boton);
  expect(await screen.findByText(/No se pudo emitir el comprobante: NOTA_DEVOLUCION_TOTAL_INCOMPLETA/)).toBeTruthy();
  expect(screen.queryByText(/Request failed with status code/)).toBeNull();expect(onEmitir).not.toHaveBeenCalled();
- expect((screen.getByLabelText('Cantidad de la línea 1') as HTMLInputElement).value).toBe('0.5');
+ expect((screen.getByLabelText('Cantidad de la línea 1') as HTMLInputElement).value).toBe('1');
+ expect((screen.getByLabelText('Descripción de la línea 1') as HTMLInputElement).value).toBe('Cemento editado');
  const primero=vi.mocked(apiClient.post).mock.calls[0];
  await waitFor(()=>expect(boton.disabled).toBe(false));fireEvent.click(boton);
  await waitFor(()=>expect(apiClient.post).toHaveBeenCalledTimes(2));
