@@ -12,7 +12,7 @@ const fila = { id: factura.id, tipo_comprobante: '01', serie: 'F001', correlativ
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
 
 it.each(['07', '08'] as const)('precarga y permite editar las líneas reales en nota %s', async (tipo) => {
-  vi.mocked(apiClient.get).mockImplementation(async (url) => ({ data: String(url).endsWith('/saldo') ? { total: 118, devuelto: 0, disponible: 118 } : { ...fila, lineas_origen: [{ codigo: 'MAT-1', descripcion: 'Cemento real', unidad: 'NIU', cantidad: 2, valor_unitario: 50, precio_unitario: 59, afectacion: '10' }] } }) as never);
+  vi.mocked(apiClient.get).mockImplementation(async (url) => ({ data: String(url).endsWith('/saldo') ? { total: 118, devuelto: 0, disponible: 118, cantidades_pendientes: [{ codigo: 'MAT-1', original: 2, pendiente: 2 }] } : { ...fila, lineas_origen: [{ codigo: 'MAT-1', descripcion: 'Cemento real', unidad: 'NIU', cantidad: 2, valor_unitario: 50, precio_unitario: 59, afectacion: '10' }] } }) as never);
   const query = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(<QueryClientProvider client={query}><InvoiceEmitModal seriesConfiguradas={seriesConfiguradasPrueba} tipoInicial={tipo} fecha="2026-11-05" existentes={[factura]} onEmitir={vi.fn()} onCerrar={vi.fn()} /></QueryClientProvider>);
   expect(screen.getByText(/Factura o Boleta aceptada u observada/)).toBeTruthy();
@@ -26,7 +26,7 @@ it.each(['07', '08'] as const)('precarga y permite editar las líneas reales en 
 });
 
 it('deja vacía la línea si el detalle no contiene líneas', async () => {
-  vi.mocked(apiClient.get).mockImplementation(async (url) => ({ data: String(url).endsWith('/saldo') ? { total: 118, devuelto: 0, disponible: 118 } : fila }) as never);
+  vi.mocked(apiClient.get).mockImplementation(async (url) => ({ data: String(url).endsWith('/saldo') ? { total: 118, devuelto: 0, disponible: 118, cantidades_pendientes: [{ codigo: 'MAT-1', original: 2, pendiente: 2 }] } : fila }) as never);
   const query = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(<QueryClientProvider client={query}><InvoiceEmitModal seriesConfiguradas={seriesConfiguradasPrueba} tipoInicial="07" fecha="2026-11-05" existentes={[factura]} onEmitir={vi.fn()} onCerrar={vi.fn()} /></QueryClientProvider>);
   fireEvent.change(screen.getByLabelText('Documento afectado'), { target: { value: 'F001-00000056' } });
@@ -36,7 +36,7 @@ it('deja vacía la línea si el detalle no contiene líneas', async () => {
 });
 
 it('no inventa una afectación que la grilla no puede representar', async () => {
-  vi.mocked(apiClient.get).mockImplementation(async (url) => ({ data: String(url).endsWith('/saldo') ? { total: 118, devuelto: 0, disponible: 118 } : { ...fila, lineas_origen: [{ codigo: 'MAT-1', descripcion: 'Exportación', unidad: 'NIU', cantidad: 1, valor_unitario: 100, precio_unitario: 100, afectacion: '99' }] } }) as never);
+  vi.mocked(apiClient.get).mockImplementation(async (url) => ({ data: String(url).endsWith('/saldo') ? { total: 118, devuelto: 0, disponible: 118, cantidades_pendientes: [{ codigo: 'MAT-1', original: 2, pendiente: 2 }] } : { ...fila, lineas_origen: [{ codigo: 'MAT-1', descripcion: 'Exportación', unidad: 'NIU', cantidad: 1, valor_unitario: 100, precio_unitario: 100, afectacion: '99' }] } }) as never);
   const query = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(<QueryClientProvider client={query}><InvoiceEmitModal seriesConfiguradas={seriesConfiguradasPrueba} tipoInicial="07" fecha="2026-11-05" existentes={[factura]} onEmitir={vi.fn()} onCerrar={vi.fn()} /></QueryClientProvider>);
   fireEvent.change(screen.getByLabelText('Documento afectado'), { target: { value: 'F001-00000056' } });

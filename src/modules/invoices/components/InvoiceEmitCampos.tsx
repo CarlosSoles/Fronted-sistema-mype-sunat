@@ -1,3 +1,4 @@
+import { limitesNota } from '../lib/invoiceNoteQuantities';
 import { InvoiceNextNumber } from './InvoiceNextNumber';
 /**
  * Campos del formulario de emisión de comprobantes (M1).
@@ -297,6 +298,7 @@ export const InvoiceEmitCampos = ({
 
 
       <InvoiceItemsGrid esNota={esNota} catalogoEstado={catalogoEstado}
+        cantidadesMaximas={b.tipo === '07' ? limitesNota(b.items, saldoNota?.cantidades_pendientes, b.motivoCodigo).maximos : undefined}
         items={b.items}
         onCambiar={onItemCambiado}
         onEliminar={onItemEliminado}
