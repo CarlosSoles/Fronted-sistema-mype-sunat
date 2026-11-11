@@ -35,6 +35,7 @@ const CLASE_CELDA =
   'h-8 w-full rounded border bg-background px-2 text-xs text-foreground';
 
 interface InvoiceItemsGridProps {
+  cantidadesMaximas?: readonly number[];
   items: readonly ItemBorrador[];
   onCambiar: (indice: number, parcial: Partial<ItemBorrador>) => void;
   onEliminar: (indice: number) => void;
@@ -66,6 +67,7 @@ export const InvoiceItemsGrid = ({
   productos = [],
   onAgregarConProducto,
   admiteDescuento = true,
+  cantidadesMaximas,
   esNota = false, catalogoEstado = 'listo',
 }: InvoiceItemsGridProps) => {
   const [avisoMinimo, setAvisoMinimo] = useState(false);
@@ -200,6 +202,8 @@ export const InvoiceItemsGrid = ({
                   <td className="px-1 py-1">
                     <input
                       aria-label={`Cantidad de la línea ${i + 1}`}
+                      max={cantidadesMaximas?.[i]}
+                      aria-invalid={cantidadesMaximas !== undefined && item.cantidad > cantidadesMaximas[i]}
                       type="number"
                       min="0"
                       step="0.01"
@@ -209,6 +213,7 @@ export const InvoiceItemsGrid = ({
                         onCambiar(i, { cantidad: Number(e.target.value) })
                       }
                     />
+                    {cantidadesMaximas !== undefined && item.cantidad > cantidadesMaximas[i] && <p role="alert" className="text-xs text-destructive">Supera las unidades disponibles del origen (máximo {cantidadesMaximas[i]}).</p>}
                   </td>
                   <td className="px-1 py-1">
                     <InvoiceMoneyInput aria-label={`Valor unitario de la línea ${i + 1}`} title="Precio unitario final con IGV incluido"
