@@ -43,7 +43,6 @@ import {
   cambiarFormaPago,
   esTipoNota,
   nuevaClave,
-  siguienteCorrelativo,
 } from '../lib/invoiceEmitDraft';
 import type { BorradorEmision } from '../lib/invoiceEmitDraft';
 import {
@@ -79,7 +78,7 @@ import { problemasDeNota } from '../lib/invoiceNotaOrigen';
 
 interface InvoiceEmitModalProps {
   tipoInicial: TipoEmisible;
-  seriesConfiguradas?: readonly { document_type: string; series: string; is_active: boolean }[];
+  seriesConfiguradas?: readonly { document_type: string; series: string; is_active: boolean; current_correlative?: number }[];
   fecha: string;
   /** Comprobantes ya emitidos: de aquí salen el correlativo y las notas. */
   existentes: readonly ComprobanteDemo[];
@@ -238,7 +237,7 @@ export const InvoiceEmitModal = ({
       ...(clienteConCredito !== undefined
         ? { clienteTieneCredito: clienteConCredito }
         : {}),
-      correlativo: siguienteCorrelativo(existentes, inicial.serie),
+      correlativo: 0,
     };
   });
   const almacen = b.almacen ?? 'ALM-01';
@@ -310,7 +309,7 @@ export const InvoiceEmitModal = ({
       if (parcial.tipo && parcial.tipo !== previo.tipo) {
         drafts.current[previo.tipo] = previo;
         const restaurado = drafts.current[parcial.tipo] ?? borradorInicial(parcial.tipo, fecha);
-        return { ...restaurado, correlativo: siguienteCorrelativo(existentes, restaurado.serie) };
+        return { ...restaurado, correlativo: 0 };
       }
       const siguiente = { ...previo, ...parcial };
       if (parcial.codigoDetraccion !== undefined && parcial.codigoDetraccion !== previo.codigoDetraccion) {
@@ -318,13 +317,6 @@ export const InvoiceEmitModal = ({
       }
       if (parcial.documentoAfectado !== undefined && parcial.documentoAfectado !== previo.documentoAfectado) {
         siguiente.items = [itemVacio(nuevaClave())];
-      }
-      // El correlativo se recalcula cuando cambia la serie elegida.
-      if (parcial.serie && parcial.serie !== previo.serie) {
-        siguiente.correlativo = siguienteCorrelativo(
-          existentes,
-          parcial.serie,
-        );
       }
       return siguiente;
     });
@@ -463,6 +455,7 @@ export const InvoiceEmitModal = ({
         <InvoiceEmitCampos
           borrador={b}
           series={seriesDelTipo}
+          correlativoActual={seriesConfiguradas.find(s => s.document_type === b.tipo && s.series === b.serie && s.is_active)?.current_correlative}
           actualizar={actualizar}
           existentes={existentes}
           total={flujo.importeTotal}

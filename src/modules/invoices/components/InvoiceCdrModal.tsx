@@ -272,7 +272,7 @@ export const InvoiceCdrModal = ({
 
             <div className="space-y-2 rounded-lg border p-3">
               <PageText variant="label">
-                Respuesta oficial CDR SUNAT (billService)
+                {c.estado === 'RECHAZADO' && c.resultadoPresentacion?.origen !== 'SUNAT' ? rechazo?.etiqueta : 'Respuesta oficial CDR SUNAT (billService)'}
               </PageText>
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="text-[10px]">
