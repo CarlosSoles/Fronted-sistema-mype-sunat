@@ -83,11 +83,9 @@ export default function InventoryStocksPage() {
     }
     const term = (searchTerm || '').trim().toLowerCase();
     if (!term) return true;
-    const sku = String(b.sku || '').toLowerCase();
-    const desc = String(b.description || '').toLowerCase();
-    const brand = String(b.brand || '').toLowerCase();
-    const cat = String(b.category || '').toLowerCase();
-    return sku.includes(term) || desc.includes(term) || brand.includes(term) || cat.includes(term);
+    const campos = [b.sku, b.description, b.brand, b.category, b.barcode, b.model, b.manufacturer]
+      .map((v) => String(v || '').toLowerCase());
+    return campos.some((v) => v.includes(term));
   });
 
   const handleOpenDetail = async (b: InventoryBalance) => {
