@@ -61,7 +61,7 @@ export interface FiltrosInvoices {
  * Los filtros se envían solo si tienen valor: mandar `estado=` (vacío) hace que
  * el backend filtre por una cadena vacía y no devuelva nada.
  */
-export interface SaldoNota { cantidades_pendientes: CantidadNota[]; total: number; devuelto: number; disponible: number; }
+export interface SaldoNota { motivos_totales: string[]; cantidades_pendientes: CantidadNota[]; total: number; devuelto: number; disponible: number; }
 
 export type ResultadoConsultaSunat =
   | { tipo: 'RECUPERADO'; estado: string; codigo: string | null; mensaje?: string | null; referencia?: string | null }
@@ -100,6 +100,7 @@ export const invoicesApi = {
     const { data } = await apiClient.get<SaldoNota>(`/invoices/${encodeURIComponent(id)}/saldo`);
     if (![data.total, data.devuelto, data.disponible].every((n) => typeof n === 'number' && Number.isFinite(n) && n >= 0)) throw new Error('El saldo recibido no es válido.');
     if (!Array.isArray(data.cantidades_pendientes) || data.cantidades_pendientes.some(c => !c || typeof c.codigo !== 'string' || !c.codigo.trim() || ![c.original, c.pendiente].every(n => typeof n === 'number' && Number.isFinite(n) && n >= 0))) throw new Error('Las cantidades pendientes recibidas no son válidas.');
+    if (!Array.isArray(data.motivos_totales) || data.motivos_totales.some(c => typeof c !== 'string' || !/^\d{2}$/.test(c))) throw new Error('Los motivos totales recibidos no son válidos.');
     return data;
   },
   getInvoices: async (
