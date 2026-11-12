@@ -1,3 +1,4 @@
+import { formatearReferenciaDocumento, numeroDocumentoSinSerie } from '../lib/documentReference';
 import { useState, useEffect } from 'react';
 import { inventoryApi } from '../services/inventoryApi';
 import { type InventoryMovement } from '../types/inventory.types';
@@ -147,7 +148,7 @@ export default function InventoryMovementsPage() {
       `"${OPERATION_NAMES[m.operationTypeCode] || `Tipo ${m.operationTypeCode}`}"`,
       `"${DOCUMENT_NAMES[m.documentTypeCode || ''] || m.documentTypeCode || ''}"`,
       `"${m.documentSerial || ''}"`,
-      `"${m.documentNumber || ''}"`,
+      `"${numeroDocumentoSinSerie(m.documentSerial, m.documentNumber)}"`,
       `"${m.sku}"`,
       `"${(m.description || '').replace(/"/g, '""')}"`,
       `"${m.direction}"`,
@@ -400,8 +401,7 @@ export default function InventoryMovementsPage() {
                           [{m.documentTypeCode} {docLabel ? docLabel.split(' ')[0] : ''}]
                         </span>
                       )}
-                      {m.documentSerial ? `${m.documentSerial}-` : ''}
-                      {m.documentNumber || '-'}
+                      {formatearReferenciaDocumento(m.documentSerial, m.documentNumber || '-')}
                     </td>
                     <td className="p-3">
                       <p className="font-mono font-bold text-primary">{m.sku}</p>
