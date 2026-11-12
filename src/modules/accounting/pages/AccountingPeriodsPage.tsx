@@ -24,6 +24,7 @@ export default function AccountingPeriodsPage() {
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
   const [error, setError] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
 
   const { data: periods = [], isLoading, error: queryError } = useQuery({
     queryKey: ['accounting-periods'],
@@ -31,6 +32,8 @@ export default function AccountingPeriodsPage() {
   });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['accounting-periods'] });
+  const periodosDelAnio = (periods ?? []).filter((p) => p.year === year);
+  const estadoAnio = periodosDelAnio.length === 0 ? 'SIN ABRIR' : periodosDelAnio.every((p) => p.status === 'CERRADO') ? 'CERRADO' : 'ABIERTO';
   const actualizarPeriodo = (periodo: { period: string }) => {
     queryClient.setQueryData<any[]>(['accounting-periods'], (prev) => prev?.map((p) => p.period === periodo.period ? { ...p, ...periodo } : p));
   };
@@ -49,7 +52,7 @@ export default function AccountingPeriodsPage() {
 
   const closeAnnual = useMutation({
     mutationFn: (y: number) => accountingApi.closeAnnual(y),
-    onSuccess: async () => { setError(null); await invalidate(); },
+    onSuccess: async (data) => { setError(null); setOk(data.closingEntryCreated ? 'Asiento de cierre generado y año bloqueado.' : 'El asiento de cierre ya existía; año bloqueado.'); await invalidate(); },
     onError: (e: any) => setError(e?.response?.data?.message ?? 'No se pudo cerrar el año completo.'),
   });
 
@@ -114,6 +117,7 @@ export default function AccountingPeriodsPage() {
             <Unlock className="w-4 h-4 mr-1" />
             {openPeriod.isPending ? 'Abriendo…' : 'Abrir período'}
           </Button>
+          <Badge variant={estadoAnio === 'ABIERTO' ? 'outline' : 'secondary'}>Año {year}: {estadoAnio}</Badge>
           <Button variant="outline" onClick={() => openYear.mutate(year)} disabled={openYear.isPending}>
             <CalendarDays className="w-4 h-4 mr-1" />
             {openYear.isPending ? 'Abriendo año…' : 'Abrir año fiscal'}
@@ -133,6 +137,7 @@ export default function AccountingPeriodsPage() {
         </div>
       </Card>
 
+      {ok ? <Card className="p-3 mb-3 text-sm text-emerald-600">{ok}</Card> : null}
       {error || queryError ? (
         <Card className="p-4 mb-4 text-sm text-destructive">
           {error ?? 'No se pudieron cargar los períodos.'}
