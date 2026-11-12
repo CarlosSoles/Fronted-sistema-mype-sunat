@@ -1,3 +1,4 @@
+import { formatearReferenciaDocumento } from '../lib/documentReference';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -833,7 +834,7 @@ export default function InventoryConfigPage() {
                           <tr key={m.id} className="hover:bg-zinc-900/50">
                             <td className="p-2 text-zinc-400">{new Date(m.movementDate).toLocaleDateString()}</td>
                             <td className="p-2 font-sans">
-                              {m.documentTypeCode ? `${m.documentTypeCode} ${m.documentSerial || ''}-${m.documentNumber || ''}` : '—'}
+                              {m.documentTypeCode ? `${m.documentTypeCode} ${formatearReferenciaDocumento(m.documentSerial, m.documentNumber)}` : '—'}
                             </td>
                             <td className="p-2">
                               <Badge variant="outline" className="text-[10px] bg-zinc-900 border-zinc-800">
