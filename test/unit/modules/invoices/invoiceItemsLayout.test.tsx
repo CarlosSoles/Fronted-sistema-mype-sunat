@@ -46,10 +46,10 @@ describe('presentación del detalle de líneas', () => {
     expect(callbacks.onEliminar).not.toHaveBeenCalled();
     expect(screen.getByRole('alert').textContent).toBe('Debe quedar al menos una línea');
   });
-  it('explicita en la etiqueta de la columna que el precio unitario incluye IGV y desglosa la base sin tratar precioUnitario como base sin impuesto', () => {
+  it('explicita valor sin IGV y conserva la conversión inversa del precio final', () => {
     render(<InvoiceItemsGrid items={[itemVacio('a')]} {...props()} />);
-    expect(screen.getByRole('columnheader', { name: /Precio unitario \(con IGV\)/i })).toBeTruthy();
-    expect(screen.getByText(/Precio final con IGV incluido/i)).toBeTruthy();
+    expect(screen.getByRole('columnheader', { name: /Valor unitario \(sin IGV\)/i })).toBeTruthy();
+    expect(screen.getByText(/Valor unitario sin IGV/i)).toBeTruthy();
 
     expect(valorUnitarioDesdePrecioConIgv(118, 'GRAVADA')).toBe(100);
     expect(valorUnitarioDesdePrecioConIgv(50, 'EXONERADA')).toBe(50);

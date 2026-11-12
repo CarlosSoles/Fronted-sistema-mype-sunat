@@ -1,3 +1,4 @@
+import { formatearReferenciaDocumento, numeroDocumentoSinSerie } from '../lib/documentReference';
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { inventoryApi } from '../services/inventoryApi';
@@ -141,7 +142,7 @@ export default function ProductKardexPage() {
       const isEntry = m.direction === 'ENTRADA';
       const docParts = (m.documentNumber || '').split('-');
       const docSerial = m.documentSerial || docParts[0] || '';
-      const docNum = docParts.length > 1 ? docParts.slice(1).join('-') : m.documentNumber || m.movementNumber;
+      const docNum = numeroDocumentoSinSerie(docSerial, m.documentNumber || m.movementNumber);
 
       return [
         `"${new Date(m.movementDate).toLocaleDateString('es-PE')}"`,
@@ -426,8 +427,7 @@ export default function ProductKardexPage() {
                         </td>
                         <td className="p-2 font-mono">{m.documentTypeCode ? `[${m.documentTypeCode}]` : '-'}</td>
                         <td className="p-2 font-mono border-r whitespace-nowrap">
-                          {m.documentSerial ? `${m.documentSerial}-` : ''}
-                          {m.documentNumber || m.movementNumber}
+                          {formatearReferenciaDocumento(m.documentSerial, m.documentNumber || m.movementNumber)}
                         </td>
 
                         {/* Entradas */}

@@ -390,8 +390,12 @@ export const actualizarItem = (
   items.map((item, i) => {
     if (i !== indice) return item;
     const combinado: ItemBorrador = { ...item, ...parcial };
-    if (
-      combinado.afectacion !== 'GRATUITA' &&
+    if (combinado.afectacion === 'GRATUITA') {
+      combinado.precioUnitario = 0;
+    } else if (typeof parcial.valorUnitario === 'number' && parcial.precioUnitario === undefined) {
+      combinado.precioUnitario = combinado.afectacion === 'GRAVADA'
+        ? Number((parcial.valorUnitario * 1.18).toFixed(10)) : parcial.valorUnitario;
+    } else if (
       typeof parcial.precioUnitario === 'number' &&
       parcial.valorUnitario === undefined
     ) {
@@ -400,7 +404,7 @@ export const actualizarItem = (
         combinado.afectacion,
       );
     } else if (
-      combinado.afectacion !== 'GRATUITA' && parcial.afectacion !== undefined &&
+      parcial.afectacion !== undefined && parcial.valorUnitario === undefined &&
       typeof combinado.precioUnitario === 'number'
     ) {
       combinado.valorUnitario = valorUnitarioDesdePrecioConIgv(

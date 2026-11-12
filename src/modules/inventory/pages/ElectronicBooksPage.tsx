@@ -1,3 +1,4 @@
+import { formatearReferenciaDocumento } from '../lib/documentReference';
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -365,8 +366,7 @@ export default function ElectronicBooksPage() {
                       </td>
                       <td className="p-2 font-mono">
                         {m.documentTypeCode ? `[${m.documentTypeCode}] ` : ''}
-                        {m.documentSerial ? `${m.documentSerial}-` : ''}
-                        {m.documentNumber || m.movementNumber}
+                        {formatearReferenciaDocumento(m.documentSerial, m.documentNumber || m.movementNumber)}
                       </td>
                       <td className="p-2 font-semibold font-mono text-primary">{m.warehouseCode || 'ALM-01'}</td>
                       <td className="p-2">
