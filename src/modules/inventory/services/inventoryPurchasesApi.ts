@@ -59,6 +59,11 @@ export const inventoryPurchasesApi = {
     return response.data;
   },
 
+  supplierStatement: async (doc: string): Promise<{ supplierDoc: string; purchases: Array<{ id: string; number: string; document: string; date: string; total: number; paid: number; balance: number; status: string }>; payments: Array<{ id: string; date: string; amount: number; method: string; reference: string; concept: string }>; totals: { total: number; paid: number; balance: number } }> => {
+    const { data } = await apiClient.get(`/purchases/suppliers/${encodeURIComponent(doc)}/statement`);
+    return data;
+  },
+
   listPayables: async (): Promise<Array<{ supplierDocNumber: string; supplierName: string; total: number; paid: number; balance: number; count: number; overdue: number; oldestDays: number; aging: { d0_30: number; d31_60: number; d61_90: number; d90_plus: number } }>> => {
     const response = await apiClient.get('/purchases/payables');
     return response.data;
