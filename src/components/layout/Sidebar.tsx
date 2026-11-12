@@ -26,9 +26,11 @@ import {
   LayoutDashboard,
   FileUp,
   ClipboardCheck,
+  History,
   Settings,
   Ship,
   ShoppingBag,
+  Search,
   Sparkles,
 } from 'lucide-react';
 
@@ -147,7 +149,10 @@ const NAV_ITEMS: NavItem[] = [
     allowedRoles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
     subItems: [
       { title: 'Importar Propuesta', path: '/sire/importar', icon: FileUp },
+      { title: 'Consulta de periodos', path: '/sire/periodos', icon: Search },
       { title: 'Conciliación y Cruce', path: '/sire/conciliacion', icon: GitCompareArrows },
+      { title: 'Resumen de Cierre', path: '/sire/cierre', icon: ClipboardCheck },
+      { title: 'Historial', path: '/sire/historial', icon: History },
     ],
   },
   {

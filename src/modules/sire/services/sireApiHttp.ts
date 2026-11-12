@@ -11,6 +11,9 @@ export class SireApiError extends Error {
   }
 }
 
+export const redactSireSecret = (value: string, secret: string): string =>
+  secret ? value.split(secret).join('[oculto]') : value;
+
 const getBackendMessage = (body: unknown): string | undefined => {
   if (typeof body !== 'object' || body === null) return undefined;
   const response = body as { message?: unknown; detail?: unknown; error?: unknown };
@@ -113,12 +116,33 @@ const readResponse = async <T>(response: Response): Promise<T> => {
   return body as T;
 };
 
-export const requestSireApi = async <T>(path: string, init: RequestInit): Promise<T> => {
+export interface SireApiRequestOptions {
+  /**
+   * Tope de espera de la respuesta. Sin tope, una petición colgada deja la
+   * pantalla en estado "cargando" para siempre.
+   */
+  timeoutMs?: number;
+}
+
+/**
+ * Ejecuta la petición con un tope de espera.
+ *
+ * `AbortSignal.timeout` cancela la petición cuando el servidor no responde: sin
+ * esto el `fetch` puede quedarse colgado indefinidamente y la UI quedaría
+ * bloqueada en "Consultando…" sin salida.
+ */
+export const requestSireApi = async <T>(
+  path: string,
+  init: RequestInit,
+  options: SireApiRequestOptions = {},
+): Promise<T> => {
   const token = useAuthStore.getState().token;
   if (!token) throw new SireApiError('Tu sesión venció o no es válida. Inicia sesión nuevamente.', 401);
+  const timeoutMs = options.timeoutMs;
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
       ...init,
+      ...(timeoutMs ? { signal: AbortSignal.timeout(timeoutMs) } : {}),
       headers: {
         ...authenticatedHeaders(token, Boolean(init.body) && !(init.body instanceof FormData)),
         ...init.headers,
@@ -129,6 +153,12 @@ export const requestSireApi = async <T>(path: string, init: RequestInit): Promis
     if (error instanceof TypeError) {
       throw new SireApiError(
         'No fue posible conectar con el servidor. Verifica tu conexión e inténtalo nuevamente.',
+        null,
+      );
+    }
+    if (error instanceof DOMException && error.name === 'TimeoutError') {
+      throw new SireApiError(
+        'El servidor tardó demasiado en responder. Inténtalo nuevamente.',
         null,
       );
     }

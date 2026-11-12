@@ -5,6 +5,10 @@ import type {
   ReconcileResponse,
   ReconcileScenario,
   SireBookType,
+  SirePeriodo,
+  SirePeriodosAcceptedResponse,
+  SirePeriodosStatus,
+  SirePeriodosStatusResponse,
   SireProposalDto,
   SireProposalResponse,
   TipoComprobante,
@@ -15,6 +19,155 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const isNumber = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value);
+
+const isString = (value: unknown): value is string => typeof value === 'string';
+
+const isOptionalString = (value: unknown): value is string | undefined =>
+  value === undefined || isString(value);
+
+/**
+ * Periodo de SUNAT ya normalizado. El payload crudo del backend es el que
+ * devolvió SUNAT y puede venir como arreglo plano, como objeto con una lista
+ * interna o con nombres de campo en español; por eso se normaliza en un solo
+ * punto en lugar de asumir una forma fija.
+ */
+const PERIOD_CODE_KEYS = [
+  'period',
+  'periodo',
+  'codigoPeriodo',
+  'codigo_periodo',
+  'numeroPeriodo',
+  'codigo',
+] as const;
+
+const PERIOD_BOOK_KEYS = ['bookCode', 'codigoLibro', 'libro'] as const;
+const PERIOD_STATUS_KEYS = ['status', 'estado'] as const;
+const PERIOD_START_KEYS = ['startDate', 'fechaInicio', 'desde'] as const;
+const PERIOD_END_KEYS = ['endDate', 'fechaFin', 'hasta'] as const;
+const PERIOD_COUNT_KEYS = [
+  'recordCount',
+  'cantidadRegistros',
+  'totalRegistros',
+  'numeroRegistros',
+  'records',
+] as const;
+
+const PERIOD_LIST_KEYS = ['periodos', 'periods', 'data', 'items', 'lista'] as const;
+
+const readString = (source: Record<string, unknown>, keys: readonly string[]): string | undefined => {
+  for (const key of keys) {
+    const value = source[key];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return undefined;
+};
+
+const readNumber = (source: Record<string, unknown>, keys: readonly string[]): number | undefined => {
+  for (const key of keys) {
+    const value = source[key];
+    if (typeof value === 'number' && Number.isFinite(value) && value >= 0) return value;
+  }
+  return undefined;
+};
+
+const mapPeriodItem = (item: unknown): SirePeriodo | null => {
+  if (typeof item === 'string' || typeof item === 'number') {
+    const code = String(item).trim();
+    return code ? { period: code } : null;
+  }
+  if (!isRecord(item)) return null;
+
+  const period = readString(item, PERIOD_CODE_KEYS);
+  if (!period) return null;
+
+  return {
+    period,
+    ...(readString(item, PERIOD_BOOK_KEYS) ? { bookCode: readString(item, PERIOD_BOOK_KEYS) } : {}),
+    ...(readString(item, PERIOD_STATUS_KEYS) ? { status: readString(item, PERIOD_STATUS_KEYS) } : {}),
+    ...(readString(item, PERIOD_START_KEYS) ? { startDate: readString(item, PERIOD_START_KEYS) } : {}),
+    ...(readString(item, PERIOD_END_KEYS) ? { endDate: readString(item, PERIOD_END_KEYS) } : {}),
+    ...(readNumber(item, PERIOD_COUNT_KEYS) !== undefined
+      ? { recordCount: readNumber(item, PERIOD_COUNT_KEYS) }
+      : {}),
+  };
+};
+
+/**
+ * Convierte el payload crudo de SUNAT en una lista de periodos.
+ *
+ * Acepta las formas que el backend puede devolver (el resultado almacenado es
+ * el JSON literal de SUNAT):
+ * - `['202601', '202602']`
+ * - `[{ codigoPeriodo: '202601', ... }]`
+ * - `{ periodos: [...] }` / `{ periods: [...] }` / `{ data: [...] }`
+ *
+ * Un payload que no se reconoce devuelve una lista vacía: la pantalla lo dice
+ * en vez de inventar datos.
+ */
+export const normalizeSirePeriods = (raw: unknown): SirePeriodo[] => {
+  if (raw === null || raw === undefined) return [];
+
+  if (Array.isArray(raw)) {
+    return raw.map(mapPeriodItem).filter((item): item is SirePeriodo => item !== null);
+  }
+
+  if (!isRecord(raw)) return [];
+
+  for (const key of PERIOD_LIST_KEYS) {
+    const list = raw[key];
+    if (Array.isArray(list)) return normalizeSirePeriods(list);
+  }
+
+  const single = mapPeriodItem(raw);
+  return single ? [single] : [];
+};
+
+/**
+ * Contrato del POST /sire/periodos (HTTP 202).
+ * El backend responde `PENDING` cuando encoló el trabajo y `FAILED` cuando la
+ * cola no pudo publicarlo: en ambos casos llega un `messageId`.
+ */
+export const isPeriodosAcceptedResponse = (value: unknown): value is SirePeriodosAcceptedResponse =>
+  isRecord(value) &&
+  isString(value.messageId) &&
+  value.messageId.trim().length > 0 &&
+  (value.status === 'PENDING' || value.status === 'FAILED') &&
+  isOptionalString(value.errorCode) &&
+  isOptionalString(value.message) &&
+  isOptionalString(value.error);
+
+/**
+ * Contrato del GET /sire/periodos/status/:messageId.
+ *
+ * `periods` llega como el payload crudo de SUNAT: no se valida su forma aquí
+ * (la normaliza `normalizeSirePeriods`) porque un dato inesperado no debe
+ * convertir una consulta válida en un error de contrato.
+ */
+export const isPeriodosStatusResponse = (value: unknown): value is SirePeriodosStatusResponse =>
+  isRecord(value) &&
+  (value.status === 'PENDING' ||
+    value.status === 'PROCESSING' ||
+    value.status === 'COMPLETED' ||
+    value.status === 'FAILED') &&
+  isOptionalString(value.messageId) &&
+  isOptionalString(value.bookCode) &&
+  isOptionalString(value.message) &&
+  isOptionalString(value.error) &&
+  (value.errorCode === undefined || value.errorCode === null || isString(value.errorCode)) &&
+  (value.createdAt === undefined || isString(value.createdAt)) &&
+  (value.completedAt === undefined || isString(value.completedAt));
+
+/** Estado normalizado que consume la pantalla. */
+export const mapPeriodosStatus = (response: SirePeriodosStatusResponse): SirePeriodosStatus => ({
+  status: response.status,
+  periods: normalizeSirePeriods(response.periods),
+  ...(response.message ? { message: response.message } : {}),
+  ...(response.error ? { error: response.error } : {}),
+  ...(response.errorCode !== undefined ? { errorCode: response.errorCode } : {}),
+  ...(response.messageId ? { messageId: response.messageId } : {}),
+  ...(response.bookCode ? { bookCode: response.bookCode } : {}),
+});
+
 
 const isNullableNumber = (value: unknown): value is number | null =>
   value === null || isNumber(value);
