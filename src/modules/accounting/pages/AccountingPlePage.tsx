@@ -19,6 +19,8 @@ export default function AccountingPlePage() {
     return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
   });
   const [error, setError] = useState<string | null>(null);
+  const [validacion, setValidacion] = useState<{ bookCode: string; records: number; valid: boolean; errors: number; warnings: number; issues: Array<{ document: string; field: string; message: string; severity: string }> } | null>(null);
+  const [validando, setValidando] = useState<'140100' | '080100' | null>(null);
 
   // Función unificada para consultar al Backend y descargar la trama real
   const handleExportPle = async (bookCode: '050100' | '060100' | '030100') => {
@@ -64,6 +66,18 @@ export default function AccountingPlePage() {
     } finally {
       setLoader(false);
     }
+  };
+
+  const handleValidateTaxPle = async (bookCode: '140100' | '080100') => {
+    setValidando(bookCode); setError(null);
+    try {
+      const { data } = await apiClient.post('/accounting/ple/tax-validate', {
+        companyRuc, year: Number(period.slice(0, 4)), month: Number(period.slice(5, 7)), bookCode,
+      });
+      setValidacion(data);
+    } catch {
+      setError('No se pudo validar el registro tributario.');
+    } finally { setValidando(null); }
   };
 
   const downloadTxtFile = (fileName: string, content: string) => {
@@ -178,6 +192,9 @@ export default function AccountingPlePage() {
             {isDownloadingVentas ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
             {isDownloadingVentas ? 'Generando Trama...' : 'Descargar Ventas 14.1'}
           </Button>
+          <Button variant="ghost" size="sm" className="w-full" onClick={() => void handleValidateTaxPle('140100')} disabled={validando !== null}>
+            {validando === '140100' ? 'Validando…' : 'Validar antes de presentar'}
+          </Button>
         </Card>
 
         {/* Registro de Compras 8.1 */}
@@ -188,9 +205,19 @@ export default function AccountingPlePage() {
             {isDownloadingCompras ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
             {isDownloadingCompras ? 'Generando Trama...' : 'Descargar Compras 8.1'}
           </Button>
+          <Button variant="ghost" size="sm" className="w-full" onClick={() => void handleValidateTaxPle('080100')} disabled={validando !== null}>
+            {validando === '080100' ? 'Validando…' : 'Validar antes de presentar'}
+          </Button>
         </Card>
 
       </div>
+      {validacion ? <Card className="p-4 mt-4 space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="font-semibold text-sm">Validación {validacion.bookCode === '140100' ? 'Ventas 14.1' : 'Compras 8.1'}</p>
+          <span className={`text-xs font-medium ${validacion.valid ? 'text-emerald-500' : 'text-destructive'}`}>{validacion.valid ? 'Sin errores' : `${validacion.errors} errores`} · {validacion.warnings} advertencias · {validacion.records} registros</span>
+        </div>
+        {validacion.issues.length === 0 ? <p className="text-xs text-muted-foreground">El libro está listo para exportar.</p> : <ul className="space-y-1 text-xs">{validacion.issues.slice(0, 50).map((i, idx) => <li key={idx} className={i.severity === 'error' ? 'text-destructive' : 'text-amber-500'}>{i.document} · {i.field}: {i.message}</li>)}</ul>}
+      </Card> : null}
     </Page>
   );
 }

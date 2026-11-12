@@ -16,6 +16,11 @@ import {
   Badge,
   Button,
   Card,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
   Page,
   PageHeader,
   PageText,
@@ -51,6 +56,7 @@ interface Entry {
   totalHaber: number;
   estaCuadrado: boolean;
   sourceModule: string;
+  journalCode?: string;
   sourceReferenceId?: string;
   lines: AccountingLine[];
 }
@@ -84,6 +90,8 @@ interface AsientoBackend {
   totalHaber?: number | string;
   sourceModule?: string;
   source_module?: string;
+  journalCode?: string;
+  journal_code?: string;
   sourceReferenceId?: string;
   source_reference_id?: string;
   lines?: LineaAsientoBackend[];
@@ -142,6 +150,7 @@ const mapearAsiento = (
     totalHaber,
     estaCuadrado: Math.abs(totalDebe - totalHaber) <= 0.01,
     sourceModule: item.sourceModule ?? item.source_module ?? 'MANUAL',
+    journalCode: item.journalCode ?? item.journal_code,
     sourceReferenceId: item.sourceReferenceId ?? item.source_reference_id,
     lines,
   };
@@ -156,6 +165,27 @@ const etiquetaOrigen = (source: string): string => {
   return etiquetas[source] ?? source;
 };
 
+type Diario = 'TODOS' | 'VEN' | 'COM' | 'CAJ' | 'OPV';
+
+const diarioDe = (entry: Entry): Exclude<Diario, 'TODOS'> => {
+  if (entry.journalCode && ['VEN', 'COM', 'CAJ', 'OPV', 'GAS'].includes(entry.journalCode)) {
+    return entry.journalCode === 'GAS' ? 'OPV' : entry.journalCode as Exclude<Diario, 'TODOS'>;
+  }
+  const codigos = entry.lines.map((l) => l.accountCode);
+  if (codigos.some((c) => c.startsWith('70'))) return 'VEN';
+  if (codigos.some((c) => c.startsWith('10')) && codigos.some((c) => c.startsWith('12'))) return 'CAJ';
+  if (codigos.some((c) => c.startsWith('60'))) return 'COM';
+  return 'OPV';
+};
+
+const DIARIOS: Array<{ key: Diario; label: string }> = [
+  { key: 'TODOS', label: 'Todos' },
+  { key: 'CAJ', label: 'Caja y bancos' },
+  { key: 'COM', label: 'Compras' },
+  { key: 'VEN', label: 'Ventas' },
+  { key: 'OPV', label: 'Operaciones varias' },
+];
+
 export default function AccountingEntriesPage() {
   const { canCreateAccountingEntry } = useRolePermissions();
   const { activeCompany, user } = useAuthStore();
@@ -163,6 +193,8 @@ export default function AccountingEntriesPage() {
 
   const [period, setPeriod] = useState(periodoActual);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [diario, setDiario] = useState<Diario>('TODOS');
+  const [detalle, setDetalle] = useState<Entry | null>(null);
 
   const {
     data: asientosBackend,
@@ -190,6 +222,10 @@ export default function AccountingEntriesPage() {
     [asientosBackend, period],
   );
 
+  const filtrados = useMemo(
+    () => diario === 'TODOS' ? entries : entries.filter((e) => diarioDe(e) === diario),
+    [entries, diario],
+  );
   const totalDebe = useMemo(
     () => entries.reduce((acc, entry) => acc + entry.totalDebe, 0),
     [entries],
@@ -240,6 +276,15 @@ export default function AccountingEntriesPage() {
         </div>
       ) : null}
 
+      <div className="flex flex-wrap gap-1 rounded-lg border p-1 mb-4" role="tablist">
+        {DIARIOS.map((d) => (
+          <Button key={d.key} type="button" size="sm" role="tab" aria-selected={diario === d.key} variant={diario === d.key ? 'default' : 'ghost'} onClick={() => setDiario(d.key)}>
+            {d.label}
+            <Badge variant="outline" className="ml-1">{d.key === 'TODOS' ? entries.length : entries.filter((e) => diarioDe(e) === d.key).length}</Badge>
+          </Button>
+        ))}
+      </div>
+
       <DoubleEntryBalanceCard totalDebe={totalDebe} totalHaber={totalHaber} />
 
       <Card flush>
@@ -262,9 +307,9 @@ export default function AccountingEntriesPage() {
                   <PageText variant="muted">Cargando asientos...</PageText>
                 </TableCell>
               </TableRow>
-            ) : entries.length > 0 ? (
-              entries.map((entry) => (
-                <TableRow key={entry.id}>
+            ) : filtrados.length > 0 ? (
+              filtrados.map((entry) => (
+                <TableRow key={entry.id} className="cursor-pointer hover:bg-muted/40" onClick={() => setDetalle(entry)}>
                   <TableCell className="font-mono text-xs">
                     {entry.numeroAsiento}
                   </TableCell>
@@ -322,6 +367,16 @@ export default function AccountingEntriesPage() {
           </TableBody>
         </Table>
       </Card>
+
+      <Dialog open={Boolean(detalle)} onOpenChange={(open) => { if (!open) setDetalle(null); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader><DialogTitle>Asiento {detalle?.numeroAsiento}</DialogTitle><DialogDescription>{detalle?.glosa} · {detalle ? formatDateToPeru(detalle.fechaContable) : ''}</DialogDescription></DialogHeader>
+          {detalle ? <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">Origen: {etiquetaOrigen(detalle.sourceModule)} {detalle.sourceReferenceId ? `· ${detalle.sourceReferenceId}` : ''}</p>
+            <Table><TableHeader><TableRow><TableHead>Cuenta</TableHead><TableHead>Nombre</TableHead><TableHead align="right">Debe</TableHead><TableHead align="right">Haber</TableHead></TableRow></TableHeader><TableBody>{detalle.lines.map((l, i) => <TableRow key={i}><TableCell className="font-mono">{l.accountCode}</TableCell><TableCell>{l.accountName}</TableCell><TableCell align="right">{formatCurrency(l.debitAmount, 'PEN')}</TableCell><TableCell align="right">{formatCurrency(l.creditAmount, 'PEN')}</TableCell></TableRow>)}</TableBody></Table>
+          </div> : null}
+        </DialogContent>
+      </Dialog>
 
       <ManualEntryModal
         open={isModalOpen}

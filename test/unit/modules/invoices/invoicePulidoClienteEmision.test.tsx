@@ -20,7 +20,10 @@ beforeEach(() => {
   vi.mocked(invoicesApi.emitirComprobante).mockResolvedValue({ numero: 'F001-66', monto_total: 118, lineas: [], avisos: [] } as never);
 });
 afterEach(() => { cleanup(); clients.splice(0).forEach(c => c.clear()); vi.resetAllMocks(); });
-it.each(['pagina', 'modal'].flatMap(via => ['clic', 'teclado', 'texto-sin-confirmar'].map(modo => [via, modo])))('%s: %s vincula documento/nombre al payload del PRIMER intento sin reescribirlos', async (via, modo) => {
+// El caso "texto-sin-confirmar" espera el debounce de búsqueda (300 ms) además
+// del tipeo. Bajo carga, el timeout global de 5 s se queda corto y el test falla
+// sin que exista un error funcional. Se le da un margen propio.
+it.each(['pagina', 'modal'].flatMap(via => ['clic', 'teclado', 'texto-sin-confirmar'].map(modo => [via, modo])))('%s: %s vincula documento/nombre al payload del PRIMER intento sin reescribirlos', { timeout: 15000 }, async (via, modo) => {
   const usuario = userEvent.setup(); const q = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } }); clients.push(q);
   render(<QueryClientProvider client={q}><MemoryRouter>{via === 'pagina' ? <InvoiceEmissionPage /> : <InvoiceEmitModal tipoInicial="01" seriesConfiguradas={seriesConfiguradasPrueba} fecha={hoyEnLima()} existentes={[]} onEmitir={vi.fn()} onCerrar={vi.fn()} />}</MemoryRouter></QueryClientProvider>);
   if (via === 'pagina') await waitFor(() => expect((screen.getByLabelText('Serie configurada') as HTMLSelectElement).value).toBe('F001'));
@@ -28,7 +31,7 @@ it.each(['pagina', 'modal'].flatMap(via => ['clic', 'teclado', 'texto-sin-confir
   await usuario.type(screen.getByLabelText('Descripción de la línea 1'), 'Artículo de prueba');
   await usuario.clear(screen.getByLabelText('Valor unitario de la línea 1')); await usuario.type(screen.getByLabelText('Valor unitario de la línea 1'), '118');
   await usuario.type(screen.getByLabelText(via === 'pagina' ? 'RUC del cliente' : 'RUC / DNI del cliente'), cliente.doc_number);
-  const sugerencia = await screen.findByRole('button', { name: /Ferretería Los Andes/ });
+  const sugerencia = await screen.findByRole('button', { name: /Ferretería Los Andes/ }, { timeout: 3000 });
   if (modo === 'clic') await usuario.click(sugerencia);
   else if (modo === 'teclado') { await usuario.tab(); expect(document.activeElement).toBe(sugerencia); await usuario.keyboard('{Enter}'); }
   else { await usuario.type(screen.getByLabelText('Razón social / nombre'), cliente.legal_name); }
@@ -36,7 +39,7 @@ it.each(['pagina', 'modal'].flatMap(via => ['clic', 'teclado', 'texto-sin-confir
   const boton = screen.getByRole('button', { name: via === 'pagina' ? 'Emitir comprobante' : 'Emitir Factura' });
   // Texto sin confirmar conserva lo tipeado; no se incorpora selección implícita ni atajos nuevos.
   await usuario.click(boton);
-  await waitFor(() => expect(invoicesApi.emitirComprobante).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(invoicesApi.emitirComprobante).toHaveBeenCalledTimes(1), { timeout: 3000 });
   expect(invoicesApi.emitirComprobante).toHaveBeenCalledWith(expect.objectContaining({ customer_identity_number: cliente.doc_number, customer_identity_type: '6', customer_legal_name: cliente.legal_name }), expect.any(String));
   expect(screen.queryByText('Falta la razón social del cliente.')).toBeNull();
 });

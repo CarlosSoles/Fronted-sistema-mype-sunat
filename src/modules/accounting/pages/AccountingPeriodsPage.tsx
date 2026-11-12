@@ -24,6 +24,7 @@ export default function AccountingPeriodsPage() {
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
   const [error, setError] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
 
   const { data: periods = [], isLoading, error: queryError } = useQuery({
     queryKey: ['accounting-periods'],
@@ -31,6 +32,11 @@ export default function AccountingPeriodsPage() {
   });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['accounting-periods'] });
+  const periodosDelAnio = (periods ?? []).filter((p) => p.year === year);
+  const estadoAnio = periodosDelAnio.length === 0 ? 'SIN ABRIR' : periodosDelAnio.every((p) => p.status === 'CERRADO') ? 'CERRADO' : 'ABIERTO';
+  const actualizarPeriodo = (periodo: { period: string }) => {
+    queryClient.setQueryData<any[]>(['accounting-periods'], (prev) => prev?.map((p) => p.period === periodo.period ? { ...p, ...periodo } : p));
+  };
 
   const openYear = useMutation({
     mutationFn: (y: number) => accountingApi.openFiscalYear(y),
@@ -44,6 +50,12 @@ export default function AccountingPeriodsPage() {
     onError: () => setError('No se pudo generar el asiento de cierre. Verifique que el año tenga asientos y no esté cerrado.'),
   });
 
+  const closeAnnual = useMutation({
+    mutationFn: (y: number) => accountingApi.closeAnnual(y),
+    onSuccess: async (data) => { setError(null); setOk(data.closingEntryCreated ? 'Asiento de cierre generado y año bloqueado.' : 'El asiento de cierre ya existía; año bloqueado.'); await invalidate(); },
+    onError: (e: any) => setError(e?.response?.data?.message ?? 'No se pudo cerrar el año completo.'),
+  });
+
   const closeYear = useMutation({
     mutationFn: (y: number) => accountingApi.closeFiscalYear(y),
     onSuccess: async () => { setError(null); await invalidate(); },
@@ -52,8 +64,9 @@ export default function AccountingPeriodsPage() {
 
   const openPeriod = useMutation({
     mutationFn: ({ y, m }: { y: number; m: number }) => accountingApi.openPeriod(y, m),
-    onSuccess: async () => {
+    onSuccess: async (periodo) => {
       setError(null);
+      actualizarPeriodo(periodo);
       await invalidate();
     },
     onError: () => setError('No se pudo abrir el período. Verifica la empresa activa.'),
@@ -61,8 +74,9 @@ export default function AccountingPeriodsPage() {
 
   const closePeriod = useMutation({
     mutationFn: (period: string) => accountingApi.closePeriod(period),
-    onSuccess: async () => {
+    onSuccess: async (periodo) => {
       setError(null);
+      actualizarPeriodo(periodo);
       await invalidate();
     },
     onError: () => setError('No se pudo cerrar el período.'),
@@ -103,6 +117,7 @@ export default function AccountingPeriodsPage() {
             <Unlock className="w-4 h-4 mr-1" />
             {openPeriod.isPending ? 'Abriendo…' : 'Abrir período'}
           </Button>
+          <Badge variant={estadoAnio === 'ABIERTO' ? 'outline' : 'secondary'}>Año {year}: {estadoAnio}</Badge>
           <Button variant="outline" onClick={() => openYear.mutate(year)} disabled={openYear.isPending}>
             <CalendarDays className="w-4 h-4 mr-1" />
             {openYear.isPending ? 'Abriendo año…' : 'Abrir año fiscal'}
@@ -115,9 +130,14 @@ export default function AccountingPeriodsPage() {
             <Lock className="w-4 h-4 mr-1" />
             {closeYear.isPending ? 'Cerrando año…' : 'Cerrar año fiscal'}
           </Button>
+          <Button onClick={() => { if (window.confirm('¿Generar asiento de cierre y bloquear todo el año?')) closeAnnual.mutate(year); }} disabled={closeAnnual.isPending}>
+            <Lock className="w-4 h-4 mr-1" />
+            {closeAnnual.isPending ? 'Cerrando…' : 'Cerrar año completo'}
+          </Button>
         </div>
       </Card>
 
+      {ok ? <Card className="p-3 mb-3 text-sm text-emerald-600">{ok}</Card> : null}
       {error || queryError ? (
         <Card className="p-4 mb-4 text-sm text-destructive">
           {error ?? 'No se pudieron cargar los períodos.'}

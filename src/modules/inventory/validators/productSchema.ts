@@ -46,7 +46,7 @@ export const productSchema = z.object({
   manufacturer: z.string().optional(),
   country_of_origin: z.string().optional(),
   tags: z.array(z.string()).optional(),
-  barcode: z.string().optional(),
+  barcode: z.string().optional().refine((v) => !v || /^(\d{8}|\d{12}|\d{13})$/.test(v), 'El código de barras debe tener 8, 12 o 13 dígitos.'),
   hs_code: z.string().optional(),
   weight_kg: z.number().optional(),
   volume_m3: z.number().optional(),

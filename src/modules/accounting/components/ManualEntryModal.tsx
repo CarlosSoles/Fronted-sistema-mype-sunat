@@ -129,7 +129,8 @@ export default function ManualEntryModal({ open, period, onClose, onSaved }: Man
         setError('Sin conexión: el asiento quedó guardado y se enviará al reconectar.');
         return;
       }
-      setError('No se pudo registrar el asiento. Revisa el período y las cuentas.');
+      const mensaje = (error as { response?: { data?: { message?: unknown } } }).response?.data?.message;
+      setError(Array.isArray(mensaje) ? mensaje.join(' · ') : typeof mensaje === 'string' ? mensaje : 'No se pudo registrar el asiento. Revisa el período y las cuentas.');
     } finally {
       setSaving(false);
     }

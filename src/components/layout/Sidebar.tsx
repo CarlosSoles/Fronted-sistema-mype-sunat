@@ -67,6 +67,8 @@ const NAV_ITEMS: NavItem[] = [
     allowedRoles: ['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT'],
     subItems: [
       { title: 'Resumen de facturación', path: '/invoices/dashboard', icon: LayoutDashboard },
+      { title: 'Reporte de ventas', path: '/invoices/reportes/ventas', icon: LayoutDashboard },
+      { title: 'Detracciones', path: '/invoices/detracciones', icon: WalletCards },
       { title: 'Facturas y Boletas', path: '/invoices/facturas', icon: FileText },
       { title: 'Clientes y proveedores', path: '/invoices/clientes', icon: Building2 },
       // La pantalla de emisión existía y funcionaba desde el Sprint 1, pero
@@ -114,8 +116,9 @@ const NAV_ITEMS: NavItem[] = [
     developer: 'Carlos Ahumada',
     allowedRoles: ['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
     subItems: [
+      { title: 'Resumen de compras', path: '/purchases/dashboard', icon: LayoutDashboard },
       { title: 'Registro de compras', path: '/purchases', icon: Receipt },
-      { title: 'Cuentas por pagar', path: '/inventory/purchases/payables', icon: WalletCards },
+      { title: 'Cuentas por pagar', path: '/purchases/payables', icon: WalletCards },
       { title: 'Proveedores', path: '/invoices/clientes', icon: Building2 },
     ],
   },

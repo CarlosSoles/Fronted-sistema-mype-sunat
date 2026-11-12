@@ -71,6 +71,11 @@ export const accountingApi = {
     return response.data;
   },
 
+  closeAnnual: async (year: number): Promise<{ closingEntryCreated: boolean; periods: AccountingPeriod[] }> => {
+    const { data } = await apiClient.post(`/accounting/periods/year/${year}/close-annual`);
+    return data;
+  },
+
   closeFiscalYear: async (year: number): Promise<AccountingPeriod[]> => {
     const response = await apiClient.post<AccountingPeriod[]>(`/accounting/periods/year/${year}/close`);
     return response.data;
@@ -88,6 +93,11 @@ export const accountingApi = {
       });
       return response.data;
     });
+  },
+
+  getIgvReconciliation: async (period: string) => {
+    const { data } = await apiClient.get('/accounting/reconciliation/igv', { params: { period } });
+    return data as { period: string; sales: { igv: number }; purchases: { igv: number }; expenses: { igv: number }; expected: number; accounting: number; difference: number; reconciled: boolean };
   },
 
   getTrialBalance: async (period: string): Promise<TrialBalanceResponse> => {
