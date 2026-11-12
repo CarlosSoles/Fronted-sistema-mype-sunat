@@ -1,8 +1,10 @@
+import { errorDatosTercero } from '../libPartnerValidation';
 import { useRef, useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Input, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui';
 import { masterDataApi, type BusinessPartnerRecord, type PartnerRole } from '../services/masterDataApi';
 import { enqueuePartnerCreate } from '@/lib/outbox';
+import { apiClient } from '@/lib/axios';
 
 export const PARTNER_ROLES: PartnerRole[] = ['CLIENTE', 'PROVEEDOR', 'IMPORTADOR', 'AGENTE', 'TRANSPORTISTA'];
 export const partnerApiError = (error: unknown): string => {
@@ -40,7 +42,28 @@ export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PR
   const [roles, setRoles] = useState<PartnerRole[]>(partner ? [...partner.roles] : [initialRole]);
   const [error, setError] = useState('');
   const [existing, setExisting] = useState<BusinessPartnerRecord | null>(null);
+  const [retencion, setRetencion] = useState(false);
+  const [percepcion, setPercepcion] = useState(false);
+  useQuery({
+    queryKey: ['master-data', 'partner-tax-status', 'form', partner?.id],
+    enabled: Boolean(partner?.id),
+    queryFn: async () => {
+      const { data } = await apiClient.get<Array<{ indicator: string; value: boolean }>>(`/master-data/partners/${partner!.id}/tax-status`);
+      setRetencion(data.find((x) => x.indicator === 'RETENCION')?.value ?? false);
+      setPercepcion(data.find((x) => x.indicator === 'PERCEPCION')?.value ?? false);
+      return data;
+    },
+  });
   const toggleRole = (role: PartnerRole) => setRoles((prev) => prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]);
+  const guardarIndicadores = async (partnerId: string) => {
+    const hoy = new Date().toISOString().slice(0, 10);
+    await Promise.all([
+      apiClient.put(`/master-data/partners/${partnerId}/tax-status`, { indicator: 'RETENCION', value: retencion, validFrom: hoy, source: 'MANUAL' }),
+      apiClient.put(`/master-data/partners/${partnerId}/tax-status`, { indicator: 'PERCEPCION', value: percepcion, validFrom: hoy, source: 'MANUAL' }),
+    ]);
+  };
+
+  const errorValidacion = errorDatosTercero(form, Boolean(partner));
   const save = useMutation({
     mutationFn: async (addRole: boolean) => {
       if (addRole && existing && requiredRole) {
@@ -49,6 +72,7 @@ export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PR
         if (!current.is_active) throw new Error('El tercero está inactivo. Solicite su revisión en el maestro.');
         return masterDataApi.updatePartner(current.id, { roles: [...new Set([...current.roles, requiredRole])] });
       }
+      if (errorValidacion) throw new Error(errorValidacion);
       const payload = {
         legalName: form.legalName.trim(), tradeName: form.tradeName.trim() || undefined,
         countryCode: form.countryCode.trim().toUpperCase(), address: form.address.trim() || undefined,
@@ -77,8 +101,11 @@ export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PR
         throw error;
       }
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       if (!data) return;
+      if (!('offline' in data) && data.id) {
+        try { await guardarIndicadores(data.id); } catch { /* el tercero ya se guardó; el indicador se puede reintentar */ }
+      }
       void queryClient.invalidateQueries({ queryKey: ['master-data', 'partners'] });
       void queryClient.invalidateQueries({ queryKey: ['master-data', 'partner'] });
       void queryClient.invalidateQueries({ queryKey: ['master-data', 'partner-tax-status'] });
@@ -92,6 +119,7 @@ export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PR
     <DialogContent onOpenAutoFocus={e => { const field = !form.docNumber.trim() ? numeroRef.current : !form.legalName.trim() ? nombreRef.current : null; if (field) { e.preventDefault(); field.focus(); } }} className="max-h-[90vh] max-w-2xl overflow-y-auto">
       <DialogHeader><DialogTitle>{partner ? 'Editar cliente / proveedor' : 'Nuevo cliente / proveedor'}</DialogTitle></DialogHeader>
       {error && <p role="alert" className="text-destructive">{error}</p>}
+      {!existing && errorValidacion && <p role="alert" className="text-destructive">{errorValidacion}</p>}
       {existing ? <div>
         <p>El documento ya pertenece a {existing.legal_name}. Puede añadir el rol {requiredRole} conservando sus demás roles.</p>
         <Button disabled={save.isPending} onClick={() => save.mutate(true)}>Añadir rol {requiredRole}</Button>
@@ -114,16 +142,16 @@ export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PR
             </div>
             <div className="sm:col-span-2">
               <p className="mb-1 font-medium">Razón social <span aria-hidden="true">*</span></p>
-              <Input ref={nombreRef} aria-required="true" aria-invalid={!form.legalName.trim()} aria-describedby={!form.legalName.trim() ? "partner-nombre-error" : undefined} aria-label="Razón social" placeholder="Nombre o Razón Social oficial" value={form.legalName} onChange={(e) => setForm({ ...form, legalName: e.target.value })} />
+              <Input ref={nombreRef} aria-required="true" aria-invalid={!form.legalName.trim()} aria-describedby={!form.legalName.trim() ? "partner-nombre-error" : undefined} aria-label="Razón social" maxLength={200} placeholder="Nombre o Razón Social oficial" value={form.legalName} onChange={(e) => setForm({ ...form, legalName: e.target.value })} />
               {!form.legalName.trim() && <p id="partner-nombre-error" className="text-xs text-destructive">Indique la razón social o nombre.</p>}
             </div>
             <div>
               <p className="mb-1 font-medium">Nombre comercial</p>
-              <Input aria-label="Nombre comercial" placeholder="Nombre comercial abreviado" value={form.tradeName} onChange={(e) => setForm({ ...form, tradeName: e.target.value })} />
+              <Input aria-label="Nombre comercial" maxLength={200} placeholder="Nombre comercial abreviado" value={form.tradeName} onChange={(e) => setForm({ ...form, tradeName: e.target.value })} />
             </div>
             <div>
               <p className="mb-1 font-medium">País (ISO ej. PE, CN, US)</p>
-              <Input aria-label="País (ISO ej. PE, CN, US)" placeholder="PE" value={form.countryCode} onChange={(e) => setForm({ ...form, countryCode: e.target.value })} />
+              <Input aria-label="País (ISO ej. PE, CN, US)" maxLength={2} placeholder="PE" value={form.countryCode} onChange={(e) => setForm({ ...form, countryCode: e.target.value })} />
             </div>
             <div>
               <p className="mb-1 font-medium">Condición de pago</p>
@@ -202,9 +230,16 @@ export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PR
             {partner && <label>Estado<select aria-label="Estado" value={form.isActive ? '1' : '0'} onChange={(e) => setForm({ ...form, isActive: e.target.value === '1' })}><option value="1">Activo</option><option value="0">Inactivo</option></select></label>}
           </div>
 
+      <div className="space-y-2 rounded-md border p-3 text-xs">
+        <p className="font-medium">Indicadores tributarios</p>
+        {roles.includes('CLIENTE') ? <label className="flex items-center gap-2"><input type="checkbox" checked={retencion} onChange={(e) => setRetencion(e.target.checked)} />Cliente es agente de retención del IGV (3 %)</label> : null}
+        {roles.includes('PROVEEDOR') ? <label className="flex items-center gap-2"><input type="checkbox" checked={percepcion} onChange={(e) => setPercepcion(e.target.checked)} />Proveedor es agente de percepción del IGV (2 %)</label> : null}
+        {!roles.includes('CLIENTE') && !roles.includes('PROVEEDOR') ? <p className="text-muted-foreground">Seleccione CLIENTE o PROVEEDOR para configurar indicadores.</p> : null}
+      </div>
+
       <DialogFooter>
         <Button variant="outline" disabled={save.isPending} onClick={onClose}>Cancelar</Button>
-        <Button disabled={save.isPending || !form.docNumber.trim() || !form.legalName.trim() || !roles.length} onClick={() => { setError(''); save.mutate(false); }}>{partner ? 'Guardar cambios' : 'Guardar tercero'}</Button>
+        <Button disabled={save.isPending || Boolean(errorValidacion) || !roles.length} onClick={() => { setError(''); save.mutate(false); }}>{partner ? 'Guardar cambios' : 'Guardar tercero'}</Button>
       </DialogFooter>
       </>}
     </DialogContent>
