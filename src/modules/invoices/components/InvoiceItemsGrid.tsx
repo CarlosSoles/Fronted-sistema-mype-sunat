@@ -131,7 +131,7 @@ export const InvoiceItemsGrid = ({
               <th className="px-2 py-1 text-left">Descripción</th>
               <th className="px-2 py-1 text-left">Und.</th>
               <th className="px-2 py-1 text-right">Cant.</th>
-              <th className="px-2 py-1 text-right">Precio unitario (con IGV)</th>
+              <th className="px-2 py-1 text-right">Valor unitario (sin IGV)</th>
               <th className="px-2 py-1 text-left">Descuento (Cat. 53)</th>
               <th className="px-2 py-1 text-right">ICBPER</th>
               <th className="px-2 py-1 text-left">Afectación (Cat. 07) / tributo (Cat. 05)</th>
@@ -219,11 +219,11 @@ export const InvoiceItemsGrid = ({
                     {cantidadesMaximas !== undefined && item.cantidad > cantidadesMaximas[i] && <p role="alert" className="text-xs text-destructive">Supera las unidades disponibles del origen (máximo {cantidadesMaximas[i]}).</p>}
                   </td>
                   <td className="px-1 py-1">
-                    <InvoiceMoneyInput aria-label={`Valor unitario de la línea ${i + 1}`} title="Precio unitario final con IGV incluido"
-                      className={`${CLASE_CELDA} text-right`} value={item.afectacion === 'GRATUITA' ? item.valorUnitario : item.precioUnitario ?? item.valorUnitario}
+                    <InvoiceMoneyInput aria-label={`Valor unitario de la línea ${i + 1}`} title={item.afectacion === 'GRATUITA' ? 'Valor referencial' : 'Valor unitario sin IGV'}
+                      className={`${CLASE_CELDA} text-right`} value={item.valorUnitario}
                       onValue={valorUnitario => onCambiar(i, { valorUnitario })} />
                     <span className="block text-right text-[10px] text-muted-foreground">
-                      {item.afectacion === 'GRATUITA' ? 'Valor referencial · precio cobrado S/ 0.00' : 'Precio final con IGV incluido'}
+                      {item.afectacion === 'GRATUITA' ? 'Valor referencial · precio cobrado S/ 0.00' : 'Valor unitario sin IGV'}
                     </span>
                   </td>
                   <td className="px-1 py-1">

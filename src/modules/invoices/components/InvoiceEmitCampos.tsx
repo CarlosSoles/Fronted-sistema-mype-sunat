@@ -1,3 +1,4 @@
+import { editarIdentidadCliente } from '../lib/invoiceCustomerIdentity';
 import { limitesNota } from '../lib/invoiceNoteQuantities';
 import { InvoiceNextNumber } from './InvoiceNextNumber';
 /**
@@ -247,10 +248,11 @@ export const InvoiceEmitCampos = ({
             ? mensajeErrorDocumento(b.tipo)
             : undefined
         }
-        onDocumentoChange={(clienteDoc) =>
+        onDocumentoChange={(texto) => {
+          const identidad = editarIdentidadCliente({ documento: b.clienteDoc, razonSocial: b.clienteRazonSocial, confirmado: Boolean(b.clienteId) }, 'documento', texto);
           actualizar({
-            clienteDoc,
-            clienteRazonSocial: '',
+            clienteDoc: identidad.documento,
+            clienteRazonSocial: identidad.razonSocial,
             clienteId: undefined,
             clienteTipoDocumento: undefined,
             clienteDireccion: undefined,
@@ -260,20 +262,24 @@ export const InvoiceEmitCampos = ({
             cuotas: [],
             descuentoGlobal: null,
             items: b.items.map((item) => ({ ...item, descuento: null })),
-          })
-        }
-        onRazonSocialChange={(clienteRazonSocial) =>
+          });
+        }}
+        onRazonSocialChange={(texto) => {
+          const identidad = editarIdentidadCliente({ documento: b.clienteDoc, razonSocial: b.clienteRazonSocial, confirmado: Boolean(b.clienteId) }, 'nombre', texto);
           actualizar({
-            clienteRazonSocial,
+            clienteRazonSocial: identidad.razonSocial,
+            clienteDoc: identidad.documento,
             clienteId: undefined,
+            clienteTipoDocumento: undefined,
+            clienteDireccion: undefined,
             clienteTieneCredito: false,
             clienteAdmiteDescuento: false,
             formaPago: 'Contado',
             cuotas: [],
             descuentoGlobal: null,
             items: b.items.map((item) => ({ ...item, descuento: null })),
-          })
-        }
+          });
+        }}
         onElegir={(cliente) =>
           actualizar({
             clienteId: cliente.id,
