@@ -59,6 +59,11 @@ export const inventoryPurchasesApi = {
     return response.data;
   },
 
+  createManualPayable: async (payload: { supplierName: string; supplierDocNumber: string; description: string; amount: number; issueDate?: string }): Promise<{ id: string }> => {
+    const { data } = await apiClient.post('/purchases/payables', payload);
+    return data;
+  },
+
   supplierStatement: async (doc: string): Promise<{ supplierDoc: string; purchases: Array<{ id: string; number: string; document: string; date: string; total: number; paid: number; balance: number; status: string }>; payments: Array<{ id: string; date: string; amount: number; method: string; reference: string; concept: string }>; totals: { total: number; paid: number; balance: number } }> => {
     const { data } = await apiClient.get(`/purchases/suppliers/${encodeURIComponent(doc)}/statement`);
     return data;
