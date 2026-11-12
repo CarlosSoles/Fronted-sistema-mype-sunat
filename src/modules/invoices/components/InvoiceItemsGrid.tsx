@@ -1,3 +1,5 @@
+import { NOMBRES_AFECTACION } from '../lib/invoiceTributosXml';
+import { normalizarAfectacionProducto } from '../lib/invoiceItems';
 /**
  * Grilla de ítems del formulario de emisión (TA-64).
  *
@@ -24,11 +26,12 @@ import { revisarGrilla } from '../lib/invoiceStockLinea';
 import type { ProductoBuscado } from '../lib/invoiceSearch';
 import { ICBPER_POR_UNIDAD, type AfectacionIgv } from '../lib/invoiceTaxes';
 
+const OPCIONES_GRATUITAS = Object.entries(NOMBRES_AFECTACION).filter(([codigo]) => { try { return normalizarAfectacionProducto(codigo) === 'GRATUITA'; } catch { return false; } });
+
 const OPCIONES_AFECTACION: readonly { value: AfectacionIgv; label: string }[] = [
   { value: 'GRAVADA', label: '10 - Gravada onerosa (tributo 1000 - IGV)'  },
   { value: 'EXONERADA', label: '20 - Exonerada (tributo 9997 - Exonerado)'  },
   { value: 'INAFECTA', label: '30 - Inafecta (tributo 9998 - Inafecto)'  },
-  { value: 'GRATUITA', label: '11 - Retiro por premio (tributo 1000 - IGV)'  },
 ];
 
 const CLASE_CELDA =
@@ -217,10 +220,10 @@ export const InvoiceItemsGrid = ({
                   </td>
                   <td className="px-1 py-1">
                     <InvoiceMoneyInput aria-label={`Valor unitario de la línea ${i + 1}`} title="Precio unitario final con IGV incluido"
-                      className={`${CLASE_CELDA} text-right`} value={item.precioUnitario ?? item.valorUnitario}
+                      className={`${CLASE_CELDA} text-right`} value={item.afectacion === 'GRATUITA' ? item.valorUnitario : item.precioUnitario ?? item.valorUnitario}
                       onValue={valorUnitario => onCambiar(i, { valorUnitario })} />
                     <span className="block text-right text-[10px] text-muted-foreground">
-                      Precio final con IGV incluido
+                      {item.afectacion === 'GRATUITA' ? 'Valor referencial · precio cobrado S/ 0.00' : 'Precio final con IGV incluido'}
                     </span>
                   </td>
                   <td className="px-1 py-1">
@@ -251,29 +254,16 @@ export const InvoiceItemsGrid = ({
                     {!esLineaBolsa(item) && <span className="text-[10px]">Cantidad de bolsas · S/ 0.50 c/u</span>}
                   </td>
                   <td className="px-1 py-1">
-                    <select
-                      aria-label={`Afectación de la línea ${i + 1}`}
-                      className={CLASE_CELDA}
-                      disabled={Boolean(item.afectacionHeredada)}
-                      title={
-                        item.afectacionHeredada
-                          ? 'Afectación heredada de la configuración del producto'
-                          : undefined
-                      }
-                      value={item.afectacion}
-                      onChange={(e) => {
-                        if (item.afectacionHeredada) return;
-                        onCambiar(i, {
-                          afectacion: e.target.value as AfectacionIgv,
-                        });
-                      }}
-                    >
-                      {OPCIONES_AFECTACION.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
+                    {!esNota && <label className="block"><input type="checkbox" aria-label={`Gratuita de la línea ${i + 1}`} checked={item.afectacion === 'GRATUITA'} disabled={item.afectacion === 'GRATUITA' && !item.origenOneroso} onChange={e => {
+                      if (e.target.checked) onCambiar(i, { origenOneroso: { afectacion: item.afectacion, codigoAfectacion: item.codigoAfectacion, precioUnitario: item.precioUnitario, valorUnitario: item.valorUnitario }, afectacion: 'GRATUITA', codigoAfectacion: '', precioUnitario: 0, valorUnitario: item.valorUnitario, descuento: null });
+                      else if (item.origenOneroso) onCambiar(i, { ...item.origenOneroso, origenOneroso: undefined });
+                    }} /> Gratuita</label>}
+                    {item.afectacion === 'GRATUITA' ? <select aria-label={`Motivo de gratuidad de la línea ${i + 1}`} className={CLASE_CELDA} value={item.codigoAfectacion ?? ''} disabled={esNota} onChange={e => onCambiar(i, { codigoAfectacion: e.target.value })}>
+                      <option value="">Seleccione el motivo</option>
+                      {OPCIONES_GRATUITAS.map(([codigo, nombre]) => <option key={codigo} value={codigo}>{codigo} - {nombre}</option>)}
+                    </select> : <select aria-label={`Afectación de la línea ${i + 1}`} className={CLASE_CELDA} disabled={Boolean(item.afectacionHeredada)} value={item.afectacion} onChange={e => { if (!item.afectacionHeredada) onCambiar(i, { afectacion: e.target.value as AfectacionIgv }); }}>
+                      {OPCIONES_AFECTACION.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>}
                   </td>
                   <td className="px-1 py-1">
                     <select

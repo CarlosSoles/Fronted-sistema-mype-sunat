@@ -71,6 +71,7 @@ export interface ItemBorrador {
   /** True cuando la afectación proviene del producto elegido y no es editable como campo libre. */
   afectacionHeredada?: boolean;
   codigoAfectacion?: string;
+  origenOneroso?: Pick<ItemBorrador, 'afectacion' | 'codigoAfectacion' | 'precioUnitario' | 'valorUnitario'>;
   /** True cuando la unidad proviene del producto y no debe editarse en la venta. */
   unidadHeredada?: boolean;
   descuento?: { codigo: '00' | '01'; monto: number } | null;
@@ -248,6 +249,7 @@ export const validarItems = (
     if (!Number.isFinite(item.valorUnitario) || item.valorUnitario < 0) {
       motivos.push('El valor unitario no puede ser negativo.');
     }
+    if (item.afectacion === 'GRATUITA' && (!esCodigoGratuito(item.codigoAfectacion) || item.precioUnitario !== 0)) motivos.push('Seleccione el motivo de gratuidad y conserve precio cobrado cero.');
     if (item.descuento && (!Number.isFinite(item.descuento.monto) || item.descuento.monto <= 0 || round2(item.descuento.monto) !== item.descuento.monto || item.descuento.monto > item.cantidad * item.valorUnitario || item.afectacion === 'GRATUITA')) {
       motivos.push('El descuento debe ser positivo, no exceder el valor de la línea y no aplicarse a una línea gratuita.');
     }
@@ -255,8 +257,7 @@ export const validarItems = (
     // pasa, porque puede ser un bien de cortesía declarado como exonerado.
     if (
       item.afectacion === 'GRATUITA' &&
-      (!Number.isFinite(item.valorUnitario) || item.valorUnitario <= 0) &&
-      item.icbper === 0
+      (!Number.isFinite(item.valorUnitario) || item.valorUnitario <= 0)
     ) {
       motivos.push('Una línea gratuita debe declarar su valor referencial.');
     }
@@ -315,7 +316,7 @@ export const itemDesdeProducto = (
     unidad,
     cantidad: 1,
     valorUnitario: Number.isFinite(valor) && valor > 0 ? valor : 0,
-    precioUnitario: producto.precioUnitario ?? (Number.isFinite(valor) && valor > 0 ? (afectacion === 'GRAVADA' ? Number((valor * 1.18).toFixed(10)) : valor) : 0),
+    precioUnitario: afectacion === 'GRATUITA' ? 0 : producto.precioUnitario ?? (Number.isFinite(valor) && valor > 0 ? (afectacion === 'GRAVADA' ? Number((valor * 1.18).toFixed(10)) : valor) : 0),
     afectacion,
     codigoAfectacion: ({ GRAVADA: '10', EXONERADA: '20', INAFECTA: '30', GRATUITA: '11' } as Record<string, string>)[producto.afectacion?.trim().toUpperCase() ?? ''] ?? producto.afectacion?.trim(),
     afectacionHeredada: true,
@@ -390,6 +391,7 @@ export const actualizarItem = (
     if (i !== indice) return item;
     const combinado: ItemBorrador = { ...item, ...parcial };
     if (
+      combinado.afectacion !== 'GRATUITA' &&
       typeof parcial.precioUnitario === 'number' &&
       parcial.valorUnitario === undefined
     ) {
@@ -398,7 +400,7 @@ export const actualizarItem = (
         combinado.afectacion,
       );
     } else if (
-      parcial.afectacion !== undefined &&
+      combinado.afectacion !== 'GRATUITA' && parcial.afectacion !== undefined &&
       typeof combinado.precioUnitario === 'number'
     ) {
       combinado.valorUnitario = valorUnitarioDesdePrecioConIgv(
@@ -420,3 +422,8 @@ export const agregarItem = (
   items: readonly ItemBorrador[],
   item: ItemBorrador,
 ): readonly ItemBorrador[] => [...items, item];
+
+export function esCodigoGratuito(codigo?: string): boolean {
+  if (!codigo || !/^\d{2}$/.test(codigo)) return false;
+  try { return normalizarAfectacionProducto(codigo) === 'GRATUITA'; } catch { return false; }
+}
