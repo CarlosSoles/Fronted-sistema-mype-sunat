@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Badge, Button, Card, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Input, Page, PageHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
 import { inventoryPurchasesApi } from '../services/inventoryPurchasesApi';
+import { masterDataApi } from '@/modules/customs/services/masterDataApi';
 
 const money = (n: number) => `S/ ${n.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -9,6 +10,7 @@ export default function PurchasesPayablesPage() {
   const { data = [], isLoading, error } = useQuery({ queryKey: ['purchase-payables'], queryFn: () => inventoryPurchasesApi.listPayables() });
   const queryClient = useQueryClient();
   const [abrirAlta, setAbrirAlta] = useState(false);
+  const { data: proveedores = [] } = useQuery({ queryKey: ['payables-suppliers'], queryFn: () => masterDataApi.getPartners({ role: 'PROVEEDOR' }), enabled: abrirAlta });
   const [errorAlta, setErrorAlta] = useState('');
   const [form, setForm] = useState({ supplierName: '', supplierDocNumber: '', description: '', amount: '', issueDate: new Date().toISOString().slice(0, 10) });
   const crear = useMutation({
@@ -54,8 +56,8 @@ export default function PurchasesPayablesPage() {
         <DialogContent>
           <DialogHeader><DialogTitle>Nueva cuenta por pagar</DialogTitle><DialogDescription>Registra una obligación sin compra de inventario. Genera asiento GASTO/421.</DialogDescription></DialogHeader>
           <div className="space-y-3">
-            <label className="text-xs block">Proveedor<Input value={form.supplierName} onChange={(e) => setForm({ ...form, supplierName: e.target.value })} /></label>
-            <label className="text-xs block">RUC<Input value={form.supplierDocNumber} inputMode="numeric" maxLength={11} onChange={(e) => setForm({ ...form, supplierDocNumber: e.target.value.replace(/\D/g, '').slice(0, 11) })} /></label>
+            <label className="text-xs block">Proveedor<select className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={form.supplierDocNumber} onChange={(e) => { const p = proveedores.find((x) => x.doc_number === e.target.value); setForm({ ...form, supplierDocNumber: e.target.value, supplierName: p?.legal_name ?? '' }); }}><option value="">Seleccionar proveedor</option>{proveedores.map((p) => <option key={p.id} value={p.doc_number}>{p.legal_name} · {p.doc_number}</option>)}</select></label>
+            <label className="text-xs block">RUC<Input value={form.supplierDocNumber} readOnly /></label>
             <label className="text-xs block">Concepto<Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
             <label className="text-xs block">Monto<Input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></label>
             <label className="text-xs block">Fecha<Input type="date" value={form.issueDate} onChange={(e) => setForm({ ...form, issueDate: e.target.value })} /></label>
