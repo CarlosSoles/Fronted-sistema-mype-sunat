@@ -424,7 +424,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                 onClick={() => setActiveTab('presentations')}
                 className="h-7 text-xs gap-1.5"
               >
-                <Boxes className="h-3.5 w-3.5" /> Presentaciones ({presentationFields.length})
+                <Boxes className="h-3.5 w-3.5" /> Unidades y Presentaciones ({presentationFields.length})
               </Button>
               <Button
                 type="button"
@@ -502,6 +502,18 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                       {...register('warehouse_location')}
                       className="mt-1 h-8 text-xs font-mono"
                     />
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-2.5 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <p className="font-medium text-foreground">Unidades de venta</p>
+                      <p className="text-[11px] text-muted-foreground">Unidad base: {watch('sunat_unit_code') || 'NIU'}. Agregue cajas, fardos o packs con su factor de conversión.</p>
+                    </div>
+                    <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={() => { appendPresentation({ presentation_name: 'Caja x 12', factor: 12, sunat_unit_code: watch('sunat_unit_code') || 'NIU', is_default: false }); setActiveTab('presentations'); }}>
+                      <Plus className="h-3.5 w-3.5 mr-1" /> Agregar unidad
+                    </Button>
                   </div>
                 </div>
 
