@@ -1,4 +1,3 @@
-import isEmail from 'validator/lib/isEmail';
 export function documentoTerceroValido(tipo: string, numero: string): boolean {
   if (!numero.trim() || numero.length > 20) return false;
   if (tipo === '1') return /^\d{8}$/.test(numero);
@@ -13,5 +12,5 @@ export function errorDatosTercero(form: {docType:string;docNumber:string;legalNa
   if (!form.legalName.trim() || Array.from(form.legalName.trim()).length > 200) return 'La razón social debe contener entre 1 y 200 caracteres.';
   if (form.tradeName && (!form.tradeName.trim() || Array.from(form.tradeName.trim()).length > 200)) return 'El nombre comercial debe contener entre 1 y 200 caracteres.';
   if (Array.from(form.countryCode.trim()).length !== 2) return 'El país debe tener 2 caracteres.';
-  if (form.email.trim() && !isEmail(form.email.trim())) return 'El email no tiene un formato válido.';
+  if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) return 'El email no tiene un formato válido.';
 }
