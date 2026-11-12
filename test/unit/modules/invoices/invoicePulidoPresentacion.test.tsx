@@ -62,3 +62,11 @@ it.each([false, true])('ERROR_RED presenta preparación durable, recuperable=%s,
   expect(screen.getByText(recuperable ? /revise certificado, configuración o infraestructura/ : /bloqueada por datos inválidos/)).toBeTruthy();
   expect(screen.queryByText(/Incertidumbre de transporte|SUNAT todavía no respondió/)).toBeNull();
 });
+
+it('C4 distingue aceptación RA y reversión local pendiente sin renombrar el estado fiscal', () => {
+ const c = aComprobanteDemo(aInvoice({ ...fila({ origen: 'RA_REVERSAL_PENDING', codigo: 'M1_RA_REVERSAL_PENDING', motivo: 'Falta reversión local' }), estado: 'ANULADO' }));
+ render(<><InvoiceStatusBadge estado={c.estado} resultado={c.resultadoPresentacion}/><InvoiceAuditTrail comprobante={c} digest={null}/></>);
+ expect(screen.getByLabelText('ANULADO con reversión pendiente')).toBeTruthy();
+ expect(screen.getByText('ANULADO')).toBeTruthy();
+ expect(screen.getByText('La RA fue aceptada por SUNAT; la reversión del puente es un efecto local separado.')).toBeTruthy();
+});
