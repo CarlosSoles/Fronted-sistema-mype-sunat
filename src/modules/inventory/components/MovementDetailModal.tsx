@@ -1,3 +1,4 @@
+import { formatearReferenciaDocumento } from '../lib/documentReference';
 import {
   Dialog,
   DialogContent,
@@ -30,7 +31,7 @@ export function MovementDetailModal({
           <div><p className="text-xs text-muted-foreground">Fecha</p><p>{new Date(movement.movementDate).toLocaleString('es-PE')}</p></div>
           <div><p className="text-xs text-muted-foreground">Almacén</p><p>{movement.warehouseCode}</p></div>
           <div><p className="text-xs text-muted-foreground">Operación</p><p>{movement.operationTypeCode}</p></div>
-          <div><p className="text-xs text-muted-foreground">Documento</p><p>{movement.documentSerial || ''}{movement.documentNumber ? `-${movement.documentNumber}` : '—'}</p></div>
+          <div><p className="text-xs text-muted-foreground">Documento</p><p>{movement.documentNumber ? formatearReferenciaDocumento(movement.documentSerial, movement.documentNumber) : `${movement.documentSerial || ''}—`}</p></div>
           <div><p className="text-xs text-muted-foreground">SKU</p><p className="font-mono">{movement.sku}</p></div>
           <div><p className="text-xs text-muted-foreground">Producto</p><p>{movement.description}</p></div>
           <div><p className="text-xs text-muted-foreground">Sentido</p><Badge variant={entrada ? 'outline' : 'destructive'}>{movement.direction}</Badge></div>

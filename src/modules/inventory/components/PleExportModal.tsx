@@ -1,3 +1,4 @@
+import { numeroDocumentoSinSerie } from '../lib/documentReference';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -122,8 +123,8 @@ export const PleExportModal = ({ isOpen, onClose }: PleExportModalProps) => {
         const wh = m.warehouseCode || '0000';
         const dateFormatted = new Date(m.movementDate).toLocaleDateString('es-PE');
         const docParts = (m.documentNumber || '').split('-');
-        const docSerie = docParts[0] || '0001';
-        const docNum = docParts.slice(1).join('-') || m.documentNumber || '00000001';
+        const docSerie = m.documentSerial || docParts[0] || '0001';
+        const docNum = numeroDocumentoSinSerie(docSerie, m.documentNumber) || '00000001';
 
         if (is13_1) {
           return [
