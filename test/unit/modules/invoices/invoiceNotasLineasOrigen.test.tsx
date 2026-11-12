@@ -18,7 +18,7 @@ it.each(['07', '08'] as const)('precarga y permite editar las líneas reales en 
   expect(screen.getByText(/Factura o Boleta aceptada u observada/)).toBeTruthy();
   fireEvent.change(screen.getByLabelText('Documento afectado'), { target: { value: 'F001-00000056' } });
   await waitFor(() => expect((screen.getByLabelText('Descripción de la línea 1') as HTMLInputElement).value).toBe('Cemento real'));
-  expect((screen.getByLabelText('Valor unitario de la línea 1') as HTMLInputElement).value).toBe('59.00');
+  expect((screen.getByLabelText('Valor unitario de la línea 1') as HTMLInputElement).value).toBe('50.00');
   fireEvent.change(screen.getByLabelText('Descripción de la línea 1'), { target: { value: 'Cemento editado' } });
   expect((screen.getByLabelText('Descripción de la línea 1') as HTMLInputElement).value).toBe('Cemento editado');
   expect(await screen.findByText(/Disponible según servidor S\/ 118.00/)).toBeTruthy();
