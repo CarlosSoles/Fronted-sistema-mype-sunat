@@ -39,7 +39,7 @@ describe('presentación del detalle de líneas', () => {
     render(<InvoiceItemsGrid items={[{ ...itemVacio('a'), afectacion: 'GRATUITA' }]} {...callbacks} />);
     expect(screen.queryByText(/El valor unitario es cero/)).toBeNull();
     expect(screen.getByRole('option', { name: 'Sin descuento' })).toBeTruthy();
-    expect(screen.getByRole('option', { name: '10 - Gravada onerosa (tributo 1000 - IGV)' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: '21 - Exonerado - Transferencia gratuita' })).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Valor unitario de la línea 1'), { target: { value: '25' } });
     expect(callbacks.onCambiar).toHaveBeenCalledWith(0, { valorUnitario: 25 });
     fireEvent.click(screen.getByRole('button', { name: 'Eliminar la línea 1' }));

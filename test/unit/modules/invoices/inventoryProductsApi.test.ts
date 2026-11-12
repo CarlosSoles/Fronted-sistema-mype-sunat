@@ -10,7 +10,7 @@ describe('precio de venta final, sin recambio por costo', () => {
   it.each(['10', '20', '30', '11'])('selección conserva el precio final y el tratamiento %s', codigo => {
     const p = productosDesdeStocks({ balances: [{ sku: 'A', description: 'x', sunatUnitCode: 'NIU', salePrice: '35.40', currentStock: '2', taxAffectation: codigo }] })[0];
     const item = itemDesdeProducto(p, '1');
-    expect(item.precioUnitario).toBe(35.4);
+    expect(item.precioUnitario).toBe(codigo === '11' ? 0 : 35.4);
     expect(item.valorUnitario).toBe(codigo === '10' ? 30 : 35.4);
     expect(p.stock).toBe(2);
   });
