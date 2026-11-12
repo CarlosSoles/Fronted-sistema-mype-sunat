@@ -7,10 +7,7 @@ import {
   Search,
   Eye,
   History,
-  DollarSign,
   AlertCircle,
-  Clock,
-  CheckCircle2,
 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
@@ -124,25 +121,6 @@ export default function PurchasesPage() {
   }, [items, searchTerm, statusFilter]);
 
   // Cálculos para tarjetas de métricas
-  const pendientes = useMemo(
-    () => items.filter((p) => p.status !== 'PAGADA' && p.status !== 'ANULADA'),
-    [items],
-  );
-
-  const totalPendiente = useMemo(
-    () =>
-      pendientes.reduce(
-        (acc, p) => acc + (p.pendingAmount ?? p.totalAmount - (p.paidAmount ?? 0)),
-        0,
-      ),
-    [pendientes],
-  );
-
-  const totalComprado = useMemo(
-    () => items.reduce((acc, p) => acc + p.totalAmount, 0),
-    [items],
-  );
-
   return (
     <Page>
       <PageHeader
@@ -164,45 +142,6 @@ export default function PurchasesPage() {
           <span>{errorMessage || 'Error al conectar con el servicio de compras.'}</span>
         </Card>
       )}
-
-      {/* Tarjetas de Métricas de Compras */}
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 mb-5">
-        <Card className="p-4 bg-card shadow-xs">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-muted-foreground">Compras Registradas</p>
-            <Receipt className="h-4 w-4 text-primary" />
-          </div>
-          <p className="text-2xl font-bold mt-1 text-foreground">{data?.total ?? 0}</p>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Comprobantes registrados</p>
-        </Card>
-
-        <Card className="p-4 bg-card shadow-xs">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-muted-foreground">Pendientes de Pago</p>
-            <Clock className="h-4 w-4 text-amber-500" />
-          </div>
-          <p className="text-2xl font-bold mt-1 text-amber-600">{pendientes.length}</p>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Facturas con saldo pendiente</p>
-        </Card>
-
-        <Card className="p-4 bg-card shadow-xs">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-muted-foreground">Saldo Pendiente (CxP)</p>
-            <DollarSign className="h-4 w-4 text-red-500" />
-          </div>
-          <p className="text-2xl font-bold mt-1 text-red-600">{money(totalPendiente)}</p>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Obligaciones comerciales por saldar</p>
-        </Card>
-
-        <Card className="p-4 bg-card shadow-xs">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-muted-foreground">Total Compras Acumuladas</p>
-            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-          </div>
-          <p className="text-2xl font-bold mt-1 text-emerald-600">{money(totalComprado)}</p>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Monto total facturado con IGV</p>
-        </Card>
-      </div>
 
       {/* Barra de Filtros y Búsqueda */}
       <div className="flex flex-col sm:flex-row gap-2 justify-between items-stretch sm:items-center mb-4">
