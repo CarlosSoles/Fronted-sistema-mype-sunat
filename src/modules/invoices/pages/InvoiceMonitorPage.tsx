@@ -54,6 +54,7 @@ const ESTADOS_EN_VUELO = ['EN_COLA', 'ENVIADO', 'PENDIENTE', 'ERROR_RED'];
 
 /** El último resultado explícito de cola evita perpetuar una DLQ ya rescatada. */
 export const estadoDeMonitor = (inv: Invoice): string => {
+  if (inv.resultadoPresentacion?.origen === 'BRIDGE_PENDING') return 'PUENTE_PENDIENTE';
   if (inv.resultadoPresentacion?.origen === 'TRANSPORTE_INCIERTO') return 'INCERTIDUMBRE_TRANSPORTE';
   if (inv.resultadoPresentacion?.origen === 'PREPARACION_LOCAL') return 'PREPARACION_LOCAL';
   const evento = [...(inv.historial ?? [])].reverse().find((e) => /\b(EN_DLQ|ENCOLADO|YA_EN_COLA)\b/.test(e.mensaje ?? ''));
@@ -71,6 +72,7 @@ const VARIANTE_POR_GRAVEDAD = {
 export default function InvoiceMonitorPage() {
   const [alertas, setAlertas] = useState<AlertasOperativas | null>(null);
   const [enVuelo, setEnVuelo] = useState<readonly Invoice[]>([]);
+  const [avisoPuente, setAvisoPuente] = useState<string | null>(null);
   const [filtroEstado, setFiltroEstado] = useState('TODOS');
   const visibles = enVuelo.filter((inv) => filtroEstado === 'TODOS' || (filtroEstado === 'INCERTIDUMBRE_TRANSPORTE' ? ['ERROR_RED', 'INCERTIDUMBRE_TRANSPORTE'].includes(estadoDeMonitor(inv)) : estadoDeMonitor(inv) === filtroEstado));
   const [cargando, setCargando] = useState(true);
@@ -91,10 +93,11 @@ export default function InvoiceMonitorPage() {
       const [a, paginas] = await Promise.all([
         invoicesApi.getAlertas(),
         Promise.all(
-          ESTADOS_EN_VUELO.map((estado) =>
+          [...ESTADOS_EN_VUELO, 'PUENTE_PENDIENTE'].map((estado) =>
             (async () => {
-              const primera = await invoicesApi.getInvoices(1, { estado, page_size: 100 });
-              const restantes = await Promise.all(Array.from({ length: Math.max(0, primera.totalPages - 1) }, (_, i) => invoicesApi.getInvoices(i + 2, { estado, page_size: 100 })));
+              const filtros = estado === 'PUENTE_PENDIENTE' ? { puente_pendiente: 'true', page_size: 100 } : { estado, page_size: 100 };
+              const primera = await invoicesApi.getInvoices(1, filtros);
+              const restantes = await Promise.all(Array.from({ length: Math.max(0, primera.totalPages - 1) }, (_, i) => invoicesApi.getInvoices(i + 2, filtros)));
               return { ...primera, data: [...primera.data, ...restantes.flatMap((p) => p.data)] };
             })(),
           ),
@@ -136,6 +139,13 @@ export default function InvoiceMonitorPage() {
     };
   }, [cargar]);
 
+  const reprocesar = async (id: string) => {
+    setReintentando(id); setAvisoPuente(null);
+    try { const r = await invoicesApi.reprocesarPuente(id); setAvisoPuente(r.completo ? 'Puente completado.' : `Puente pendiente: ${r.errores.join(' ')}`); await cargar(); }
+    catch (e) { setAvisoPuente(extractApiErrorMessage(e, 'No se pudo reprocesar el puente.')); }
+    finally { setReintentando(null); }
+  };
+
   const reintentar = async (id: string) => {
     setReintentando(id);
     setAvisoReintento(null);
@@ -155,6 +165,7 @@ export default function InvoiceMonitorPage() {
 
   return (
     <Page>
+      {avisoPuente && <p role="status">{avisoPuente}</p>}
       <InvoiceAggregateMonitor />
       <PageHeader
         title="Monitor Outbox y Auditoría CDR"
@@ -253,7 +264,7 @@ export default function InvoiceMonitorPage() {
           Estado de los comprobantes en vuelo
           <select aria-label="Filtrar estado del monitor" value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)} className="ml-2 rounded border bg-background p-2">
             <option value="TODOS">Todos los estados</option>
-            {[...ESTADOS_EN_VUELO.filter(e => e !== 'ERROR_RED'), 'DLQ', 'INCERTIDUMBRE_TRANSPORTE', 'PREPARACION_LOCAL'].map((estado) => <option key={estado} value={estado}>{['ERROR_RED', 'INCERTIDUMBRE_TRANSPORTE'].includes(estado) ? 'Incertidumbre de transporte' : estado === 'PREPARACION_LOCAL' ? 'Bloqueado en preparación local' : estado}</option>)}
+            {[...ESTADOS_EN_VUELO.filter(e => e !== 'ERROR_RED'), 'DLQ', 'INCERTIDUMBRE_TRANSPORTE', 'PREPARACION_LOCAL', 'PUENTE_PENDIENTE'].map((estado) => <option key={estado} value={estado}>{['ERROR_RED', 'INCERTIDUMBRE_TRANSPORTE'].includes(estado) ? 'Incertidumbre de transporte' : estado === 'PREPARACION_LOCAL' ? 'Bloqueado en preparación local' : estado === 'PUENTE_PENDIENTE' ? 'Puente pendiente' : estado}</option>)}
           </select>
         </label>
         <Table>
@@ -294,12 +305,13 @@ export default function InvoiceMonitorPage() {
                           : 'outline'
                       }
                     >
-                      {['ERROR_RED', 'INCERTIDUMBRE_TRANSPORTE'].includes(estadoDeMonitor(inv)) ? 'Incertidumbre de transporte' : estadoDeMonitor(inv) === 'PREPARACION_LOCAL' ? 'Bloqueado en preparación local' : estadoDeMonitor(inv)}
+                      {['ERROR_RED', 'INCERTIDUMBRE_TRANSPORTE'].includes(estadoDeMonitor(inv)) ? 'Incertidumbre de transporte' : estadoDeMonitor(inv) === 'PREPARACION_LOCAL' ? 'Bloqueado en preparación local' : estadoDeMonitor(inv) === 'PUENTE_PENDIENTE' ? `${inv.estadoBackend} con puente pendiente` : estadoDeMonitor(inv)}
                     </Badge>
                   </TableCell>
                   <TableCell align="center">
                     {/* El servidor concilia antes de autorizar cualquier reenvío. */}
-                    {['TRANSPORTE_INCIERTO', 'PREPARACION_LOCAL'].includes(inv.resultadoPresentacion?.origen ?? '') && <p className="text-xs text-muted-foreground">{inv.resultadoPresentacion?.motivo}</p>}
+                    {estadoDeMonitor(inv) === 'PUENTE_PENDIENTE' && <Button disabled={reintentando === inv.id} onClick={() => void reprocesar(inv.id)}>Reprocesar puente</Button>}
+                    {['TRANSPORTE_INCIERTO', 'PREPARACION_LOCAL', 'BRIDGE_PENDING'].includes(inv.resultadoPresentacion?.origen ?? '') && <p className="text-xs text-muted-foreground">{inv.resultadoPresentacion?.motivo}</p>}
                     {['ERROR_RED', 'DLQ', 'INCERTIDUMBRE_TRANSPORTE', 'PREPARACION_LOCAL'].includes(estadoDeMonitor(inv)) && !['ACEPTADO', 'OBSERVADO', 'ANULADO'].includes(inv.estadoBackend ?? '') && (
                       <Button
                         variant="outline"
