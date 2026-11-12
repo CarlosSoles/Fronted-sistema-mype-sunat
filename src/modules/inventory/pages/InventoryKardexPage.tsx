@@ -1,3 +1,4 @@
+import { formatearReferenciaDocumento, numeroDocumentoSinSerie } from '../lib/documentReference';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Page, PageHeader, Button, Card, Input, Badge } from '@/components/ui';
@@ -133,7 +134,7 @@ export default function InventoryKardexPage() {
       `"${m.operationTypeCode} - ${m.operationLabel}"`,
       `"${m.documentTypeCode || ''}"`,
       `"${m.documentSerial || ''}"`,
-      `"${m.documentNumber || ''}"`,
+      `"${numeroDocumentoSinSerie(m.documentSerial, m.documentNumber)}"`,
       `"${m.warehouseCode}"`,
       `"${m.sku}"`,
       `"${m.description.replace(/"/g, '""')}"`,
@@ -492,8 +493,7 @@ export default function InventoryKardexPage() {
                           </td>
                           <td className="p-2 font-mono">
                             {m.documentTypeCode ? `[${m.documentTypeCode}] ` : ''}
-                            {m.documentSerial ? `${m.documentSerial}-` : ''}
-                            {m.documentNumber || m.movementNumber}
+                            {formatearReferenciaDocumento(m.documentSerial, m.documentNumber || m.movementNumber)}
                           </td>
                           <td className="p-2">
                             <p className="font-mono font-bold text-primary">{m.sku}</p>
