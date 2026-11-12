@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Badge, Button, Card, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Input, Page, PageHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
 import { inventoryPurchasesApi } from '../services/inventoryPurchasesApi';
 import { masterDataApi } from '@/modules/customs/services/masterDataApi';
+import { PartnerFormDialog } from '@/modules/customs/components/PartnerFormDialog';
 
 const money = (n: number) => `S/ ${n.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -12,6 +13,7 @@ export default function PurchasesPayablesPage() {
   const [abrirAlta, setAbrirAlta] = useState(false);
   const { data: proveedores = [] } = useQuery({ queryKey: ['payables-suppliers'], queryFn: () => masterDataApi.getPartners({ role: 'PROVEEDOR' }), enabled: abrirAlta });
   const [errorAlta, setErrorAlta] = useState('');
+  const [nuevoProveedor, setNuevoProveedor] = useState(false);
   const [form, setForm] = useState({ supplierName: '', supplierDocNumber: '', description: '', amount: '', issueDate: new Date().toISOString().slice(0, 10) });
   const crear = useMutation({
     mutationFn: () => inventoryPurchasesApi.createManualPayable({ supplierName: form.supplierName, supplierDocNumber: form.supplierDocNumber, description: form.description, amount: Number(form.amount), issueDate: form.issueDate }),
@@ -56,16 +58,17 @@ export default function PurchasesPayablesPage() {
         <DialogContent>
           <DialogHeader><DialogTitle>Nueva cuenta por pagar</DialogTitle><DialogDescription>Registra una obligación sin compra de inventario. Genera asiento GASTO/421.</DialogDescription></DialogHeader>
           <div className="space-y-3">
-            <label className="text-xs block">Proveedor<select className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={form.supplierDocNumber} onChange={(e) => { const p = proveedores.find((x) => x.doc_number === e.target.value); setForm({ ...form, supplierDocNumber: e.target.value, supplierName: p?.legal_name ?? '' }); }}><option value="">Seleccionar proveedor</option>{proveedores.map((p) => <option key={p.id} value={p.doc_number}>{p.legal_name} · {p.doc_number}</option>)}</select></label>
+            <label className="text-xs block">Proveedor<select className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={form.supplierDocNumber} onChange={(e) => { if (e.target.value === '__nuevo__') { setNuevoProveedor(true); return; } const p = proveedores.find((x) => x.doc_number === e.target.value); setForm({ ...form, supplierDocNumber: e.target.value, supplierName: p?.legal_name ?? '' }); }}><option value="">Seleccionar proveedor</option>{proveedores.map((p) => <option key={p.id} value={p.doc_number}>{p.legal_name} · {p.doc_number}</option>)}<option value="__nuevo__">+ Registrar proveedor nuevo</option></select></label>
             <label className="text-xs block">RUC<Input value={form.supplierDocNumber} readOnly /></label>
             <label className="text-xs block">Concepto<Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
-            <label className="text-xs block">Monto<Input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></label>
+            <label className="text-xs block">Monto<Input type="number" min="0.01" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />{form.amount !== '' && Number(form.amount) <= 0 ? <span className="text-[10px] text-destructive">El monto debe ser mayor a cero.</span> : null}</label>
             <label className="text-xs block">Fecha<Input type="date" value={form.issueDate} onChange={(e) => setForm({ ...form, issueDate: e.target.value })} /></label>
             {errorAlta ? <p className="text-xs text-destructive">{errorAlta}</p> : null}
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setAbrirAlta(false)}>Cancelar</Button><Button onClick={() => crear.mutate()} disabled={crear.isPending || !form.supplierName || form.supplierDocNumber.length !== 11 || !form.description || !form.amount}>{crear.isPending ? 'Guardando…' : 'Crear CxP'}</Button></DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => setAbrirAlta(false)}>Cancelar</Button><Button onClick={() => crear.mutate()} disabled={crear.isPending || !form.supplierName || form.supplierDocNumber.length !== 11 || !form.description || !(Number(form.amount) > 0)}>{crear.isPending ? 'Guardando…' : 'Crear CxP'}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+      {nuevoProveedor ? <PartnerFormDialog initialRole="PROVEEDOR" requiredRole="PROVEEDOR" initialDocument={form.supplierDocNumber} initialName={form.supplierName} onClose={() => setNuevoProveedor(false)} onSaved={(p) => { setForm({ ...form, supplierDocNumber: p.doc_number, supplierName: p.legal_name }); setNuevoProveedor(false); void queryClient.invalidateQueries({ queryKey: ['payables-suppliers'] }); }} /> : null}
     </Page>
   );
 }
