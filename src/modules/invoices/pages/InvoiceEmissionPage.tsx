@@ -1,3 +1,4 @@
+import { editarIdentidadCliente } from '../lib/invoiceCustomerIdentity';
 import { InvoiceNextNumber } from '../components/InvoiceNextNumber';
 import { pagoSegunDeposito } from '../lib/invoicePagoPresentacion';
 import { problemaSpotMinimo } from '../lib/invoiceDetraccion';
@@ -663,17 +664,20 @@ export default function InvoiceEmissionPage() {
                 placeholderDocumento={tipo === '01' ? '20100070970' : '70123456'}
                 errorDocumento={clienteDoc.length > 0 && !documentoValidoParaTipo(tipo, clienteDoc) ? mensajeErrorDocumento(tipo) : undefined}
                 onDocumentoChange={(valor) => {
+                  const identidad = editarIdentidadCliente({ documento: clienteDoc, razonSocial: clienteRazonSocial, confirmado: Boolean(clienteSeleccionado) }, 'documento', valor);
                   setClienteSeleccionado(null);
-                  setClienteDoc(valor);
-                  setClienteRazonSocial('');
+                  setClienteDoc(identidad.documento);
+                  setClienteRazonSocial(identidad.razonSocial);
                   setFormaPago('Contado');
                   setCuotas([]);
                   setDescuentoGlobal(null);
                   setItems((prev) => prev.map((it) => ({ ...it, descuento: null })));
                 }}
                 onRazonSocialChange={(valor) => {
+                  const identidad = editarIdentidadCliente({ documento: clienteDoc, razonSocial: clienteRazonSocial, confirmado: Boolean(clienteSeleccionado) }, 'nombre', valor);
                   setClienteSeleccionado(null);
-                  setClienteRazonSocial(valor);
+                  setClienteDoc(identidad.documento);
+                  setClienteRazonSocial(identidad.razonSocial);
                   setFormaPago('Contado');
                   setCuotas([]);
                   setDescuentoGlobal(null);
