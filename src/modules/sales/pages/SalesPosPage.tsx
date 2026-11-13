@@ -152,7 +152,21 @@ export default function SalesPosPage() {
             <select aria-label="Tipo de documento" className="h-9 rounded-md border bg-background px-2 text-xs" value={tipoDoc} onChange={(e) => setTipoDoc(e.target.value)}>
               <option value="6">RUC</option><option value="1">DNI</option><option value="0">Sin doc.</option>
             </select>
-            <Input aria-label="Documento del cliente" inputMode="numeric" maxLength={tipoDoc === '6' ? 11 : tipoDoc === '1' ? 8 : 20} placeholder={tipoDoc === '6' ? 'RUC de 11 dígitos' : tipoDoc === '1' ? 'DNI de 8 dígitos' : 'Sin documento'} value={documento} onChange={(e) => { const v = tipoDoc === '0' ? e.target.value : e.target.value.replace(/\D/g, '').slice(0, tipoDoc === '6' ? 11 : 8); setDocumento(v); }} onBlur={() => { if (!errorDocumento && documento.trim()) void invoicesApi.buscarClientes(documento.trim()).then((lista) => { const match = lista.find((c) => c.numeroDocumento === documento.trim()); if (match?.razonSocial) setCliente(match.razonSocial); }).catch(() => undefined); }} />
+            <Input aria-label="Documento del cliente" inputMode="numeric" maxLength={tipoDoc === '6' ? 11 : tipoDoc === '1' ? 8 : 20} placeholder={tipoDoc === '6' ? 'RUC de 11 dígitos' : tipoDoc === '1' ? 'DNI de 8 dígitos' : 'Sin documento'} value={documento} onChange={(e) => { const v = tipoDoc === '0' ? e.target.value : e.target.value.replace(/\D/g, '').slice(0, tipoDoc === '6' ? 11 : 8); setDocumento(v); }} onBlur={() => {
+                  if (errorDocumento || !documento.trim()) return;
+                  const doc = documento.trim();
+                  const desdeMaestro = () => invoicesApi.buscarClientes(doc).then((lista) => {
+                    const match = lista.find((c) => c.numeroDocumento === doc);
+                    if (match?.razonSocial) setCliente(match.razonSocial);
+                  }).catch(() => undefined);
+                  if (tipoDoc === '6') {
+                    void apiClient.get<{ razonSocial?: string }>(`/sunat/ruc/${doc}`)
+                      .then(({ data }) => { if (data.razonSocial) setCliente(data.razonSocial); else return desdeMaestro(); })
+                      .catch(() => desdeMaestro());
+                  } else {
+                    void desdeMaestro();
+                  }
+                }} />
           </div>
           <Input aria-label="Nombre del cliente" className="mb-1" placeholder="Razón social / nombre" value={cliente} onChange={(e) => setCliente(e.target.value)} />
           {errorDocumento ? <p className="mb-3 text-[11px] text-destructive">{errorDocumento}</p> : <div className="mb-3" />}
