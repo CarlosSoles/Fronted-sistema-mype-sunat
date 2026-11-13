@@ -16,11 +16,13 @@ export default function PurchasesPayablesPage() {
   const [nuevoProveedor, setNuevoProveedor] = useState(false);
   const [moneda, setMoneda] = useState('PEN');
   const [tipoCambio, setTipoCambio] = useState('');
-  const [busquedaProveedor, setBusquedaProveedor] = useState('');
+  const [proveedorTexto, setProveedorTexto] = useState('');
+  const [rucTexto, setRucTexto] = useState('');
+  const [listaAbierta, setListaAbierta] = useState<'proveedor' | 'ruc' | null>(null);
   const [form, setForm] = useState({ supplierName: '', supplierDocNumber: '', description: '', amount: '', issueDate: new Date().toISOString().slice(0, 10) });
   const crear = useMutation({
     mutationFn: () => inventoryPurchasesApi.createManualPayable({ supplierName: form.supplierName, supplierDocNumber: form.supplierDocNumber, description: form.description, amount: Number(form.amount), issueDate: form.issueDate, currencyCode: moneda, exchangeRate: moneda === 'USD' ? Number(tipoCambio) : undefined }),
-    onSuccess: async () => { setAbrirAlta(false); setForm({ supplierName: '', supplierDocNumber: '', description: '', amount: '', issueDate: new Date().toISOString().slice(0, 10) }); setMoneda('PEN'); setTipoCambio(''); setBusquedaProveedor(''); setErrorAlta(''); await queryClient.invalidateQueries({ queryKey: ['purchase-payables'] }); },
+    onSuccess: async () => { setAbrirAlta(false); setForm({ supplierName: '', supplierDocNumber: '', description: '', amount: '', issueDate: new Date().toISOString().slice(0, 10) }); setMoneda('PEN'); setTipoCambio(''); setProveedorTexto(''); setRucTexto(''); setListaAbierta(null); setErrorAlta(''); await queryClient.invalidateQueries({ queryKey: ['purchase-payables'] }); },
     onError: (e: any) => setErrorAlta(e?.response?.data?.message ?? 'No se pudo crear la CxP.'),
   });
   const [statement, setStatement] = useState<Awaited<ReturnType<typeof inventoryPurchasesApi.supplierStatement>> | null>(null);
@@ -31,7 +33,7 @@ export default function PurchasesPayablesPage() {
   return (
     <Page>
       <PageHeader title="Cuentas por pagar" description="Saldo pendiente por proveedor, consolidado de compras no anuladas">
-        <Button size="sm" onClick={() => { setBusquedaProveedor(''); setForm({ ...form, supplierDocNumber: '', supplierName: '' }); setAbrirAlta(true); }}>Nueva CxP</Button>
+        <Button size="sm" onClick={() => { setProveedorTexto(''); setRucTexto(''); setListaAbierta(null); setForm({ ...form, supplierDocNumber: '', supplierName: '' }); setAbrirAlta(true); }}>Nueva CxP</Button>
       </PageHeader>
       <div className="grid gap-3 sm:grid-cols-4 mb-5">
         <Card className="p-4"><p className="text-xs text-muted-foreground">Proveedores</p><p className="text-2xl font-bold">{data.length}</p></Card>
@@ -61,10 +63,24 @@ export default function PurchasesPayablesPage() {
         <DialogContent>
           <DialogHeader><DialogTitle>Nueva cuenta por pagar</DialogTitle><DialogDescription>Registra una obligación sin compra de inventario. Genera asiento GASTO/421.</DialogDescription></DialogHeader>
           <div className="space-y-3">
-            <label className="text-xs block">RUC o proveedor<Input value={busquedaProveedor} placeholder="Escriba RUC o razón social" onChange={(e) => { const v = e.target.value; setBusquedaProveedor(v); const exacto = proveedores.find((p) => p.doc_number === v.trim()); if (exacto) setForm({ ...form, supplierDocNumber: exacto.doc_number, supplierName: exacto.legal_name }); }} /></label>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className="text-xs block">Proveedor<Input value={proveedorTexto} placeholder="Escriba o haga clic para ver la lista" onFocus={() => setListaAbierta('proveedor')} onChange={(e) => { setProveedorTexto(e.target.value); setListaAbierta('proveedor'); const exacto = proveedores.find((p) => p.legal_name.toLowerCase() === e.target.value.trim().toLowerCase()); if (exacto) setForm({ ...form, supplierDocNumber: exacto.doc_number, supplierName: exacto.legal_name }); }} /></label>
+                {listaAbierta === 'proveedor' ? <div className="mt-1 max-h-40 overflow-y-auto rounded-md border bg-background shadow">
+                  {proveedores.filter((p) => !proveedorTexto.trim() || p.legal_name.toLowerCase().includes(proveedorTexto.trim().toLowerCase()) || p.doc_number.includes(proveedorTexto.trim())).slice(0, 8).map((p) => <button key={p.id} type="button" className="block w-full px-2 py-1 text-left text-xs hover:bg-muted" onClick={() => { setForm({ ...form, supplierDocNumber: p.doc_number, supplierName: p.legal_name }); setProveedorTexto(p.legal_name); setRucTexto(p.doc_number); setListaAbierta(null); }}>{p.legal_name} · {p.doc_number}</button>)}
+                  {proveedores.length === 0 ? <p className="p-2 text-xs text-muted-foreground">No hay proveedores registrados.</p> : null}
+                </div> : null}
+              </div>
+              <div>
+                <label className="text-xs block">RUC<Input value={rucTexto} inputMode="numeric" maxLength={11} placeholder="Haga clic para ver la lista" onFocus={() => setListaAbierta('ruc')} onChange={(e) => { const v = e.target.value.replace(/\D/g, '').slice(0, 11); setRucTexto(v); setListaAbierta('ruc'); const exacto = proveedores.find((p) => p.doc_number === v); if (exacto) setForm({ ...form, supplierDocNumber: exacto.doc_number, supplierName: exacto.legal_name }); }} /></label>
+                {listaAbierta === 'ruc' ? <div className="mt-1 max-h-40 overflow-y-auto rounded-md border bg-background shadow">
+                  {proveedores.filter((p) => !rucTexto.trim() || p.doc_number.includes(rucTexto.trim())).slice(0, 8).map((p) => <button key={p.id} type="button" className="block w-full px-2 py-1 text-left text-xs hover:bg-muted" onClick={() => { setForm({ ...form, supplierDocNumber: p.doc_number, supplierName: p.legal_name }); setProveedorTexto(p.legal_name); setRucTexto(p.doc_number); setListaAbierta(null); }}>{p.doc_number} · {p.legal_name}</button>)}
+                  {proveedores.length === 0 ? <p className="p-2 text-xs text-muted-foreground">No hay proveedores registrados.</p> : null}
+                </div> : null}
+              </div>
+            </div>
             {form.supplierName ? <p className="text-[11px] text-emerald-600">Proveedor: {form.supplierName} · {form.supplierDocNumber}</p> : null}
-            {busquedaProveedor.trim().length >= 2 && proveedores.filter((p) => p.doc_number.includes(busquedaProveedor.trim()) || p.legal_name.toLowerCase().includes(busquedaProveedor.trim().toLowerCase())).slice(0, 5).map((p) => <button key={p.id} type="button" className="block w-full rounded border px-2 py-1 text-left text-xs hover:bg-muted" onClick={() => { setForm({ ...form, supplierDocNumber: p.doc_number, supplierName: p.legal_name }); setBusquedaProveedor(p.doc_number); }}>{p.legal_name} · {p.doc_number}</button>)}
-            {busquedaProveedor.replace(/\D/g, '').length === 11 && !proveedores.some((p) => p.doc_number === busquedaProveedor.trim()) ? <Button type="button" size="sm" variant="ghost" onClick={() => { setForm({ ...form, supplierDocNumber: busquedaProveedor.replace(/\D/g, '') }); setNuevoProveedor(true); }}>+ Registrar proveedor nuevo con ese RUC</Button> : null}
+            {(rucTexto.length === 11 && !proveedores.some((p) => p.doc_number === rucTexto)) || (proveedorTexto.trim().length >= 2 && !proveedores.some((p) => p.legal_name.toLowerCase().includes(proveedorTexto.trim().toLowerCase()))) ? <Button type="button" size="sm" variant="ghost" onClick={() => { setForm({ ...form, supplierDocNumber: rucTexto }); setNuevoProveedor(true); }}>+ Registrar proveedor nuevo</Button> : null}
             <label className="text-xs block">Concepto<Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
             <label className="text-xs block">Moneda<select className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={moneda} onChange={(e) => setMoneda(e.target.value)}><option value="PEN">PEN — Soles</option><option value="USD">USD — Dólares</option></select></label>
             <label className="text-xs block">Monto ({moneda})<Input type="number" min="0.01" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />{form.amount !== '' && Number(form.amount) <= 0 ? <span className="text-[10px] text-destructive">El monto debe ser mayor a cero.</span> : null}</label>
