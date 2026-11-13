@@ -37,9 +37,9 @@ it.each(['EXONERADA','INAFECTA','GRAVADA','GRATUITA'] as const)('cambiar afectac
  expect(borradorAPayloadEmision(b).items[0].precioUnitario).toBe(item.precioUnitario);
 });
 it.each(['TRANSPORTE_INCIERTO','PREPARACION_LOCAL'])('DLQ no pierde pertenencia por origen %s',origen=>{
- const inv={resultadoPresentacion:{origen},historial:[{mensaje:'EN_DLQ'}]} as never;
+ const inv={resultadoPresentacion:{origen},enDlq:true} as never;
  expect(contieneDlq(inv)).toBe(true);expect(estadoDeMonitor(inv)).toBe(origen==='TRANSPORTE_INCIERTO'?'INCERTIDUMBRE_TRANSPORTE':'PREPARACION_LOCAL');
- expect(contieneDlq({historial:[{}]} as never)).toBe(false);
+ expect(contieneDlq({enDlq:false} as never)).toBe(false);
 });
 it('QR espeja fecha, correlativo sin padding, saneamiento de hash y separador final',()=>{
  expect(generarTramaQrSunat({rucEmisor:'20601234567',tipo:'01',serie:'F001',correlativo:7,igv:18,total:118,fecha:'2026-11-12',tipoDocCliente:'6',numDocCliente:'20100070970',hashCpe:'DI G\nEST=='})).toBe('20601234567|01|F001|7|18.00|118.00|12-11-2026|6|20100070970|DIGEST|');

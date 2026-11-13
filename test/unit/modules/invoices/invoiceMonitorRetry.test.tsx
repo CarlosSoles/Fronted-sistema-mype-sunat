@@ -7,6 +7,8 @@ import { invoicesApi } from '@/modules/invoices/services/invoicesApi';
 import { ALERTAS_VACIAS } from '@/modules/invoices/lib/invoiceAlertas';
 import { aInvoice } from '@/modules/invoices/lib/invoiceMapper';
 
+vi.mock('@/modules/invoices/components/InvoiceRvieSection', () => ({ InvoiceRvieSection: () => null }));
+
 vi.mock('@/modules/invoices/services/invoicesApi', () => ({
   invoicesApi: { getAgregados: vi.fn(), getAlertas: vi.fn(), getInvoices: vi.fn(), getInvoiceById: vi.fn(), retryCdr: vi.fn() },
 }));
@@ -70,14 +72,14 @@ describe('retroalimentación del reintento de CDR en el Monitor', () => {
   });
 });
 
-it('F8 distingue DLQ por bitácora y filtra la misma tabla por estado', async () => {
-  const dlq = { ...comprobante, id: 'invoice-dlq', numero: 'F001-00000053', estadoBackend: 'PENDIENTE', historial: [{ id: 'h1', fecha: '2026-11-07', mensaje: 'Rescate manual: EN_DLQ. Requiere revisión.' }] };
+it('membresía vigente distingue DLQ y filtra la misma tabla por estado', async () => {
+  const dlq = { ...comprobante, id: 'invoice-dlq', numero: 'F001-00000053', estadoBackend: 'PENDIENTE', enDlq: true };
   const pendiente = { ...comprobante, id: 'invoice-pendiente', numero: 'F001-00000054', estadoBackend: 'PENDIENTE' };
-  vi.mocked(invoicesApi.getInvoices).mockImplementation(async (_page, filtros) => ({ data: filtros?.estado === 'PENDIENTE' ? [{ ...dlq, historial: undefined }, pendiente] : filtros?.estado === 'ERROR_RED' ? [comprobante] : [], total: 3, page: 1, pageSize: 100, totalPages: 1 }));
+  vi.mocked(invoicesApi.getInvoices).mockImplementation(async (_page, filtros) => ({ data: filtros?.estado === 'PENDIENTE' ? [dlq, pendiente] : filtros?.estado === 'ERROR_RED' ? [comprobante] : [], total: 3, page: 1, pageSize: 100, totalPages: 1 }));
   vi.mocked(invoicesApi.getInvoiceById).mockImplementation(async (id) => id === dlq.id ? dlq : id === pendiente.id ? pendiente : comprobante);
   render(<InvoiceMonitorPage />);
   await screen.findByText(dlq.numero);
-  expect(invoicesApi.getInvoiceById).toHaveBeenCalledWith(dlq.id);
+  expect(invoicesApi.getInvoiceById).not.toHaveBeenCalled();
   const fila = screen.getByText(dlq.numero).closest('tr')!;
   expect(within(fila).getByText('DLQ')).toBeTruthy();
   expect(within(fila).queryByText('PENDIENTE')).toBeNull();
@@ -88,16 +90,16 @@ it('F8 distingue DLQ por bitácora y filtra la misma tabla por estado', async ()
   expect(screen.getByText(comprobante.numero)).toBeTruthy(); expect(screen.queryByText(dlq.numero)).toBeNull();
 });
 
-it('F8 deja de rotular DLQ cuando la bitácora registra un reencolado posterior', () => {
-  const historial = [{ id: '1', fecha: '2026-11-06', mensaje: 'Rescate: EN_DLQ.' }, { id: '2', fecha: '2026-11-07', mensaje: 'Rescate: ENCOLADO.' }];
-  expect(estadoDeMonitor({ ...comprobante, estadoBackend: 'PENDIENTE', historial })).toBe('PENDIENTE');
+it('sin membresía vigente el comprobante no se rotula DLQ', () => {
+  expect(estadoDeMonitor({ ...comprobante, estadoBackend: 'PENDIENTE', enDlq: false })).toBe('PENDIENTE');
+  expect(estadoDeMonitor({ ...comprobante, estadoBackend: undefined, enDlq: null })).toBe(comprobante.cdrStatus);
 });
 
 it('DLQ ofrece reintento efectivo, muestra resultado y deja de rotularla DLQ al refrescar', async () => {
   let rescatado = false;
-  const dlq = { ...comprobante, id: 'invoice-57', numero: 'F001-00000057', estadoBackend: 'EN_COLA', historial: [{ id: 'h', fecha: '2026-11-10', mensaje: 'Rescate manual: EN_DLQ.' }] };
-  vi.mocked(invoicesApi.getInvoices).mockImplementation(async (_p, filtro) => ({ data: filtro?.estado === 'EN_COLA' ? [dlq] : [], total: 1, page: 1, pageSize: 100, totalPages: 1 }));
-  vi.mocked(invoicesApi.getInvoiceById).mockImplementation(async () => rescatado ? { ...dlq, historial: [...dlq.historial, { id: 'h2', fecha: '2026-11-10', mensaje: 'Rescate manual: ENCOLADO.' }] } : dlq);
+  const dlq = { ...comprobante, id: 'invoice-57', numero: 'F001-00000057', estadoBackend: 'EN_COLA', enDlq: true };
+  vi.mocked(invoicesApi.getInvoices).mockImplementation(async (_p, filtro) => ({ data: filtro?.estado === 'EN_COLA' ? [{...dlq,enDlq:!rescatado}] : [], total: 1, page: 1, pageSize: 100, totalPages: 1 }));
+
   vi.mocked(invoicesApi.retryCdr).mockImplementation(async () => { rescatado = true; return { id: dlq.id, estado: 'EN_COLA', encolado: true, mensaje: 'Comprobante reencolado manualmente.', resultadoCola: 'ENCOLADO' } as never; });
   render(<InvoiceMonitorPage />);
   const fila = (await screen.findByText(dlq.numero)).closest('tr')!;
@@ -107,8 +109,8 @@ it('DLQ ofrece reintento efectivo, muestra resultado y deja de rotularla DLQ al 
   expect(invoicesApi.retryCdr).toHaveBeenCalledExactlyOnceWith(dlq.id);
 });
 it.each(['ACEPTADO', 'OBSERVADO', 'ANULADO'])('una referencia DLQ histórica no habilita acción para %s', async estado => {
-  const inv = { ...comprobante, estadoBackend: estado, historial: [{ id: 'h', fecha: '2026-11-10', mensaje: 'EN_DLQ' }] };
-  vi.mocked(invoicesApi.getInvoiceById).mockResolvedValue(inv);
+  const inv = { ...comprobante, estadoBackend: estado, enDlq: true };
+  vi.mocked(invoicesApi.getInvoices).mockResolvedValue({data:[inv],total:1,page:1,pageSize:100,totalPages:1});
   render(<InvoiceMonitorPage />); await screen.findByText(inv.numero);
   expect(within(screen.getByText(inv.numero).closest('tr')!).queryByRole('button', { name: 'Reintentar' })).toBeNull();
 });
@@ -135,7 +137,7 @@ it('6c-5 ofrece una opción de incertidumbre que incluye ERROR_RED y la clase ex
  expect(screen.getAllByRole('option',{name:'Incertidumbre de transporte'})).toHaveLength(1);
  fireEvent.change(screen.getByLabelText('Filtrar estado del monitor'),{target:{value:'INCERTIDUMBRE_TRANSPORTE'}});
  expect(screen.getByText('Cliente de prueba')).toBeTruthy();expect(screen.getByText('Fila incierta')).toBeTruthy();
- expect(invoicesApi.getInvoices).toHaveBeenCalledWith(expect.anything(),expect.objectContaining({estado:'ERROR_RED'}));
+ expect(invoicesApi.getInvoices).toHaveBeenCalledWith(expect.anything(),expect.objectContaining({estado:'ERROR_RED'}),true);
 });
 
 it('preparación local conserva Reintentar y no entra al filtro de incertidumbre', async () => {
