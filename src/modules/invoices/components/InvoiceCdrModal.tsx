@@ -1,3 +1,4 @@
+import { consultarSunatAporta } from '../lib/invoiceBandejaState';
 import { InvoiceForcedResend } from './InvoiceForcedResend';
 import { lecturaRechazo } from '../lib/invoiceResultPresentation';
 /**
@@ -190,7 +191,7 @@ export const InvoiceCdrModal = ({
             <span>
               {numeroSerie} · {c.clienteRazonSocial}
             </span>
-            <InvoiceStatusBadge estado={c.estado} codigo={c.cdrCodigo} resultado={c.resultadoPresentacion} />
+            <InvoiceStatusBadge estadoBackend={c.estadoBackend} estado={c.estado} codigo={c.cdrCodigo} resultado={c.resultadoPresentacion} />
           </DialogTitle>
           <PageText variant="caption">
             {/* `null` es DESCONOCIDO, no "Contado": los comprobantes emitidos
@@ -212,7 +213,7 @@ export const InvoiceCdrModal = ({
         </DialogHeader>
 
         <InvoiceForcedResend key={`forzar-${c.id}`} id={c.id} incierto={c.resultadoPresentacion?.origen === 'TRANSPORTE_INCIERTO' && !['ACEPTADO','OBSERVADO'].includes(c.estado)} />
-        {!c.serie.toUpperCase().startsWith('B') && c.resultadoPresentacion?.origen !== 'PREPARACION_LOCAL' && <InvoiceSunatConsulta key={c.id} id={c.id} />}
+        {consultarSunatAporta({...c,tieneCdr:ficha?.tieneCdr}) && <InvoiceSunatConsulta key={c.id} id={c.id} />}
         <InvoiceBridgeReprocess key={`puente-${c.id}`} id={c.id} estado={c.estado} />
 
         <Tabs value={modo} onValueChange={(v) => setModo(v as 'cdr' | 'xml')}>

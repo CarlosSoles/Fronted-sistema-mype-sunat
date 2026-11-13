@@ -40,6 +40,7 @@ export interface PurchaseRecord {
   documentSerial: string;
   documentNumber: string;
   issueDate: string;
+  createdAt?: string;
   warehouseCode: string;
   currencyCode: string;
   exchangeRate?: number;

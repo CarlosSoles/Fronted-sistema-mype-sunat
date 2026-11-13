@@ -1,3 +1,4 @@
+import type { ImportesBandeja } from '../lib/invoiceBandejaAmounts';
 import type { ResultadoPresentacion } from '../lib/invoiceResultPresentation';
 /**
  * Tipos del dominio de demostración de comprobantes (M1).
@@ -73,6 +74,8 @@ export type TipoDocIdentidad = '1' | '6';
 
 /** Fila enriquecida que consume la tabla del módulo. */
 export interface ComprobanteDemo {
+  importesBandeja?: ImportesBandeja;
+  tieneCdr?: boolean;
   transporteAcreditado?: boolean;
   resultadoPresentacion?: ResultadoPresentacion;
   id: string;

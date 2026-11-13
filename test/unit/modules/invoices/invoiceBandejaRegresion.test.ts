@@ -16,7 +16,7 @@ describe('bandeja: datos guardados y métricas', () => {
   it('excluye errores de red de importes y los cuenta en la tasa', () => {
     const base = { tipo: '01' as const, serie: 'F001', ruc: '20100070970', razonSocial: 'CLIENTE', fecha: '2026-11-01', base: 100 };
     const aceptados = Array.from({ length: 7 }, (_, i) => construir({ ...base, correlativo: i + 1, estado: 'ACEPTADO' }));
-    const error = construir({ ...base, correlativo: 56, estado: 'SIN_CONFIRMAR' });
+    const error = { ...construir({ ...base, correlativo: 56, estado: 'SIN_CONFIRMAR' }), estadoBackend:'ERROR_RED' };
     const resumen = calcularResumenFiscal([...aceptados, error]);
     expect(resumen.totalFacturado).toBe(826);
     expect(resumen.tasaExito).toBe(87.5);

@@ -1,3 +1,4 @@
+import { enriquecerImportesBandeja } from './lib/invoiceBandejaAmounts';
 import { useInvoiceRefresh } from './hooks/useInvoiceRefresh';
 import { useInvoiceConfig } from './hooks/useInvoiceConfig';
 import { useAuthStore } from '@/stores/authStore';
@@ -129,7 +130,7 @@ export const InvoiceList = () => {
           invoicesApi.getInvoices(i + 2, { page_size: 100 }),
         ),
       );
-      return { ...primera, data: [ ...primera.data, ...paginas.flatMap((p) => p.data) ] };
+      return { ...primera, data: await enriquecerImportesBandeja([ ...primera.data, ...paginas.flatMap((p) => p.data) ], invoicesApi.getInvoiceById) };
     },
     staleTime: 1000 * 60 * 3,
   });

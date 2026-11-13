@@ -1,3 +1,4 @@
+import type { EstadoBandeja } from '../lib/invoiceBandejaState';
 import { errorRangoFechas } from '../lib/invoiceDateRange';
 /**
  * Barra de control y acciones del módulo de Facturación (M1).
@@ -20,27 +21,28 @@ import {
 } from '@/components/ui';
 import { RefreshCw } from 'lucide-react';
 import { useState } from 'react';
-import type { EstadoCdrDemo } from '../data/invoiceDemoSchema';
 import { InvoiceEmitMenu, type TipoEmision } from './InvoiceEmitMenu';
 
 export type { TipoEmision };
 
 /** Valores disponibles del filtro por estado CDR. */
 export const FILTROS_ESTADO: ReadonlyArray<{
-  value: EstadoCdrDemo | 'TODOS';
+  value: EstadoBandeja | 'TODOS';
   label: string;
 }> = [
   { value: 'TODOS', label: 'Todos los estados' },
   { value: 'ACEPTADO', label: 'Aceptado' },
   { value: 'OBSERVADO', label: 'Observado (4xxx)' },
   { value: 'EN_COLA', label: 'En Cola Outbox' },
-  { value: 'RECHAZADO', label: 'Rechazado' },
+  { value: 'RECHAZADO', label: 'Rechazado (SUNAT)' },
+  { value: 'PREPARACION_LOCAL', label: 'Bloqueado en preparación local' },
+  { value: 'ERROR_RED', label: 'Error de red' },
   { value: 'SIN_CONFIRMAR', label: 'Incertidumbre de transporte' },
 ];
 
 export interface InvoiceFiltros {
   busqueda: string;
-  estado: EstadoCdrDemo | 'TODOS';
+  estado: EstadoBandeja | 'TODOS';
   desde: string;
   hasta: string;
 }
