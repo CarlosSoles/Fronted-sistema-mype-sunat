@@ -1,6 +1,7 @@
 export interface PurchaseItemPayload {
   sku: string;
   quantity: number;
+  receivedQuantity?: number;
   unitCost: number;
   description?: string;
 }
@@ -25,6 +26,7 @@ export interface PurchaseItemRecord {
   sku: string;
   description: string;
   quantity: number;
+  receivedQuantity?: number;
   unitCost: number;
   subtotal: number;
   igvAmount: number;
@@ -50,6 +52,7 @@ export interface PurchaseRecord {
   paidAmount: number;
   pendingAmount: number;
   status: 'PENDIENTE' | 'PAGO_PARCIAL' | 'PAGADA' | 'ANULADA';
+  receptionStatus?: 'PENDIENTE' | 'PARCIAL' | 'RECIBIDA';
   notes?: string | null;
   responsible?: string | null;
   itemsCount: number;
