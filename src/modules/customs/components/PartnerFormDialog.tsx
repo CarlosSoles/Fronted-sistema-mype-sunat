@@ -41,6 +41,7 @@ export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PR
   });
   const [roles, setRoles] = useState<PartnerRole[]>(partner ? [...partner.roles] : [initialRole]);
   const [error, setError] = useState('');
+  const [errorDocumento, setErrorDocumento] = useState('');
   const [existing, setExisting] = useState<BusinessPartnerRecord | null>(null);
   const [retencion, setRetencion] = useState(false);
   const [percepcion, setPercepcion] = useState(false);
@@ -137,8 +138,17 @@ export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PR
             </div>
             <div>
               <p className="mb-1 font-medium">Número <span aria-hidden="true">*</span></p>
-              <Input ref={numeroRef} aria-required="true" aria-invalid={!form.docNumber.trim()} aria-describedby={!form.docNumber.trim() ? "partner-numero-error" : undefined} aria-label="Número" disabled={!!partner} placeholder="Ej. 20100000001 o TAX ID" value={form.docNumber} onChange={(e) => { const valor = form.docType === '6' || form.docType === '1' ? e.target.value.replace(/\D/g, "").slice(0, form.docType === '6' ? 11 : 8) : e.target.value; setForm({ ...form, docNumber: valor }); }} />
-              {errorValidacion && errorValidacion.toLowerCase().includes('documento') ? <p id="partner-numero-error" className="text-xs text-destructive">{errorValidacion}</p> : !form.docNumber.trim() ? <p id="partner-numero-error" className="text-xs text-destructive">Indique el número de documento.</p> : null}
+              <Input ref={numeroRef} aria-required="true" aria-invalid={!form.docNumber.trim()} aria-describedby={!form.docNumber.trim() ? "partner-numero-error" : undefined} aria-label="Número" disabled={!!partner} placeholder="Ej. 20100000001 o TAX ID" value={form.docNumber} onChange={(e) => {
+                if (form.docType === '6') {
+                  const digitos = e.target.value.replace(/\D/g, '').slice(0, 11);
+                  if (digitos && !/^[12]/.test(digitos)) { setErrorDocumento('El RUC debe iniciar con 1 o 2 (10, 15, 16, 17 o 20).'); return; }
+                  if (digitos.length >= 2 && !['10', '15', '16', '17', '20'].includes(digitos.slice(0, 2))) { setErrorDocumento('El prefijo del RUC debe ser 10, 15, 16, 17 o 20.'); return; }
+                  setErrorDocumento(''); setForm({ ...form, docNumber: digitos }); return;
+                }
+                const valor = form.docType === '1' ? e.target.value.replace(/\D/g, '').slice(0, 8) : e.target.value;
+                setErrorDocumento(''); setForm({ ...form, docNumber: valor });
+              }} />
+              {errorDocumento ? <p id="partner-numero-error" className="text-xs text-destructive">{errorDocumento}</p> : errorValidacion && errorValidacion.toLowerCase().includes('documento') ? <p id="partner-numero-error" className="text-xs text-destructive">{errorValidacion}</p> : !form.docNumber.trim() ? <p id="partner-numero-error" className="text-xs text-destructive">Indique el número de documento.</p> : null}
             </div>
             <div className="sm:col-span-2">
               <p className="mb-1 font-medium">Razón social <span aria-hidden="true">*</span></p>

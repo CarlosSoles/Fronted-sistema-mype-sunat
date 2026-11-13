@@ -1,10 +1,12 @@
 import '@testing-library/jest-dom/vitest';
 import { describe,it,expect,vi } from 'vitest';
-import {render,screen,fireEvent} from '@testing-library/react';
+import {render,screen,fireEvent,cleanup} from '@testing-library/react';
+import {afterEach} from 'vitest';
 import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
 import {PartnerFormDialog} from '@/modules/customs/components/PartnerFormDialog';
 import {errorDatosTercero,documentoTerceroValido} from '@/modules/customs/libPartnerValidation';
 const valid={docType:'6',docNumber:'20100070970',legalName:'Cliente',tradeName:'',countryCode:'PE',email:''};
+afterEach(cleanup);
 describe('maestro: validación compartida',()=>{
  it.each([['1','12345678'],['6','20100070970'],['4','CE-123'],['0','US-ABC']])('preserva %s %s',(t,n)=>expect(documentoTerceroValido(t,n)).toBe(true));
  it.each([['1','1234567'],['1','1234567A'],['6','20100070971'],['0',''],['4','']])('rechaza %s %s',(t,n)=>expect(documentoTerceroValido(t,n)).toBe(false));
@@ -19,5 +21,15 @@ describe('maestro: validación compartida',()=>{
   fireEvent.change(screen.getByLabelText('Tipo de documento'),{target:{value:'4'}});
   fireEvent.change(screen.getByLabelText('Número'),{target:{value:'CE-123'}});
   expect(screen.getByRole('button',{name:'Guardar tercero'})).toBeEnabled();qc.clear();
+ });
+
+ it('impide que un RUC empiece con 0',()=>{
+  const qc=new QueryClient({defaultOptions:{queries:{retry:false}}});
+  render(<QueryClientProvider client={qc}><PartnerFormDialog onClose={vi.fn()} initialDocument="20100070970" initialName="Cliente"/></QueryClientProvider>);
+  const numero=screen.getByLabelText('Número') as HTMLInputElement;
+  fireEvent.change(numero,{target:{value:'0'}});
+  expect(numero.value).toBe('20100070970');
+  expect(screen.getByText(/debe iniciar con 1 o 2/i)).toBeInTheDocument();
+  qc.clear();
  });
 });
