@@ -1,3 +1,5 @@
+import { beforeEach as billingBeforeEach } from 'vitest';
+import { useAuthStore as billingAuth } from '@/stores/authStore';
 import { afterEach, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { EnviarBajaPanel } from '@/modules/invoices/components/EnviarBajaPanel';
@@ -66,3 +68,6 @@ it('6c-7 muestra tipo, importe y estado recibidos por fila sin recalcular',()=>{
  render(<EnviarBajaPanel fecha="2026-11-09" vista={{...vista,lineas:[{...vista.lineas[0],total:730.17}]}} onEnviado={vi.fn()}/>);
  expect(screen.getByText('Factura (01) · Total: 730.17 · ACEPTADO')).toBeTruthy();expect(invoicesApi.enviarBaja).not.toHaveBeenCalled();
 });
+
+// Las operaciones de esta suite se ejecutan con un rol autorizado de facturación.
+billingBeforeEach(() => { billingAuth.setState({ user: { id: 'billing-test', email: 'billing@example.invalid', role: 'ADMIN' } }); });

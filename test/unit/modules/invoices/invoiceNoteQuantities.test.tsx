@@ -1,3 +1,5 @@
+import { beforeEach as billingBeforeEach } from 'vitest';
+import { useAuthStore as billingAuth } from '@/stores/authStore';
 import { afterEach, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -102,3 +104,6 @@ it('un pool actualizado mayor al confirmar bloquea el mínimo antes de publicar'
  expect(await screen.findByText(/El motivo total exige todas las unidades pendientes de MAT-1/)).toBeTruthy();
  expect(apiClient.post).not.toHaveBeenCalled();
 });
+
+// Las operaciones de esta suite se ejecutan con un rol autorizado de facturación.
+billingBeforeEach(() => { billingAuth.setState({ user: { id: 'billing-test', email: 'billing@example.invalid', role: 'ADMIN' } }); });

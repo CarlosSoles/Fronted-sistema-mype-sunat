@@ -1,3 +1,5 @@
+import { beforeEach as billingBeforeEach } from 'vitest';
+import { useAuthStore as billingAuth } from '@/stores/authStore';
 import {afterEach,expect,it,vi} from 'vitest';
 import {render,screen,fireEvent,cleanup,waitFor} from '@testing-library/react';
 import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
@@ -32,3 +34,6 @@ it('no captura los atajos de otro diálogo y elimina el listener al desmontar',a
 it('conserva alcance del modal y reconoce Option por code',async()=>{
  await montar(true);fireEvent.keyDown(screen.getByLabelText('Buscar producto'),{altKey:true,key:'¬',code:'KeyL'});expect(screen.getAllByLabelText(/Descripción de la línea/)).toHaveLength(2);
 });
+
+// Las operaciones de esta suite se ejecutan con un rol autorizado de facturación.
+billingBeforeEach(() => { billingAuth.setState({ user: { id: 'billing-test', email: 'billing@example.invalid', role: 'ADMIN' } }); });
