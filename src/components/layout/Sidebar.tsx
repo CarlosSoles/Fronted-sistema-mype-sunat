@@ -223,7 +223,8 @@ export const Sidebar = () => {
   // Mantiene visible el módulo activo aunque el menú tenga muchos ítems.
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
-      asideRef.current?.querySelector<HTMLElement>('[aria-current="page"]')?.scrollIntoView({ block: 'nearest' });
+      const activo = asideRef.current?.querySelector<HTMLElement>('[aria-current="page"]');
+      activo?.scrollIntoView?.({ block: 'nearest' });
     });
     return () => cancelAnimationFrame(frame);
   }, [location.pathname]);
