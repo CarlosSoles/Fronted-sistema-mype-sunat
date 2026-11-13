@@ -96,10 +96,10 @@ export const InvoiceTableRow = ({
       <TableCell align="center">{c.moneda}</TableCell>
 
       <TableCell align="right">
-        {formatCurrency(c.baseImponible, c.moneda)}
+        {c.importesBandeja?.verificado===false ? <span title="El detalle no permite verificar el desglose">Desglose no verificable</span> : formatCurrency(c.baseImponible, c.moneda)}
       </TableCell>
 
-      <TableCell align="right">{formatCurrency(c.igv, c.moneda)}</TableCell>
+      <TableCell align="right">{c.importesBandeja?.verificado===false ? '—' : formatCurrency(c.igv, c.moneda)}</TableCell>
 
       <TableCell align="right">
         {descuento > 0 ? (
@@ -123,11 +123,12 @@ export const InvoiceTableRow = ({
       <TableCell align="right">
         <PageText variant="label">
           {formatCurrency(c.totalNeto, c.moneda)}
+          {c.importesBandeja?.verificado && c.importesBandeja.icbper>0 && <PageText variant="caption">ICBPER {formatCurrency(c.importesBandeja.icbper,c.moneda)}</PageText>}
         </PageText>
       </TableCell>
 
       <TableCell align="center">
-        <InvoiceStatusBadge estado={c.estado} codigo={c.cdrCodigo} resultado={c.resultadoPresentacion} />
+        <InvoiceStatusBadge estadoBackend={c.estadoBackend} estado={c.estado} codigo={c.cdrCodigo} resultado={c.resultadoPresentacion} />
       </TableCell>
 
       <TableCell align="right" onClick={(e) => e.stopPropagation()}>
