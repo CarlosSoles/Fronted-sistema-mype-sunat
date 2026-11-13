@@ -29,7 +29,7 @@ export default function SalesPosPage() {
   const [medioPago, setMedioPago] = useState('EFECTIVO');
   const [error, setError] = useState('');
   const errorDocumento = tipoDoc === '0' ? '' : documento.trim() === '' ? 'Indique el documento del cliente.' : documentoTerceroValido(tipoDoc, documento.trim()) ? '' : tipoDoc === '6' ? 'RUC inválido: 11 dígitos y módulo 11.' : 'DNI inválido: 8 dígitos.';
-  const [venta, setVenta] = useState<{ numero: string; total: number } | null>(null);
+  const [venta, setVenta] = useState<{ numero: string; total: number; cobroPendiente?: string } | null>(null);
 
   useEffect(() => {
     void apiClient.get('/invoices/warehouses').then(({ data }) => {
@@ -86,22 +86,31 @@ export default function SalesPosPage() {
           afectacion: (l.producto.afectacion || '10') as never,
         })),
       }, crypto.randomUUID());
-      try {
-        await collectionsApi.create({
-          customerName: cliente.trim(),
-          customerDoc: documento.trim() || undefined,
-          invoiceNumber: resultado.numero,
-          description: `Venta POS ${resultado.numero}`,
-          paymentMethod: medioPago,
-          amount: Number(resultado.monto_total),
-        });
-      } catch {
-        // El comprobante ya existe; el cobro puede regularizarse luego en Cobros.
+      let cobroPendiente = '';
+      // La boleta puede quedar EN_COLA unos segundos: el cobro exige ACEPTADO.
+      for (let intento = 0; intento < 12; intento++) {
+        try {
+          await collectionsApi.create({
+            customerName: cliente.trim(),
+            customerDoc: documento.trim() || undefined,
+            invoiceNumber: resultado.numero,
+            description: `Venta POS ${resultado.numero}`,
+            paymentMethod: medioPago,
+            amount: Number(resultado.monto_total),
+          });
+          cobroPendiente = '';
+          break;
+        } catch (e: unknown) {
+          cobroPendiente = extractApiErrorMessage(e, 'No se pudo registrar el cobro.');
+          const transitorio = /aceptad|saldo|cola|procesando|todav[ií]a/i.test(cobroPendiente);
+          if (!transitorio || intento === 11) break;
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
       }
-      return resultado;
+      return { ...resultado, cobroPendiente };
     },
     onSuccess: (resultado) => {
-      setVenta({ numero: resultado.numero, total: Number(resultado.monto_total) });
+      setVenta({ numero: resultado.numero, total: Number(resultado.monto_total), cobroPendiente: resultado.cobroPendiente });
       setCarrito([]);
       setError('');
     },
@@ -111,7 +120,7 @@ export default function SalesPosPage() {
   return (
     <Page>
       <PageHeader title="Punto de venta" description="Venta rápida con emisión de comprobante y registro de cobro." />
-      {venta ? <div className="mb-4 rounded-md border border-emerald-600/40 bg-emerald-50 p-3 text-sm text-emerald-800">Venta registrada: <strong>{venta.numero}</strong> · {money(venta.total)}</div> : null}
+      {venta ? <div className="mb-4 rounded-md border border-emerald-600/40 bg-emerald-50 p-3 text-sm text-emerald-800">Venta registrada: <strong>{venta.numero}</strong> · {money(venta.total)}{venta.cobroPendiente ? <p className="mt-1 text-xs text-amber-700">Cobro pendiente: {venta.cobroPendiente} Regístralo en Cobros.</p> : null}</div> : null}
       {error ? <div className="mb-4 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive">{error}</div> : null}
       <div className="grid gap-4 lg:grid-cols-[1fr_420px]">
         <Card className="p-4">
