@@ -70,6 +70,7 @@ export const NAV_ITEMS: NavItem[] = [
     allowedRoles: ['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
     subItems: [
       { title: 'Punto de venta', path: '/sales/pos', icon: ShoppingCart, allowedRoles: ['ADMIN', 'OPERADOR_FACTURACION'] },
+      { title: 'Cotizaciones', path: '/sales/cotizaciones', icon: FileText, allowedRoles: ['ADMIN', 'OPERADOR_FACTURACION'] },
       { title: 'Historial de ventas', path: '/sales/historial', icon: History },
       { title: 'Reporte de ventas y margen', path: '/sales/reportes', icon: LayoutDashboard, allowedRoles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'] },
       { title: 'Cuentas por cobrar y cobros', path: '/sales/cobranzas', icon: WalletCards, allowedRoles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'] },
