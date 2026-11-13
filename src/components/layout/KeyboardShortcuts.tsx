@@ -30,9 +30,13 @@ export function KeyboardShortcuts() {
       const target = event.target as HTMLElement | null;
       const editable = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.tagName === 'SELECT' || target?.isContentEditable;
       if (editable || event.ctrlKey || event.metaKey || event.altKey) return;
+      // Firefox/teclado español puede reportar '?' o Shift+Slash.
+      if (event.key === '?' || (event.code === 'Slash' && event.shiftKey)) {
+        event.preventDefault();
+        setAyuda(true);
+        return;
+      }
       if (document.querySelector('[role="dialog"]')) return;
-
-      if (event.key === '?') { event.preventDefault(); setAyuda(true); return; }
       if (event.key === 'Escape') { setPrefijo(false); setAyuda(false); return; }
       if (event.key.toLowerCase() === 'g') {
         setPrefijo(true);
@@ -49,8 +53,8 @@ export function KeyboardShortcuts() {
       setPrefijo(false);
       if (timer.current) window.clearTimeout(timer.current);
     };
-    window.addEventListener('keydown', onKey);
-    return () => { window.removeEventListener('keydown', onKey); if (timer.current) window.clearTimeout(timer.current); };
+    window.addEventListener('keydown', onKey, true);
+    return () => { window.removeEventListener('keydown', onKey, true); if (timer.current) window.clearTimeout(timer.current); };
   }, [prefijo, role, navigate]);
 
   return (
