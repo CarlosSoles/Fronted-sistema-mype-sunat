@@ -1,3 +1,4 @@
+import type { ImportesBandeja } from '../lib/invoiceBandejaAmounts';
 import type { ResultadoPresentacion } from '../lib/invoiceResultPresentation';
 /**
  * Estado de un comprobante frente a SUNAT, tal como lo pinta el front.
@@ -48,6 +49,7 @@ export interface ComprobanteOrigenNota {
 }
 
 export interface Invoice {
+  importesBandeja?: ImportesBandeja;
   transporteAcreditado?: boolean;
   montoDetraccion?: number | null;
   montoRetencion?: number | null;
