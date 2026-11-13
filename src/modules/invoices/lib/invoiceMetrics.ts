@@ -1,3 +1,4 @@
+import { clasificarBandeja } from './invoiceBandejaState';
 /**
  * Cálculo de las métricas fiscales del módulo de Facturación (M1).
  *
@@ -16,6 +17,9 @@ import type { ComprobanteDemo } from '../data/invoiceDemoSchema';
 
 /** Métricas agregadas que alimentan las tarjetas superiores. */
 export interface ResumenFiscal {
+  icbper?: number;
+  desgloseIncompleto?: boolean;
+  incertidumbre?: number;
   totalFacturado: number;
   baseTotal: number;
   igvTotal: number;
@@ -50,7 +54,7 @@ export const calcularResumenFiscal = (
   comprobantes: readonly ComprobanteDemo[],
 ): ResumenFiscal => {
   // Los rechazos quedan fuera de todo agregado fiscal.
-  const validos = comprobantes.filter((c) => ESTADOS_ACEPTADOS.has(c.estado));
+  const validos = comprobantes.filter((c) => ESTADOS_ACEPTADOS.has(clasificarBandeja(c)));
 
   const afectanTotales = validos.filter(
     (c) => TIPOS_QUE_SUMAN.has(c.tipo) || TIPOS_QUE_RESTAN.has(c.tipo),
@@ -73,15 +77,15 @@ export const calcularResumenFiscal = (
   );
 
   const aceptados = comprobantes.filter((c) =>
-    ESTADOS_ACEPTADOS.has(c.estado),
+    ESTADOS_ACEPTADOS.has(clasificarBandeja(c)),
   ).length;
   const observados = comprobantes.filter(
-    (c) => c.estado === 'OBSERVADO',
+    (c) => clasificarBandeja(c) === 'OBSERVADO',
   ).length;
   const rechazados = comprobantes.filter(
-    (c) => c.estado === 'RECHAZADO',
+    (c) => ['RECHAZADO','NO_DETERMINADO'].includes(clasificarBandeja(c)),
   ).length;
-  const enCola = comprobantes.filter((c) => c.estado === 'EN_COLA').length;
+  const enCola = comprobantes.filter((c) => clasificarBandeja(c) === 'EN_COLA').length;
 
   const despachos = comprobantes
     .map((c) => c.tiempoDespachoMs)
@@ -94,7 +98,7 @@ export const calcularResumenFiscal = (
   // La tasa de éxito se mide sobre los comprobantes que SUNAT ya respondió:
   // los que siguen en cola todavía no tienen veredicto y no deben hundirla.
   const principales = comprobantes.filter((c) => c.tipo === '01' || c.tipo === '03');
-  const exitos = principales.filter((c) => ESTADOS_ACEPTADOS.has(c.estado)).length;
+  const exitos = principales.filter((c) => ESTADOS_ACEPTADOS.has(clasificarBandeja(c))).length;
   const tasaExito = principales.length
     ? round2((exitos / principales.length) * 100)
     : 0;
@@ -108,10 +112,13 @@ export const calcularResumenFiscal = (
     enCola,
     despachoPromedioMs,
     rechazados,
-    rechazosSunat: comprobantes.filter(c => c.estado === 'RECHAZADO' && c.resultadoPresentacion?.origen === 'SUNAT').length,
-    bloqueadosLocalmente: comprobantes.filter(c => c.estado === 'RECHAZADO' && c.resultadoPresentacion?.origen === 'VALIDACION_LOCAL').length,
-    rechazosSinOrigen: comprobantes.filter(c => c.estado === 'RECHAZADO' && !['SUNAT', 'VALIDACION_LOCAL'].includes(c.resultadoPresentacion?.origen ?? '')).length,
-    erroresRed: comprobantes.filter((c) => c.estado === 'SIN_CONFIRMAR').length,
+    rechazosSunat: comprobantes.filter(c => clasificarBandeja(c)==='RECHAZADO').length,
+    bloqueadosLocalmente: comprobantes.filter(c => clasificarBandeja(c)==='PREPARACION_LOCAL').length,
+    rechazosSinOrigen: comprobantes.filter(c => clasificarBandeja(c)==='NO_DETERMINADO').length,
+    erroresRed: comprobantes.filter(c => clasificarBandeja(c)==='ERROR_RED').length,
+    incertidumbre: comprobantes.filter(c => clasificarBandeja(c)==='SIN_CONFIRMAR').length,
+    icbper: round2(validos.filter(c => c.tipo==='01' || c.tipo==='03').reduce((sum,c)=>sum+(c.importesBandeja?.icbper ?? 0),0)),
+    desgloseIncompleto: validos.filter(c=>c.tipo==='01' || c.tipo==='03').some(c=>c.importesBandeja?.verificado===false),
     acreditado,
     debitado: round2(afectanTotales.filter((c) => c.tipo === '08').reduce((acc, c) => acc + c.totalNeto, 0)),
     observados,

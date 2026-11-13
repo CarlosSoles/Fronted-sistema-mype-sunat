@@ -1,3 +1,4 @@
+import { clasificarBandeja } from './invoiceBandejaState';
 /**
  * Filtrado del listado de comprobantes por apartado, búsqueda, estado y rango
  * de fechas. Se separa del componente para mantener el orquestador bajo el
@@ -22,12 +23,14 @@ export const porApartado = (
   return comprobantes.filter((c) => definicion.tipos.includes(c.tipo));
 };
 
-/** Aplica búsqueda, estado CDR y rango de fechas. */
+const normalizar = (s:string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+/** Aplica búsqueda, estado de presentación y rango de fechas. */
 export const aplicarFiltros = (
   comprobantes: readonly ComprobanteDemo[],
   filtros: InvoiceFiltros,
 ): ComprobanteDemo[] => {
-  const termino = filtros.busqueda.trim().toLowerCase();
+  const termino = normalizar(filtros.busqueda.trim());
 
   return comprobantes.filter((c) => {
     const documento = `${c.serie}-${c.correlativo}`;
@@ -35,15 +38,10 @@ export const aplicarFiltros = (
     const correlativoNumerico = /^\d+$/.test(termino)
       ? termino.replace(/^0+(?=\d)/, '')
       : null;
-    const coincideTexto =
-      !termino ||
-      `${documento} ${c.clienteRuc} ${c.clienteRazonSocial}`
-        .toLowerCase()
-        .includes(termino) || documento.toLowerCase().includes(terminoNumero) ||
-      (correlativoNumerico !== null && String(c.correlativo) === correlativoNumerico);
-
-    const coincideEstado =
-      filtros.estado === 'TODOS' || c.estado === filtros.estado;
+    const coincideTexto = /^\d{1,8}$/.test(termino)
+      ? String(c.correlativo) === correlativoNumerico || (termino.length===8 && c.clienteRuc===termino)
+      : !termino || normalizar(`${documento} ${c.clienteRuc} ${c.clienteRazonSocial}`).includes(termino) || normalizar(documento).includes(terminoNumero);
+    const coincideEstado = filtros.estado === 'TODOS' || clasificarBandeja(c) === filtros.estado;
 
     const coincideDesde = !filtros.desde || c.fechaEmision >= filtros.desde;
     const coincideHasta = !filtros.hasta || c.fechaEmision <= filtros.hasta;
