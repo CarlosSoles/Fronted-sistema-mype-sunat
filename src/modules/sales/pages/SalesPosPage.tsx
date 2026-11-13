@@ -13,6 +13,8 @@ import { documentoTerceroValido } from '@/modules/customs/libPartnerValidation';
 interface Serie { document_type: string; series: string; is_active: boolean }
 interface Linea { producto: ProductoBuscado; cantidad: number }
 
+const hoy = new Date().toISOString().slice(0, 10);
+const enDias = (dias: number) => new Date(Date.now() + dias * 86400000).toISOString().slice(0, 10);
 const money = (n: number) => `S/ ${n.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export default function SalesPosPage() {
@@ -29,7 +31,9 @@ export default function SalesPosPage() {
   const [medioPago, setMedioPago] = useState('EFECTIVO');
   const [error, setError] = useState('');
   const errorDocumento = tipoDoc === '0' ? '' : documento.trim() === '' ? 'Indique el documento del cliente.' : documentoTerceroValido(tipoDoc, documento.trim()) ? '' : tipoDoc === '6' ? 'RUC inválido: 11 dígitos y módulo 11.' : 'DNI inválido: 8 dígitos.';
-  const [venta, setVenta] = useState<{ numero: string; total: number; cobroPendiente?: string } | null>(null);
+  const [venta, setVenta] = useState<{ numero: string; total: number; cobroPendiente?: string; credito?: boolean } | null>(null);
+  const [formaPago, setFormaPago] = useState<'Contado' | 'Credito'>('Contado');
+  const [vencimiento, setVencimiento] = useState(enDias(30));
 
   useEffect(() => {
     void apiClient.get('/invoices/warehouses').then(({ data }) => {
@@ -68,6 +72,7 @@ export default function SalesPosPage() {
       if (!cliente.trim()) throw new Error('Indique el cliente.');
       if (errorDocumento) throw new Error(errorDocumento);
       if (!carrito.length) throw new Error('Agregue al menos un producto.');
+      if (formaPago === 'Credito' && !vencimiento) throw new Error('Indique el vencimiento de la venta al crédito.');
       const resultado = await invoicesApi.emitirComprobante({
         tipo_comprobante: tipo,
         serie,
@@ -75,7 +80,8 @@ export default function SalesPosPage() {
         customer_identity_type: tipoDoc,
         customer_identity_number: documento.trim() || undefined,
         customer_legal_name: cliente.trim(),
-        forma_pago: 'Contado',
+        forma_pago: formaPago,
+        ...(formaPago === 'Credito' ? { cuotas: [{ monto: Number(total.toFixed(2)), vencimiento }] } : {}),
         items: carrito.map((l) => ({
           codigo: l.producto.sku,
           descripcion: l.producto.descripcion,
@@ -87,6 +93,7 @@ export default function SalesPosPage() {
         })),
       }, crypto.randomUUID());
       let cobroPendiente = '';
+      if (formaPago === 'Credito') return { ...resultado, cobroPendiente, credito: true };
       // La boleta puede quedar EN_COLA unos segundos: el cobro exige ACEPTADO.
       for (let intento = 0; intento < 12; intento++) {
         try {
@@ -107,11 +114,12 @@ export default function SalesPosPage() {
           await new Promise((resolve) => setTimeout(resolve, 1000));
         }
       }
-      return { ...resultado, cobroPendiente };
+      return { ...resultado, cobroPendiente, credito: false };
     },
     onSuccess: (resultado) => {
-      setVenta({ numero: resultado.numero, total: Number(resultado.monto_total), cobroPendiente: resultado.cobroPendiente });
+      setVenta({ numero: resultado.numero, total: Number(resultado.monto_total), cobroPendiente: resultado.cobroPendiente, credito: resultado.credito });
       setCarrito([]);
+      setFormaPago('Contado');
       setError('');
     },
     onError: (e: unknown) => setError(extractApiErrorMessage(e, 'No se pudo registrar la venta.')),
@@ -120,7 +128,7 @@ export default function SalesPosPage() {
   return (
     <Page>
       <PageHeader title="Punto de venta" description="Venta rápida con emisión de comprobante y registro de cobro." />
-      {venta ? <div className="mb-4 rounded-md border border-emerald-600/40 bg-emerald-50 p-3 text-sm text-emerald-800">Venta registrada: <strong>{venta.numero}</strong> · {money(venta.total)}{venta.cobroPendiente ? <p className="mt-1 text-xs text-amber-700">Cobro pendiente: {venta.cobroPendiente} Regístralo en Cobros.</p> : null}</div> : null}
+      {venta ? <div className="mb-4 rounded-md border border-emerald-600/40 bg-emerald-50 p-3 text-sm text-emerald-800">Venta registrada: <strong>{venta.numero}</strong> · {money(venta.total)}{venta.credito ? <p className="mt-1 text-xs text-sky-700">Venta al crédito: el saldo quedó en Cuentas por cobrar.</p> : null}{venta.cobroPendiente ? <p className="mt-1 text-xs text-amber-700">Cobro pendiente: {venta.cobroPendiente} Regístralo en Cobros.</p> : null}</div> : null}
       {error ? <div className="mb-4 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive">{error}</div> : null}
       <div className="grid gap-4 lg:grid-cols-[1fr_420px]">
         <Card className="p-4">
@@ -190,9 +198,12 @@ export default function SalesPosPage() {
             ))}
             {carrito.length === 0 ? <p className="py-6 text-center text-xs text-muted-foreground">Agregue productos para vender.</p> : null}
           </div>
-          <label className="mb-3 block text-xs">Medio de pago<select aria-label="Medio de pago" className="mt-1 h-9 w-full rounded-md border bg-background px-3 text-xs" value={medioPago} onChange={(e) => setMedioPago(e.target.value)}><option value="EFECTIVO">Efectivo</option><option value="TRANSFERENCIA">Transferencia</option><option value="TARJETA">Tarjeta</option><option value="YAPE">Yape / Plin</option></select></label>
+          <div className="mb-3 grid grid-cols-2 gap-2">
+            <label className="text-xs">Condición<select aria-label="Condición de pago" className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-xs" value={formaPago} onChange={(e) => setFormaPago(e.target.value as 'Contado' | 'Credito')}><option value="Contado">Contado</option><option value="Credito">Crédito</option></select></label>
+            {formaPago === 'Credito' ? <label className="text-xs">Vencimiento<Input aria-label="Vencimiento" type="date" min={hoy} value={vencimiento} onChange={(e) => setVencimiento(e.target.value)} /></label> : <label className="text-xs">Medio de pago<select aria-label="Medio de pago" className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-xs" value={medioPago} onChange={(e) => setMedioPago(e.target.value)}><option value="EFECTIVO">Efectivo</option><option value="TRANSFERENCIA">Transferencia</option><option value="TARJETA">Tarjeta</option><option value="YAPE">Yape / Plin</option></select></label>}
+          </div>
           <div className="mb-3 flex items-center justify-between border-t pt-3 text-sm"><span>Total</span><strong className="font-mono text-lg">{money(total)}</strong></div>
-          <Button fullWidth disabled={cobrar.isPending || !carrito.length || !cliente.trim() || !serie || Boolean(errorDocumento)} onClick={() => cobrar.mutate()}><CreditCard className="mr-2 h-4 w-4" />{cobrar.isPending ? 'Registrando…' : 'Cobrar y emitir'}</Button>
+          <Button fullWidth disabled={cobrar.isPending || !carrito.length || !cliente.trim() || !serie || Boolean(errorDocumento)} onClick={() => cobrar.mutate()}><CreditCard className="mr-2 h-4 w-4" />{cobrar.isPending ? 'Registrando…' : formaPago === 'Credito' ? 'Emitir al crédito' : 'Cobrar y emitir'}</Button>
         </Card>
       </div>
     </Page>
