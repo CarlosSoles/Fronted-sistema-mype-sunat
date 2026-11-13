@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { CreditCard, Plus, Search, ShoppingCart, Trash2 } from 'lucide-react';
 import { Badge, Button, Card, Input, Page, PageHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
@@ -8,6 +9,7 @@ import { invoicesApi } from '@/modules/invoices/services/invoicesApi';
 import { cargarProductosAlmacen } from '@/modules/invoices/services/inventoryProductsApi';
 import type { ProductoBuscado } from '@/modules/invoices/lib/invoiceSearch';
 import { collectionsApi } from '@/modules/collections/services/collectionsApi';
+import { salesQuotesApi } from '../services/salesQuotesApi';
 import { documentoTerceroValido } from '@/modules/customs/libPartnerValidation';
 
 interface Serie { document_type: string; series: string; is_active: boolean }
@@ -33,6 +35,8 @@ export default function SalesPosPage() {
   const errorDocumento = tipoDoc === '0' ? '' : documento.trim() === '' ? 'Indique el documento del cliente.' : documentoTerceroValido(tipoDoc, documento.trim()) ? '' : tipoDoc === '6' ? 'RUC inválido: 11 dígitos y módulo 11.' : 'DNI inválido: 8 dígitos.';
   const [venta, setVenta] = useState<{ numero: string; total: number; cobroPendiente?: string; credito?: boolean } | null>(null);
   const [formaPago, setFormaPago] = useState<'Contado' | 'Credito'>('Contado');
+  const [searchParams] = useSearchParams();
+  const quoteId = searchParams.get('quote');
   const [vencimiento, setVencimiento] = useState(enDias(30));
 
   useEffect(() => {
@@ -47,6 +51,28 @@ export default function SalesPosPage() {
   useEffect(() => {
     void cargarProductosAlmacen(almacen).then(setProductos).catch(() => setError('No se pudo cargar el catálogo del almacén.'));
   }, [almacen]);
+
+  useEffect(() => {
+    if (!quoteId) return;
+    void salesQuotesApi.get(quoteId).then((q) => {
+      setCliente(q.customerName);
+      setDocumento(q.customerDocNumber ?? '');
+      setTipoDoc(q.customerDocType || '6');
+      setCarrito(q.items.map((i, index) => ({
+        producto: {
+          sku: i.sku || `COT-${q.quoteNumber}-${index + 1}`,
+          descripcion: i.description,
+          unidad: i.unitCode || 'NIU',
+          valorUnitario: Number((i.unitPrice / 1.18).toFixed(10)),
+          precioUnitario: i.unitPrice,
+          stock: 999,
+          vendible: true,
+          afectacion: '10',
+        },
+        cantidad: i.quantity,
+      })));
+    }).catch(() => setError('No se pudo cargar la cotización.'));
+  }, [quoteId]);
 
   const filtrados = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
@@ -118,6 +144,7 @@ export default function SalesPosPage() {
     },
     onSuccess: (resultado) => {
       setVenta({ numero: resultado.numero, total: Number(resultado.monto_total), cobroPendiente: resultado.cobroPendiente, credito: resultado.credito });
+      if (quoteId) void salesQuotesApi.status(quoteId, 'CONVERTIDA');
       setCarrito([]);
       setFormaPago('Contado');
       setError('');
