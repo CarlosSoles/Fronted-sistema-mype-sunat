@@ -32,7 +32,7 @@ it('no captura los atajos de otro diálogo y elimina el listener al desmontar',a
  cleanup();fireEvent.keyDown(document.body,{altKey:true,key:'l',code:'KeyL'});expect(screen.queryByLabelText('Descripción de la línea 1')).toBeNull();
 });
 it('conserva alcance del modal y reconoce Option por code',async()=>{
- await montar(true);fireEvent.keyDown(screen.getByLabelText('Buscar producto'),{altKey:true,key:'¬',code:'KeyL'});expect(screen.getAllByLabelText(/Descripción de la línea/)).toHaveLength(2);
+ await montar(true);fireEvent.keyDown(screen.getByLabelText('Buscar producto'),{altKey:true,key:'¬',code:'KeyL'});expect(screen.getAllByLabelText(/Descripción de la línea/)).toHaveLength(1);fireEvent.change(screen.getByLabelText('Descripción de la línea 1'),{target:{value:'Producto editado'}});fireEvent.keyDown(screen.getByLabelText('Buscar producto'),{altKey:true,key:'¬',code:'KeyL'});expect(screen.getAllByLabelText(/Descripción de la línea/)).toHaveLength(2);
 });
 
 // Las operaciones de esta suite se ejecutan con un rol autorizado de facturación.
