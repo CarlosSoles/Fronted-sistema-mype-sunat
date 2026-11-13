@@ -1,3 +1,4 @@
+import { igvReferencialGratuito } from '../lib/invoiceIgvReferencial';
 import { pagoSegunDeposito } from '../lib/invoicePagoPresentacion';
 /**
  * Resumen en tiempo real del comprobante que se está emitiendo (M1).
@@ -49,6 +50,7 @@ export const InvoiceEmitResumen = ({ borrador }: InvoiceEmitResumenProps) => {
   );
   const resumenGlobal = liquidarDescuentoGlobal(borrador.items, borrador.descuentoGlobal);
   const importeTotal = resumenGlobal.total;
+  const igvReferencial = igvReferencialGratuito(borrador.items);
   const detraccion = calcularFlujo(borrador).detraccion;
   const retencion = calcularRetencion(importeTotal, !esNota && borrador.agenteRetencion);
   const neto = round2(importeTotal - detraccion - retencion);
@@ -77,6 +79,7 @@ export const InvoiceEmitResumen = ({ borrador }: InvoiceEmitResumenProps) => {
           Gratuita {soles(liquidacion.opGratuita)} (no se cobra)
         </PageText>
       )}
+      {igvReferencial > 0 && <PageText variant="caption">IGV referencial de operaciones gratuitas {soles(igvReferencial)} (no se cobra)</PageText>}
       {borrador.descuentoGlobal && <PageText variant="caption">Descuento global ({borrador.descuentoGlobal.codigo}) − {soles(borrador.descuentoGlobal.monto)}</PageText>}
       {icbperLineas > 0 && (
         <PageText variant="caption">

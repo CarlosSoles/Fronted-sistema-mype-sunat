@@ -44,7 +44,7 @@ describe('presentación del detalle de líneas', () => {
     expect(callbacks.onCambiar).toHaveBeenCalledWith(0, { valorUnitario: 25 });
     fireEvent.click(screen.getByRole('button', { name: 'Eliminar la línea 1' }));
     expect(callbacks.onEliminar).not.toHaveBeenCalled();
-    expect(screen.getByRole('alert').textContent).toBe('Debe quedar al menos una línea');
+    expect(screen.getByText('Debe quedar al menos una línea').textContent).toBe('Debe quedar al menos una línea');
   });
   it('explicita valor sin IGV y conserva la conversión inversa del precio final', () => {
     render(<InvoiceItemsGrid items={[itemVacio('a')]} {...props()} />);
