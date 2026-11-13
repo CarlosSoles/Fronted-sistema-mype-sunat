@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Badge, Button, Card, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Input, Page, PageHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
 import { inventoryPurchasesApi } from '../services/inventoryPurchasesApi';
@@ -13,7 +13,8 @@ export default function PurchasesPayablesPage() {
   const { data = [], isLoading, error } = useQuery({ queryKey: ['purchase-payables'], queryFn: () => inventoryPurchasesApi.listPayables() });
   const queryClient = useQueryClient();
   const [abrirAlta, setAbrirAlta] = useState(false);
-  const { data: proveedores = [] } = useQuery({ queryKey: ['payables-suppliers'], queryFn: async () => (await masterDataApi.getPartners()).filter((p) => p.is_active !== false), enabled: abrirAlta });
+  const { data: proveedores = [], refetch: refetchProveedores } = useQuery({ queryKey: ['payables-suppliers'], queryFn: async () => (await masterDataApi.getPartners()).filter((p) => p.is_active !== false), enabled: abrirAlta, staleTime: 0 });
+  useEffect(() => { if (abrirAlta) void refetchProveedores(); }, [abrirAlta, refetchProveedores]);
   const [errorAlta, setErrorAlta] = useState('');
   const [nuevoProveedor, setNuevoProveedor] = useState(false);
   const [moneda, setMoneda] = useState('PEN');
@@ -36,7 +37,7 @@ export default function PurchasesPayablesPage() {
   return (
     <Page>
       <PageHeader title="Cuentas por pagar" description="Saldo pendiente por proveedor, consolidado de compras no anuladas">
-        <Button size="sm" onClick={() => { setProveedorTexto(''); setRucTexto(''); setListaAbierta(null); setForm({ ...form, supplierDocNumber: '', supplierName: '' }); setAbrirAlta(true); }}>Nueva CxP</Button>
+        <Button size="sm" onClick={() => { setProveedorTexto(''); setRucTexto(''); setListaAbierta(null); setForm({ ...form, supplierDocNumber: '', supplierName: '' }); void queryClient.invalidateQueries({ queryKey: ['payables-suppliers'] }); setAbrirAlta(true); }}>Nueva CxP</Button>
       </PageHeader>
       <div className="grid gap-3 sm:grid-cols-4 mb-5">
         <Card className="p-4"><p className="text-xs text-muted-foreground">Proveedores</p><p className="text-2xl font-bold">{data.length}</p></Card>
