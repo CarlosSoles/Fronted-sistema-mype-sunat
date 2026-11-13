@@ -36,7 +36,7 @@ describe('búsqueda real del formulario de emisión', () => {
   it.each(['FERRETERIA', 'FERRETERÍA'])('busca %s por razón social y llena el documento al elegir', async (nombre) => {
     const usuario = userEvent.setup(); montar();
     await usuario.type(screen.getByLabelText('Razón social / nombre'), nombre);
-    expect(screen.getByRole('status').textContent).toContain('Buscando');
+    expect(screen.getByText('Buscando en el maestro…').textContent).toContain('Buscando');
     const sugerencia = await screen.findByRole('button', { name: /FERRETERÍA LOS ANDES S.A.C./i });
     expect(apiClient.get).toHaveBeenCalledWith('/master-data/partners', { params: { role: 'CLIENTE', q: nombre } });
     await usuario.click(sugerencia);
@@ -53,7 +53,7 @@ describe('búsqueda real del formulario de emisión', () => {
     vi.mocked(apiClient.get).mockRejectedValue(new Error('red'));
     const usuario = userEvent.setup(); montar();
     await usuario.type(screen.getByLabelText('Razón social / nombre'), 'FERRETERIA');
-    expect(screen.getByRole('status').textContent).toContain('Buscando');
+    expect(screen.getByText('Buscando en el maestro…').textContent).toContain('Buscando');
     await waitFor(() => expect(screen.getByText('No se pudo buscar en el maestro. Vuelva a intentarlo.').getAttribute('role')).toBe('alert'));
     expect(screen.queryByText(/Sin coincidencias/)).toBeNull();
   });
