@@ -13,7 +13,7 @@ export default function PurchasesPayablesPage() {
   const { data = [], isLoading, error } = useQuery({ queryKey: ['purchase-payables'], queryFn: () => inventoryPurchasesApi.listPayables() });
   const queryClient = useQueryClient();
   const [abrirAlta, setAbrirAlta] = useState(false);
-  const { data: proveedores = [] } = useQuery({ queryKey: ['payables-suppliers'], queryFn: () => masterDataApi.getPartners({ role: 'PROVEEDOR' }), enabled: abrirAlta });
+  const { data: proveedores = [] } = useQuery({ queryKey: ['payables-suppliers'], queryFn: async () => (await masterDataApi.getPartners()).filter((p) => p.is_active !== false), enabled: abrirAlta });
   const [errorAlta, setErrorAlta] = useState('');
   const [nuevoProveedor, setNuevoProveedor] = useState(false);
   const [moneda, setMoneda] = useState('PEN');
