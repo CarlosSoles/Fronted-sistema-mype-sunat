@@ -104,7 +104,7 @@ export function CommandPalette() {
           ))}
           {filtrados.length === 0 ? <p className="p-3 text-center text-xs text-muted-foreground">Sin coincidencias.</p> : null}
         </div>
-        <div className="flex items-center gap-3 border-t px-3 py-1.5 text-[10px] text-muted-foreground"><span>↑↓ navegar</span><span>Enter abrir</span><span>Ctrl/⌘ K buscar</span></div>
+        <div className="flex items-center gap-3 border-t px-3 py-1.5 text-[10px] text-muted-foreground"><span>↑↓ navegar</span><span>Enter abrir</span><span>Ctrl/⌘ K buscar</span><span>? atajos</span></div>
       </DialogContent>
     </Dialog>
   );

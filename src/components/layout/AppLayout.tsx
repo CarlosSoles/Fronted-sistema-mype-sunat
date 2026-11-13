@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
 import { CommandPalette } from './CommandPalette';
+import { KeyboardShortcuts } from './KeyboardShortcuts';
 import { SunatStatusBanner } from '@/components/feedback/SunatStatusBanner';
 import { ErrorBoundaryGlobal } from '@/components/feedback/ErrorBoundaryGlobal';
 import { OfflineIndicator } from '@/components/feedback/OfflineIndicator';
@@ -56,6 +57,7 @@ export const AppLayout = () => {
       </div>
 
       <CommandPalette />
+      <KeyboardShortcuts />
 
       {/* Indicador flotante cuando no hay conexión a internet */}
       <OfflineIndicator />
