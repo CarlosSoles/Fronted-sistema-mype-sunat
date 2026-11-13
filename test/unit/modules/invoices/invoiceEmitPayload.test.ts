@@ -19,6 +19,7 @@ import type { ItemBorrador } from '@/modules/invoices/lib/invoiceItems';
 
 const factura = (parcial: Record<string, unknown> = {}) => ({
   ...borradorInicial('01', '2026-11-03'),
+  items: [{ ...borradorInicial('01', '2026-11-03').items[0], codigo: 'SERV', descripcion: 'Servicio registrado', valorUnitario: 100 }],
   clienteDoc: '20100070970',
   clienteRazonSocial: 'FERRETERÍA LOS ANDES S.A.C.',
   ...parcial,

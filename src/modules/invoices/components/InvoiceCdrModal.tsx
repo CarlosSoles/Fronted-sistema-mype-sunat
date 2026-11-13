@@ -212,7 +212,7 @@ export const InvoiceCdrModal = ({
         </DialogHeader>
 
         <InvoiceForcedResend key={`forzar-${c.id}`} id={c.id} incierto={c.resultadoPresentacion?.origen === 'TRANSPORTE_INCIERTO' && !['ACEPTADO','OBSERVADO'].includes(c.estado)} />
-        <InvoiceSunatConsulta key={c.id} id={c.id} />
+        {!c.serie.toUpperCase().startsWith('B') && c.resultadoPresentacion?.origen !== 'PREPARACION_LOCAL' && <InvoiceSunatConsulta key={c.id} id={c.id} />}
         <InvoiceBridgeReprocess key={`puente-${c.id}`} id={c.id} estado={c.estado} />
 
         <Tabs value={modo} onValueChange={(v) => setModo(v as 'cdr' | 'xml')}>

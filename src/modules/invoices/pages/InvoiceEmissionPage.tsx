@@ -1,3 +1,5 @@
+import { useInvoiceWritePermission } from '../hooks/useInvoiceWritePermission';
+import { InvoiceWriteButton } from '../components/InvoiceWriteButton';
 import { problemasContenidoEmision } from '../lib/invoiceEmissionValidation';
 import { cantidadBolsasDe } from '../lib/invoiceBags';
 import { editarIdentidadCliente } from '../lib/invoiceCustomerIdentity';
@@ -121,6 +123,7 @@ import type { ResultadoEmisionBackend } from '../types/invoiceEmision.types';
  */
 
 export default function InvoiceEmissionPage() {
+  const puedeOperar = useInvoiceWritePermission();
   const [searchParams] = useSearchParams();
   const tipoQuery = searchParams.get('tipo');
   const [tipo, setTipo] = useState<'01' | '03'>(
@@ -330,6 +333,7 @@ export default function InvoiceEmissionPage() {
 
   const emitir = async (evento: React.FormEvent) => {
     evento.preventDefault();
+    if (!puedeOperar) return;
     (evento.currentTarget.querySelector('[aria-invalid="true"]') as HTMLElement | null)?.focus();
     if (!serieActual) { setResultado({ ok: false, mensaje: 'Configure una serie activa para este tipo de comprobante.' }); return; }
 
@@ -493,7 +497,7 @@ export default function InvoiceEmissionPage() {
     }
   };
 
-  const teclado = useInvoiceKeyboard(agregarItem, () => formRef.current?.requestSubmit(), enviando, formRef);
+  const teclado = useInvoiceKeyboard(agregarItem, () => formRef.current?.requestSubmit(), enviando || !puedeOperar, formRef);
   return (
     <Page>
       <PageHeader
@@ -525,6 +529,7 @@ export default function InvoiceEmissionPage() {
                     value={tipo}
                     onChange={(e) => {
                       setTipo(e.target.value as '01' | '03');
+                      if (e.target.value === '03') { setFormaPago('Contado'); setCuotas([]); }
                       setResultado(null);
                     }}
                     className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -592,7 +597,7 @@ export default function InvoiceEmissionPage() {
                 <div className="flex gap-2">
                   {(['Contado', 'Credito'] as const).map((forma) => {
                     const creditoHabilitado =
-                      clienteSeleccionado?.tieneCredito === true;
+                      tipo === '01' && clienteSeleccionado?.tieneCredito === true;
                     return (
                       <Button
                         key={forma}
@@ -674,7 +679,7 @@ export default function InvoiceEmissionPage() {
                   // El tipo sugerido sigue al documento del cliente; el usuario
                   // puede cambiarlo después si necesita una boleta con RUC.
                   if (cliente.tipoDocumento === '6') setTipo('01');
-                  else if (cliente.tipoDocumento === '1') setTipo('03');
+                  else if (cliente.tipoDocumento === '1') { setTipo('03'); setFormaPago('Contado'); setCuotas([]); }
                   if (cliente.tieneCredito !== true) {
                     setFormaPago('Contado');
                     setCuotas([]);
@@ -706,7 +711,7 @@ export default function InvoiceEmissionPage() {
             </CardHeader>
             <CardContent>
               <InvoiceWarehouseSelect value={almacen} onChange={setAlmacen} />
-              <InvoiceItemsGrid catalogoEstado={catalogoEstado}
+              <InvoiceItemsGrid tipo={tipo} catalogoEstado={catalogoEstado}
                 items={items}
                 onCambiar={cambiarItem}
                 onEliminar={eliminarItem}
@@ -725,7 +730,7 @@ export default function InvoiceEmissionPage() {
           </Card>
 
           <div className="flex justify-end">
-            <Button
+            <InvoiceWriteButton
               type="submit"
               size="lg"
               disabled={enviando}
@@ -733,7 +738,7 @@ export default function InvoiceEmissionPage() {
             >
               <Send className="mr-2 h-4 w-4" />
               {enviando ? 'Emitiendo…' : 'Emitir comprobante'}
-            </Button>
+            </InvoiceWriteButton>
           </div>
         </div>
 
@@ -759,6 +764,8 @@ export default function InvoiceEmissionPage() {
                 <span>IGV (18 %)</span>
                 <span>S/ {totales.igv.toFixed(2)}</span>
               </div>
+              {items.some(i => i.afectacion === 'GRATUITA') && <div className="flex justify-between"><span>Op. gratuita (referencial)</span><span>S/ {items.filter(i => i.afectacion === 'GRATUITA').reduce((s, i) => s + i.cantidad * i.valorUnitario, 0).toFixed(2)}</span></div>}
+              {descuentoGlobal && <div className="flex justify-between"><span>Descuento global ({descuentoGlobal.codigo})</span><span>− S/ {descuentoGlobal.monto.toFixed(2)}</span></div>}
               {totales.icbper > 0 && (
                 <div className="flex justify-between text-muted-foreground">
                   <span>ICBPER</span>

@@ -177,9 +177,9 @@ describe('una nota hereda el adquirente del documento afectado', () => {
     expect(borrador.clienteRazonSocial).toBe('FERRETERIA LOS ANDES S.A.C.');
   });
 
-  it('hereda la forma de pago y las cuotas de una venta al crédito', () => {
+  it('hereda la forma de pago y cuotas solo para crédito motivo 13', () => {
     const { borrador } = vincularDocumentoAfectado(
-      borradorVacio({ documentoAfectado: 'F001-00000045' }),
+      borradorVacio({ documentoAfectado: 'F001-00000045', motivoCodigo: '13' }),
       [
         comprobanteCompleto({
           formaPago: 'Credito',

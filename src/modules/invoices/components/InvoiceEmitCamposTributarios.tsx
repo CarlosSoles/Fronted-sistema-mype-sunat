@@ -58,7 +58,7 @@ export const InvoiceEmitCamposTributarios = ({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="00">Sin detracción SPOT</SelectItem>
-            {CODIGOS_DETRACCION.filter(d => d.codigo === '009').map((d) => (
+            {CODIGOS_DETRACCION.filter(d => !esDetraccionDadaDeBaja(d.codigo)).map((d) => (
               <SelectItem key={d.codigo} value={d.codigo}>
                 {d.codigo} - {d.descripcion} ({d.porcentaje * 100}%)
               </SelectItem>

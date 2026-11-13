@@ -116,10 +116,16 @@ export const serieParaNota = (
 };
 
 /** Motivos del Catálogo 09 (Nota de Crédito). */
+// Fuente de verdad: backend src/modules/invoices/application/services/noteCatalogs.ts.
 export const MOTIVOS_NC = [
   { codigo: '01', descripcion: 'Anulación de la operación' },
+  { codigo: '02', descripcion: 'Anulación por error en el RUC' },
+  { codigo: '03', descripcion: 'Corrección por error en la descripción' },
+  { codigo: '04', descripcion: 'Descuento global' },
+  { codigo: '05', descripcion: 'Descuento por ítem' },
   { codigo: '06', descripcion: 'Devolución total' },
   { codigo: '07', descripcion: 'Devolución por ítem' },
+  { codigo: '09', descripcion: 'Disminución en el valor' },
   {
     codigo: '13',
     descripcion: 'Ajustes de montos y/o fechas de pago al crédito',
@@ -131,6 +137,8 @@ export const MOTIVOS_ND = [
   { codigo: '01', descripcion: 'Intereses por mora' },
   { codigo: '02', descripcion: 'Aumento en el valor' },
   { codigo: '03', descripcion: 'Penalidades / otros conceptos' },
+  { codigo: '11', descripcion: 'Ajustes de operaciones de exportación' },
+  { codigo: '12', descripcion: 'Ajustes afectos al IVAP' },
 ] as const;
 
 /** Porcentajes de detracción SPOT disponibles (Catálogo 54). */

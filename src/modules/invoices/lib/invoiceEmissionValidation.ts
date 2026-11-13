@@ -1,3 +1,4 @@
+import { bolsasBloqueadasEnBoleta, BOLETA_GRATUITA_BOLSAS } from './invoiceBags';
 import { esCodigoGratuito, validarItems, type ItemBorrador } from './invoiceItems';
 import { liquidarDescuentoGlobal, type DescuentoGlobal } from './invoiceDescuentoGlobal';
 
@@ -21,6 +22,7 @@ export function problemasContenidoEmision(input: {
   for (const error of validarItems(input.items)) {
     errores.push(...error.motivos.map(m => `${error.indice >= 0 ? `Línea ${error.indice + 1}` : 'Detalle'}: ${m}`));
   }
+  if (bolsasBloqueadasEnBoleta(input.tipo, input.items) && input.items.some(item => item.icbper > 0)) errores.push(BOLETA_GRATUITA_BOLSAS);
   const nota = ['07', '08'].includes(input.tipo);
   input.items.forEach((item, i) => {
     if (item.afectacion === 'GRATUITA') return;

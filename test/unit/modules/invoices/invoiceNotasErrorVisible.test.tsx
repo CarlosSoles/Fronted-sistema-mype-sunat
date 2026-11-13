@@ -1,3 +1,5 @@
+import { beforeEach as billingBeforeEach } from 'vitest';
+import { useAuthStore as billingAuth } from '@/stores/authStore';
 import { afterEach, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -53,3 +55,6 @@ it('nota 400 muestra el motivo del servidor, conserva edición y la misma clave 
  await waitFor(()=>expect(apiClient.post).toHaveBeenCalledTimes(2));
  expect(vi.mocked(apiClient.post).mock.calls[1]).toEqual(primero);
 });
+
+// Las operaciones de esta suite se ejecutan con un rol autorizado de facturación.
+billingBeforeEach(() => { billingAuth.setState({ user: { id: 'billing-test', email: 'billing@example.invalid', role: 'ADMIN' } }); });

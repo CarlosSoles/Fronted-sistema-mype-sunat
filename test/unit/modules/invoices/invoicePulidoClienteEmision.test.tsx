@@ -1,5 +1,7 @@
+import { beforeEach as billingBeforeEach } from 'vitest';
+import { useAuthStore as billingAuth } from '@/stores/authStore';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
@@ -42,4 +44,19 @@ it.each(['pagina', 'modal'].flatMap(via => ['clic', 'teclado', 'texto-sin-confir
   await waitFor(() => expect(invoicesApi.emitirComprobante).toHaveBeenCalledTimes(1), { timeout: 3000 });
   expect(invoicesApi.emitirComprobante).toHaveBeenCalledWith(expect.objectContaining({ customer_identity_number: cliente.doc_number, customer_identity_type: '6', customer_legal_name: cliente.legal_name }), expect.any(String));
   expect(screen.queryByText('Falta la razón social del cliente.')).toBeNull();
+});
+
+// Las operaciones de esta suite se ejecutan con un rol autorizado de facturación.
+billingBeforeEach(() => { billingAuth.setState({ user: { id: 'billing-test', email: 'billing@example.invalid', role: 'ADMIN' } }); });
+
+it('Parte 9 cambiar una factura al crédito a boleta borra el cronograma y bloquea crédito', async()=>{
+ vi.mocked(apiClient.get).mockImplementation(async url=>({data:url==='/invoices/config'?{series:seriesConfiguradasPrueba}:url==='/master-data/partners'?[{...cliente,has_credit:true}]:[]}));
+ const q=new QueryClient({defaultOptions:{queries:{retry:false,gcTime:0}}});clients.push(q);
+ render(<QueryClientProvider client={q}><MemoryRouter><InvoiceEmissionPage/></MemoryRouter></QueryClientProvider>);
+ fireEvent.change(screen.getByLabelText('RUC del cliente'),{target:{value:cliente.doc_number}});
+ fireEvent.click(await screen.findByRole('button',{name:/Ferretería Los Andes/}));
+ const credito=screen.getByRole('button',{name:'Crédito'}) as HTMLButtonElement;expect(credito.disabled).toBe(false);fireEvent.click(credito);
+ const tipo=screen.getByLabelText('Tipo de comprobante');fireEvent.change(tipo,{target:{value:'03'}});
+ expect((screen.getByRole('button',{name:'Crédito'}) as HTMLButtonElement).disabled).toBe(true);
+ expect(screen.queryByText('Cronograma de cuotas')).toBeNull();
 });

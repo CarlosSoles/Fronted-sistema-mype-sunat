@@ -134,7 +134,7 @@ export const InvoiceOutboxMonitor = ({
             disabled={paraRvie.length === 0}
           >
             <Download aria-hidden="true" />
-            Descargar CDR del periodo
+            Exportar propuesta RVIE - SIRE (CSV)
           </Button>
           <PageText variant="caption">
             {paraRvie.length} comprobantes válidos para el RVIE (sin rechazos ni

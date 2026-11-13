@@ -92,8 +92,8 @@ describe('trama QR con el digest real', () => {
     expect(trama.startsWith('20601234567|01|F001|47|')).toBe(true);
   });
 
-  it('termina con el digest, no en vacío', () => {
-    expect(trama.endsWith('|ZeHAEYsi77Xs8W4s6W9PWx9eu6WsAjlLIp9mVtE998I=|')).toBe(
+  it('termina con el digest sin relleno, no en vacío', () => {
+    expect(trama.endsWith('|ZeHAEYsi77Xs8W4s6W9PWx9eu6WsAjlLIp9mVtE998I|')).toBe(
       true,
     );
     expect(trama).not.toMatch(/\|\|$/);

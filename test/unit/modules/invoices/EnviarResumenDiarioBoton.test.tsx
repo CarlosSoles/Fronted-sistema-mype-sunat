@@ -1,3 +1,5 @@
+import { beforeEach as billingBeforeEach } from 'vitest';
+import { useAuthStore as billingAuth } from '@/stores/authStore';
 /**
  * D11 · envío del resumen diario de boletas.
  *
@@ -184,3 +186,6 @@ describe('D11 · botón de envío del resumen diario', () => {
     expect(onEnviado).not.toHaveBeenCalled();
   });
 });
+
+// Las operaciones de esta suite se ejecutan con un rol autorizado de facturación.
+billingBeforeEach(() => { billingAuth.setState({ user: { id: 'billing-test', email: 'billing@example.invalid', role: 'ADMIN' } }); });

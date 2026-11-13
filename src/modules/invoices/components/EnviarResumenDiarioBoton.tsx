@@ -1,3 +1,4 @@
+import { InvoiceWriteButton } from './InvoiceWriteButton';
 /**
  * Botón de envío del resumen diario de boletas (D11).
  *
@@ -102,10 +103,10 @@ export const EnviarResumenDiarioBoton = ({
   return (
     <div className="space-y-2">
       {!confirmando && (
-        <Button size="sm" onClick={() => setConfirmando(true)} disabled={enviando}>
+        <InvoiceWriteButton size="sm" onClick={() => setConfirmando(true)} disabled={enviando}>
           <Send aria-hidden="true" className="mr-1" />
           Enviar resumen diario a SUNAT
-        </Button>
+        </InvoiceWriteButton>
       )}
 
       {confirmando && (
@@ -122,9 +123,9 @@ export const EnviarResumenDiarioBoton = ({
             el Monitor.
           </PageText>
           <div className="flex gap-2">
-            <Button size="sm" onClick={() => void enviar()} disabled={enviando}>
+            <InvoiceWriteButton size="sm" onClick={() => void enviar()} disabled={enviando}>
               {enviando ? 'Enviando…' : 'Sí, enviar ahora'}
-            </Button>
+            </InvoiceWriteButton>
             <Button
               size="sm"
               variant="outline"

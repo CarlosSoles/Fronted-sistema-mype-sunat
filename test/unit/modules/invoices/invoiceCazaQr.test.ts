@@ -9,7 +9,7 @@ it.each(['01','03','07','08'] as const)('F10 dibuja un QR vectorial en PDF rápi
   useAuthStore.setState({ activeCompany: { tenantId: 't', ruc: '20601234567', razonSocial: 'Emisor' } });
   const c = { ...construir({ tipo, serie: tipo === '03' ? 'B001' : 'F001', correlativo: 56, ruc: '20100070970', razonSocial: 'Cliente', fecha: '2026-11-07', base: 100, estado: 'ACEPTADO' }), hashCpe: 'DIGEST-BASE64=' };
   expect(tramaQrDelComprobante(c)).toContain(`20601234567|${tipo}|`);
-  expect(tramaQrDelComprobante(c)).toContain('DIGEST-BASE64=');
+  expect(tramaQrDelComprobante(c)).toContain('DIGEST-BASE64|');
   const pdf = construirPdfBinarioSunat(c);
   expect(pdf).toContain('% QR SUNAT'); expect(pdf.match(/ re f/g)!.length).toBeGreaterThan(100);
   const startxref = Number(/startxref\n(\d+)/.exec(pdf)![1]); expect(pdf.slice(startxref, startxref + 4)).toBe('xref');
