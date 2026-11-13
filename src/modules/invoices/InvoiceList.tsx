@@ -54,7 +54,7 @@ import { aComprobanteDemo } from './lib/invoiceApiMapper';
 import { invoicesApi } from './services/invoicesApi';
 import { cargarProductosAlmacen } from './services/inventoryProductsApi';
 import { aplicarFiltros, porApartado } from './lib/invoiceFilters';
-import { descargarPdfComprobante } from './lib/invoiceExportPdf';
+import { descargarDesdeBackend } from './lib/invoiceDescarga';
 import { exportarReporteSireCsv } from './lib/invoiceExportSire';
 import { useInvoiceFiltros } from './lib/useInvoiceFiltros';
 
@@ -208,7 +208,7 @@ export const InvoiceList = () => {
       }
       onVerXml={(c) => setVisor({ comprobante: c, modo: 'xml' })}
       onVerCdr={(c) => setVisor({ comprobante: c, modo: 'cdr' })}
-      onDescargarPdf={(c) => { void descargarPdfComprobante(c).catch((error: unknown) => setAvisoCdr(extractApiErrorMessage(error, 'No se pudo generar el PDF.'))); }}
+      onDescargarPdf={(c) => { void descargarDesdeBackend(c.id, 'pdf').catch((error: unknown) => setAvisoCdr(extractApiErrorMessage(error, 'No se pudo descargar el PDF.'))); }}
       onReintentarCdr={reintentarCdr}
     />
   );
@@ -244,7 +244,7 @@ export const InvoiceList = () => {
       {isLoading ? (
         <div role="status">Cargando indicadores…</div>
       ) : !isError && activeTab !== 'notas' ? (
-        <InvoiceKpiCards resumen={resumen} filtrado={hayFiltrosActivos(filtros, activeTab)} />
+        <InvoiceKpiCards mostrarNotas={false} resumen={resumen} filtrado={hayFiltrosActivos(filtros, activeTab)} />
       ) : null}
 
       {activeTab === 'comprobantes' && !isLoading && !isError && (

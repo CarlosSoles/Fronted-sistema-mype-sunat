@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button, PageText } from '@/components/ui';
-import { useAuthStore } from '@/stores/authStore';
+import { useRolePermissions } from '@/hooks/useRolePermissions';
 import { extractApiErrorMessage } from '@/lib/apiErrors';
 import {
   invoicesApi,
@@ -15,13 +15,13 @@ export function InvoiceBridgeReprocess({
   id: string;
   estado: string;
 }) {
-  const role = useAuthStore((state) => state.user?.role);
+  const { isAdmin } = useRolePermissions();
   const [procesando, setProcesando] = useState(false);
   const [resultado, setResultado] = useState<ResultadoReprocesoPuente | null>(
     null,
   );
   const [error, setError] = useState<string | null>(null);
-  if (role !== 'ADMIN' || !['ACEPTADO', 'OBSERVADO'].includes(estado))
+  if (!isAdmin || !['ACEPTADO', 'OBSERVADO'].includes(estado))
     return null;
   async function reprocesar() {
     if (procesando) return;

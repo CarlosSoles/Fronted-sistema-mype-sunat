@@ -1,3 +1,4 @@
+import { InvoiceWriteButton } from '../components/InvoiceWriteButton';
 import { EnviarBajaPanel } from '../components/EnviarBajaPanel';
 /**
  * Bajas y Resúmenes Diarios (RA / RC) — TA-67.
@@ -296,7 +297,7 @@ export default function InvoiceBajasPage() {
                         </TableCell>
                         <TableCell align="right">
                           {puedeReenviar ? (
-                            <Button
+                            <InvoiceWriteButton
                               type="button"
                               size="sm"
                               variant="outline"
@@ -306,7 +307,7 @@ export default function InvoiceBajasPage() {
                             >
                               <RefreshCw aria-hidden="true" />
                               {reenviandoClave === clave ? 'Reenviando…' : 'Reenviar a SUNAT'}
-                            </Button>
+                            </InvoiceWriteButton>
                           ) : (
                             <PageText variant="caption">—</PageText>
                           )}

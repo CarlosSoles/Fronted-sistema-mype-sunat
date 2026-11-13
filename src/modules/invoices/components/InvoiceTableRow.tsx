@@ -1,3 +1,4 @@
+import { InvoiceWriteButton } from './InvoiceWriteButton';
 import { numeroVisible } from '../lib/invoiceVisibleNumber';
 /**
  * Fila de la grilla enriquecida de comprobantes (M1).
@@ -159,7 +160,7 @@ export const InvoiceTableRow = ({
             <Download aria-hidden="true" />
           </Button>
           {c.transporteAcreditado === true && (c.estado === 'RECHAZADO' || c.estado === 'EN_COLA' || c.estado === 'SIN_CONFIRMAR') && (
-            <Button
+            <InvoiceWriteButton
               variant="ghost"
               size="icon-xs"
               aria-label={`Reintentar CDR de ${numeroVisible(c.serie, c.correlativo)}`}
@@ -167,7 +168,7 @@ export const InvoiceTableRow = ({
               onClick={() => onReintentarCdr(c)}
             >
               <RefreshCw aria-hidden="true" />
-            </Button>
+            </InvoiceWriteButton>
           )}
         </div>
       </TableCell>

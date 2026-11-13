@@ -1,12 +1,25 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Badge, Button, Card, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Page, PageHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Badge, Button, Card, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Input, Page, PageHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
 import { inventoryPurchasesApi } from '../services/inventoryPurchasesApi';
+import { masterDataApi } from '@/modules/customs/services/masterDataApi';
+import { PartnerFormDialog } from '@/modules/customs/components/PartnerFormDialog';
 
 const money = (n: number) => `S/ ${n.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export default function PurchasesPayablesPage() {
   const { data = [], isLoading, error } = useQuery({ queryKey: ['purchase-payables'], queryFn: () => inventoryPurchasesApi.listPayables() });
+  const queryClient = useQueryClient();
+  const [abrirAlta, setAbrirAlta] = useState(false);
+  const { data: proveedores = [] } = useQuery({ queryKey: ['payables-suppliers'], queryFn: () => masterDataApi.getPartners({ role: 'PROVEEDOR' }), enabled: abrirAlta });
+  const [errorAlta, setErrorAlta] = useState('');
+  const [nuevoProveedor, setNuevoProveedor] = useState(false);
+  const [form, setForm] = useState({ supplierName: '', supplierDocNumber: '', description: '', amount: '', issueDate: new Date().toISOString().slice(0, 10) });
+  const crear = useMutation({
+    mutationFn: () => inventoryPurchasesApi.createManualPayable({ supplierName: form.supplierName, supplierDocNumber: form.supplierDocNumber, description: form.description, amount: Number(form.amount), issueDate: form.issueDate }),
+    onSuccess: async () => { setAbrirAlta(false); setForm({ supplierName: '', supplierDocNumber: '', description: '', amount: '', issueDate: new Date().toISOString().slice(0, 10) }); setErrorAlta(''); await queryClient.invalidateQueries({ queryKey: ['purchase-payables'] }); },
+    onError: (e: any) => setErrorAlta(e?.response?.data?.message ?? 'No se pudo crear la CxP.'),
+  });
   const [statement, setStatement] = useState<Awaited<ReturnType<typeof inventoryPurchasesApi.supplierStatement>> | null>(null);
   const [loadingStatement, setLoadingStatement] = useState(false);
   const verEstado = async (doc: string) => { setLoadingStatement(true); try { setStatement(await inventoryPurchasesApi.supplierStatement(doc)); } finally { setLoadingStatement(false); } };
@@ -14,7 +27,9 @@ export default function PurchasesPayablesPage() {
   const vencido = data.reduce((a, c) => a + c.overdue, 0);
   return (
     <Page>
-      <PageHeader title="Cuentas por pagar" description="Saldo pendiente por proveedor, consolidado de compras no anuladas" />
+      <PageHeader title="Cuentas por pagar" description="Saldo pendiente por proveedor, consolidado de compras no anuladas">
+        <Button size="sm" onClick={() => setAbrirAlta(true)}>Nueva CxP</Button>
+      </PageHeader>
       <div className="grid gap-3 sm:grid-cols-4 mb-5">
         <Card className="p-4"><p className="text-xs text-muted-foreground">Proveedores</p><p className="text-2xl font-bold">{data.length}</p></Card>
         <Card className="p-4"><p className="text-xs text-muted-foreground">Documentos</p><p className="text-2xl font-bold">{data.reduce((a, c) => a + c.count, 0)}</p></Card>
@@ -39,6 +54,21 @@ export default function PurchasesPayablesPage() {
           <p className="text-xs text-muted-foreground">Pagos registrados: {(statement?.payments ?? []).length}</p>
         </DialogContent>
       </Dialog>
+      <Dialog open={abrirAlta} onOpenChange={setAbrirAlta}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Nueva cuenta por pagar</DialogTitle><DialogDescription>Registra una obligación sin compra de inventario. Genera asiento GASTO/421.</DialogDescription></DialogHeader>
+          <div className="space-y-3">
+            <label className="text-xs block">Proveedor<select className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={form.supplierDocNumber} onChange={(e) => { if (e.target.value === '__nuevo__') { setNuevoProveedor(true); return; } const p = proveedores.find((x) => x.doc_number === e.target.value); setForm({ ...form, supplierDocNumber: e.target.value, supplierName: p?.legal_name ?? '' }); }}><option value="">Seleccionar proveedor</option>{proveedores.map((p) => <option key={p.id} value={p.doc_number}>{p.legal_name} · {p.doc_number}</option>)}<option value="__nuevo__">+ Registrar proveedor nuevo</option></select></label>
+            <label className="text-xs block">RUC<Input value={form.supplierDocNumber} readOnly /></label>
+            <label className="text-xs block">Concepto<Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
+            <label className="text-xs block">Monto<Input type="number" min="0.01" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />{form.amount !== '' && Number(form.amount) <= 0 ? <span className="text-[10px] text-destructive">El monto debe ser mayor a cero.</span> : null}</label>
+            <label className="text-xs block">Fecha<Input type="date" value={form.issueDate} onChange={(e) => setForm({ ...form, issueDate: e.target.value })} /></label>
+            {errorAlta ? <p className="text-xs text-destructive">{errorAlta}</p> : null}
+          </div>
+          <DialogFooter><Button variant="outline" onClick={() => setAbrirAlta(false)}>Cancelar</Button><Button onClick={() => crear.mutate()} disabled={crear.isPending || !form.supplierName || form.supplierDocNumber.length !== 11 || !form.description || !(Number(form.amount) > 0)}>{crear.isPending ? 'Guardando…' : 'Crear CxP'}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {nuevoProveedor ? <PartnerFormDialog initialRole="PROVEEDOR" requiredRole="PROVEEDOR" initialDocument={form.supplierDocNumber} initialName={form.supplierName} onClose={() => setNuevoProveedor(false)} onSaved={(p) => { setForm({ ...form, supplierDocNumber: p.doc_number, supplierName: p.legal_name }); setNuevoProveedor(false); void queryClient.invalidateQueries({ queryKey: ['payables-suppliers'] }); }} /> : null}
     </Page>
   );
 }

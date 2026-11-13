@@ -1,3 +1,5 @@
+import { beforeEach as billingBeforeEach } from 'vitest';
+import { useAuthStore as billingAuth } from '@/stores/authStore';
 import { seriesConfiguradasPrueba } from '../../../fixtures/invoiceSeries';
 import { afterEach, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -47,3 +49,6 @@ it.each(['modal', 'pagina'])('%s: solo aparece con detracción, bloquea vacío y
   expect(screen.queryByLabelText('Medio de pago de la detracción')).toBeNull();
   client.clear();
 });
+
+// Las operaciones de esta suite se ejecutan con un rol autorizado de facturación.
+billingBeforeEach(() => { billingAuth.setState({ user: { id: 'billing-test', email: 'billing@example.invalid', role: 'ADMIN' } }); });

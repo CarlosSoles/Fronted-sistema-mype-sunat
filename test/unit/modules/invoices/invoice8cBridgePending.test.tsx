@@ -1,3 +1,5 @@
+import { beforeEach as billingBeforeEach } from 'vitest';
+import { useAuthStore as billingAuth } from '@/stores/authStore';
 import { afterEach, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, fireEvent } from '@testing-library/react';
 import InvoiceMonitorPage from '@/modules/invoices/pages/InvoiceMonitorPage';
@@ -24,3 +26,6 @@ it('Monitor consulta solo puentes pendientes, muestra causa y usa reprocesar-pue
  expect(screen.getByText('ACEPTADO con puente pendiente')).toBeTruthy();fireEvent.click(button);
  expect(await screen.findByText('Puente pendiente: Descarga omitida por servicio.')).toBeTruthy();expect(invoicesApi.reprocesarPuente).toHaveBeenCalledWith('p');
 });
+
+// Las operaciones de esta suite se ejecutan con un rol autorizado de facturación.
+billingBeforeEach(() => { billingAuth.setState({ user: { id: 'billing-test', email: 'billing@example.invalid', role: 'ADMIN' } }); });

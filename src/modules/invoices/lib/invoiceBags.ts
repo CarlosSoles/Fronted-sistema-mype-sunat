@@ -8,3 +8,7 @@ export function errorBolsas(item: ItemBorrador): string | undefined {
   if (!Number.isFinite(item.icbper) || item.icbper !== multiplyMoney(cantidad, ICBPER_POR_UNIDAD)) return 'El ICBPER no coincide con la cantidad de bolsas.';
 }
 export const impuestoBolsas = (cantidad: number): number => multiplyMoney(cantidad, ICBPER_POR_UNIDAD);
+
+export const BOLETA_GRATUITA_BOLSAS = 'Una boleta íntegramente gratuita no admite bolsas plásticas. Retire las bolsas o emita una factura.';
+export const bolsasBloqueadasEnBoleta = (tipo: string, items: readonly ItemBorrador[]): boolean =>
+  tipo === '03' && items.length > 0 && items.every(item => item.afectacion === 'GRATUITA');

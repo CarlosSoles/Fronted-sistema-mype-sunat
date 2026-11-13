@@ -1,3 +1,5 @@
+import { beforeEach as billingBeforeEach } from 'vitest';
+import { useAuthStore as billingAuth } from '@/stores/authStore';
 import { apiClient } from '@/lib/axios';
 import { seriesConfiguradasPrueba } from '../../../fixtures/invoiceSeries';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -97,3 +99,6 @@ it.each(['modal', 'pagina'])('%s: envía el almacén elegido y lo conserva al re
   emitir(); await waitFor(() => expect(invoicesApi.emitirComprobante).toHaveBeenCalledTimes(2));
   expect(vi.mocked(invoicesApi.emitirComprobante).mock.calls[0]).toEqual(vi.mocked(invoicesApi.emitirComprobante).mock.calls[1]);
 });
+
+// Las operaciones de esta suite se ejecutan con un rol autorizado de facturación.
+billingBeforeEach(() => { billingAuth.setState({ user: { id: 'billing-test', email: 'billing@example.invalid', role: 'ADMIN' } }); });

@@ -8,7 +8,9 @@ import { SirePeriodFilter } from '../components/SirePeriodFilter';
 import { SireVouchersTable } from '../components/SireVouchersTable';
 import { SireProposalPanel } from '../components/SireProposalPanel';
 import { SireRceKardexReconciliation } from '../components/SireRceKardexReconciliation';
+import { SireHealthDashboard } from '../components/SireHealthDashboard';
 import { useSireReconciliation } from '../hooks/useSireReconciliation';
+import { useSireReconciliationStore } from '../stores/sireReconciliationStore';
 import type { ComprobanteDraft, SireBookType } from '../types/sire.types';
 import { getPeriodFeedback, getRucFeedback } from '../validators/sireSchema';
 
@@ -30,27 +32,33 @@ export default function SireReconciliationPage() {
   const [showFeedback, setShowFeedback] = useState(false);
   const companyRuc = useAuthStore((state) => state.activeCompany?.ruc ?? '');
   const { reconcile, loading, error, data, clear } = useSireReconciliation();
+  const setSummary = useSireReconciliationStore((state) => state.setSummary);
+  const clearSummary = useSireReconciliationStore((state) => state.clearSummary);
 
   useEffect(() => {
     clear();
-  }, [clear, companyRuc]);
+    clearSummary();
+  }, [clear, clearSummary, companyRuc]);
 
   const changePeriod = (value: string) => {
     setPeriod(value);
     setInputError(null);
     clear();
+    clearSummary();
   };
 
   const changeBookType = (value: SireBookType) => {
     setBookType(value);
     setInputError(null);
     clear();
+    clearSummary();
   };
 
   const changeComprobantes = (value: ComprobanteDraft[]) => {
     setComprobantes(value);
     setInputError(null);
     clear();
+    clearSummary();
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -83,9 +91,12 @@ export default function SireReconciliationPage() {
       return;
     }
     setInputError(null);
-    void reconcile({ period, bookType, comprobantes: mapped }).catch((cause: unknown) => {
-      setInputError(cause instanceof Error ? cause.message : 'No se pudo completar la conciliación.');
-    });
+    clearSummary();
+    void reconcile({ period, bookType, comprobantes: mapped })
+      .then((result) => setSummary(result.period, result.bookType, result.summary))
+      .catch((cause: unknown) => {
+        setInputError(cause instanceof Error ? cause.message : 'No se pudo completar la conciliación.');
+      });
   };
 
   return (
@@ -94,6 +105,7 @@ export default function SireReconciliationPage() {
         title="Conciliación fiscal SIRE vs. Kardex"
         description="Cruce y conciliación de propuestas RCE y RVIE de SUNAT contra las compras, ventas y existencias físicas del ERP."
       />
+      <SireHealthDashboard />
       <p className="text-xs text-muted-foreground">RUC de sesión: <span>{companyRuc}</span></p>
 
       {/* Selector de Libro y Modo de Conciliación */}

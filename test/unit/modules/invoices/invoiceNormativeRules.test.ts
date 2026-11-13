@@ -99,7 +99,7 @@ describe('generarTramaQrSunat', () => {
     expect(campos).toHaveLength(11);
     expect(campos[10]).toBe('');
     expect(trama).toBe(
-      '20601234567|01|F001|42|180.00|1180.00|2026-10-16|6|20100070970|abc=|',
+      '20601234567|01|F001|42|180.00|1180.00|16-10-2026|6|20100070970|abc|',
     );
   });
 });

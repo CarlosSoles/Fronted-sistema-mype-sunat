@@ -1,3 +1,5 @@
+import { beforeEach as billingBeforeEach } from 'vitest';
+import { useAuthStore as billingAuth } from '@/stores/authStore';
 import {afterEach,beforeEach,expect,it,vi} from 'vitest';
 import {render,screen,fireEvent,cleanup,waitFor} from '@testing-library/react';
 import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
@@ -34,3 +36,6 @@ it('detecta impuestos que no coinciden, conserva cero y no confunde cantidad de 
  expect(actualizarItem(actual,0,{cantidad:7})[0]).toMatchObject({cantidad:7,cantidadBolsas:2,icbper:1});
  expect(actualizarItem(actual,0,{cantidadBolsas:0})[0]).toMatchObject({cantidadBolsas:0,icbper:0});
 });
+
+// Las operaciones de esta suite se ejecutan con un rol autorizado de facturación.
+billingBeforeEach(() => { billingAuth.setState({ user: { id: 'billing-test', email: 'billing@example.invalid', role: 'ADMIN' } }); });

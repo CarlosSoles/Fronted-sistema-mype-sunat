@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiClient } from '@/lib/axios';
 import {
   Card,
@@ -61,33 +61,66 @@ interface Props {
 }
 
 export const SireRceKardexReconciliation = ({ period }: Props) => {
-  const [data, setData] = useState<ReconciliationResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [state, setState] = useState<{
+    data: ReconciliationResponse | null;
+    error: string | null;
+  } | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('TODOS');
   const [filterOrigin, setFilterOrigin] = useState<string>('TODOS');
   const [searchTerm, setSearchTerm] = useState('');
+  /**
+   * Identificador de la petición en curso.
+   *
+   * Cada carga genera un token y solo la última puede escribir en el estado:
+   * sin esto, una respuesta lenta del periodo anterior pintaba sus datos
+   * encima de los del periodo nuevo.
+   */
+  const requestIdRef = useRef(0);
 
-  const fetchReconciliation = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await apiClient.get<ReconciliationResponse>(
-        '/customs/sire-purchases/reconciliation',
-        { params: { period } },
-      );
-      setData(response.data);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Error al obtener la conciliación RCE vs Kardex';
-      setError(msg);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const requestReconciliation = useCallback(async (): Promise<ReconciliationResponse> => {
+    const response = await apiClient.get<ReconciliationResponse>(
+      '/customs/sire-purchases/reconciliation',
+      { params: { period } },
+    );
+    return response.data;
+  }, [period]);
 
   useEffect(() => {
-    fetchReconciliation();
-  }, [period]);
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    requestReconciliation()
+      .then((data) => {
+        if (requestId === requestIdRef.current) setState({ data, error: null });
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : 'Error al obtener la conciliación RCE vs Kardex';
+        if (requestId === requestIdRef.current) setState({ data: null, error: msg });
+      });
+    return () => {
+      // Invalida la petición en vuelo al cambiar de periodo o al desmontar.
+      requestIdRef.current += 1;
+    };
+  }, [requestReconciliation]);
+
+  const fetchReconciliation = useCallback(async (): Promise<void> => {
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    setRefreshing(true);
+    try {
+      const data = await requestReconciliation();
+      if (requestId === requestIdRef.current) setState({ data, error: null });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error al obtener la conciliación RCE vs Kardex';
+      if (requestId === requestIdRef.current) setState({ data: null, error: msg });
+    } finally {
+      if (requestId === requestIdRef.current) setRefreshing(false);
+    }
+  }, [requestReconciliation]);
+
+  const data = state?.data ?? null;
+  const error = state?.error ?? null;
+  const loading = refreshing || state === null;
 
   const items = data?.items ?? [];
   const filteredItems = items.filter((item) => {

@@ -4,7 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import SireReconciliationPage from '@/modules/sire/pages/SireReconciliationPage';
 import { sireApi, SireApiError } from '@/modules/sire/services/sireApi';
 import { useAuthStore } from '@/stores/authStore';
+import { useSireReconciliationStore } from '@/modules/sire/stores/sireReconciliationStore';
 import type { ReconcileResponse } from '@/modules/sire/types/sire.types';
+
+vi.mock('@/modules/sire/components/SireHealthDashboard', () => ({
+  SireHealthDashboard: () => null,
+}));
 
 const result: ReconcileResponse = {
   period: '202611',
@@ -67,6 +72,7 @@ describe('SireReconciliationPage', () => {
     expect(screen.queryByText('Resultados de conciliación')).not.toBeInTheDocument();
     await act(async () => finishReconcile(result));
     expect(await screen.findByText('Resultados de conciliación')).toBeInTheDocument();
+    expect(useSireReconciliationStore.getState().summary).toEqual(result.summary);
   });
 
   it('presenta HTTP 409 como conflicto y no como conciliación exitosa', async () => {

@@ -1,3 +1,4 @@
+import { InvoiceWriteButton } from './InvoiceWriteButton';
 import { numeroVisible } from '../lib/invoiceVisibleNumber';
 import { useState } from 'react';
 import { Button, PageText } from '@/components/ui';
@@ -39,7 +40,7 @@ export function EnviarBajaPanel({ fecha, vista, onEnviado }: { fecha: string; vi
     </div>)}
     <Button disabled={!seleccion.length || ocupado || seleccion.some(s => !s.motivo.trim())} onClick={() => void preview()}>Ver XML de selección</Button>
     {previa?.key === key && <><p>{previa.vista.errores.join(' | ')}</p>{previa.vista.xml && <details open><summary>XML de los documentos seleccionados</summary><pre className="max-h-64 overflow-auto text-xs">{previa.vista.xml}</pre></details>}</>}
-    {!confirmar ? <Button disabled={!valida || ocupado} onClick={() => setConfirmar(true)}>Enviar baja a SUNAT</Button> : <div className="rounded border p-3 space-y-2"><p>Confirmar baja de {seleccion.length} documento(s). La anulación se registra cuando SUNAT la acepta.</p><Button disabled={ocupado} onClick={() => void enviar()}>{ocupado ? 'Preparando…' : 'Confirmar baja en SUNAT'}</Button><Button variant="outline" disabled={ocupado} onClick={() => setConfirmar(false)}>Cancelar</Button></div>}
+    {!confirmar ? <InvoiceWriteButton disabled={!valida || ocupado} onClick={() => setConfirmar(true)}>Enviar baja a SUNAT</InvoiceWriteButton> : <div className="rounded border p-3 space-y-2"><p>Confirmar baja de {seleccion.length} documento(s). La anulación se registra cuando SUNAT la acepta.</p><InvoiceWriteButton disabled={ocupado} onClick={() => void enviar()}>{ocupado ? 'Preparando…' : 'Confirmar baja en SUNAT'}</InvoiceWriteButton><Button variant="outline" disabled={ocupado} onClick={() => setConfirmar(false)}>Cancelar</Button></div>}
     {resultado && <p role="status">{resultado.enviado ? `Baja ${resultado.identificador} encolada (${resultado.jobId}). Consulte ticket y resultado en el Monitor.` : resultado.motivo ?? 'La baja no se encoló.'}</p>}
     {error && <p role="alert">{error}</p>}
   </section>;

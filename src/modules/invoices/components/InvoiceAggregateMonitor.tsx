@@ -1,3 +1,4 @@
+import { InvoiceWriteButton } from './InvoiceWriteButton';
 import { InvoiceCdrModal } from './InvoiceCdrModal';
 import { aComprobanteDemo } from '../lib/invoiceApiMapper';
 import type { ComprobanteDemo } from '../data/invoiceDemoSchema';
@@ -41,7 +42,7 @@ export function InvoiceAggregateMonitor() {
         <Button size="sm" variant="outline" disabled={abriendo !== null} onClick={() => void abrir(m.id)}>{abriendo === m.id ? 'Abriendo…' : `Ver comprobante ${m.numero}`}</Button>
       </div>)}
       {!r.members?.length && <p className="text-xs">Sin miembros disponibles en este listado.</p>}
-    </div>{r.transport_uncertain && <p>Transporte incierto: revisión requerida.</p>}{r.ticket && !['ACCEPTED', 'REJECTED'].includes(r.state) && <Button disabled={ocupado} onClick={() => void consultar(r.identifier)}>{consultando === r.identifier ? 'Consultando…' : `Consultar ticket ${r.identifier}`}</Button>}</div>)}
+    </div>{r.transport_uncertain && <p>Transporte incierto: revisión requerida.</p>}{r.ticket && !['ACCEPTED', 'REJECTED'].includes(r.state) && <InvoiceWriteButton disabled={ocupado} onClick={() => void consultar(r.identifier)}>{consultando === r.identifier ? 'Consultando…' : `Consultar ticket ${r.identifier}`}</InvoiceWriteButton>}</div>)}
     {detalle && <InvoiceCdrModal comprobante={detalle} onCerrar={() => setDetalle(null)} />}
   </CardContent></Card>;
 }

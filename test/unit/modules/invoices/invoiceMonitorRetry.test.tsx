@@ -1,3 +1,5 @@
+import { beforeEach as billingBeforeEach } from 'vitest';
+import { useAuthStore as billingAuth } from '@/stores/authStore';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import InvoiceMonitorPage, { estadoDeMonitor } from '@/modules/invoices/pages/InvoiceMonitorPage';
@@ -149,3 +151,6 @@ it('preparación local conserva Reintentar y no entra al filtro de incertidumbre
   fireEvent.change(screen.getByLabelText('Filtrar estado del monitor'), { target: { value: 'PREPARACION_LOCAL' } });
   expect(screen.getByText(local.numero)).toBeTruthy();
 });
+
+// Las operaciones de esta suite se ejecutan con un rol autorizado de facturación.
+billingBeforeEach(() => { billingAuth.setState({ user: { id: 'billing-test', email: 'billing@example.invalid', role: 'ADMIN' } }); });

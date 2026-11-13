@@ -55,6 +55,9 @@ const InventoryMovementsPage = React.lazy(() => import('@/modules/inventory/page
 const ProductKardexPage = React.lazy(() => import('@/modules/inventory/pages/ProductKardexPage'));
 const SireReconciliationPage = React.lazy(() => import('@/modules/sire/pages/SireReconciliationPage'));
 const SireImportPage = React.lazy(() => import('@/modules/sire/pages/SireImportPage'));
+const SirePeriodosPage = React.lazy(() => import('@/modules/sire/pages/SirePeriodosPage'));
+const SireClosurePage = React.lazy(() => import('@/modules/sire/pages/SireClosurePage'));
+const SireHistoryPage = React.lazy(() => import('@/modules/sire/pages/SireHistoryPage'));
 
 // Submódulos de Contabilidad PCGE (M4)
 const AccountingEntriesPage = React.lazy(() => import('@/modules/accounting/pages/AccountingEntriesPage'));
@@ -148,7 +151,7 @@ export const AppRoutes = () => {
               path="/invoices/emision"
               element={
                 <RoleProtectedRoute
-                  allowedRoles={['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT']}
+                  allowedRoles={['ADMIN', 'OPERADOR_FACTURACION', 'OPERATOR']}
                 >
                   <InvoiceEmissionPage />
                 </RoleProtectedRoute>
@@ -492,6 +495,16 @@ export const AppRoutes = () => {
               }
             />
             <Route
+              path="/sire/periodos"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <SirePeriodosPage />
+                </RoleProtectedRoute>
+              }
+            />
+            {/* Ruta legacy: la consulta asíncrona de periodos sustituyó a la consulta manual */}
+            <Route path="/sire/consulta-manual" element={<Navigate to="/sire/periodos" replace />} />
+            <Route
               path="/sire/conciliacion"
               element={
                 <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
@@ -499,8 +512,22 @@ export const AppRoutes = () => {
                 </RoleProtectedRoute>
               }
             />
-            <Route path="/sire/cierre" element={<Navigate to="/sire/conciliacion" replace />} />
-            <Route path="/sire/historial" element={<Navigate to="/sire/conciliacion" replace />} />
+            <Route
+              path="/sire/cierre"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <SireClosurePage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/sire/historial"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <SireHistoryPage />
+                </RoleProtectedRoute>
+              }
+            />
 
             {/* [M5: Contabilidad PCGE] ADMIN, CONTADOR, AUDITOR */}
             <Route

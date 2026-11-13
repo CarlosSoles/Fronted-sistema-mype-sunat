@@ -8,6 +8,7 @@ import { InvoiceCdrModal } from '@/modules/invoices/components/InvoiceCdrModal';
 import { construir } from '@/modules/invoices/data/invoiceDemoTypes';
 
 vi.mock('@/lib/axios', () => ({ apiClient: { get: vi.fn() } }));
+vi.mock('@/modules/invoices/components/InvoiceSunatConsulta', () => ({ InvoiceSunatConsulta: () => <span>Consulta SUNAT disponible</span> }));
 vi.mock('@/modules/invoices/services/invoicesApi', () => ({ invoicesApi: { getInvoiceById: vi.fn(async () => ({ historial: [] })) } }));
 vi.mock('@/modules/invoices/lib/invoiceDescarga', () => ({
   obtenerXmlDesdeBackend: vi.fn(async () => '<Invoice><DigestValue>DIGEST-PIN=</DigestValue></Invoice>'),
@@ -76,7 +77,7 @@ it.each([true, false])('el QR del modal usa configuración disponible=%s y respa
   if (!available) vi.mocked(apiClient.get).mockRejectedValue(Error('Sin respuesta'));
   render(<InvoiceCdrModal comprobante={c} onCerrar={() => {}} />);
   const expected = available ? '20601234567' : empresa.ruc;
-  expect((await screen.findByText(new RegExp(`Trama QR: ${expected}\\|01\\|`))).textContent).toContain('DIGEST-PIN=');
+  expect((await screen.findByText(new RegExp(`Trama QR: ${expected}\\|01\\|`))).textContent).toContain('DIGEST-PIN|');
 });
 it('el modal no muestra una respuesta tardía del tenant anterior', async () => {
   let complete!: (value: never) => void;
@@ -87,4 +88,10 @@ it('el modal no muestra una respuesta tardía del tenant anterior', async () => 
   complete({ data: { ruc: '20601234567' } } as never);
   await waitFor(() => expect(screen.queryByText(/Trama QR: 20601234567/)).toBeNull());
   expect(await screen.findByText(/Trama QR: 20100070970/)).toBeTruthy();
+});
+
+it.each([['B001',undefined,false],['F001','PREPARACION_LOCAL',false],['F001','SUNAT',true]] as const)('consulta SUNAT en serie %s origen %s visible=%s',async(serie,origen,visible)=>{
+ render(<InvoiceCdrModal comprobante={{...c,serie,resultadoPresentacion:origen?{origen}:undefined} as never} onCerrar={()=>{}}/>);
+ expect(Boolean(screen.queryByText('Consulta SUNAT disponible'))).toBe(visible);
+ await screen.findByText(/Trama QR:/);
 });

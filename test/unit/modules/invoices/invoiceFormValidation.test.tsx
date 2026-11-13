@@ -1,3 +1,5 @@
+import { beforeEach as billingBeforeEach } from 'vitest';
+import { useAuthStore as billingAuth } from '@/stores/authStore';
 import {afterEach,beforeEach,expect,it,vi} from 'vitest';
 import {render,screen,fireEvent,cleanup,waitFor} from '@testing-library/react';
 import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
@@ -23,3 +25,6 @@ it.each(['modal','pagina'])('%s bloquea las mismas entradas antes del POST',asyn
 it.each(['modal','pagina'])('%s admite cantidad legítima de tres decimales',async via=>{await form(via);const input=screen.getByLabelText('Cantidad de la línea 1') as HTMLInputElement;fireEvent.change(input,{target:{value:'1.234'}});expect(input.step).toBe('0.001');expect(input.validity.stepMismatch).toBe(false);if(via==='modal')fireEvent.click(screen.getByRole('button',{name:/^Emitir /}));else fireEvent.submit(document.querySelector('form')!);await waitFor(()=>expect(invoicesApi.emitirComprobante).toHaveBeenCalledWith(expect.objectContaining({items:expect.arrayContaining([expect.objectContaining({cantidad:1.234})])}),expect.anything()));});
 it('descuento que deja onerosa en cero bloqueado; gratuita íntegra conserva la excepción',()=>{const line={...itemVacio('1'),descripcion:'Servicio',valorUnitario:100,precioUnitario:118};expect(problemasContenidoEmision({tipo:'01',clienteRazonSocial:'Cliente',items:[line],descuentoGlobal:{codigo:'02',monto:100}})).toContain('El total cero solo se admite en documentos íntegramente gratuitos con referencias positivas.');const free={...line,afectacion:'GRATUITA' as const,codigoAfectacion:'11',precioUnitario:0};expect(problemasContenidoEmision({tipo:'01',clienteRazonSocial:'Cliente',items:[free]})).toEqual([]);expect(problemasContenidoEmision({tipo:'03',clienteRazonSocial:'Cliente',items:[free]})).toEqual([]);});
 it.each(['07','08'])('nota %s conserva referencia gratuita y valores históricos sin reinterpretarlos como venta nueva',tipo=>{const line={...itemVacio('1'),descripcion:'Histórico',valorUnitario:0,precioUnitario:118};expect(problemasContenidoEmision({tipo,clienteRazonSocial:'Cliente',items:[line]})).toEqual([]);expect(problemasContenidoEmision({tipo,clienteRazonSocial:'Cliente',items:[{...line,precioUnitario:0}]}).join()).toContain('onerosa');});
+
+// Las operaciones de esta suite se ejecutan con un rol autorizado de facturación.
+billingBeforeEach(() => { billingAuth.setState({ user: { id: 'billing-test', email: 'billing@example.invalid', role: 'ADMIN' } }); });

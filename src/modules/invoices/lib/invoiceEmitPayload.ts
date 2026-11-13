@@ -87,7 +87,7 @@ export const borradorAPayloadEmision = (
       unidad: item.unidad,
       cantidad: item.cantidad,
       valorUnitario: item.valorUnitario,
-      precioUnitario: typeof item.precioUnitario === 'number' && Number.isFinite(item.precioUnitario)
+      precioUnitario: item.afectacion === 'GRATUITA' ? 0 : item.afectacion !== 'GRAVADA' ? item.valorUnitario : typeof item.precioUnitario === 'number' && Number.isFinite(item.precioUnitario)
         ? item.precioUnitario
         : item.afectacion === 'GRAVADA' ? Number((item.valorUnitario * 1.18).toFixed(10)) : item.valorUnitario,
       descuento: item.descuento ?? null,

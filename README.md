@@ -13,7 +13,7 @@
 1. **Facturación Electrónica (CPE):** Emisión y consulta de Facturas (`01`), Boletas (`03`), Notas de Crédito (`07`) y Débito (`08`) con cálculo de IGV (18%), estados de validez SUNAT y descarga de representaciones impresas (PDF) y XML homologados.
 2. **Resiliencia & Contingencia Offline:** Motor de contingencia con cola local (IndexedDB) para emitir comprobantes sin interrupción durante caídas de servidores SUNAT, con sincronización automática en segundo plano.
 3. **Importaciones & Aduanas:** Liquidación de Declaraciones Únicas de Aduanas (DUA), prorrateo de costos de importación (FOB, Flete, Seguro, Ad-Valorem, IGV/IPM) e integración con inventarios.
-4. **SIRE (RVIE / RCE) — alcance actual:** Importación de propuestas en formato interno provisional y conciliación de comprobantes con los resultados del backend. La integración real con SUNAT y la generación de archivos no están habilitadas.
+4. **SIRE (RVIE / RCE) — alcance actual:** Importación provisional, consulta manual simulada, conciliación, dashboard de resiliencia, resumen de cierre e historial respaldados por respuestas del backend. El cierre solo registra el estado que confirme el backend; no cierra un periodo ante SUNAT. La integración real con SUNAT y la generación de archivos no están habilitadas.
 5. **Contabilidad & Reportería Tributaria:** Estado de Situación Financiera (Balance General), Estado de Resultados, Libro Mayor, proyección del Impuesto a la Renta (Régimen MYPE Tributario) y ratios financieros clave (liquidez, solvencia, rentabilidad).
 6. **Autenticación & Multi-Tenant:** Acceso seguro mediante JWT, gestión de roles (Administrador, Contador, Facturador, Visualizador) y aislamiento de datos por RUC de empresa (`X-Tenant-Id`).
 

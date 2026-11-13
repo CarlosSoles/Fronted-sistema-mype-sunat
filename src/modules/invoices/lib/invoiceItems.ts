@@ -409,6 +409,8 @@ export const actualizarItem = (
     const combinado: ItemBorrador = { ...item, ...parcial };
     if (combinado.afectacion === 'GRATUITA') {
       combinado.precioUnitario = 0;
+    } else if (parcial.afectacion !== undefined) {
+      combinado.precioUnitario = combinado.afectacion === 'GRAVADA' ? Number((combinado.valorUnitario * 1.18).toFixed(10)) : combinado.valorUnitario;
     } else if (typeof parcial.valorUnitario === 'number' && parcial.precioUnitario === undefined) {
       combinado.precioUnitario = combinado.afectacion === 'GRAVADA'
         ? Number((parcial.valorUnitario * 1.18).toFixed(10)) : parcial.valorUnitario;
@@ -418,14 +420,6 @@ export const actualizarItem = (
     ) {
       combinado.valorUnitario = valorUnitarioDesdePrecioConIgv(
         parcial.precioUnitario,
-        combinado.afectacion,
-      );
-    } else if (
-      parcial.afectacion !== undefined && parcial.valorUnitario === undefined &&
-      typeof combinado.precioUnitario === 'number'
-    ) {
-      combinado.valorUnitario = valorUnitarioDesdePrecioConIgv(
-        combinado.precioUnitario,
         combinado.afectacion,
       );
     }

@@ -77,9 +77,10 @@ export const InvoiceEmitResumen = ({ borrador }: InvoiceEmitResumenProps) => {
           Gratuita {soles(liquidacion.opGratuita)} (no se cobra)
         </PageText>
       )}
+      {borrador.descuentoGlobal && <PageText variant="caption">Descuento global ({borrador.descuentoGlobal.codigo}) − {soles(borrador.descuentoGlobal.monto)}</PageText>}
       {icbperLineas > 0 && (
         <PageText variant="caption">
-          ICBPER {soles(icbperLineas)}
+          ICBPER (concepto separado) {soles(icbperLineas)}
         </PageText>
       )}
 

@@ -8,9 +8,9 @@ import { formatCurrency } from '@/lib/formatters';
 interface Reporte {
   from: string; to: string;
   totals: { sales: number; taxable: number; igv: number; cost: number; profit: number; margin: number; documents: number; withoutCost: { count: number; sales: number } };
-  byCustomer: Array<{ document: string; customer: string; sales: number; cost: number; profit: number; documents: number }>;
-  byDocument: Array<{ id: string; number: string; date: string; customer: string; total: number; cost: number; profit: number; hasCost: boolean }>;
-  daily: Array<{ date: string; sales: number; cost: number; profit: number }>;
+  byCustomer: Array<{ document: string; customer: string; sales: number; cost: number; profit: number | null; documents: number }>;
+  byDocument: Array<{ id: string; number: string; date: string; customer: string; total: number; cost: number; profit: number | null; hasCost: boolean }>;
+  daily: Array<{ date: string; sales: number; cost: number; profit: number | null }>;
 }
 
 const inicioMes = () => { const h = new Date(); return `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, '0')}-01`; };
@@ -35,9 +35,9 @@ export default function SalesReportPage() {
   });
   const filas = useMemo(() => {
     if (!data) return [];
-    if (tab === 'clientes') return data.byCustomer.map((c) => [c.document, c.customer, c.documents, c.sales.toFixed(2), c.cost.toFixed(2), c.profit.toFixed(2)]);
-    if (tab === 'documentos') return data.byDocument.map((d) => [d.number, d.date, d.customer, d.total.toFixed(2), d.cost.toFixed(2), d.profit.toFixed(2), d.hasCost ? 'Con costo' : 'Sin costo']);
-    return data.daily.map((d) => [d.date, d.sales.toFixed(2), d.cost.toFixed(2), d.profit.toFixed(2)]);
+    if (tab === 'clientes') return data.byCustomer.map((c) => [c.document, c.customer, c.documents, c.sales.toFixed(2), c.cost.toFixed(2), c.profit === null ? 'Sin costo' : c.profit.toFixed(2)]);
+    if (tab === 'documentos') return data.byDocument.map((d) => [d.number, d.date, d.customer, d.total.toFixed(2), d.cost.toFixed(2), d.profit === null ? 'Sin costo' : d.profit.toFixed(2), d.hasCost ? 'Con costo' : 'Sin costo']);
+    return data.daily.map((d) => [d.date, d.sales.toFixed(2), d.cost.toFixed(2), d.profit === null ? 'Sin costo' : d.profit.toFixed(2)]);
   }, [data, tab]);
 
   return <Page>

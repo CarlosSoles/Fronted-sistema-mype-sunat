@@ -49,3 +49,10 @@ it.each([false, true])('F5 CDR disponible=%s controla la descarga y extrae el mo
 it('F5 usa un fallback legible cuando HTTP no trae motivo', () => {
   expect(extractApiErrorMessage(new Error('Request failed with status code 404'), 'No se pudo descargar.')).toBe('No se pudo descargar.');
 });
+it('Parte 9 descarga el PDF oficial desde la fila', async () => {
+ const q = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } }); queries.push(q);
+ vi.mocked(descargarDesdeBackend).mockResolvedValue(undefined);
+ render(<QueryClientProvider client={q}><MemoryRouter><InvoiceList /></MemoryRouter></QueryClientProvider>);
+ const buttons=await screen.findAllByRole('button',{name:/Descargar PDF de/});fireEvent.click(buttons[0]);
+ await waitFor(()=>expect(descargarDesdeBackend).toHaveBeenCalledWith('1','pdf'));
+});

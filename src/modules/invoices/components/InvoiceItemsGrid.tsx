@@ -1,4 +1,4 @@
-import { cantidadBolsasDe, errorBolsas } from '../lib/invoiceBags';
+import { cantidadBolsasDe, errorBolsas, bolsasBloqueadasEnBoleta, BOLETA_GRATUITA_BOLSAS } from '../lib/invoiceBags';
 import { NOMBRES_AFECTACION } from '../lib/invoiceTributosXml';
 import { normalizarAfectacionProducto } from '../lib/invoiceItems';
 /**
@@ -39,6 +39,7 @@ const CLASE_CELDA =
   'h-8 w-full rounded border bg-background px-2 text-xs text-foreground';
 
 interface InvoiceItemsGridProps {
+  tipo?: string;
   cantidadesMaximas?: readonly number[];
   items: readonly ItemBorrador[];
   onCambiar: (indice: number, parcial: Partial<ItemBorrador>) => void;
@@ -64,6 +65,7 @@ interface InvoiceItemsGridProps {
 /** Tabla editable de líneas del comprobante. */
 export const InvoiceItemsGrid = ({
   items,
+  tipo = '01',
   onCambiar,
   onEliminar,
   onAgregar,
@@ -74,6 +76,7 @@ export const InvoiceItemsGrid = ({
   cantidadesMaximas,
   esNota = false, catalogoEstado = 'listo',
 }: InvoiceItemsGridProps) => {
+  const bolsasBloqueadas = bolsasBloqueadasEnBoleta(tipo, items);
   const [productoBolsas, setProductoBolsas] = useState('');
   const destinoBolsas = items.findIndex(item => item.clave === productoBolsas && item.codigo.trim());
   const indiceBolsas = destinoBolsas >= 0 ? destinoBolsas : items.findIndex(item => item.codigo.trim());
@@ -247,6 +250,7 @@ export const InvoiceItemsGrid = ({
                   </td>
                   <td className="px-1 py-1">
                     <input
+                      disabled={bolsasBloqueadas}
                       aria-label={`ICBPER de la línea ${i + 1}`}
                       type="number"
                       min="0"
@@ -329,10 +333,12 @@ export const InvoiceItemsGrid = ({
           {indiceBolsas < 0 && <option value="">Seleccione un producto en la grilla</option>}
           {items.filter(item => item.codigo.trim()).map(item => <option key={item.clave} value={item.clave}>{item.codigo} · {item.descripcion}</option>)}
         </select></label>
-        <Button type="button" variant="outline" size="sm" disabled={indiceBolsas < 0 || Boolean(errorBolsas(items[indiceBolsas]))} onClick={() => onAgregarBolsa(indiceBolsas)}>
+        <Button type="button" variant="outline" size="sm" disabled={bolsasBloqueadas || indiceBolsas < 0 || Boolean(errorBolsas(items[indiceBolsas]))} onClick={() => onAgregarBolsa(indiceBolsas)}>
           + Bolsa plástica (ICBPER)
         </Button>
       </div>
+
+      {bolsasBloqueadas && <div><p role="alert" className="text-xs text-destructive">{BOLETA_GRATUITA_BOLSAS}</p><Button type="button" variant="outline" size="sm" onClick={() => items.forEach((_, i) => onCambiar(i, { cantidadBolsas: 0, icbper: 0 }))}>Retirar bolsas de la boleta</Button></div>}
 
       {/* Resumen de la validación contra el almacén: dice cuántas líneas se
           comprobaron de verdad, para no dar a entender que un producto que no
