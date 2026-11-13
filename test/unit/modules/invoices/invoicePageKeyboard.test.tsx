@@ -18,8 +18,10 @@ it('Alt+C/P/L funciona desde body y por code, sin duplicarse dentro del formular
  await montar();
  fireEvent.keyDown(document.body,{altKey:true,key:'ç',code:'KeyC'});expect(document.activeElement).toBe(document.getElementById('doc-cliente'));
  fireEvent.keyDown(document.body,{altKey:true,key:'π',code:'KeyP'});expect(document.activeElement).toBe(screen.getByLabelText('Buscar producto'));
- fireEvent.keyDown(document.body,{altKey:true,key:'¬',code:'KeyL'});expect(screen.getAllByLabelText(/Descripción de la línea/)).toHaveLength(2);
- fireEvent.keyDown(screen.getByLabelText('Descripción de la línea 1'),{altKey:true,key:'l',code:'KeyL'});expect(screen.getAllByLabelText(/Descripción de la línea/)).toHaveLength(3);
+ fireEvent.keyDown(document.body,{altKey:true,key:'¬',code:'KeyL'});expect(screen.getAllByLabelText(/Descripción de la línea/)).toHaveLength(1);
+ fireEvent.change(screen.getByLabelText('Descripción de la línea 1'),{target:{value:'Línea editada'}});
+ fireEvent.keyDown(screen.getByLabelText('Descripción de la línea 1'),{altKey:true,key:'l',code:'KeyL'});expect(screen.getAllByLabelText(/Descripción de la línea/)).toHaveLength(2);
+ expect(document.activeElement).toBe(screen.getByLabelText('Buscar producto'));
 });
 it('Ctrl+Enter fuera del form abre revisión y confirmar ejecuta las validaciones y un solo POST',async()=>{
  await montar();fireEvent.change(document.getElementById('doc-cliente')!,{target:{value:'20100070970'}});fireEvent.change(screen.getByLabelText('Razón social / nombre'),{target:{value:'Cliente'}});fireEvent.change(screen.getByLabelText('Código de la línea 1'),{target:{value:'CEM'}});fireEvent.change(screen.getByLabelText('Descripción de la línea 1'),{target:{value:'Cemento'}});fireEvent.change(screen.getByLabelText('Valor unitario de la línea 1'),{target:{value:'100'}});

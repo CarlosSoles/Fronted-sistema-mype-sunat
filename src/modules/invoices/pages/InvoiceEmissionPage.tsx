@@ -1,3 +1,5 @@
+import { agregarItemConBusqueda, colocarProductoEnFilaVacia } from '../lib/invoiceEmptyRow';
+import { igvReferencialGratuito } from '../lib/invoiceIgvReferencial';
 import { useInvoiceWritePermission } from '../hooks/useInvoiceWritePermission';
 import { InvoiceWriteButton } from '../components/InvoiceWriteButton';
 import { problemasContenidoEmision } from '../lib/invoiceEmissionValidation';
@@ -212,6 +214,7 @@ export default function InvoiceEmissionPage() {
 
   const [medioPagoDetraccion, setMedioPagoDetraccion] = useState<MedioPagoDetraccion | ''>('');
   const importeTotal = totales.total;
+  const igvReferencial = igvReferencialGratuito(items);
 
   // Detracción por LÍNEA: "los productos son con detracción, no la factura".
   const detraccion = useMemo(
@@ -277,7 +280,7 @@ export default function InvoiceEmissionPage() {
 
 
   const agregarItem = () => {
-    setItems((prev) => [...prev, itemVacio(String(Date.now()))]);
+    agregarItemConBusqueda(setItems, () => itemVacio(String(Date.now())), formRef.current);
   };
 
   /**
@@ -318,17 +321,7 @@ export default function InvoiceEmissionPage() {
     try { relleno = itemDesdeProducto(producto, 'prod'); }
     catch (error) { setResultado({ ok: false, mensaje: error instanceof Error ? error.message : 'Producto incompatible' }); return; }
 
-    setItems((prev) => {
-      const vacia = prev.findIndex(
-        (i) => !i.descripcion.trim() && !i.codigo.trim(),
-      );
-      if (vacia >= 0) {
-        return prev.map((item, i) =>
-          i === vacia ? { ...item, ...relleno, clave: item.clave } : item,
-        );
-      }
-      return [...prev, { ...relleno, clave: String(Date.now()) }];
-    });
+    setItems(prev => colocarProductoEnFilaVacia(prev, { ...relleno, clave: String(Date.now()) }));
   };
 
   const emitir = async (evento: React.FormEvent) => {
@@ -711,7 +704,7 @@ export default function InvoiceEmissionPage() {
             </CardHeader>
             <CardContent>
               <InvoiceWarehouseSelect value={almacen} onChange={setAlmacen} />
-              <InvoiceItemsGrid tipo={tipo} catalogoEstado={catalogoEstado}
+              <InvoiceItemsGrid codigoSoloCatalogo tipo={tipo} catalogoEstado={catalogoEstado}
                 items={items}
                 onCambiar={cambiarItem}
                 onEliminar={eliminarItem}
@@ -765,6 +758,7 @@ export default function InvoiceEmissionPage() {
                 <span>S/ {totales.igv.toFixed(2)}</span>
               </div>
               {items.some(i => i.afectacion === 'GRATUITA') && <div className="flex justify-between"><span>Op. gratuita (referencial)</span><span>S/ {items.filter(i => i.afectacion === 'GRATUITA').reduce((s, i) => s + i.cantidad * i.valorUnitario, 0).toFixed(2)}</span></div>}
+              {igvReferencial > 0 && <div className="flex justify-between"><span>IGV referencial (no se cobra)</span><span>S/ {igvReferencial.toFixed(2)}</span></div>}
               {descuentoGlobal && <div className="flex justify-between"><span>Descuento global ({descuentoGlobal.codigo})</span><span>− S/ {descuentoGlobal.monto.toFixed(2)}</span></div>}
               {totales.icbper > 0 && (
                 <div className="flex justify-between text-muted-foreground">

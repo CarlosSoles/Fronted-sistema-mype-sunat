@@ -1,5 +1,5 @@
 import { erroresCamposLinea } from '../lib/invoiceLineFields';
-import { agregarFilaModal } from '../lib/invoiceEmptyRow';
+import { agregarItemConBusqueda, colocarProductoEnFilaVacia } from '../lib/invoiceEmptyRow';
 import { InvoiceWriteButton } from './InvoiceWriteButton';
 import { useInvoiceWritePermission } from '../hooks/useInvoiceWritePermission';
 import { problemasContenidoEmision } from '../lib/invoiceEmissionValidation';
@@ -56,7 +56,6 @@ import {
 import type { BorradorEmision } from '../lib/invoiceEmitDraft';
 import {
   actualizarItem,
-  agregarItem,
   eliminarItem,
   itemDesdeProducto,
   itemVacio,
@@ -351,13 +350,10 @@ export const InvoiceEmitModal = ({
 
   const nuevoItem = () => {
     setMostrarErrores(true);
-    setB((previo) => ({
-      ...previo,
-      items: agregarFilaModal(previo.items, () => itemVacio(nuevaClave())),
-    }));
-    const buscador = formularioRef.current?.querySelector<HTMLInputElement>('[data-invoice-product-search]');
-    buscador?.focus();
-    buscador?.scrollIntoView?.({ block: 'center' });
+    agregarItemConBusqueda(
+      transformar => setB(previo => ({ ...previo, items: transformar(previo.items) })),
+      () => itemVacio(nuevaClave()), formularioRef.current,
+    );
   };
 
   /**
@@ -372,7 +368,7 @@ export const InvoiceEmitModal = ({
   const itemDeProducto = (producto: ProductoBuscado) => {
     try {
       const item = itemDesdeProducto(producto, nuevaClave());
-      setB(previo => ({ ...previo, items: previo.items.length === 1 && !previo.items[0].codigo.trim() && !previo.items[0].descripcion.trim() ? [item] : agregarItem(previo.items, item) }));
+      setB(previo => ({ ...previo, items: colocarProductoEnFilaVacia(previo.items, item) }));
     } catch (error) { setErrorEmision(error instanceof Error ? error.message : 'Producto incompatible'); }
   };
 

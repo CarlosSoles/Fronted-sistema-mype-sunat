@@ -40,6 +40,7 @@ const CLASE_CELDA =
   'h-8 w-full rounded border bg-background px-2 text-xs text-foreground';
 
 interface InvoiceItemsGridProps {
+  codigoSoloCatalogo?: boolean;
   mostrarErrores?: boolean;
   tipo?: string;
   cantidadesMaximas?: readonly number[];
@@ -69,6 +70,7 @@ export const InvoiceItemsGrid = ({
   items,
   tipo = '01',
   mostrarErrores = false,
+  codigoSoloCatalogo = false,
   onCambiar,
   onEliminar,
   onAgregar,
@@ -130,6 +132,12 @@ export const InvoiceItemsGrid = ({
           }}
           placeholder="Buscar por SKU o descripción para agregar una línea"
         />
+      ) : onAgregarConProducto ? (
+        <p data-invoice-product-status role="status" tabIndex={-1} className="rounded border p-2 text-sm">
+          {catalogoEstado === 'cargando' ? 'Cargando productos del almacén. Espere para buscar y seleccionar.'
+            : catalogoEstado === 'error' ? 'No se pudo cargar el catálogo del almacén. Vuelva a intentar antes de seleccionar un producto.'
+            : 'No hay productos disponibles en el almacén para seleccionar.'}
+        </p>
       ) : null}
 
       <div className="max-w-full overflow-x-auto rounded-lg border" role="region" aria-label="Líneas del comprobante" tabIndex={0}>
@@ -176,8 +184,8 @@ export const InvoiceItemsGrid = ({
                       aria-label={`Código de la línea ${i + 1}`}
                       className={CLASE_CELDA}
                       onFocus={() => duplicado.recordarCodigo(i)} onBlur={() => duplicado.confirmarCodigo(i)}
-                      readOnly={item.codigoHeredado === true}
-                      title={item.codigoHeredado ? 'Para cambiar el SKU, quite la línea o elija otro producto del catálogo.' : undefined}
+                      readOnly={codigoSoloCatalogo || item.codigoHeredado === true}
+                      title={codigoSoloCatalogo || item.codigoHeredado ? 'Para cambiar el SKU, quite la línea o elija otro producto del catálogo.' : undefined}
                       value={item.codigo}
                       onChange={(e) => onCambiar(i, { codigo: e.target.value })}
                       placeholder="COD-001"
