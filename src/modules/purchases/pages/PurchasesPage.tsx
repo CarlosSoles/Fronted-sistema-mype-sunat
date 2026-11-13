@@ -8,6 +8,7 @@ import {
   Eye,
   History,
   AlertCircle,
+  PackageCheck,
 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
@@ -47,6 +48,16 @@ export default function PurchasesPage() {
   const [detailPurchase, setDetailPurchase] = useState<PurchaseRecord | null>(null);
   const [paymentPurchase, setPaymentPurchase] = useState<PurchaseRecord | null>(null);
   const [paymentHistory, setPaymentHistory] = useState<PurchasePaymentRecord[] | null>(null);
+  const [receiveTarget, setReceiveTarget] = useState<PurchaseRecord | null>(null);
+  const [receiveQty, setReceiveQty] = useState<Record<string, string>>({});
+  const abrirRecepcion = (p: PurchaseRecord) => {
+    setReceiveTarget(p);
+    setReceiveQty(Object.fromEntries(p.items.map((i) => [i.id, String(Math.max(0, i.quantity - (i.receivedQuantity ?? 0)))])));
+  };
+  const recepcion = useMutation({
+    mutationFn: () => purchasesApi.receivePurchase(receiveTarget!.id, { items: receiveTarget!.items.map((i) => ({ itemId: i.id, quantity: Number(receiveQty[i.id] ?? 0) })).filter((i) => i.quantity > 0) }),
+    onSuccess: () => { setReceiveTarget(null); void refetch(); void queryClient.invalidateQueries({ queryKey: ['purchase-payables'] }); void queryClient.invalidateQueries({ queryKey: ['inventory-stocks'] }); void queryClient.invalidateQueries({ queryKey: ['inventory-movements'] }); void queryClient.invalidateQueries({ queryKey: ['accounting-entries'] }); },
+  });
 
   // Estados para formulario de pago
   const [paymentAmount, setPaymentAmount] = useState('');
@@ -186,6 +197,7 @@ export default function PurchasesPage() {
               <TableHead align="right">Total Factura</TableHead>
               <TableHead align="right">Pagado</TableHead>
               <TableHead align="right">Saldo CxP</TableHead>
+              <TableHead>Recepción</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead align="right">Acciones</TableHead>
             </TableRow>
@@ -193,14 +205,14 @@ export default function PurchasesPage() {
           <TableBody>
             {isLoading && (
               <TableRow>
-                <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
                   Cargando compras registradas...
                 </TableCell>
               </TableRow>
             )}
             {!isLoading && filteredPurchases.length === 0 && (
               <TableRow>
-                <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
                   No se encontraron comprobantes de compra.
                 </TableCell>
               </TableRow>
@@ -241,6 +253,11 @@ export default function PurchasesPage() {
                     {money(saldo)}
                   </TableCell>
                   <TableCell>
+                    <Badge variant={p.receptionStatus === 'RECIBIDA' ? 'default' : p.receptionStatus === 'PARCIAL' ? 'secondary' : 'outline'} className="text-[10px]">
+                      {p.receptionStatus ?? 'RECIBIDA'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
                     <Badge
                       variant={
                         p.status === 'PAGADA'
@@ -276,6 +293,12 @@ export default function PurchasesPage() {
                         >
                           <History className="h-3.5 w-3.5" />
                           Pagos
+                        </Button>
+                      )}
+                      {p.receptionStatus !== 'RECIBIDA' && p.status !== 'ANULADA' && (
+                        <Button size="sm" variant="ghost" onClick={() => abrirRecepcion(p)} className="h-7 px-2 text-xs gap-1" title="Registrar ingreso a almacén">
+                          <PackageCheck className="h-3.5 w-3.5" />
+                          Recibir
                         </Button>
                       )}
                       {p.status !== 'PAGADA' && p.status !== 'ANULADA' && (
@@ -319,6 +342,28 @@ export default function PurchasesPage() {
         onClose={() => setDetailPurchase(null)}
         onRegisterPayment={(p) => handleOpenPayModal(p)}
       />
+
+      {/* Modal Recepción de mercadería */}
+      <Dialog open={receiveTarget !== null} onOpenChange={(open) => { if (!open) setReceiveTarget(null); }}>
+        <DialogContent className="text-xs">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base"><PackageCheck className="h-4 w-4 text-emerald-600" /> Recibir mercadería</DialogTitle>
+            <DialogDescription className="text-xs">{receiveTarget?.purchaseNumber} · {receiveTarget?.supplierName}. Puede recepcionar total o parcialmente.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            {receiveTarget?.items.map((i) => (
+              <div key={i.id} className="grid grid-cols-[1fr_100px] items-center gap-2">
+                <div><p className="font-medium">{i.sku}</p><p className="text-[10px] text-muted-foreground">{i.description} · Pedido {i.quantity} · Recibido {i.receivedQuantity ?? 0}</p></div>
+                <Input type="number" min="0" max={i.quantity - (i.receivedQuantity ?? 0)} step="0.0001" value={receiveQty[i.id] ?? ''} onChange={(e) => setReceiveQty({ ...receiveQty, [i.id]: e.target.value })} />
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReceiveTarget(null)}>Cancelar</Button>
+            <Button onClick={() => recepcion.mutate()} disabled={recepcion.isPending || Object.values(receiveQty).every((v) => !(Number(v) > 0))}>{recepcion.isPending ? 'Registrando…' : 'Registrar recepción'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal Registrar Pago / Abono */}
       <Dialog
