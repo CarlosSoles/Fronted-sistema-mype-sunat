@@ -49,6 +49,7 @@ const PurchasesPayablesPage = React.lazy(() => import('@/modules/inventory/pages
 const InventoryTransfersPage = React.lazy(() => import('@/modules/inventory/pages/InventoryTransfersPage'));
 const InventoryAdjustmentsPage = React.lazy(() => import('@/modules/inventory/pages/InventoryAdjustmentsPage'));
 const InventoryConfigPage = React.lazy(() => import('@/modules/inventory/pages/InventoryConfigPage'));
+const UserWarehousesPage = React.lazy(() => import('@/modules/auth/pages/UserWarehousesPage'));
 const InventoryKardexPage = React.lazy(() => import('@/modules/inventory/pages/InventoryKardexPage'));
 const InventoryOpeningPage = React.lazy(() => import('@/modules/inventory/pages/InventoryOpeningPage'));
 const InventoryMovementsPage = React.lazy(() => import('@/modules/inventory/pages/InventoryMovementsPage'));
@@ -203,6 +204,7 @@ export const AppRoutes = () => {
             />
 
             <Route path="/invoices/configuracion/precios" element={<RoleProtectedRoute allowedRoles={['ADMIN']}><InvoicePricesPage /></RoleProtectedRoute>} />
+            <Route path="/usuarios/almacenes" element={<RoleProtectedRoute allowedRoles={['ADMIN']}><UserWarehousesPage /></RoleProtectedRoute>} />
 
             {/* [M3: Suite Aduanera e Inventarios] ADMIN, OPERADOR_ADUANAS, CONTADOR, AUDITOR */}
             <Route
