@@ -41,6 +41,7 @@ export interface ListadoParams {
 
 /** Filtros que acepta el listado (el backend ya los soporta). */
 export interface FiltrosInvoices {
+  en_dlq?: string;
   puente_pendiente?: string;
   estado?: string;
   tipo?: string;
