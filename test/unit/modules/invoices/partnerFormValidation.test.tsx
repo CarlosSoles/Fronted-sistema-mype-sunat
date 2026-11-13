@@ -8,7 +8,7 @@ const valid={docType:'6',docNumber:'20100070970',legalName:'Cliente',tradeName:'
 describe('maestro: validación compartida',()=>{
  it.each([['1','12345678'],['6','20100070970'],['4','CE-123'],['0','US-ABC']])('preserva %s %s',(t,n)=>expect(documentoTerceroValido(t,n)).toBe(true));
  it.each([['1','1234567'],['1','1234567A'],['6','20100070971'],['0',''],['4','']])('rechaza %s %s',(t,n)=>expect(documentoTerceroValido(t,n)).toBe(false));
- it.each([{legalName:' '},{legalName:'x'.repeat(201)},{tradeName:' '},{tradeName:'x'.repeat(201)},{countryCode:'PER'},{email:'incorrecto'}])('valida %j',patch=>expect(errorDatosTercero({...valid,...patch})).toBeTruthy());
+ it.each([{legalName:' '},{legalName:'00'},{legalName:'x'.repeat(201)},{tradeName:' '},{tradeName:'x'.repeat(201)},{countryCode:'PER'},{email:'incorrecto'}])('valida %j',patch=>expect(errorDatosTercero({...valid,...patch})).toBeTruthy());
  it('bloquea guardar y muestra error por tipo en el diálogo real',()=>{
   const qc=new QueryClient({defaultOptions:{queries:{retry:false}}});
   render(<QueryClientProvider client={qc}><PartnerFormDialog onClose={vi.fn()} initialDocument="12345678" initialName="Cliente"/></QueryClientProvider>);

@@ -137,13 +137,13 @@ export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PR
             </div>
             <div>
               <p className="mb-1 font-medium">Número <span aria-hidden="true">*</span></p>
-              <Input ref={numeroRef} aria-required="true" aria-invalid={!form.docNumber.trim()} aria-describedby={!form.docNumber.trim() ? "partner-numero-error" : undefined} aria-label="Número" disabled={!!partner} placeholder="Ej. 20100000001 o TAX ID" value={form.docNumber} onChange={(e) => setForm({ ...form, docNumber: e.target.value })} />
-              {!form.docNumber.trim() && <p id="partner-numero-error" className="text-xs text-destructive">Indique el número de documento.</p>}
+              <Input ref={numeroRef} aria-required="true" aria-invalid={!form.docNumber.trim()} aria-describedby={!form.docNumber.trim() ? "partner-numero-error" : undefined} aria-label="Número" disabled={!!partner} placeholder="Ej. 20100000001 o TAX ID" value={form.docNumber} onChange={(e) => { const valor = form.docType === '6' || form.docType === '1' ? e.target.value.replace(/\D/g, "").slice(0, form.docType === '6' ? 11 : 8) : e.target.value; setForm({ ...form, docNumber: valor }); }} />
+              {errorValidacion && errorValidacion.toLowerCase().includes('documento') ? <p id="partner-numero-error" className="text-xs text-destructive">{errorValidacion}</p> : !form.docNumber.trim() ? <p id="partner-numero-error" className="text-xs text-destructive">Indique el número de documento.</p> : null}
             </div>
             <div className="sm:col-span-2">
               <p className="mb-1 font-medium">Razón social <span aria-hidden="true">*</span></p>
               <Input ref={nombreRef} aria-required="true" aria-invalid={!form.legalName.trim()} aria-describedby={!form.legalName.trim() ? "partner-nombre-error" : undefined} aria-label="Razón social" maxLength={200} placeholder="Nombre o Razón Social oficial" value={form.legalName} onChange={(e) => setForm({ ...form, legalName: e.target.value })} />
-              {!form.legalName.trim() && <p id="partner-nombre-error" className="text-xs text-destructive">Indique la razón social o nombre.</p>}
+              {errorValidacion && errorValidacion.toLowerCase().includes('razón social') ? <p id="partner-nombre-error" className="text-xs text-destructive">{errorValidacion}</p> : !form.legalName.trim() ? <p id="partner-nombre-error" className="text-xs text-destructive">Indique la razón social o nombre.</p> : null}
             </div>
             <div>
               <p className="mb-1 font-medium">Nombre comercial</p>

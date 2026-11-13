@@ -9,7 +9,9 @@ export function documentoTerceroValido(tipo: string, numero: string): boolean {
 }
 export function errorDatosTercero(form: {docType:string;docNumber:string;legalName:string;tradeName:string;countryCode:string;email:string}, editar = false): string | undefined {
   if (!editar && !documentoTerceroValido(form.docType, form.docNumber.trim())) return 'Documento inválido: DNI de 8 dígitos o RUC de 11 dígitos con módulo 11; CE/TAX ID no vacío.';
-  if (!form.legalName.trim() || Array.from(form.legalName.trim()).length > 200) return 'La razón social debe contener entre 1 y 200 caracteres.';
+  const nombre = form.legalName.trim();
+  if (!nombre || Array.from(nombre).length < 2 || Array.from(nombre).length > 200) return 'La razón social debe contener entre 2 y 200 caracteres.';
+  if (!/[\p{L}]/u.test(nombre)) return 'La razón social debe contener al menos una letra.';
   if (form.tradeName && (!form.tradeName.trim() || Array.from(form.tradeName.trim()).length > 200)) return 'El nombre comercial debe contener entre 1 y 200 caracteres.';
   if (Array.from(form.countryCode.trim()).length !== 2) return 'El país debe tener 2 caracteres.';
   if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) return 'El email no tiene un formato válido.';
