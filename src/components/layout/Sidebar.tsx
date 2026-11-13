@@ -67,9 +67,11 @@ const NAV_ITEMS: NavItem[] = [
     path: '/sales',
     icon: ShoppingCart,
     developer: 'Ventas',
-    allowedRoles: ['ADMIN', 'OPERADOR_FACTURACION'],
+    allowedRoles: ['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
     subItems: [
-      { title: 'Punto de venta', path: '/sales/pos', icon: ShoppingCart },
+      { title: 'Punto de venta', path: '/sales/pos', icon: ShoppingCart, allowedRoles: ['ADMIN', 'OPERADOR_FACTURACION'] },
+      { title: 'Historial de ventas', path: '/sales/historial', icon: History },
+      { title: 'Reporte de ventas y margen', path: '/sales/reportes', icon: LayoutDashboard, allowedRoles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'] },
     ],
   },
   {
@@ -80,7 +82,6 @@ const NAV_ITEMS: NavItem[] = [
     allowedRoles: ['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT'],
     subItems: [
       { title: 'Resumen de facturación', path: '/invoices/dashboard', icon: LayoutDashboard },
-      { title: 'Reporte de ventas', path: '/invoices/reportes/ventas', icon: LayoutDashboard },
       { title: 'Detracciones', path: '/invoices/detracciones', icon: WalletCards },
       { title: 'Facturas y Boletas', path: '/invoices/facturas', icon: FileText },
       { title: 'Clientes y proveedores', path: '/invoices/clientes', icon: Building2 },
@@ -177,7 +178,7 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
-    title: 'Cobros',
+    title: 'Cuentas por cobrar',
     path: '/collections',
     icon: WalletCards,
     developer: 'Oliver Saldaña',
