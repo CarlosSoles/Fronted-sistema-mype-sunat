@@ -28,6 +28,7 @@ import {
   ClipboardCheck,
   History,
   Settings,
+  ShoppingCart,
   Ship,
   ShoppingBag,
   Search,
@@ -61,6 +62,16 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
+  {
+    title: 'Ventas',
+    path: '/sales',
+    icon: ShoppingCart,
+    developer: 'Ventas',
+    allowedRoles: ['ADMIN', 'OPERADOR_FACTURACION'],
+    subItems: [
+      { title: 'Punto de venta', path: '/sales/pos', icon: ShoppingCart },
+    ],
+  },
   {
     title: 'Facturación UBL 2.1',
     path: '/invoices',
