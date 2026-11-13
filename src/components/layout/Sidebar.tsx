@@ -96,6 +96,16 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
+    title: 'Administración',
+    path: '/usuarios',
+    icon: Settings,
+    developer: 'Administración',
+    allowedRoles: ['ADMIN'],
+    subItems: [
+      { title: 'Usuarios y almacenes', path: '/usuarios/almacenes', icon: Settings },
+    ],
+  },
+  {
     title: 'Importaciones',
     path: '/customs',
     icon: Ship,
