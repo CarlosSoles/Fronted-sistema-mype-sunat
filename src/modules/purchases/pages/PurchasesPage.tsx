@@ -34,6 +34,7 @@ import { purchasesApi } from '../services/purchasesApi';
 import type { PurchaseRecord, PurchasePaymentRecord } from '../types/purchases.types';
 import { NationalPurchaseModal } from '../components/NationalPurchaseModal';
 import { PurchaseDetailModal } from '../components/PurchaseDetailModal';
+import { formatDateTimeToPeru } from '@/lib/formatters';
 
 const money = (n: number) =>
   `S/ ${n.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -181,6 +182,7 @@ export default function PurchasesPage() {
               <TableHead>Comprobante</TableHead>
               <TableHead>Fecha</TableHead>
               <TableHead>Almacén</TableHead>
+              <TableHead>Registrado</TableHead>
               <TableHead align="right">Total Factura</TableHead>
               <TableHead align="right">Pagado</TableHead>
               <TableHead align="right">Saldo CxP</TableHead>
@@ -191,14 +193,14 @@ export default function PurchasesPage() {
           <TableBody>
             {isLoading && (
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                   Cargando compras registradas...
                 </TableCell>
               </TableRow>
             )}
             {!isLoading && filteredPurchases.length === 0 && (
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                   No se encontraron comprobantes de compra.
                 </TableCell>
               </TableRow>
@@ -223,6 +225,7 @@ export default function PurchasesPage() {
                     {new Date(p.issueDate).toLocaleDateString('es-PE')}
                   </TableCell>
                   <TableCell className="text-xs font-mono">{p.warehouseCode}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{p.createdAt ? formatDateTimeToPeru(p.createdAt) : '-'}</TableCell>
                   <TableCell align="right" className="font-mono text-xs font-semibold">
                     {money(p.totalAmount)}
                   </TableCell>
@@ -447,7 +450,7 @@ export default function PurchasesPage() {
               {(paymentHistory ?? []).map((h) => (
                 <TableRow key={h.id}>
                   <TableCell className="font-mono text-xs">
-                    {new Date(h.date).toLocaleDateString('es-PE')}
+                    {formatDateTimeToPeru(h.date)}
                   </TableCell>
                   <TableCell>
                     {h.paymentMethod}
