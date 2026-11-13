@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Badge, Button, Card, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Input, Page, PageHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
 import { inventoryPurchasesApi } from '../services/inventoryPurchasesApi';
 import { masterDataApi } from '@/modules/customs/services/masterDataApi';
 import { PartnerFormDialog } from '@/modules/customs/components/PartnerFormDialog';
 import { extractApiErrorMessage } from '@/lib/apiErrors';
+import { documentoTerceroValido } from '@/modules/customs/libPartnerValidation';
 
 const money = (n: number) => `S/ ${n.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -12,7 +13,8 @@ export default function PurchasesPayablesPage() {
   const { data = [], isLoading, error } = useQuery({ queryKey: ['purchase-payables'], queryFn: () => inventoryPurchasesApi.listPayables() });
   const queryClient = useQueryClient();
   const [abrirAlta, setAbrirAlta] = useState(false);
-  const { data: proveedores = [] } = useQuery({ queryKey: ['payables-suppliers'], queryFn: () => masterDataApi.getPartners({ role: 'PROVEEDOR' }), enabled: abrirAlta });
+  const { data: proveedores = [], refetch: refetchProveedores } = useQuery({ queryKey: ['payables-suppliers'], queryFn: async () => (await masterDataApi.getPartners()).filter((p) => p.is_active !== false), enabled: abrirAlta, staleTime: 0 });
+  useEffect(() => { if (abrirAlta) void refetchProveedores(); }, [abrirAlta, refetchProveedores]);
   const [errorAlta, setErrorAlta] = useState('');
   const [nuevoProveedor, setNuevoProveedor] = useState(false);
   const [moneda, setMoneda] = useState('PEN');
@@ -21,6 +23,7 @@ export default function PurchasesPayablesPage() {
   const [rucTexto, setRucTexto] = useState('');
   const [listaAbierta, setListaAbierta] = useState<'proveedor' | 'ruc' | null>(null);
   const [form, setForm] = useState({ supplierName: '', supplierDocNumber: '', description: '', amount: '', issueDate: new Date().toISOString().slice(0, 10) });
+  const rucProveedorValido = documentoTerceroValido('6', form.supplierDocNumber);
   const crear = useMutation({
     mutationFn: () => inventoryPurchasesApi.createManualPayable({ supplierName: form.supplierName, supplierDocNumber: form.supplierDocNumber, description: form.description, amount: Number(form.amount), issueDate: form.issueDate, currencyCode: moneda, exchangeRate: moneda === 'USD' ? Number(tipoCambio) : undefined }),
     onSuccess: async () => { setAbrirAlta(false); setForm({ supplierName: '', supplierDocNumber: '', description: '', amount: '', issueDate: new Date().toISOString().slice(0, 10) }); setMoneda('PEN'); setTipoCambio(''); setProveedorTexto(''); setRucTexto(''); setListaAbierta(null); setErrorAlta(''); await queryClient.invalidateQueries({ queryKey: ['purchase-payables'] }); },
@@ -34,7 +37,7 @@ export default function PurchasesPayablesPage() {
   return (
     <Page>
       <PageHeader title="Cuentas por pagar" description="Saldo pendiente por proveedor, consolidado de compras no anuladas">
-        <Button size="sm" onClick={() => { setProveedorTexto(''); setRucTexto(''); setListaAbierta(null); setForm({ ...form, supplierDocNumber: '', supplierName: '' }); setAbrirAlta(true); }}>Nueva CxP</Button>
+        <Button size="sm" onClick={() => { setProveedorTexto(''); setRucTexto(''); setListaAbierta(null); setForm({ ...form, supplierDocNumber: '', supplierName: '' }); void queryClient.invalidateQueries({ queryKey: ['payables-suppliers'] }); setAbrirAlta(true); }}>Nueva CxP</Button>
       </PageHeader>
       <div className="grid gap-3 sm:grid-cols-4 mb-5">
         <Card className="p-4"><p className="text-xs text-muted-foreground">Proveedores</p><p className="text-2xl font-bold">{data.length}</p></Card>
@@ -81,6 +84,7 @@ export default function PurchasesPayablesPage() {
               </div>
             </div>
             {form.supplierName ? <p className="text-[11px] text-emerald-600">Proveedor: {form.supplierName} · {form.supplierDocNumber}</p> : null}
+            {form.supplierDocNumber && !rucProveedorValido ? <p className="text-[11px] text-destructive">El RUC del proveedor no supera el módulo 11. Corrígelo en Clientes y proveedores.</p> : null}
             {(rucTexto.length === 11 && !proveedores.some((p) => p.doc_number === rucTexto)) || (proveedorTexto.trim().length >= 2 && !proveedores.some((p) => p.legal_name.toLowerCase().includes(proveedorTexto.trim().toLowerCase()))) ? <Button type="button" size="sm" variant="ghost" onClick={() => { setForm({ ...form, supplierDocNumber: rucTexto }); setNuevoProveedor(true); }}>+ Registrar proveedor nuevo</Button> : null}
             <label className="text-xs block">Concepto<Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
             <label className="text-xs block">Moneda<select className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={moneda} onChange={(e) => setMoneda(e.target.value)}><option value="PEN">PEN — Soles</option><option value="USD">USD — Dólares</option></select></label>
@@ -89,7 +93,7 @@ export default function PurchasesPayablesPage() {
             <label className="text-xs block">Fecha<Input type="date" value={form.issueDate} onChange={(e) => setForm({ ...form, issueDate: e.target.value })} /></label>
             {errorAlta ? <p className="text-xs text-destructive">{errorAlta}</p> : null}
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setAbrirAlta(false)}>Cancelar</Button><Button onClick={() => crear.mutate()} disabled={crear.isPending || !form.supplierName || form.supplierDocNumber.length !== 11 || !form.description || !(Number(form.amount) > 0) || (moneda === 'USD' && !(Number(tipoCambio) > 0))}>{crear.isPending ? 'Guardando…' : 'Crear CxP'}</Button></DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => setAbrirAlta(false)}>Cancelar</Button><Button onClick={() => crear.mutate()} disabled={crear.isPending || !form.supplierName || form.supplierDocNumber.length !== 11 || !form.description || !(Number(form.amount) > 0) || !rucProveedorValido || (moneda === 'USD' && !(Number(tipoCambio) > 0))}>{crear.isPending ? 'Guardando…' : 'Crear CxP'}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
       {nuevoProveedor ? <PartnerFormDialog initialRole="PROVEEDOR" requiredRole="PROVEEDOR" initialDocument={form.supplierDocNumber} initialName={form.supplierName} onClose={() => setNuevoProveedor(false)} onSaved={(p) => { setForm({ ...form, supplierDocNumber: p.doc_number, supplierName: p.legal_name }); setNuevoProveedor(false); void queryClient.invalidateQueries({ queryKey: ['payables-suppliers'] }); }} /> : null}

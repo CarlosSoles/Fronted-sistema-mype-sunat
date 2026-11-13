@@ -237,7 +237,15 @@ export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PR
                 ))}
               </div>
             </div>
-            {partner && <label>Estado<select aria-label="Estado" value={form.isActive ? '1' : '0'} onChange={(e) => setForm({ ...form, isActive: e.target.value === '1' })}><option value="1">Activo</option><option value="0">Inactivo</option></select></label>}
+            {partner && (
+              <div className="space-y-1 sm:col-span-2">
+                <p className="font-medium">Estado</p>
+                <select aria-label="Estado" className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm" value={form.isActive ? '1' : '0'} onChange={(e) => setForm({ ...form, isActive: e.target.value === '1' })}>
+                  <option value="1">Activo</option>
+                  <option value="0">Inactivo</option>
+                </select>
+              </div>
+            )}
           </div>
 
       <div className="space-y-2 rounded-md border p-3 text-xs">
