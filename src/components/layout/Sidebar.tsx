@@ -1,4 +1,4 @@
-import { Fragment, useState, useEffect } from 'react';
+import { Fragment, useState, useEffect, useRef } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useUiStore } from '@/stores/uiStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -197,6 +197,7 @@ export const Sidebar = () => {
   const navigate = useNavigate();
   const currentRole = user?.role;
 
+  const asideRef = useRef<HTMLElement>(null);
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({
     '/customs': true,
     '/inventory': true,
@@ -217,6 +218,15 @@ export const Sidebar = () => {
         setExpandedItems((prev) => ({ ...prev, [item.path]: true }));
       }
     });
+  }, [location.pathname]);
+
+  // Mantiene visible el módulo activo aunque el menú tenga muchos ítems.
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      const activo = asideRef.current?.querySelector<HTMLElement>('[aria-current="page"]');
+      activo?.scrollIntoView?.({ block: 'nearest' });
+    });
+    return () => cancelAnimationFrame(frame);
   }, [location.pathname]);
 
   const toggleExpand = (item: NavItem) => {
@@ -255,6 +265,7 @@ export const Sidebar = () => {
 
   return (
     <aside
+      ref={asideRef}
       className={cn(
         'border-r bg-card transition-all duration-300 flex flex-col shrink-0',
         isSidebarCollapsed

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
@@ -10,6 +10,7 @@ import { useUiStore } from '@/stores/uiStore';
 export const AppLayout = () => {
   const location = useLocation();
   const setSidebarCollapsed = useUiStore((state) => state.setSidebarCollapsed);
+  const contenidoRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const closeMobileSidebar = () => {
@@ -21,6 +22,12 @@ export const AppLayout = () => {
     return () => window.removeEventListener('resize', closeMobileSidebar);
   }, [location.pathname, setSidebarCollapsed]);
 
+  // Cada módulo/submódulo debe abrirse desde arriba, no conservar el scroll anterior.
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    contenidoRef.current?.scrollTo({ top: 0, left: 0 });
+  }, [location.pathname]);
+
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground antialiased selection:bg-primary/20">
       {/* Sello de Resiliencia: Banner de alerta cuando SUNAT está caída */}
@@ -31,7 +38,7 @@ export const AppLayout = () => {
         <Sidebar />
 
         {/* Contenido principal */}
-        <div className="flex-1 flex flex-col overflow-y-auto">
+        <div ref={contenidoRef} className="flex-1 flex flex-col overflow-y-auto">
           <Navbar />
           <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
             <ErrorBoundaryGlobal key={location.pathname}>
