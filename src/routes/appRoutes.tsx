@@ -587,10 +587,26 @@ export const AppRoutes = () => {
               }
             />
             <Route
+              path="/sales/cobranzas"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <CollectionsPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
               path="/collections"
               element={
                 <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
                   <CollectionsPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/purchases/expenses"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <ExpensesPage />
                 </RoleProtectedRoute>
               }
             />

@@ -72,6 +72,7 @@ const NAV_ITEMS: NavItem[] = [
       { title: 'Punto de venta', path: '/sales/pos', icon: ShoppingCart, allowedRoles: ['ADMIN', 'OPERADOR_FACTURACION'] },
       { title: 'Historial de ventas', path: '/sales/historial', icon: History },
       { title: 'Reporte de ventas y margen', path: '/sales/reportes', icon: LayoutDashboard, allowedRoles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'] },
+      { title: 'Cuentas por cobrar y cobros', path: '/sales/cobranzas', icon: WalletCards, allowedRoles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'] },
     ],
   },
   {
@@ -144,6 +145,7 @@ const NAV_ITEMS: NavItem[] = [
       { title: 'Registro de compras', path: '/purchases', icon: Receipt },
       { title: 'Cuentas por pagar', path: '/purchases/payables', icon: WalletCards },
       { title: 'Proveedores', path: '/invoices/clientes', icon: Building2 },
+      { title: 'Gastos', path: '/purchases/expenses', icon: Receipt, allowedRoles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'] },
     ],
   },
   {
@@ -176,20 +178,6 @@ const NAV_ITEMS: NavItem[] = [
       { title: 'Resumen de Cierre', path: '/sire/cierre', icon: ClipboardCheck },
       { title: 'Historial', path: '/sire/historial', icon: History },
     ],
-  },
-  {
-    title: 'Cuentas por cobrar',
-    path: '/collections',
-    icon: WalletCards,
-    developer: 'Oliver Saldaña',
-    allowedRoles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
-  },
-  {
-    title: 'Gastos',
-    path: '/expenses',
-    icon: Receipt,
-    developer: 'Oliver Saldaña',
-    allowedRoles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
   },
   {
     title: 'Contabilidad PCGE',
