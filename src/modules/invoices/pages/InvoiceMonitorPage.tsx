@@ -1,3 +1,4 @@
+import { InvoiceWriteButton } from '../components/InvoiceWriteButton';
 import { InvoiceAggregateMonitor } from '../components/InvoiceAggregateMonitor';
 /**
  * Monitor Outbox y Auditoría CDR — TA-28 / TA-29 / TA-69.
@@ -61,6 +62,8 @@ export const estadoDeMonitor = (inv: Invoice): string => {
   return evento?.mensaje?.includes('EN_DLQ') ? 'DLQ' : inv.estadoBackend ?? inv.cdrStatus;
 };
 
+export const contieneDlq = (inv: Invoice): boolean => (inv.historial ?? []).some(e => /\bEN_DLQ\b/.test(e.mensaje ?? ''));
+
 /** Etiqueta y gravedad visual de cada alerta. */
 const VARIANTE_POR_GRAVEDAD = {
   OK: 'outline',
@@ -74,7 +77,7 @@ export default function InvoiceMonitorPage() {
   const [enVuelo, setEnVuelo] = useState<readonly Invoice[]>([]);
   const [avisoPuente, setAvisoPuente] = useState<string | null>(null);
   const [filtroEstado, setFiltroEstado] = useState('TODOS');
-  const visibles = enVuelo.filter((inv) => filtroEstado === 'TODOS' || (filtroEstado === 'INCERTIDUMBRE_TRANSPORTE' ? ['ERROR_RED', 'INCERTIDUMBRE_TRANSPORTE'].includes(estadoDeMonitor(inv)) : estadoDeMonitor(inv) === filtroEstado));
+  const visibles = enVuelo.filter((inv) => filtroEstado === 'TODOS' || (filtroEstado === 'DLQ' ? contieneDlq(inv) : filtroEstado === 'INCERTIDUMBRE_TRANSPORTE' ? ['ERROR_RED', 'INCERTIDUMBRE_TRANSPORTE'].includes(estadoDeMonitor(inv)) : estadoDeMonitor(inv) === filtroEstado));
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reintentando, setReintentando] = useState<string | null>(null);
@@ -310,10 +313,10 @@ export default function InvoiceMonitorPage() {
                   </TableCell>
                   <TableCell align="center">
                     {/* El servidor concilia antes de autorizar cualquier reenvío. */}
-                    {estadoDeMonitor(inv) === 'PUENTE_PENDIENTE' && <Button disabled={reintentando === inv.id} onClick={() => void reprocesar(inv.id)}>Reprocesar puente</Button>}
+                    {estadoDeMonitor(inv) === 'PUENTE_PENDIENTE' && <InvoiceWriteButton disabled={reintentando === inv.id} onClick={() => void reprocesar(inv.id)}>Reprocesar puente</InvoiceWriteButton>}
                     {['TRANSPORTE_INCIERTO', 'PREPARACION_LOCAL', 'BRIDGE_PENDING'].includes(inv.resultadoPresentacion?.origen ?? '') && <p className="text-xs text-muted-foreground">{inv.resultadoPresentacion?.motivo}</p>}
                     {['ERROR_RED', 'DLQ', 'INCERTIDUMBRE_TRANSPORTE', 'PREPARACION_LOCAL'].includes(estadoDeMonitor(inv)) && !['ACEPTADO', 'OBSERVADO', 'ANULADO'].includes(inv.estadoBackend ?? '') && (
-                      <Button
+                      <InvoiceWriteButton
                         variant="outline"
                         size="sm"
                         disabled={reintentando === inv.id}
@@ -321,7 +324,7 @@ export default function InvoiceMonitorPage() {
                       >
                         <RotateCw aria-hidden="true" className="mr-1 h-3 w-3" />
                         {reintentando === inv.id ? '…' : 'Reintentar'}
-                      </Button>
+                      </InvoiceWriteButton>
                     )}
                   </TableCell>
                 </TableRow>
