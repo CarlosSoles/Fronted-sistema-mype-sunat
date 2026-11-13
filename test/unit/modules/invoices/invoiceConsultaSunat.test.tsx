@@ -10,13 +10,13 @@ vi.mock('@/modules/invoices/lib/invoiceDescarga', () => ({ obtenerXmlDesdeBacken
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
 const recuperado = { tipo: 'RECUPERADO', estado: 'ACEPTADO', codigo: '0', mensaje: 'Factura aceptada por SUNAT' };
 it('detalle consulta solo por acción explícita y muestra estado, código y mensaje sin cerrar', async () => {
-  vi.mocked(apiClient.get).mockRejectedValue(new Error('detalle opcional no disponible'));
+  vi.mocked(apiClient.get).mockResolvedValue({data:{id:'doc',estado:'ERROR_RED',cdr:null,historial:[]}});
   vi.mocked(apiClient.post).mockResolvedValue({ data: recuperado });
   const onCerrar = vi.fn();
   const comprobante = construir({ tipo: '01', serie: 'F001', correlativo: 60, ruc: '20100070970', razonSocial: 'Cliente', fecha: '2026-11-09', base: 100, estado: 'SIN_CONFIRMAR' });
   render(<InvoiceCdrModal comprobante={comprobante} onCerrar={onCerrar} />);
   expect(apiClient.post).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('button', { name: 'Consultar SUNAT' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Consultar SUNAT' }));
   expect(await screen.findByText('Mensaje: Factura aceptada por SUNAT')).toBeTruthy();
   expect(screen.getByText('Estado: ACEPTADO')).toBeTruthy(); expect(screen.getByText('Código: 0')).toBeTruthy();
   expect(apiClient.post).toHaveBeenCalledExactlyOnceWith(`/invoices/${comprobante.id}/consultar-sunat`);

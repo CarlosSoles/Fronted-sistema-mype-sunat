@@ -19,7 +19,7 @@ const queries: QueryClient[] = [];
 beforeEach(() => { vi.mocked(invoicesApi.getInvoices).mockResolvedValue({ data: filas, total: 3, page: 1, pageSize: 100, totalPages: 1 }); });
 afterEach(() => { cleanup(); sessionStorage.clear(); queries.splice(0).forEach((q) => q.clear()); vi.resetAllMocks(); });
 it('F3 Error de red selecciona solo filas ERROR_RED tras el mapper real', () => {
-  const opcion = FILTROS_ESTADO.find((f) => f.label === 'Incertidumbre de transporte')!;
+  const opcion = FILTROS_ESTADO.find((f) => f.label === 'Error de red')!;
   expect(opcion).toBeTruthy();
   expect(aplicarFiltros(filas.map(aComprobanteDemo), { busqueda: '', estado: opcion.value, desde: '', hasta: '' }).map((c) => c.id)).toEqual(['2']);
 });
@@ -55,4 +55,15 @@ it('Parte 9 descarga el PDF oficial desde la fila', async () => {
  render(<QueryClientProvider client={q}><MemoryRouter><InvoiceList /></MemoryRouter></QueryClientProvider>);
  const buttons=await screen.findAllByRole('button',{name:/Descargar PDF de/});fireEvent.click(buttons[0]);
  await waitFor(()=>expect(descargarDesdeBackend).toHaveBeenCalledWith('1','pdf'));
+});
+it('Bandeja deriva F001-52 exonerada y agrega ICBPER por el recorrido real de lista y detalle',async()=>{
+ const raw=(id:string,total:number,estado:string)=>aInvoice({id,tipo_comprobante:'01',serie:'F001',correlativo:Number(id),numero:`F001-${id.padStart(8,'0')}`,fecha_emision:'2026-11-12',estado,monto_total:total,moneda:'PEN',base_imponible:0,total_igv:0,cliente_documento:'20100070970',cliente_nombre:`Cliente ${id}`,cdr_codigo:null});
+ const rows=[raw('52',950,'ERROR_RED'),raw('73',118.5,'ACEPTADO'),raw('90',950,'ACEPTADO')];
+ vi.mocked(invoicesApi.getInvoices).mockResolvedValue({data:rows,total:3,page:1,pageSize:100,totalPages:1});
+ vi.mocked(invoicesApi.getInvoiceById).mockImplementation(async id=>({...rows.find(r=>r.id===id)!,lineasOrigen:[{codigo:'P',descripcion:'Flete',unidad:'NIU',cantidad:1,valor_unitario:id==='73'?100:950,precio_unitario:id==='73'?118:1121,afectacion:id==='73'?'10':'20',icbper:id==='73'?.5:0}]}));
+ const q=new QueryClient({defaultOptions:{queries:{retry:false,gcTime:0}}});queries.push(q);
+ const {container}=render(<QueryClientProvider client={q}><MemoryRouter><InvoiceList/></MemoryRouter></QueryClientProvider>);
+ const row=(await screen.findByText('Cliente 52')).closest('tr')!;
+ expect(within(row).getAllByText('S/ 950.00')).toHaveLength(2);expect(within(row).getByText('S/ 0.00')).toBeTruthy();expect(within(row).queryByText('S/ 171.00')).toBeNull();
+ const kpi=container.querySelector('[data-kpi="total"]')!;expect(kpi.textContent).toMatch(/1,068.50/);expect(kpi.textContent).toMatch(/1,050.00.*18.00.*ICBPER S\/ 0.50/);
 });

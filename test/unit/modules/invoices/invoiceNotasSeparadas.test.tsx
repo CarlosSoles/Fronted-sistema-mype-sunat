@@ -13,7 +13,7 @@ vi.mock('@/modules/invoices/services/invoicesApi', () => ({
 const fila = (id: string, tipo: string, serie: string, total: number, estado = 'ACEPTADO', fecha = '2026-11-01') => aInvoice({
   id, tipo_comprobante: tipo, serie, correlativo: 1, numero: `${serie}-00000001`,
   fecha_emision: fecha, estado, monto_total: total, moneda: 'PEN',
-  cliente_documento: '20100070970', cliente_nombre: id, cdr_codigo: null,
+  cliente_documento: '20100070970', cliente_nombre: id, cdr_codigo: null, resultado_presentacion:estado==='RECHAZADO'?{origen:'SUNAT',codigo:'2000',motivo:'Rechazo SUNAT'}:undefined,
 });
 // Series deliberadamente invertidas: únicamente tipo_comprobante clasifica.
 const credito = fila('cliente credito', '07', 'FD01', 118);
@@ -46,8 +46,8 @@ describe('notas separadas en la bandeja real', () => {
     expect(debitos.getByText('Total de notas de débito: S/ 59.00')).toBeTruthy();
     expect(creditos.getByRole('table')).toBeTruthy();
     expect(debitos.getByRole('table')).toBeTruthy();
-    expect(screen.queryByRole('tab', { name: /^Notas/ })).toBeNull();
-    expect(screen.getAllByRole('tab')).toHaveLength(3);
+    expect(screen.getByRole('tab', { name: /^Notas/ })).toBeTruthy();
+    expect(screen.getAllByRole('tab')).toHaveLength(4);
   });
 
   it('conserva la sección de débito vacía con conteo e importe cero', () => {
@@ -90,7 +90,7 @@ describe('notas separadas en la bandeja real', () => {
   it('filtra por estado sin mezclar crédito rechazado con débito aceptado', () => {
     montar();
     fireEvent.keyDown(screen.getByLabelText('Filtrar por estado CDR'), { key: 'ArrowDown' });
-    fireEvent.click(screen.getByRole('option', { name: 'Rechazado' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Rechazado (SUNAT)' }));
     expect(seccion('Notas de crédito').getByText('credito rechazado')).toBeTruthy();
     expect(seccion('Notas de crédito').getByText('1 documento')).toBeTruthy();
     expect(seccion('Notas de crédito').queryByText('cliente credito')).toBeNull();

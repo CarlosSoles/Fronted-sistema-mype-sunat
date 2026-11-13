@@ -12,12 +12,12 @@ const nota = { ...construir({ ...semilla, tipo: '07', serie: 'FC01', correlativo
 const error = { ...construir({ ...semilla, tipo: '01', correlativo: 52, estado: 'SIN_CONFIRMAR' }), totalNeto: 950 };
 
 describe('residuos de bandeja', () => {
-  it('cuenta por separado errores y rechazos en el KPI combinado', () => {
+  it('cuenta por separado incertidumbre y rechazos en el KPI combinado', () => {
     const rechazado = { ...error, estado: 'RECHAZADO' as const };
     const { container } = render(<InvoiceKpiCards resumen={calcularResumenFiscal([error, rechazado])} />);
     const card = container.querySelector('[data-kpi="rechazados"]')!;
     expect(within(card as HTMLElement).getByText('2')).toBeDefined();
-    expect(within(card as HTMLElement).getByText(/Rechazos SUNAT: 0.*Origen no confirmado: 1.*Errores de red: 1/)).toBeDefined();
+    expect(within(card as HTMLElement).getByText(/Rechazos SUNAT: 0.*Incertidumbre: 1.*Origen no confirmado: 1.*Errores de red: 0/)).toBeDefined();
   });
   it('muestra el bruto, acreditado y neto de facturas y notas aceptadas', () => {
     render(<InvoiceCombinedSummary resumen={calcularResumenFiscal([factura, nota, error])} />);

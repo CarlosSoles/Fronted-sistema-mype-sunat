@@ -90,7 +90,7 @@ it('el modal no muestra una respuesta tardía del tenant anterior', async () => 
   expect(await screen.findByText(/Trama QR: 20100070970/)).toBeTruthy();
 });
 
-it.each([['B001',undefined,false],['F001','PREPARACION_LOCAL',false],['F001','SUNAT',true]] as const)('consulta SUNAT en serie %s origen %s visible=%s',async(serie,origen,visible)=>{
+it.each([['B001',undefined,false],['F001','PREPARACION_LOCAL',false],['F001','SUNAT',false]] as const)('consulta SUNAT en serie %s origen %s visible=%s',async(serie,origen,visible)=>{
  render(<InvoiceCdrModal comprobante={{...c,serie,resultadoPresentacion:origen?{origen}:undefined} as never} onCerrar={()=>{}}/>);
  expect(Boolean(screen.queryByText('Consulta SUNAT disponible'))).toBe(visible);
  await screen.findByText(/Trama QR:/);

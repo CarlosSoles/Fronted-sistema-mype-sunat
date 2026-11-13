@@ -16,11 +16,11 @@ it.each(['3128: PaymentMeansID Contado', 'XSD: DebitNoteTypeCode no esperado'])(
   const inv = aInvoice(fila(resultado)); const c = aComprobanteDemo(inv);
   expect(c.estadoBackend).toBe('RECHAZADO'); expect(c.estado).toBe('RECHAZADO');
   render(<InvoiceStatusBadge estado={c.estado} resultado={c.resultadoPresentacion} />);
-  expect(screen.getByLabelText('Bloqueado por validación local')).toBeTruthy(); cleanup();
+  expect(screen.getByLabelText('Bloqueado en preparación local')).toBeTruthy(); cleanup();
   vi.mocked(invoicesApi.getInvoiceById).mockResolvedValue({ ...inv, tieneCdr: false, historial: [] });
   // El detalle debe hidratar su causa aun si se abrió desde una lista antigua sin metadatos.
   render(<InvoiceCdrModal comprobante={aComprobanteDemo(aInvoice(fila()))} onCerrar={vi.fn()} />);
-  await screen.findByLabelText('Bloqueado por validación local');
+  await screen.findByLabelText('Bloqueado en preparación local');
   expect(screen.getAllByText(motivo).length).toBeGreaterThan(0);
   expect(screen.queryByText('Rechazado sin CDR')).toBeNull();
   expect(screen.queryByText(/SUNAT todavía no respondió/)).toBeNull();
