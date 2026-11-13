@@ -1,3 +1,4 @@
+import { agregarFilaModal } from '../lib/invoiceEmptyRow';
 import { InvoiceWriteButton } from './InvoiceWriteButton';
 import { useInvoiceWritePermission } from '../hooks/useInvoiceWritePermission';
 import { problemasContenidoEmision } from '../lib/invoiceEmissionValidation';
@@ -347,7 +348,7 @@ export const InvoiceEmitModal = ({
   const nuevoItem = () =>
     setB((previo) => ({
       ...previo,
-      items: agregarItem(previo.items, itemVacio(nuevaClave())),
+      items: agregarFilaModal(previo.items, () => itemVacio(nuevaClave())),
     }));
 
   /**

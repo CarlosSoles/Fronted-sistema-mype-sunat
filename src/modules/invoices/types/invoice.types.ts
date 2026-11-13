@@ -49,6 +49,8 @@ export interface ComprobanteOrigenNota {
 }
 
 export interface Invoice {
+  /** null indica que la cola no pudo consultarse; nunca se infiere del historial. */
+  enDlq?: boolean | null;
   importesBandeja?: ImportesBandeja;
   transporteAcreditado?: boolean;
   montoDetraccion?: number | null;

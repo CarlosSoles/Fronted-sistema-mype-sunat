@@ -1,3 +1,5 @@
+import { cargarPaginasMonitor } from '../lib/invoiceMonitorData';
+import { InvoiceRvieSection } from '../components/InvoiceRvieSection';
 import { InvoiceWriteButton } from '../components/InvoiceWriteButton';
 import { InvoiceAggregateMonitor } from '../components/InvoiceAggregateMonitor';
 /**
@@ -53,16 +55,15 @@ import type { AlertasOperativas } from '../lib/invoiceAlertas';
 /** Estados que el monitor vigila: todo lo que todavía no terminó. */
 const ESTADOS_EN_VUELO = ['EN_COLA', 'ENVIADO', 'PENDIENTE', 'ERROR_RED'];
 
-/** El último resultado explícito de cola evita perpetuar una DLQ ya rescatada. */
+/** El origen fiscal permanece visible; la membresía operativa proviene de la cola vigente. */
 export const estadoDeMonitor = (inv: Invoice): string => {
   if (inv.resultadoPresentacion?.origen === 'BRIDGE_PENDING') return 'PUENTE_PENDIENTE';
   if (inv.resultadoPresentacion?.origen === 'TRANSPORTE_INCIERTO') return 'INCERTIDUMBRE_TRANSPORTE';
   if (inv.resultadoPresentacion?.origen === 'PREPARACION_LOCAL') return 'PREPARACION_LOCAL';
-  const evento = [...(inv.historial ?? [])].reverse().find((e) => /\b(EN_DLQ|ENCOLADO|YA_EN_COLA)\b/.test(e.mensaje ?? ''));
-  return evento?.mensaje?.includes('EN_DLQ') ? 'DLQ' : inv.estadoBackend ?? inv.cdrStatus;
+  return contieneDlq(inv) ? 'DLQ' : inv.estadoBackend ?? inv.cdrStatus;
 };
 
-export const contieneDlq = (inv: Invoice): boolean => (inv.historial ?? []).some(e => /\bEN_DLQ\b/.test(e.mensaje ?? ''));
+export const contieneDlq = (inv: Invoice): boolean => inv.enDlq === true;
 
 /** Etiqueta y gravedad visual de cada alerta. */
 const VARIANTE_POR_GRAVEDAD = {
@@ -96,14 +97,7 @@ export default function InvoiceMonitorPage() {
       const [a, paginas] = await Promise.all([
         invoicesApi.getAlertas(),
         Promise.all(
-          [...ESTADOS_EN_VUELO, 'PUENTE_PENDIENTE'].map((estado) =>
-            (async () => {
-              const filtros = estado === 'PUENTE_PENDIENTE' ? { puente_pendiente: 'true', page_size: 100 } : { estado, page_size: 100 };
-              const primera = await invoicesApi.getInvoices(1, filtros);
-              const restantes = await Promise.all(Array.from({ length: Math.max(0, primera.totalPages - 1) }, (_, i) => invoicesApi.getInvoices(i + 2, filtros)));
-              return { ...primera, data: [...primera.data, ...restantes.flatMap((p) => p.data)] };
-            })(),
-          ),
+          [...ESTADOS_EN_VUELO.map(estado => ({ estado, page_size: 100 })), { puente_pendiente: 'true', page_size: 100 }, { en_dlq: 'true', page_size: 100 }].map(cargarPaginasMonitor),
         ),
       ]);
 
@@ -113,13 +107,9 @@ export default function InvoiceMonitorPage() {
       // entre una y otra: se deduplica por id.
       const vistos = new Map<string, Invoice>();
       for (const pagina of paginas) {
-        for (const inv of pagina?.data ?? []) vistos.set(inv.id, inv);
+        for (const inv of pagina) vistos.set(inv.id, inv);
       }
-      const detalles = await Promise.all([...vistos.values()].map(async (inv) => {
-        try { return { ...inv, ...await invoicesApi.getInvoiceById(inv.id) }; }
-        catch { return inv; }
-      }));
-      setEnVuelo(detalles);
+      setEnVuelo([...vistos.values()]);
     } catch (e: unknown) {
       setError(
         extractApiErrorMessage(e, 'No se pudo leer el estado de la cola.'),
@@ -245,11 +235,11 @@ export default function InvoiceMonitorPage() {
           </CardHeader>
           <CardContent>
             <PageText className="text-xl font-semibold">
-              {alertas?.dlq.pendientes ?? 0}
+              {enVuelo.filter(contieneDlq).length}
             </PageText>
+            {alertas && alertas.dlq.pendientes !== enVuelo.filter(contieneDlq).length && <PageText variant="caption">{alertas.dlq.pendientes} trabajos en DLQ · {enVuelo.filter(contieneDlq).length} documentos únicos</PageText>}
             <PageText variant="caption">
-              {alertas?.dlq.mensaje ??
-                'Consultando comprobantes que agotaron los reintentos…'}
+              {alertas && alertas.dlq.pendientes !== enVuelo.filter(contieneDlq).length ? 'Varios trabajos pueden corresponder al mismo comprobante.' : alertas.dlq.mensaje}
             </PageText>
           </CardContent>
         </Card>
@@ -333,6 +323,7 @@ export default function InvoiceMonitorPage() {
           </TableBody>
         </Table>
       </Card>}
+      <InvoiceRvieSection />
     </Page>
   );
 }
