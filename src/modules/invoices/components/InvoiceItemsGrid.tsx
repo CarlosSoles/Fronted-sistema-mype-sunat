@@ -1,3 +1,4 @@
+import { erroresCamposLinea } from '../lib/invoiceLineFields';
 import { cantidadBolsasDe, errorBolsas, bolsasBloqueadasEnBoleta, BOLETA_GRATUITA_BOLSAS } from '../lib/invoiceBags';
 import { NOMBRES_AFECTACION } from '../lib/invoiceTributosXml';
 import { normalizarAfectacionProducto } from '../lib/invoiceItems';
@@ -39,6 +40,7 @@ const CLASE_CELDA =
   'h-8 w-full rounded border bg-background px-2 text-xs text-foreground';
 
 interface InvoiceItemsGridProps {
+  mostrarErrores?: boolean;
   tipo?: string;
   cantidadesMaximas?: readonly number[];
   items: readonly ItemBorrador[];
@@ -66,6 +68,7 @@ interface InvoiceItemsGridProps {
 export const InvoiceItemsGrid = ({
   items,
   tipo = '01',
+  mostrarErrores = false,
   onCambiar,
   onEliminar,
   onAgregar,
@@ -76,6 +79,12 @@ export const InvoiceItemsGrid = ({
   cantidadesMaximas,
   esNota = false, catalogoEstado = 'listo',
 }: InvoiceItemsGridProps) => {
+  const [editados, setEditados] = useState<ReadonlySet<string>>(new Set());
+  const [revisarTodos, setRevisarTodos] = useState(false);
+  const marcarCampo = (clave: string, target: EventTarget) => {
+    const campo = (target as HTMLElement).dataset.lineField;
+    if (campo) setEditados(previo => new Set(previo).add(`${clave}:${campo}`));
+  };
   const bolsasBloqueadas = bolsasBloqueadasEnBoleta(tipo, items);
   const [productoBolsas, setProductoBolsas] = useState('');
   const destinoBolsas = items.findIndex(item => item.clave === productoBolsas && item.codigo.trim());
@@ -149,12 +158,15 @@ export const InvoiceItemsGrid = ({
           </thead>
           <tbody>
             {items.map((item, i) => {
+              const errores = erroresCamposLinea(item, esNota);
+              const visible = (campo: keyof typeof errores) => Boolean(errores[campo]) && (mostrarErrores || revisarTodos || editados.has(`${item.clave}:${campo}`));
               const totales = calcularItem(item);
               const revisionLinea = revision.lineas[i];
               const conError = revisionLinea?.gravedad === 'error';
               return (
                 <Fragment key={item.clave}>
                 <tr
+                  onChangeCapture={e => marcarCampo(item.clave, e.target)} onBlurCapture={e => marcarCampo(item.clave, e.target)}
                   className={`border-t align-top ${
                     conError ? 'bg-destructive/5' : ''
                   }`}
@@ -164,6 +176,8 @@ export const InvoiceItemsGrid = ({
                       aria-label={`Código de la línea ${i + 1}`}
                       className={CLASE_CELDA}
                       onFocus={() => duplicado.recordarCodigo(i)} onBlur={() => duplicado.confirmarCodigo(i)}
+                      readOnly={item.codigoHeredado === true}
+                      title={item.codigoHeredado ? 'Para cambiar el SKU, quite la línea o elija otro producto del catálogo.' : undefined}
                       value={item.codigo}
                       onChange={(e) => onCambiar(i, { codigo: e.target.value })}
                       placeholder="COD-001"
@@ -171,7 +185,7 @@ export const InvoiceItemsGrid = ({
                   </td>
                   <td className="px-1 py-1">
                     <input
-                      aria-label={`Descripción de la línea ${i + 1}`}
+                      aria-label={`Descripción de la línea ${i + 1}`} aria-invalid={visible('descripcion')} data-line-field="descripcion" data-line-invalid={Boolean(errores.descripcion)} aria-describedby={visible('descripcion') ? `${item.clave}-descripcion-error` : undefined}
                       className={CLASE_CELDA}
                       maxLength={500}
                       value={item.descripcion}
@@ -180,6 +194,7 @@ export const InvoiceItemsGrid = ({
                       }
                       placeholder="Cemento Portland tipo I"
                     />
+                    {visible('descripcion') && <p id={`${item.clave}-descripcion-error`} role="alert" className="text-xs text-destructive">{errores.descripcion}</p>}
                     {/* El aviso va bajo la línea que lo provoca, no como una
                         lista al pie: en diez filas nadie sabe qué corregir. */}
                     {revisionLinea && revisionLinea.gravedad !== 'ok' && (
@@ -212,7 +227,7 @@ export const InvoiceItemsGrid = ({
                   </td>
                   <td className="px-1 py-1">
                     <input
-                      aria-label={`Cantidad de la línea ${i + 1}`}
+                      aria-label={`Cantidad de la línea ${i + 1}`} data-line-field="cantidad" data-line-invalid={Boolean(errores.cantidad)} aria-describedby={visible('cantidad') ? `${item.clave}-cantidad-error` : undefined}
                       max={cantidadesMaximas?.[i]}
                       aria-invalid={!cantidadValida(item.cantidad) || (cantidadesMaximas !== undefined && item.cantidad > cantidadesMaximas[i])}
                       type="number"
@@ -224,13 +239,14 @@ export const InvoiceItemsGrid = ({
                         onCambiar(i, { cantidad: Number(e.target.value) })
                       }
                     />
-                    {!cantidadValida(item.cantidad) && <p role="alert" className="text-xs text-destructive">La cantidad debe ser positiva y tener como máximo 3 decimales.</p>}
+                    {visible('cantidad') && <p id={`${item.clave}-cantidad-error`} role="alert" className="text-xs text-destructive">{errores.cantidad}</p>}
                     {cantidadesMaximas !== undefined && item.cantidad > cantidadesMaximas[i] && <p role="alert" className="text-xs text-destructive">Supera las unidades disponibles del origen (máximo {cantidadesMaximas[i]}).</p>}
                   </td>
                   <td className="px-1 py-1">
-                    <InvoiceMoneyInput aria-label={`Valor unitario de la línea ${i + 1}`} title={item.afectacion === 'GRATUITA' ? 'Valor referencial' : 'Valor unitario sin IGV'}
+                    <InvoiceMoneyInput aria-label={`Valor unitario de la línea ${i + 1}`} aria-invalid={visible('valorUnitario')} data-line-field="valorUnitario" data-line-invalid={Boolean(errores.valorUnitario)} aria-describedby={visible('valorUnitario') ? `${item.clave}-valorUnitario-error` : undefined} title={item.afectacion === 'GRATUITA' ? 'Valor referencial' : 'Valor unitario sin IGV'}
                       className={`${CLASE_CELDA} text-right`} value={item.valorUnitario}
                       onValue={valorUnitario => onCambiar(i, { valorUnitario })} />
+                    {visible('valorUnitario') && <p id={`${item.clave}-valorUnitario-error`} role="alert" className="text-xs text-destructive">{errores.valorUnitario}</p>}
                     <span className="block text-right text-[10px] text-muted-foreground">
                       {item.afectacion === 'GRATUITA' ? 'Valor referencial · precio cobrado S/ 0.00' : 'Valor unitario sin IGV'}
                     </span>
@@ -311,7 +327,7 @@ export const InvoiceItemsGrid = ({
                     </Button>
                   </td>
                 </tr>
-                {item.valorUnitario === 0 && !esNota && item.afectacion !== 'GRATUITA' && (
+                {item.valorUnitario === 0 && !esNota && item.afectacion !== 'GRATUITA' && !visible('valorUnitario') && (
                   <tr className={conError ? 'bg-destructive/5' : ''}>
                     <td colSpan={11} className="px-2 pb-2">
                       <p className="text-xs text-amber-700">El valor unitario de una línea onerosa debe ser mayor que cero.</p>
@@ -326,7 +342,7 @@ export const InvoiceItemsGrid = ({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" variant="outline" size="sm" onClick={onAgregar}>
+        <Button type="button" variant="outline" size="sm" onClick={() => { setRevisarTodos(true); onAgregar(); }}>
           + Añadir ítem
         </Button>
         <label className="text-xs">Producto para bolsas<select aria-label="Producto para bolsas" value={items[indiceBolsas]?.clave ?? ''} onChange={e => setProductoBolsas(e.target.value)}>
