@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
+import { CommandPalette } from './CommandPalette';
 import { SunatStatusBanner } from '@/components/feedback/SunatStatusBanner';
 import { ErrorBoundaryGlobal } from '@/components/feedback/ErrorBoundaryGlobal';
 import { OfflineIndicator } from '@/components/feedback/OfflineIndicator';
@@ -53,6 +54,8 @@ export const AppLayout = () => {
           </main>
         </div>
       </div>
+
+      <CommandPalette />
 
       {/* Indicador flotante cuando no hay conexión a internet */}
       <OfflineIndicator />

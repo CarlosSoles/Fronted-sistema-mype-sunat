@@ -144,7 +144,7 @@ export default function SalesPosPage() {
           </div>
           <div className="relative mb-3">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input className="pl-8" placeholder="Buscar producto por SKU o descripción" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
+            <Input autoFocus className="pl-8" placeholder="Buscar producto por SKU o descripción (Enter agrega el primero)" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && filtrados[0]) { e.preventDefault(); agregar(filtrados[0]); } }} />
           </div>
           <div className="max-h-[420px] overflow-y-auto">
             <Table>

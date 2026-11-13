@@ -35,7 +35,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 
-interface SubNavItem {
+export interface SubNavItem {
   title: string;
   path: string;
   icon: React.ComponentType<{ className?: string }>;
@@ -51,7 +51,7 @@ interface SubNavItem {
   group?: string;
 }
 
-interface NavItem {
+export interface NavItem {
   title: string;
   path: string;
   icon: React.ComponentType<{ className?: string }>;
@@ -61,7 +61,7 @@ interface NavItem {
   subItems?: SubNavItem[];
 }
 
-const NAV_ITEMS: NavItem[] = [
+export const NAV_ITEMS: NavItem[] = [
   {
     title: 'Ventas',
     path: '/sales',
@@ -208,6 +208,7 @@ export const Sidebar = () => {
   const currentRole = user?.role;
 
   const asideRef = useRef<HTMLElement>(null);
+  const [menuQuery, setMenuQuery] = useState('');
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({
     '/customs': true,
     '/inventory': true,
@@ -272,6 +273,14 @@ export const Sidebar = () => {
     if (!currentRole || currentRole === 'ADMIN') return true;
     return item.allowedRoles.includes(currentRole);
   });
+  const terminoMenu = menuQuery.trim().toLowerCase();
+  const filteredNavItems = visibleNavItems.flatMap((item) => {
+    if (!terminoMenu) return [item];
+    const coincidePadre = `${item.title} ${item.path}`.toLowerCase().includes(terminoMenu);
+    const subItems = item.subItems?.filter((sub) => `${sub.title} ${sub.path}`.toLowerCase().includes(terminoMenu));
+    if (coincidePadre || subItems?.length) return [{ ...item, subItems: coincidePadre ? item.subItems : subItems }];
+    return [];
+  });
 
   return (
     <aside
@@ -296,14 +305,15 @@ export const Sidebar = () => {
       </div>
 
       <nav className="flex-1 p-2 space-y-1.5 overflow-y-auto">
-        {visibleNavItems.map((item) => {
+        {!isSidebarCollapsed ? <div className="relative px-1 pb-1"><Search className="absolute left-3 top-2 h-3.5 w-3.5 text-muted-foreground" /><input aria-label="Buscar en el menú" placeholder="Buscar módulo…" value={menuQuery} onChange={(e) => setMenuQuery(e.target.value)} className="h-8 w-full rounded-md border bg-background pl-8 pr-2 text-xs outline-none focus:ring-1 focus:ring-ring" /></div> : null}
+        {filteredNavItems.map((item) => {
           const isModuleActive =
             location.pathname === item.path ||
             location.pathname.startsWith(`${item.path}/`) ||
             Boolean(item.subItems?.some((sub) =>
               location.pathname === sub.path || location.pathname.startsWith(`${sub.path}/`),
             ));
-          const isExpanded = Boolean(expandedItems[item.path]);
+          const isExpanded = Boolean(terminoMenu) || Boolean(expandedItems[item.path]);
 
           return (
             <div key={item.path} className="space-y-1">
