@@ -12,6 +12,7 @@ export function CommandPalette() {
   const [busqueda, setBusqueda] = useState('');
   const [indice, setIndice] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listaRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { user } = useAuth();
   const role = user?.role;
@@ -51,6 +52,10 @@ export function CommandPalette() {
   }, []);
 
   useEffect(() => {
+    listaRef.current?.querySelector<HTMLElement>('[data-active="true"]')?.scrollIntoView?.({ block: 'nearest' });
+  }, [indice, filtrados]);
+
+  useEffect(() => {
     if (abierto) {
       setBusqueda(''); setIndice(0);
       requestAnimationFrame(() => inputRef.current?.focus());
@@ -83,13 +88,14 @@ export function CommandPalette() {
           />
           <kbd className="rounded border px-1.5 py-0.5 text-[10px] text-muted-foreground">Esc</kbd>
         </div>
-        <div className="max-h-80 overflow-y-auto p-1">
+        <div ref={listaRef} className="max-h-80 overflow-y-auto p-1">
           {filtrados.map((c, i) => (
             <button
               key={`${c.section}-${c.path}`}
               type="button"
               onMouseEnter={() => setIndice(i)}
               onClick={() => ejecutar(c)}
+              data-active={i === indice}
               className={`flex w-full items-center justify-between rounded-md px-2 py-2 text-left text-xs ${i === indice ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/60'}`}
             >
               <span><span className="block font-medium">{c.title}</span><span className="text-[10px] opacity-70">{c.section}</span></span>
