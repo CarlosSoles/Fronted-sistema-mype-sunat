@@ -31,7 +31,7 @@ const COLUMNAS = [
   'Cliente',
   'Fecha Emisión',
   'Moneda',
-  'Base Imponible',
+  'Base sin IGV',
   'IGV (18%)',
   'Detracción / Retención',
   'Total Neto',
@@ -42,7 +42,7 @@ const COLUMNAS = [
 /** Alineación por columna (por defecto a la izquierda). */
 const ALINEACION: Record<string, 'right' | 'center'> = {
   Moneda: 'center',
-  'Base Imponible': 'right',
+  'Base sin IGV': 'right',
   'IGV (18%)': 'right',
   'Detracción / Retención': 'right',
   'Total Neto': 'right',

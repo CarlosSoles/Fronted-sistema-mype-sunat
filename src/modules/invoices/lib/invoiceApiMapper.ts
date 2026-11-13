@@ -171,6 +171,8 @@ export function aComprobanteDemo(item: InvoiceListado | Invoice): ComprobanteDem
   const correlativoNum = Number(fila.correlativo) || 0;
 
   return {
+    importesBandeja: esInvoiceNormalizado(item) ? item.importesBandeja : undefined,
+    tieneCdr: esInvoiceNormalizado(item) ? item.tieneCdr : undefined,
     transporteAcreditado: fila.transporteAcreditado === true,
     resultadoPresentacion: fila.resultadoPresentacion,
     id: fila.id,
@@ -183,12 +185,12 @@ export function aComprobanteDemo(item: InvoiceListado | Invoice): ComprobanteDem
     clienteRazonSocial: fila.clienteNombre || 'Sin nombre registrado',
     fechaEmision: fila.fechaEmision,
     moneda: fila.moneda === 'USD' ? 'USD' : 'PEN',
-    baseImponible: fila.base,
-    igv: fila.igv,
+    baseImponible: esInvoiceNormalizado(item) && item.importesBandeja?.verificado ? item.importesBandeja.base : fila.base,
+    igv: esInvoiceNormalizado(item) && item.importesBandeja?.verificado ? item.importesBandeja.igv : fila.igv,
     // Cero solo representa ausencia de importe visible en la grilla; el DTO conserva null.
     detraccion: fila.montoDetraccion ?? 0,
     retencion: fila.montoRetencion ?? 0,
-    totalNeto: fila.total,
+    totalNeto: esInvoiceNormalizado(item) && item.importesBandeja?.verificado ? item.importesBandeja.total : fila.total,
     estado: ESTADOS[fila.estado] ?? 'EN_COLA',
     estadoBackend: fila.estado,
     cdrCodigo: fila.cdrCodigo,

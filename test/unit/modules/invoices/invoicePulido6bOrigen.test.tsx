@@ -11,11 +11,11 @@ afterEach(cleanup);
 function fila(origen: 'SUNAT' | 'VALIDACION_LOCAL' | 'NO_DETERMINADO') {
  return aComprobanteDemo(aInvoice({ id:origen,tipo_comprobante:'03',serie:'B001',correlativo:5,numero:'B001-00000005',fecha_emision:'2026-11-10',estado:'RECHAZADO',monto_total:17.7,moneda:'PEN',cliente_documento:'12345678',cliente_nombre:'Cliente',cdr_codigo:null, resultado_presentacion:{ origen,codigo:'3128',motivo:'Motivo persistido' } }));
 }
-it('contador separa tres orígenes sin alterar estados ni total de rechazados', () => {
+it('contador separa tres orígenes sin alterar los estados fiscales y excluye bloqueos del total de rechazados', () => {
  const rows = [fila('SUNAT'), fila('VALIDACION_LOCAL'), fila('NO_DETERMINADO')]; const resumen=calcularResumenFiscal(rows);
- expect(resumen).toMatchObject({ rechazados:3,rechazosSunat:1,bloqueadosLocalmente:1,rechazosSinOrigen:1 });
+ expect(resumen).toMatchObject({ rechazados:2,rechazosSunat:1,bloqueadosLocalmente:1,rechazosSinOrigen:1 });
  render(<InvoiceKpiCards resumen={resumen} />);
- expect(screen.getByText(/Rechazos SUNAT: 1 · Bloqueados localmente: 1 · Origen no confirmado: 1/)).toBeTruthy();
+ expect(screen.getByText(/Rechazos SUNAT: 1 · Bloqueados localmente: 1 · Incertidumbre: 0 · Origen no confirmado: 1/)).toBeTruthy();
  expect(rows.every(c=>c.estado==='RECHAZADO')).toBe(true);
 });
 it.each(['VALIDACION_LOCAL','NO_DETERMINADO'] as const)('bloque crudo no atribuye respuesta a SUNAT para %s', async origen => {

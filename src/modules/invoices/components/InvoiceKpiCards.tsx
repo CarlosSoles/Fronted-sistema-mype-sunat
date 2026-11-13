@@ -51,8 +51,8 @@ export const InvoiceKpiCards = ({
             {formatCurrency(resumen.totalFacturado, 'PEN')}
           </PageText>
           <PageText variant="caption">
-            Base sin notas {formatCurrency(resumen.baseTotal, 'PEN')} · IGV sin notas{' '}
-            {formatCurrency(resumen.igvTotal, 'PEN')}
+            {resumen.desgloseIncompleto ? 'Desglose no verificable: revise los detalles de los comprobantes.' : <>Base sin notas {formatCurrency(resumen.baseTotal, 'PEN')} · IGV sin notas{' '}
+            {formatCurrency(resumen.igvTotal, 'PEN')}</>}{(resumen.icbper ?? 0)>0 && ` · ICBPER ${formatCurrency(resumen.icbper!, 'PEN')}`}
           </PageText>
           {mostrarNotas && resumen.acreditado !== 0 && <PageText variant="caption">
             Acreditado {formatCurrency(resumen.acreditado, 'PEN')} · Neto de esta vista (sin notas) {formatCurrency(resumen.netoTotalCobrar, 'PEN')}
@@ -106,12 +106,12 @@ export const InvoiceKpiCards = ({
         </CardHeader>
         <CardContent className="space-y-1">
           <PageText
-            variant={resumen.rechazados + resumen.erroresRed > 0 ? 'metric-destructive' : 'metric'}
+            variant={resumen.rechazados + resumen.erroresRed + (resumen.bloqueadosLocalmente ?? 0) + (resumen.incertidumbre ?? 0) > 0 ? 'metric-destructive' : 'metric'}
           >
-            {resumen.rechazados + resumen.erroresRed}
+            {resumen.rechazados + resumen.erroresRed + (resumen.bloqueadosLocalmente ?? 0) + (resumen.incertidumbre ?? 0)}
           </PageText>
           <PageText variant="caption">
-            Rechazos SUNAT: {resumen.rechazosSunat ?? 0} · Bloqueados localmente: {resumen.bloqueadosLocalmente ?? 0} · Origen no confirmado: {resumen.rechazosSinOrigen ?? resumen.rechazados} · Errores de red: {resumen.erroresRed}
+            Rechazos SUNAT: {resumen.rechazosSunat ?? 0} · Bloqueados localmente: {resumen.bloqueadosLocalmente ?? 0} · Incertidumbre: {resumen.incertidumbre ?? 0} · Origen no confirmado: {resumen.rechazosSinOrigen ?? resumen.rechazados} · Errores de red: {resumen.erroresRed}
           </PageText>
         </CardContent>
       </Card>

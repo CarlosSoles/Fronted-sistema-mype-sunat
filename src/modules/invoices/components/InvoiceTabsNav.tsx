@@ -49,7 +49,7 @@ export const INVOICE_TABS: ReadonlyArray<{
   },
   {
     id: 'notas',
-    label: 'Notas',
+    label: 'Notas de Crédito y Débito',
     tipos: ['07', '08'],
   },
   {
@@ -88,8 +88,7 @@ interface InvoiceTabsNavProps {
 export const InvoiceTabsNav = ({ conteo }: InvoiceTabsNavProps) => {
   return (
     <TabsList aria-label="Apartados del módulo de facturación">
-      {/* Notas conserva su ruta y contenido desde el menú lateral. */}
-      {INVOICE_TABS.filter((tab) => tab.id !== 'notas').map((tab) => (
+      {INVOICE_TABS.map((tab) => (
         <TabsTrigger key={tab.id} value={tab.id}>
           {tab.label}
           <Badge variant="secondary" className="ml-1.5 text-[10px]">
