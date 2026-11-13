@@ -1,3 +1,4 @@
+import { erroresCamposLinea } from '../lib/invoiceLineFields';
 import { agregarFilaModal } from '../lib/invoiceEmptyRow';
 import { InvoiceWriteButton } from './InvoiceWriteButton';
 import { useInvoiceWritePermission } from '../hooks/useInvoiceWritePermission';
@@ -221,6 +222,8 @@ export const InvoiceEmitModal = ({
   onEmitir,
   onCerrar,
 }: InvoiceEmitModalProps) => {
+  const formularioRef = useRef<HTMLDivElement>(null);
+  const [mostrarErrores, setMostrarErrores] = useState(false);
   const [errorCatalogo, setErrorCatalogo] = useState(false);
   const [catalogoAlmacen, setCatalogoAlmacen] = useState<{ almacen: string; productos: readonly ProductoBuscado[] } | null>(null);
   const puedeOperar = useInvoiceWritePermission();
@@ -314,6 +317,7 @@ export const InvoiceEmitModal = ({
     }
   }
   const puedeEmitir = pendientes.length === 0;
+  const hayErroresCampos = b.items.some(item => Object.values(erroresCamposLinea(item, esTipoNota(b.tipo))).some(Boolean));
 
   const actualizar = (parcial: Partial<BorradorEmision>) =>
     setB((previo) => {
@@ -345,11 +349,16 @@ export const InvoiceEmitModal = ({
       items: eliminarItem(previo.items, indice),
     }));
 
-  const nuevoItem = () =>
+  const nuevoItem = () => {
+    setMostrarErrores(true);
     setB((previo) => ({
       ...previo,
       items: agregarFilaModal(previo.items, () => itemVacio(nuevaClave())),
     }));
+    const buscador = formularioRef.current?.querySelector<HTMLInputElement>('[data-invoice-product-search]');
+    buscador?.focus();
+    buscador?.scrollIntoView?.({ block: 'center' });
+  };
 
   /**
    * Agrega una línea con los datos del producto elegido en el buscador (TA-61).
@@ -402,6 +411,9 @@ export const InvoiceEmitModal = ({
    */
   const confirmar = async () => {
     if (!puedeOperar) return;
+    setMostrarErrores(true);
+    const primerCampo = formularioRef.current?.querySelector<HTMLInputElement>('[data-line-invalid="true"]');
+    if (primerCampo) { primerCampo.focus(); primerCampo.scrollIntoView?.({ block: 'center' }); return; }
     if (!puedeEmitir || enviando) return;
 
     const problema = problemaDeCronograma(b);
@@ -448,7 +460,7 @@ export const InvoiceEmitModal = ({
   const teclado = useInvoiceKeyboard(nuevoItem, () => { void confirmar(); }, enviando || !puedeOperar);
   return (
     <Dialog open onOpenChange={(abierto) => !abierto && onCerrar()}>
-      <DialogContent showCloseButton={false} onKeyDown={teclado.handler} onEscapeKeyDown={e => e.preventDefault()} className="max-h-[88vh] overflow-y-auto sm:max-w-4xl">
+      <DialogContent ref={formularioRef} showCloseButton={false} onKeyDown={teclado.handler} onEscapeKeyDown={e => e.preventDefault()} className="max-h-[88vh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader className="pr-8">
           <DialogTitle>Emitir Comprobante Electrónico</DialogTitle>
           {teclado.ayuda}
@@ -462,7 +474,7 @@ export const InvoiceEmitModal = ({
         <InvoiceWarehouseSelect value={b.almacen ?? 'ALM-01'} onChange={codigo => {
           setB(prev => ({ ...prev, almacen: codigo }));
         }} />
-        <InvoiceEmitCampos
+        <InvoiceEmitCampos mostrarErrores={mostrarErrores}
           borrador={b}
           configuracionCargando={configuracionCargando}
           configuracionError={configuracionError}
@@ -555,7 +567,7 @@ export const InvoiceEmitModal = ({
           <Button variant="outline" size="sm" onClick={onCerrar} disabled={enviando}>
             Cancelar
           </Button>
-          <InvoiceWriteButton size="sm" onClick={confirmar} disabled={!puedeEmitir || enviando}>
+          <InvoiceWriteButton size="sm" onClick={confirmar} disabled={enviando || (!puedeEmitir && !hayErroresCampos)}>
             {enviando ? 'Emitiendo…' : `Emitir ${nombreDocumento}`}
           </InvoiceWriteButton>
         </DialogFooter>

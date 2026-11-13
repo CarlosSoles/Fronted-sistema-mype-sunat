@@ -60,6 +60,8 @@ export const unidadValida = (codigo: string): boolean =>
 
 /** Línea editable de la grilla de detalle. */
 export interface ItemBorrador {
+  /** Identidad del producto seleccionado del catálogo; no editable en la línea. */
+  codigoHeredado?: boolean;
   /** Clave estable para React; no viaja al XML. */
   clave: string;
   codigo: string;
@@ -325,6 +327,7 @@ export const itemDesdeProducto = (
   return {
     clave,
     codigo: producto.sku,
+    codigoHeredado: true,
     descripcion: producto.descripcion,
     unidad,
     cantidad: 1,

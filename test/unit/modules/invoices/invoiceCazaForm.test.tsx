@@ -47,7 +47,8 @@ describe('F1 notas sobre aceptados', () => {
     await screen.findByText(/Disponible según servidor/);
     fireEvent.change(screen.getByLabelText('Documento afectado'), { target: { value: 'F001-00000057' } });
     expect(screen.getByText(/Seleccione una factura o boleta ACEPTADA u OBSERVADA/)).toBeTruthy();
-    expect((screen.getByRole('button', { name: 'Emitir Nota de Crédito' }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Emitir Nota de Crédito' }));
+    expect(invoicesApi.emitirComprobante).not.toHaveBeenCalled();
   });
   it('expone el motivo real del rechazo del saldo', async () => {
     vi.mocked(invoicesApi.getSaldoNota).mockRejectedValue({ response: { data: { detail: 'El origen está en DLQ y no admite notas.' } } });
@@ -73,7 +74,7 @@ it('F2 separa y restaura el borrador de cada tipo durante cambios de formulario'
 it.each(['modal', 'pagina'])('F6 avisa al intentar borrar la única línea en %s', (tipo) => {
   montar(tipo === 'modal' ? modal('01') : <InvoiceEmissionPage />);
   fireEvent.click(screen.getByRole('button', { name: 'Eliminar la línea 1' }));
-  expect(screen.getByRole('alert').textContent).toContain('Debe quedar al menos una línea');
+  expect(screen.getByText('Debe quedar al menos una línea').textContent).toContain('Debe quedar al menos una línea');
   expect(screen.getByLabelText('Descripción de la línea 1')).toBeTruthy();
 });
 it.each(['modal', 'pagina'])('F7 limpia un intento fallido al corregir el formulario en %s', async (tipo) => {

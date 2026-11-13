@@ -37,6 +37,7 @@ import { InvoiceDescuentoGlobal } from './InvoiceDescuentoGlobal';
 import type { SaldoNota } from '../services/invoicesApi';
 
 interface InvoiceEmitCamposProps {
+  mostrarErrores?: boolean;
   borrador: BorradorEmision;
   series?: readonly string[];
   correlativoActual?: number;
@@ -68,7 +69,7 @@ const OPCIONES_TIPO = [
 
 /** Campos de identificación del comprobante, del cliente y del detalle. */
 export const InvoiceEmitCampos = ({
-  borrador: b,
+  borrador: b, mostrarErrores,
   series = [],
   correlativoActual,
   configuracionCargando = false,
@@ -284,7 +285,7 @@ export const InvoiceEmitCampos = ({
       />
 
 
-      <InvoiceItemsGrid tipo={b.tipo} esNota={esNota} catalogoEstado={catalogoEstado}
+      <InvoiceItemsGrid mostrarErrores={mostrarErrores} tipo={b.tipo} esNota={esNota} catalogoEstado={catalogoEstado}
         cantidadesMaximas={b.tipo === '07' ? limitesNota(b.items, saldoNota?.cantidades_pendientes, b.motivoCodigo, saldoNota?.motivos_totales).maximos : undefined}
         items={b.items}
         onCambiar={onItemCambiado}
