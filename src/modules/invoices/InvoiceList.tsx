@@ -45,7 +45,6 @@ import {
   type InvoiceFiltros,
 } from './components/InvoiceFiltersBar';
 import { InvoiceTable } from './components/InvoiceTable';
-import { InvoiceOutboxMonitor } from './components/InvoiceOutboxMonitor';
 import { InvoiceCdrModal } from './components/InvoiceCdrModal';
 import { InvoiceEmitModal } from './components/InvoiceEmitModal';
 import type { TipoEmision } from './components/InvoiceEmitMenu';
@@ -56,7 +55,6 @@ import { invoicesApi } from './services/invoicesApi';
 import { cargarProductosAlmacen } from './services/inventoryProductsApi';
 import { aplicarFiltros, porApartado } from './lib/invoiceFilters';
 import { descargarDesdeBackend } from './lib/invoiceDescarga';
-import { exportarReporteSireCsv } from './lib/invoiceExportSire';
 import { useInvoiceFiltros } from './lib/useInvoiceFiltros';
 
 const FILTROS_INICIALES: InvoiceFiltros = {
@@ -283,13 +281,7 @@ export const InvoiceList = () => {
           }}
         />
 
-        <TabsContent value="monitor">
-          <InvoiceOutboxMonitor
-            comprobantes={visibles}
-            resumen={resumen}
-            onExportarSire={exportarReporteSireCsv}
-          />
-        </TabsContent>
+
 
         <TabsContent value="comprobantes">{grilla()}</TabsContent>
 
