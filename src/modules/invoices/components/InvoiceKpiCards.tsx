@@ -21,12 +21,14 @@ interface InvoiceKpiCardsProps {
   resumen: ResumenFiscal;
   /** `true` cuando las tarjetas reflejan un filtro y no el periodo completo. */
   filtrado?: boolean;
+  mostrarNotas?: boolean;
 }
 
 /** Tarjetas de métricas fiscales del periodo. */
 export const InvoiceKpiCards = ({
   resumen,
   filtrado = false,
+  mostrarNotas = true,
 }: InvoiceKpiCardsProps) => {
   const despacho =
     resumen.despachoPromedioMs > 0
@@ -52,9 +54,9 @@ export const InvoiceKpiCards = ({
             Base sin notas {formatCurrency(resumen.baseTotal, 'PEN')} · IGV sin notas{' '}
             {formatCurrency(resumen.igvTotal, 'PEN')}
           </PageText>
-          <PageText variant="caption">
+          {mostrarNotas && resumen.acreditado !== 0 && <PageText variant="caption">
             Acreditado {formatCurrency(resumen.acreditado, 'PEN')} · Neto de esta vista (sin notas) {formatCurrency(resumen.netoTotalCobrar, 'PEN')}
-          </PageText>
+          </PageText>}
         </CardContent>
       </Card>
 

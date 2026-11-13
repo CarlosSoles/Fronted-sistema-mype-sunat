@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui';
-import { useAuthStore } from '@/stores/authStore';
+import { useRolePermissions } from '@/hooks/useRolePermissions';
 import { apiClient } from '@/lib/axios';
 import { extractApiErrorMessage } from '@/lib/apiErrors';
 export function InvoiceForcedResend({ id, incierto }: { id: string; incierto: boolean }) {
- const admin = useAuthStore(s => s.user?.role === 'ADMIN');
+ const { isAdmin: admin } = useRolePermissions();
  const [decisionId, setDecisionId] = useState(() => crypto.randomUUID());
  const [renovar, setRenovar] = useState<string>();
  const [anterior, setAnterior] = useState<string>();

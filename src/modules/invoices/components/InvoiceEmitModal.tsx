@@ -1,3 +1,5 @@
+import { InvoiceWriteButton } from './InvoiceWriteButton';
+import { useInvoiceWritePermission } from '../hooks/useInvoiceWritePermission';
 import { problemasContenidoEmision } from '../lib/invoiceEmissionValidation';
 import { cantidadBolsasDe } from '../lib/invoiceBags';
 import { limitesNota, precargarCantidadesNota } from '../lib/invoiceNoteQuantities';
@@ -220,6 +222,7 @@ export const InvoiceEmitModal = ({
 }: InvoiceEmitModalProps) => {
   const [errorCatalogo, setErrorCatalogo] = useState(false);
   const [catalogoAlmacen, setCatalogoAlmacen] = useState<{ almacen: string; productos: readonly ProductoBuscado[] } | null>(null);
+  const puedeOperar = useInvoiceWritePermission();
   const [b, setB] = useState<BorradorEmision>(() => {
     const tipoEfectivo: TipoEmisible =
       tipoInicial === '07' || tipoInicial === '08'
@@ -319,6 +322,7 @@ export const InvoiceEmitModal = ({
         return { ...restaurado, correlativo: 0 };
       }
       const siguiente = { ...previo, ...parcial };
+      if (esTipoNota(siguiente.tipo) && !(siguiente.tipo === '07' && siguiente.motivoCodigo === '13')) { siguiente.formaPago = 'Contado'; siguiente.cuotas = []; }
       if (parcial.codigoDetraccion !== undefined && parcial.codigoDetraccion !== previo.codigoDetraccion) {
         siguiente.items = previo.items.map((item) => ({ ...item, codigoDetraccion: parcial.codigoDetraccion || undefined }));
       }
@@ -358,7 +362,7 @@ export const InvoiceEmitModal = ({
   const itemDeProducto = (producto: ProductoBuscado) => {
     try {
       const item = itemDesdeProducto(producto, nuevaClave());
-      setB(previo => ({ ...previo, items: agregarItem(previo.items, item) }));
+      setB(previo => ({ ...previo, items: previo.items.length === 1 && !previo.items[0].codigo.trim() && !previo.items[0].descripcion.trim() ? [item] : agregarItem(previo.items, item) }));
     } catch (error) { setErrorEmision(error instanceof Error ? error.message : 'Producto incompatible'); }
   };
 
@@ -396,6 +400,7 @@ export const InvoiceEmitModal = ({
    * usa la página) y se envía de verdad.
    */
   const confirmar = async () => {
+    if (!puedeOperar) return;
     if (!puedeEmitir || enviando) return;
 
     const problema = problemaDeCronograma(b);
@@ -439,7 +444,7 @@ export const InvoiceEmitModal = ({
     }
   };
 
-  const teclado = useInvoiceKeyboard(nuevoItem, () => { void confirmar(); }, enviando);
+  const teclado = useInvoiceKeyboard(nuevoItem, () => { void confirmar(); }, enviando || !puedeOperar);
   return (
     <Dialog open onOpenChange={(abierto) => !abierto && onCerrar()}>
       <DialogContent showCloseButton={false} onKeyDown={teclado.handler} onEscapeKeyDown={e => e.preventDefault()} className="max-h-[88vh] overflow-y-auto sm:max-w-4xl">
@@ -479,7 +484,7 @@ export const InvoiceEmitModal = ({
           <PageText variant="label">Forma de pago</PageText>
           {(['Contado', 'Credito'] as const).map((forma) => {
             const creditoHabilitado =
-              esTipoNota(b.tipo) || b.clienteTieneCredito === true;
+              (b.tipo === '07' && b.motivoCodigo === '13') || (b.tipo === '01' && b.clienteTieneCredito === true);
             return (
               <Button
                 key={forma}
@@ -549,9 +554,9 @@ export const InvoiceEmitModal = ({
           <Button variant="outline" size="sm" onClick={onCerrar} disabled={enviando}>
             Cancelar
           </Button>
-          <Button size="sm" onClick={confirmar} disabled={!puedeEmitir || enviando}>
+          <InvoiceWriteButton size="sm" onClick={confirmar} disabled={!puedeEmitir || enviando}>
             {enviando ? 'Emitiendo…' : `Emitir ${nombreDocumento}`}
-          </Button>
+          </InvoiceWriteButton>
         </DialogFooter>
         <DialogClose asChild><Button type="button" variant="ghost" size="icon-sm" className="absolute top-2 right-2" aria-label="Cerrar"><XIcon aria-hidden="true" /><span className="sr-only">Cerrar</span></Button></DialogClose>
       </DialogContent>

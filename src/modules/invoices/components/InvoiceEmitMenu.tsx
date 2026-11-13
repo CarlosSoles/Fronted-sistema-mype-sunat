@@ -1,9 +1,9 @@
+import { InvoiceWriteButton } from './InvoiceWriteButton';
 /**
  * Menú desplegable para elegir el tipo de comprobante a emitir.
  *
  * Se separa de `InvoiceFiltersBar` para respetar el límite de líneas.
  */
-import { Button } from '@/components/ui';
 import { FilePlus } from 'lucide-react';
 
 /** Tipos de comprobante que se pueden emitir desde la barra. */
@@ -24,7 +24,7 @@ export const InvoiceEmitMenu = ({
 }: InvoiceEmitMenuProps) => {
   return (
     <div className="relative">
-      <Button
+      <InvoiceWriteButton
         size="sm"
         onClick={onToggle}
         aria-expanded={abierto}
@@ -32,7 +32,7 @@ export const InvoiceEmitMenu = ({
       >
         <FilePlus aria-hidden="true" />
         Emitir Comprobante
-      </Button>
+      </InvoiceWriteButton>
 
       {abierto && (
         <div
@@ -41,7 +41,7 @@ export const InvoiceEmitMenu = ({
           className="absolute right-0 z-50 mt-1 w-44 rounded-lg border bg-popover p-1 shadow-md"
         >
           {OPCIONES.map((tipo) => (
-            <Button
+            <InvoiceWriteButton
               key={tipo}
               variant="ghost"
               size="sm"
@@ -50,7 +50,7 @@ export const InvoiceEmitMenu = ({
               onClick={() => onEmitir(tipo)}
             >
               {tipo}
-            </Button>
+            </InvoiceWriteButton>
           ))}
         </div>
       )}

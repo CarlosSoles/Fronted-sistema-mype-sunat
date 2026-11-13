@@ -92,17 +92,6 @@ export const InvoiceEmitCampos = ({
   const elegibles = existentes.filter(admiteNota);
   const afectado = buscarAfectado(elegibles, b.documentoAfectado);
 
-  /**
-   * ¿Una nota vinculada hereda la fecha del documento que modifica?
-   *
-   * Sí para la nota al CRÉDITO con motivo 13 (ajustes de operaciones
-   * intragrupo / diferencia de cambio), que por la RS 193-2020/SUNAT debe llevar
-   * la misma fecha que el comprobante original. En ese caso el campo no impone
-   * los topes de «no futuro» ni del plazo del resumen: la fecha no la elige el
-   * usuario, la hereda de un documento que ya existe.
-   */
-  const afectaFechaHeredada = esNota && Boolean(afectado) && b.motivoCodigo === '13';
-
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       <CampoSelect
@@ -190,10 +179,7 @@ export const InvoiceEmitCampos = ({
               value={b.motivoCodigo}
               onChange={(v) => {
                 const elegido = motivos.find((m) => m.codigo === v);
-                actualizar({
-                  motivoCodigo: v,
-                  motivoDescripcion: elegido?.descripcion ?? '',
-                });
+                actualizar(vincularDocumentoAfectado({ ...b, motivoCodigo: v, motivoDescripcion: elegido?.descripcion ?? '' }, existentes).borrador);
               }}
               opciones={motivos.map((m) => ({
                 value: m.codigo,
@@ -212,23 +198,18 @@ export const InvoiceEmitCampos = ({
         registra el lunes lleva la fecha del viernes. Antes era un `useState`
         congelado que el usuario no podía tocar.
 
-        El tope superior es hoy (no se emite a futuro) y el inferior, el plazo
-        del resumen diario (regla 2957). Si la nota está vinculada a un
-        documento afectado, la fecha la manda él: el motivo 13 (RS 193-2020)
-        exige la fecha del comprobante original, así que el campo se muestra
-        pero se explica por qué no es libre.
+        El tope superior es hoy y el inferior corresponde al plazo de emisión.
+        Las notas conservan su propia fecha, incluido el motivo 13.
       */}
       <CampoFecha
         id="fecha-emision"
         label="Fecha de emisión"
         value={b.fecha}
         onChange={(v) => actualizar(cambiarFechaEmision(b, v))}
-        min={afectaFechaHeredada ? undefined : minimoDeFechaEmision()}
-        max={afectaFechaHeredada ? undefined : topeDeFechaEmision()}
+        min={minimoDeFechaEmision()}
+        max={topeDeFechaEmision()}
         ayuda={
-          afectaFechaHeredada
-            ? 'Es la fecha del comprobante afectado: la nota al crédito la hereda (motivo 13).'
-            : b.formaPago === 'Credito' && b.cuotas.length > 0
+          b.formaPago === 'Credito' && b.cuotas.length > 0
               ? 'Al cambiarla, los vencimientos conservan su plazo respecto de la nueva fecha.'
               : undefined
         }
@@ -303,7 +284,7 @@ export const InvoiceEmitCampos = ({
       />
 
 
-      <InvoiceItemsGrid esNota={esNota} catalogoEstado={catalogoEstado}
+      <InvoiceItemsGrid tipo={b.tipo} esNota={esNota} catalogoEstado={catalogoEstado}
         cantidadesMaximas={b.tipo === '07' ? limitesNota(b.items, saldoNota?.cantidades_pendientes, b.motivoCodigo, saldoNota?.motivos_totales).maximos : undefined}
         items={b.items}
         onCambiar={onItemCambiado}
