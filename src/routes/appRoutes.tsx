@@ -151,7 +151,7 @@ export const AppRoutes = () => {
               path="/invoices/emision"
               element={
                 <RoleProtectedRoute
-                  allowedRoles={['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT']}
+                  allowedRoles={['ADMIN', 'OPERADOR_FACTURACION', 'OPERATOR']}
                 >
                   <InvoiceEmissionPage />
                 </RoleProtectedRoute>
