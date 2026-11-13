@@ -8,6 +8,7 @@ import { invoicesApi } from '@/modules/invoices/services/invoicesApi';
 import { cargarProductosAlmacen } from '@/modules/invoices/services/inventoryProductsApi';
 import type { ProductoBuscado } from '@/modules/invoices/lib/invoiceSearch';
 import { collectionsApi } from '@/modules/collections/services/collectionsApi';
+import { documentoTerceroValido } from '@/modules/customs/libPartnerValidation';
 
 interface Serie { document_type: string; series: string; is_active: boolean }
 interface Linea { producto: ProductoBuscado; cantidad: number }
@@ -27,6 +28,7 @@ export default function SalesPosPage() {
   const [tipoDoc, setTipoDoc] = useState('6');
   const [medioPago, setMedioPago] = useState('EFECTIVO');
   const [error, setError] = useState('');
+  const errorDocumento = tipoDoc === '0' ? '' : documento.trim() === '' ? 'Indique el documento del cliente.' : documentoTerceroValido(tipoDoc, documento.trim()) ? '' : tipoDoc === '6' ? 'RUC inválido: 11 dígitos y módulo 11.' : 'DNI inválido: 8 dígitos.';
   const [venta, setVenta] = useState<{ numero: string; total: number } | null>(null);
 
   useEffect(() => {
@@ -64,6 +66,7 @@ export default function SalesPosPage() {
     mutationFn: async () => {
       if (!serie) throw new Error('No hay una serie activa para el tipo de comprobante.');
       if (!cliente.trim()) throw new Error('Indique el cliente.');
+      if (errorDocumento) throw new Error(errorDocumento);
       if (!carrito.length) throw new Error('Agregue al menos un producto.');
       const resultado = await invoicesApi.emitirComprobante({
         tipo_comprobante: tipo,
@@ -149,9 +152,10 @@ export default function SalesPosPage() {
             <select aria-label="Tipo de documento" className="h-9 rounded-md border bg-background px-2 text-xs" value={tipoDoc} onChange={(e) => setTipoDoc(e.target.value)}>
               <option value="6">RUC</option><option value="1">DNI</option><option value="0">Sin doc.</option>
             </select>
-            <Input aria-label="Documento del cliente" placeholder="Número de documento" value={documento} onChange={(e) => setDocumento(e.target.value)} />
+            <Input aria-label="Documento del cliente" inputMode="numeric" maxLength={tipoDoc === '6' ? 11 : tipoDoc === '1' ? 8 : 20} placeholder={tipoDoc === '6' ? 'RUC de 11 dígitos' : tipoDoc === '1' ? 'DNI de 8 dígitos' : 'Sin documento'} value={documento} onChange={(e) => { const v = tipoDoc === '0' ? e.target.value : e.target.value.replace(/\D/g, '').slice(0, tipoDoc === '6' ? 11 : 8); setDocumento(v); }} onBlur={() => { if (!errorDocumento && documento.trim()) void invoicesApi.buscarClientes(documento.trim()).then((lista) => { const match = lista.find((c) => c.numeroDocumento === documento.trim()); if (match?.razonSocial) setCliente(match.razonSocial); }).catch(() => undefined); }} />
           </div>
-          <Input aria-label="Nombre del cliente" className="mb-3" placeholder="Razón social / nombre" value={cliente} onChange={(e) => setCliente(e.target.value)} />
+          <Input aria-label="Nombre del cliente" className="mb-1" placeholder="Razón social / nombre" value={cliente} onChange={(e) => setCliente(e.target.value)} />
+          {errorDocumento ? <p className="mb-3 text-[11px] text-destructive">{errorDocumento}</p> : <div className="mb-3" />}
           <div className="mb-3 space-y-2">
             {carrito.map((l) => (
               <div key={l.producto.sku} className="flex items-center gap-2 rounded border p-2 text-xs">
@@ -165,7 +169,7 @@ export default function SalesPosPage() {
           </div>
           <label className="mb-3 block text-xs">Medio de pago<select aria-label="Medio de pago" className="mt-1 h-9 w-full rounded-md border bg-background px-3 text-xs" value={medioPago} onChange={(e) => setMedioPago(e.target.value)}><option value="EFECTIVO">Efectivo</option><option value="TRANSFERENCIA">Transferencia</option><option value="TARJETA">Tarjeta</option><option value="YAPE">Yape / Plin</option></select></label>
           <div className="mb-3 flex items-center justify-between border-t pt-3 text-sm"><span>Total</span><strong className="font-mono text-lg">{money(total)}</strong></div>
-          <Button fullWidth disabled={cobrar.isPending || !carrito.length || !cliente.trim() || !serie} onClick={() => cobrar.mutate()}><CreditCard className="mr-2 h-4 w-4" />{cobrar.isPending ? 'Registrando…' : 'Cobrar y emitir'}</Button>
+          <Button fullWidth disabled={cobrar.isPending || !carrito.length || !cliente.trim() || !serie || Boolean(errorDocumento)} onClick={() => cobrar.mutate()}><CreditCard className="mr-2 h-4 w-4" />{cobrar.isPending ? 'Registrando…' : 'Cobrar y emitir'}</Button>
         </Card>
       </div>
     </Page>
