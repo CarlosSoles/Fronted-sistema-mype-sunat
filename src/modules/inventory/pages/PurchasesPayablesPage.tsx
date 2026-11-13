@@ -6,6 +6,7 @@ import { masterDataApi } from '@/modules/customs/services/masterDataApi';
 import { PartnerFormDialog } from '@/modules/customs/components/PartnerFormDialog';
 import { extractApiErrorMessage } from '@/lib/apiErrors';
 import { documentoTerceroValido } from '@/modules/customs/libPartnerValidation';
+import { formatDateTimeToPeru } from '@/lib/formatters';
 
 const money = (n: number) => `S/ ${n.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -47,11 +48,11 @@ export default function PurchasesPayablesPage() {
       </div>
       <Card flush>
         <Table>
-          <TableHeader><TableRow><TableHead>Proveedor</TableHead><TableHead>RUC</TableHead><TableHead align="right">Documentos</TableHead><TableHead align="right">Total</TableHead><TableHead align="right">Pagado</TableHead><TableHead align="right">Saldo</TableHead><TableHead>0–30</TableHead><TableHead>31–60</TableHead><TableHead>61–90</TableHead><TableHead>+90</TableHead><TableHead>Estado</TableHead><TableHead align="right">Acción</TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>Proveedor</TableHead><TableHead>RUC</TableHead><TableHead align="right">Documentos</TableHead><TableHead align="right">Total</TableHead><TableHead align="right">Pagado</TableHead><TableHead align="right">Saldo</TableHead><TableHead>0–30</TableHead><TableHead>31–60</TableHead><TableHead>61–90</TableHead><TableHead>+90</TableHead><TableHead>Última actividad</TableHead><TableHead>Estado</TableHead><TableHead align="right">Acción</TableHead></TableRow></TableHeader>
           <TableBody>
-            {isLoading ? <TableRow><TableCell colSpan={13}>Cargando…</TableCell></TableRow> : null}
-            {!isLoading && data.length === 0 ? <TableRow><TableCell colSpan={13}>Sin cuentas por pagar.</TableCell></TableRow> : null}
-            {data.map((c) => <TableRow key={c.supplierDocNumber}><TableCell>{c.supplierName}</TableCell><TableCell className="font-mono text-xs">{c.supplierDocNumber}</TableCell><TableCell align="right">{c.count}</TableCell><TableCell align="right">{money(c.total)}</TableCell><TableCell align="right">{money(c.paid)}</TableCell><TableCell align="right">{money(c.balance)}</TableCell><TableCell align="right">{money(c.aging.d0_30)}</TableCell><TableCell align="right">{money(c.aging.d31_60)}</TableCell><TableCell align="right">{money(c.aging.d61_90)}</TableCell><TableCell align="right">{money(c.aging.d90_plus)}</TableCell><TableCell><Badge variant={c.balance <= 0.005 ? 'outline' : c.overdue > 0 ? 'destructive' : 'secondary'}>{c.balance <= 0.005 ? 'PAGADO' : c.overdue > 0 ? 'VENCIDO' : 'PENDIENTE'}</Badge></TableCell><TableCell align="right"><Button size="sm" variant="ghost" disabled={loadingStatement} onClick={() => void verEstado(c.supplierDocNumber)}>Estado</Button></TableCell></TableRow>)}
+            {isLoading ? <TableRow><TableCell colSpan={14}>Cargando…</TableCell></TableRow> : null}
+            {!isLoading && data.length === 0 ? <TableRow><TableCell colSpan={14}>Sin cuentas por pagar.</TableCell></TableRow> : null}
+            {data.map((c) => <TableRow key={c.supplierDocNumber}><TableCell>{c.supplierName}</TableCell><TableCell className="font-mono text-xs">{c.supplierDocNumber}</TableCell><TableCell align="right">{c.count}</TableCell><TableCell align="right">{money(c.total)}</TableCell><TableCell align="right">{money(c.paid)}</TableCell><TableCell align="right">{money(c.balance)}</TableCell><TableCell align="right">{money(c.aging.d0_30)}</TableCell><TableCell align="right">{money(c.aging.d31_60)}</TableCell><TableCell align="right">{money(c.aging.d61_90)}</TableCell><TableCell align="right">{money(c.aging.d90_plus)}</TableCell><TableCell className="text-xs text-muted-foreground">{c.lastActivityAt ? formatDateTimeToPeru(c.lastActivityAt) : '—'}</TableCell><TableCell><Badge variant={c.balance <= 0.005 ? 'outline' : c.overdue > 0 ? 'destructive' : 'secondary'}>{c.balance <= 0.005 ? 'PAGADO' : c.overdue > 0 ? 'VENCIDO' : 'PENDIENTE'}</Badge></TableCell><TableCell align="right"><Button size="sm" variant="ghost" disabled={loadingStatement} onClick={() => void verEstado(c.supplierDocNumber)}>Estado</Button></TableCell></TableRow>)}
           </TableBody>
         </Table>
       </Card>
