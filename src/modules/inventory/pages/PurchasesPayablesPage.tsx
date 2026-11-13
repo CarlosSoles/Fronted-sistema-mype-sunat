@@ -4,6 +4,7 @@ import { Badge, Button, Card, Dialog, DialogContent, DialogDescription, DialogFo
 import { inventoryPurchasesApi } from '../services/inventoryPurchasesApi';
 import { masterDataApi } from '@/modules/customs/services/masterDataApi';
 import { PartnerFormDialog } from '@/modules/customs/components/PartnerFormDialog';
+import { extractApiErrorMessage } from '@/lib/apiErrors';
 
 const money = (n: number) => `S/ ${n.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -23,7 +24,7 @@ export default function PurchasesPayablesPage() {
   const crear = useMutation({
     mutationFn: () => inventoryPurchasesApi.createManualPayable({ supplierName: form.supplierName, supplierDocNumber: form.supplierDocNumber, description: form.description, amount: Number(form.amount), issueDate: form.issueDate, currencyCode: moneda, exchangeRate: moneda === 'USD' ? Number(tipoCambio) : undefined }),
     onSuccess: async () => { setAbrirAlta(false); setForm({ supplierName: '', supplierDocNumber: '', description: '', amount: '', issueDate: new Date().toISOString().slice(0, 10) }); setMoneda('PEN'); setTipoCambio(''); setProveedorTexto(''); setRucTexto(''); setListaAbierta(null); setErrorAlta(''); await queryClient.invalidateQueries({ queryKey: ['purchase-payables'] }); },
-    onError: (e: any) => setErrorAlta(e?.response?.data?.message ?? 'No se pudo crear la CxP.'),
+    onError: (e: unknown) => setErrorAlta(extractApiErrorMessage(e, 'No se pudo crear la CxP.')),
   });
   const [statement, setStatement] = useState<Awaited<ReturnType<typeof inventoryPurchasesApi.supplierStatement>> | null>(null);
   const [loadingStatement, setLoadingStatement] = useState(false);
