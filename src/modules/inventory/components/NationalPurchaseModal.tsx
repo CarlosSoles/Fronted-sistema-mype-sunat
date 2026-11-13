@@ -13,6 +13,9 @@ import {
   inventoryPurchasesApi,
   type CreateNationalPurchasePayload,
 } from '../services/inventoryPurchasesApi';
+import { inventoryApi } from '../services/inventoryApi';
+import { masterDataApi } from '@/modules/customs/services/masterDataApi';
+import { PartnerFormDialog } from '@/modules/customs/components/PartnerFormDialog';
 import {
   ShoppingBag,
   Plus,
@@ -22,6 +25,7 @@ import {
   Receipt,
   Building2,
   Calendar,
+  UserPlus,
 } from 'lucide-react';
 
 interface PurchaseItemRow {
@@ -52,6 +56,9 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
   const [items, setItems] = useState<PurchaseItemRow[]>([
     { sku: '', quantity: 1, unitCost: 0 },
   ]);
+  const [costosRef, setCostosRef] = useState<Record<string, number>>({});
+  const [nuevoProveedor, setNuevoProveedor] = useState(false);
+  const [proveedorExiste, setProveedorExiste] = useState<boolean | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -79,6 +86,35 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
       updated[index] = { ...updated[index], [field]: value };
       return updated;
     });
+  };
+
+  /** Precarga el costo de referencia del producto sin alterar el motor de Kardex. */
+  const cargarCostoProducto = async (index: number) => {
+    const sku = items[index].sku.trim().toUpperCase();
+    if (!sku) return;
+    try {
+      const producto: any = await inventoryApi.getProductBySku(sku);
+      const balance = (producto.balances ?? []).find((b: any) => b.warehouse?.warehouse_code === warehouseCode);
+      const costo = Number(producto.cost_price ?? balance?.average_unit_cost ?? 0);
+      if (!(costo > 0)) return;
+      setCostosRef((prev) => ({ ...prev, [sku]: costo }));
+      setItems((prev) => prev.map((row, i) => i === index && Number(row.unitCost) === 0 ? { ...row, unitCost: costo } : row));
+    } catch {
+      // El backend validará la existencia al registrar la compra.
+    }
+  };
+
+  const buscarProveedor = async () => {
+    const doc = supplierDocNumber.trim();
+    if (doc.length !== 11) { setProveedorExiste(null); return; }
+    try {
+      const lista = await masterDataApi.getPartners({ q: doc });
+      const match = lista.find((p) => p.doc_number === doc);
+      setProveedorExiste(Boolean(match));
+      if (match) setSupplierName(match.legal_name);
+    } catch {
+      setProveedorExiste(null);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -175,7 +211,8 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
                   placeholder="ej: 20123456789"
                   maxLength={11}
                   value={supplierDocNumber}
-                  onChange={(e) => setSupplierDocNumber(e.target.value)}
+                  onChange={(e) => { setSupplierDocNumber(e.target.value.replace(/\D/g, '').slice(0, 11)); setProveedorExiste(null); }}
+                  onBlur={() => void buscarProveedor()}
                   className="mt-1 h-8 text-xs font-mono"
                   required
                 />
@@ -193,6 +230,8 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
                 />
               </div>
             </div>
+            {proveedorExiste === false ? <div className="flex items-center justify-between gap-2"><p className="text-[11px] text-amber-600">El RUC no está en el maestro.</p><Button type="button" size="sm" variant="outline" onClick={() => setNuevoProveedor(true)} className="h-7 gap-1 text-xs"><UserPlus className="h-3.5 w-3.5" />Registrar proveedor</Button></div> : null}
+            {proveedorExiste === true ? <p className="text-[11px] text-emerald-600">Proveedor encontrado en el maestro.</p> : null}
           </div>
 
           {/* Datos del Comprobante */}
@@ -309,7 +348,8 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
                           <Input
                             placeholder="ej: CEM-001"
                             value={row.sku}
-                            onChange={(e) => handleItemChange(idx, 'sku', e.target.value)}
+                            onChange={(e) => handleItemChange(idx, 'sku', e.target.value.toUpperCase())}
+                            onBlur={() => void cargarCostoProducto(idx)}
                             className="h-7 text-xs uppercase font-mono"
                             required
                           />
@@ -339,6 +379,7 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
                             className="h-7 text-xs font-mono"
                             required
                           />
+                          {costosRef[row.sku.trim().toUpperCase()] ? <p className="mt-1 text-[10px] text-muted-foreground">Costo ref.: S/ {costosRef[row.sku.trim().toUpperCase()].toFixed(2)}</p> : null}
                         </td>
                         <td className="p-2 text-right font-mono font-medium">
                           S/ {rowSubtotal.toFixed(2)}
@@ -404,6 +445,7 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
           </DialogFooter>
         </form>
       </DialogContent>
+      {nuevoProveedor ? <PartnerFormDialog initialRole="PROVEEDOR" requiredRole="PROVEEDOR" initialDocument={supplierDocNumber} initialName={supplierName} onClose={() => setNuevoProveedor(false)} onSaved={(p) => { setSupplierDocNumber(p.doc_number); setSupplierName(p.legal_name); setProveedorExiste(true); setNuevoProveedor(false); }} /> : null}
     </Dialog>
   );
 };
