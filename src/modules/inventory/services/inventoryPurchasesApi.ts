@@ -59,7 +59,7 @@ export const inventoryPurchasesApi = {
     return response.data;
   },
 
-  createManualPayable: async (payload: { supplierName: string; supplierDocNumber: string; description: string; amount: number; issueDate?: string }): Promise<{ id: string }> => {
+  createManualPayable: async (payload: { supplierName: string; supplierDocNumber: string; description: string; amount: number; issueDate?: string; currencyCode?: string; exchangeRate?: number }): Promise<{ id: string }> => {
     const { data } = await apiClient.post('/purchases/payables', payload);
     return data;
   },
