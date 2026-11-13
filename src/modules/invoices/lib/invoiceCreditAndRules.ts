@@ -117,10 +117,10 @@ export const generarTramaQrSunat = (p: ParametrosTramaQr): string => {
     String(p.correlativo),
     p.igv.toFixed(2),
     p.total.toFixed(2),
-    p.fecha,
+    (() => { const partes = p.fecha.slice(0, 10).split('-'); return partes.length === 3 ? `${partes[2]}-${partes[1]}-${partes[0]}` : p.fecha; })(),
     p.tipoDocCliente,
     p.numDocCliente,
-    p.hashCpe,
+    (p.hashCpe ?? '').replace(/=+$/, '').replace(/\s+/g, ''),
     '',
   ].join('|');
 };

@@ -8,11 +8,8 @@
  *  - El correlativo se calcula a partir de los comprobantes ya emitidos para
  *    esa serie, de modo que dos emisiones nunca comparten `serie-correlativo`
  *    (que es la clave primaria del CPE y también el `id` de la grilla).
- *  - Una Nota hereda del documento afectado el tipo de operación, la forma de
- *    pago y las cuotas; no puede llevar detracción ni retención (solo las
- *    facturas las generan) y usa la serie F/B que exige SUNAT.
- *  - Las Notas al crédito recuperan la fecha de emisión del documento afectado
- *    (Catálogo 09, motivo 13), como manda la RS 193-2020/SUNAT.
+ *  - Las notas mantienen su fecha de emisión y el cliente del documento afectado.
+ *    Solo la nota de crédito con motivo 13 hereda su forma de pago y cuotas.
  */
 import type { DescuentoGlobal } from './invoiceDescuentoGlobal';
 import type { LineaComprobante } from './invoiceTaxes';
@@ -39,7 +36,7 @@ import {
   repartirEnCuotas,
   type CuotaBorrador,
 } from './invoiceDetraccion';
-import { diasEntreFechas, fechaIsoValida } from './invoiceFecha';
+import { diasEntreFechas, fechaIsoValida, hoyEnLima } from './invoiceFecha';
 
 /** Estado editable del formulario de emisión. */
 export interface BorradorEmision {
@@ -60,8 +57,7 @@ export interface BorradorEmision {
    * Detalle del comprobante (TA-64).
    *
    * Sustituye a los antiguos `descripcion` + `base` + `afectacion`, que solo
-   * permitían una línea. La primera línea hereda esos valores iniciales para no
-   * romper el flujo de quien escribía directo en el primer campo.
+   * permitían una línea. La primera línea comienza vacía.
    */
   items: readonly ItemBorrador[];
   descuentoGlobal?: DescuentoGlobal | null;
@@ -115,11 +111,11 @@ export const borradorInicial = (
   items: [
     {
       clave: nuevaClave(),
-      codigo: tipo === '07' || tipo === '08' ? '' : 'SRV-001',
-      descripcion: tipo === '07' || tipo === '08' ? '' : 'Servicio de confección',
+      codigo: '',
+      descripcion: '',
       unidad: 'NIU',
       cantidad: 1,
-      valorUnitario: tipo === '07' || tipo === '08' ? 0 : 100,
+      valorUnitario: 0,
       afectacion: 'GRAVADA',
       icbper: 0,
     },
@@ -288,6 +284,7 @@ export const vincularDocumentoAfectado = (
     (c) => ['ACEPTADO', 'OBSERVADO'].includes(c.estado) && (c.tipo === '01' || c.tipo === '03') && buscarAfectado([c], b.documentoAfectado) !== undefined,
   );
 
+  const heredaPago = b.tipo === '07' && b.motivoCodigo === '13';
   return {
     borrador: {
       ...b,
@@ -299,19 +296,19 @@ export const vincularDocumentoAfectado = (
       clienteId: undefined,
       clienteTipoDocumento: afectado?.clienteTipoDoc,
       clienteDireccion: undefined,
-      formaPago: afectado?.formaPago ?? b.formaPago,
+      formaPago: heredaPago ? afectado?.formaPago ?? b.formaPago : 'Contado',
       numeroCuotas:
-        afectado?.formaPago === 'Credito'
+        heredaPago && afectado?.formaPago === 'Credito'
           ? Math.max(1, afectado.cuotas.length)
           : b.numeroCuotas,
       cuotas:
-        afectado?.formaPago === 'Credito'
+        heredaPago && afectado?.formaPago === 'Credito'
           ? afectado.cuotas.map((c) => ({
               monto: c.monto,
               vencimiento: c.vencimiento,
             }))
           : [],
-      fecha: afectado?.fechaEmision ?? b.fecha,
+      fecha: hoyEnLima(),
     },
     afectado,
   };
