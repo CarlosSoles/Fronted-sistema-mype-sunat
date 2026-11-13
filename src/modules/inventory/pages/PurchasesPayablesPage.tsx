@@ -14,10 +14,12 @@ export default function PurchasesPayablesPage() {
   const { data: proveedores = [] } = useQuery({ queryKey: ['payables-suppliers'], queryFn: () => masterDataApi.getPartners({ role: 'PROVEEDOR' }), enabled: abrirAlta });
   const [errorAlta, setErrorAlta] = useState('');
   const [nuevoProveedor, setNuevoProveedor] = useState(false);
+  const [moneda, setMoneda] = useState('PEN');
+  const [tipoCambio, setTipoCambio] = useState('');
   const [form, setForm] = useState({ supplierName: '', supplierDocNumber: '', description: '', amount: '', issueDate: new Date().toISOString().slice(0, 10) });
   const crear = useMutation({
-    mutationFn: () => inventoryPurchasesApi.createManualPayable({ supplierName: form.supplierName, supplierDocNumber: form.supplierDocNumber, description: form.description, amount: Number(form.amount), issueDate: form.issueDate }),
-    onSuccess: async () => { setAbrirAlta(false); setForm({ supplierName: '', supplierDocNumber: '', description: '', amount: '', issueDate: new Date().toISOString().slice(0, 10) }); setErrorAlta(''); await queryClient.invalidateQueries({ queryKey: ['purchase-payables'] }); },
+    mutationFn: () => inventoryPurchasesApi.createManualPayable({ supplierName: form.supplierName, supplierDocNumber: form.supplierDocNumber, description: form.description, amount: Number(form.amount), issueDate: form.issueDate, currencyCode: moneda, exchangeRate: moneda === 'USD' ? Number(tipoCambio) : undefined }),
+    onSuccess: async () => { setAbrirAlta(false); setForm({ supplierName: '', supplierDocNumber: '', description: '', amount: '', issueDate: new Date().toISOString().slice(0, 10) }); setMoneda('PEN'); setTipoCambio(''); setErrorAlta(''); await queryClient.invalidateQueries({ queryKey: ['purchase-payables'] }); },
     onError: (e: any) => setErrorAlta(e?.response?.data?.message ?? 'No se pudo crear la CxP.'),
   });
   const [statement, setStatement] = useState<Awaited<ReturnType<typeof inventoryPurchasesApi.supplierStatement>> | null>(null);
@@ -61,11 +63,13 @@ export default function PurchasesPayablesPage() {
             <label className="text-xs block">Proveedor<select className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={form.supplierDocNumber} onChange={(e) => { if (e.target.value === '__nuevo__') { setNuevoProveedor(true); return; } const p = proveedores.find((x) => x.doc_number === e.target.value); setForm({ ...form, supplierDocNumber: e.target.value, supplierName: p?.legal_name ?? '' }); }}><option value="">Seleccionar proveedor</option>{proveedores.map((p) => <option key={p.id} value={p.doc_number}>{p.legal_name} · {p.doc_number}</option>)}<option value="__nuevo__">+ Registrar proveedor nuevo</option></select></label>
             <label className="text-xs block">RUC<Input value={form.supplierDocNumber} readOnly /></label>
             <label className="text-xs block">Concepto<Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
-            <label className="text-xs block">Monto<Input type="number" min="0.01" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />{form.amount !== '' && Number(form.amount) <= 0 ? <span className="text-[10px] text-destructive">El monto debe ser mayor a cero.</span> : null}</label>
+            <label className="text-xs block">Moneda<select className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={moneda} onChange={(e) => setMoneda(e.target.value)}><option value="PEN">PEN — Soles</option><option value="USD">USD — Dólares</option></select></label>
+            <label className="text-xs block">Monto ({moneda})<Input type="number" min="0.01" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />{form.amount !== '' && Number(form.amount) <= 0 ? <span className="text-[10px] text-destructive">El monto debe ser mayor a cero.</span> : null}</label>
+            {moneda === 'USD' ? <label className="text-xs block">Tipo de cambio<Input type="number" min="0.000001" step="0.001" value={tipoCambio} onChange={(e) => setTipoCambio(e.target.value)} />{form.amount && tipoCambio ? <span className="text-[10px] text-muted-foreground">Equivalente: S/ {(Number(form.amount) * Number(tipoCambio)).toFixed(2)}</span> : null}</label> : null}
             <label className="text-xs block">Fecha<Input type="date" value={form.issueDate} onChange={(e) => setForm({ ...form, issueDate: e.target.value })} /></label>
             {errorAlta ? <p className="text-xs text-destructive">{errorAlta}</p> : null}
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setAbrirAlta(false)}>Cancelar</Button><Button onClick={() => crear.mutate()} disabled={crear.isPending || !form.supplierName || form.supplierDocNumber.length !== 11 || !form.description || !(Number(form.amount) > 0)}>{crear.isPending ? 'Guardando…' : 'Crear CxP'}</Button></DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => setAbrirAlta(false)}>Cancelar</Button><Button onClick={() => crear.mutate()} disabled={crear.isPending || !form.supplierName || form.supplierDocNumber.length !== 11 || !form.description || !(Number(form.amount) > 0) || (moneda === 'USD' && !(Number(tipoCambio) > 0))}>{crear.isPending ? 'Guardando…' : 'Crear CxP'}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
       {nuevoProveedor ? <PartnerFormDialog initialRole="PROVEEDOR" requiredRole="PROVEEDOR" initialDocument={form.supplierDocNumber} initialName={form.supplierName} onClose={() => setNuevoProveedor(false)} onSaved={(p) => { setForm({ ...form, supplierDocNumber: p.doc_number, supplierName: p.legal_name }); setNuevoProveedor(false); void queryClient.invalidateQueries({ queryKey: ['payables-suppliers'] }); }} /> : null}
