@@ -207,7 +207,7 @@ export const InvoiceEmitCampos = ({
         label="Fecha de emisión"
         value={b.fecha}
         onChange={(v) => actualizar(cambiarFechaEmision(b, v))}
-        min={minimoDeFechaEmision()}
+        min={minimoDeFechaEmision(undefined, b.tipo)}
         max={topeDeFechaEmision()}
         ayuda={
           b.formaPago === 'Credito' && b.cuotas.length > 0

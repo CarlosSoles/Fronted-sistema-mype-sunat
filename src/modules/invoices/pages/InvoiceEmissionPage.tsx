@@ -230,8 +230,8 @@ export default function InvoiceEmissionPage() {
 
   // Retención del IGV: es del CLIENTE, no del comprobante.
   const retencion = useMemo(
-    () => calcularRetencion(importeTotal, agenteRetencion),
-    [importeTotal, agenteRetencion],
+    () => calcularRetencion(importeTotal, agenteRetencion, 1, detraccion.monto),
+    [importeTotal, agenteRetencion, detraccion.monto],
   );
 
   const reparto = useMemo(
@@ -266,7 +266,7 @@ export default function InvoiceEmissionPage() {
   }, [tipo, clienteSeleccionado, clienteDoc, clienteRazonSocial, clienteDireccion, items, descuentoGlobal, agenteRetencion, correccionRetencion, formaPago, cuotas, medioPagoDetraccion, fechaEmision]);
 
   /** Motivo por el que la fecha de emisión no sirve, o `null` (D9). */
-  const problemaFecha = problemaDeFechaEmision(fechaEmision);
+  const problemaFecha = problemaDeFechaEmision(fechaEmision, undefined, tipo);
 
   /**
    * Cambia la fecha y arrastra el cronograma.
@@ -562,7 +562,7 @@ export default function InvoiceEmissionPage() {
                   <Input
                     id="fecha-emision"
                     type="date"
-                    min={minimoDeFechaEmision()}
+                    min={minimoDeFechaEmision(undefined, tipo)}
                     max={topeDeFechaEmision()}
                     value={fechaEmision}
                     onChange={(e) => cambiarFecha(e.target.value)}
@@ -579,7 +579,7 @@ export default function InvoiceEmissionPage() {
                 </div>
               </div>
 
-              <RetencionMaestro documento={clienteDoc} razonSocial={clienteRazonSocial} valor={agenteRetencion}
+              <RetencionMaestro spot={detraccion.monto > 0} documento={clienteDoc} razonSocial={clienteRazonSocial} valor={agenteRetencion}
                 onChange={(valor, correccion) => { setAgenteRetencion(valor); setCorreccionRetencion(correccion); }} />
 
               {/*

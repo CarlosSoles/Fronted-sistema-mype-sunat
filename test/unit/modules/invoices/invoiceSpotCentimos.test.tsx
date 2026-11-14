@@ -16,13 +16,13 @@ afterEach(cleanup);
 const base = borradorInicial('01', '2026-11-06');
 const items = [{ ...base.items[0], valorUnitario: 1000, codigoDetraccion: '027' }];
 
-it('comprobante al crédito con SPOT y retención usa céntimos en el neto y las cuotas', () => {
+it('comprobante al crédito con SPOT excluye retención y usa céntimos en las cuotas', () => {
   const borrador = { ...base, items, codigoDetraccion: '027', agenteRetencion: true, formaPago: 'Credito' as const };
   const flujo = calcularFlujo(borrador);
   expect(calcularDetraccion(1180, 0.04)).toBe(47.2);
   expect(calcularRetencion(1180, true)).toBe(35.4);
-  expect(flujo).toMatchObject({ importeTotal: 1180, detraccion: 47.2, neto: 1097.4 });
-  expect(validarCronograma([{ monto: 548.7, vencimiento: '2026-12-06' }, { monto: 548.7, vencimiento: '2027-01-06' }], flujo.neto, borrador.fecha).cuadra).toBe(true);
+  expect(flujo).toMatchObject({ importeTotal: 1180, detraccion: 47.2, neto: 1132.8 });
+  expect(validarCronograma([{ monto: 566.4, vencimiento: '2026-12-06' }, { monto: 566.4, vencimiento: '2027-01-06' }], flujo.neto, borrador.fecha).cuadra).toBe(true);
 });
 
 it('SPOT sin retención conserva 47.20 en el comprobante y 1132.80 de neto', () => {
@@ -44,20 +44,22 @@ it('usa solo líneas sujetas y acepta al enviar cuotas que suman el neto real', 
   const borrador = { ...base, codigoDetraccion: '', agenteRetencion: true, formaPago: 'Credito' as const,
     items: [{ ...base.items[0], valorUnitario: 500, codigoDetraccion: '027' },
       { ...base.items[0], clave: 'segunda', valorUnitario: 500, codigoDetraccion: undefined }],
-    cuotas: [{ monto: 560.5, vencimiento: '2026-12-06' }, { monto: 560.5, vencimiento: '2027-01-06' }] };
-  expect(calcularFlujo(borrador)).toMatchObject({ importeTotal: 1180, detraccion: 23.6, neto: 1121 });
+    cuotas: [{ monto: 578.2, vencimiento: '2026-12-06' }, { monto: 578.2, vencimiento: '2027-01-06' }] };
+  expect(calcularFlujo(borrador)).toMatchObject({ importeTotal: 1180, detraccion: 23.6, neto: 1156.4 });
   expect(problemaDeCronograma(borrador)).toBeNull();
   expect(borradorAPayloadEmision(borrador).items.map((item) => item.codigoDetraccion)).toEqual(['027', undefined]);
 });
 
-it('en el modal reparte cuotas según arena/piedra y la retención seleccionada', () => {
+it('en el modal reparte cuotas según arena/piedra e impide retención simultánea', () => {
   const query = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(<QueryClientProvider client={query}><InvoiceEmitModal seriesConfiguradas={seriesConfiguradasPrueba} tipoInicial="01" fecha="2026-11-06" existentes={[]} clienteConCredito onEmitir={vi.fn()} onCerrar={vi.fn()} /></QueryClientProvider>);
   fireEvent.change(screen.getByLabelText('Valor unitario de la línea 1'), { target: { value: '1000' } });
   fireEvent.change(screen.getByLabelText('Detracción de la línea 1'), { target: { value: '009' } });
-  fireEvent.click(screen.getByRole('checkbox', { name: /Agente de Retención/ }));
+  const retencion = screen.getByRole('checkbox', { name: /Agente de Retención/ }) as HTMLInputElement;
+  expect(retencion.disabled).toBe(true); expect(retencion.checked).toBe(false);
+  fireEvent.click(retencion);
   fireEvent.click(screen.getByRole('button', { name: 'Crédito' }));
-  expect(screen.getByText(/Pago a crédito en .*Neto pendiente S\/ 1026\.60/)).toBeTruthy();
+  expect(screen.getByText(/Pago a crédito en .*Neto pendiente S\/ 1062\.00/)).toBeTruthy();
   expect(screen.getByText(/El cronograma cuadra al céntimo/)).toBeTruthy();
   query.clear();
 });
