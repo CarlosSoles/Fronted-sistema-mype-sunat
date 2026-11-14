@@ -5,7 +5,7 @@ import { apiClient } from '@/lib/axios';
 import { ALERTAS_VACIAS } from '@/modules/invoices/lib/invoiceAlertas';
 import { exportarReporteSireCsv } from '@/modules/invoices/lib/invoiceExportSire';
 import { useAuthStore } from '@/stores/authStore';
-vi.mock('@/lib/axios',()=>({apiClient:{get:vi.fn()}}));
+vi.mock('@/lib/axios',()=>({apiClient:{get:vi.fn(),post:vi.fn()}}));
 vi.mock('@/lib/offlineCache',()=>({cachedGet:(_key:string,read:()=>unknown)=>read()}));
 vi.mock('@/modules/invoices/components/InvoiceAggregateMonitor',()=>({InvoiceAggregateMonitor:()=>null}));
 vi.mock('@/modules/invoices/lib/invoiceExportSire',()=>({exportarReporteSireCsv:vi.fn()}));
@@ -74,4 +74,51 @@ it('recorre una DLQ de 101 documentos con la paginación real de 100 filas',asyn
  fireEvent.change(screen.getByLabelText('Filtrar estado del monitor'),{target:{value:'DLQ'}});
  expect(screen.getByText('Comprobantes en vuelo (101)')).toBeTruthy();
  expect(apiClient.get).toHaveBeenCalledWith('/invoices',{params:expect.objectContaining({en_dlq:'true',page:2,page_size:'100'})});
+});
+
+it('resuelve la DLQ del aceptado con CDR por acción explícita y actualiza la tarjeta sin reenviar', async () => {
+  const original = vi.mocked(apiClient.get).getMockImplementation()!;
+  let resuelto = false;
+  vi.mocked(apiClient.get).mockImplementation(async (url, options) => {
+    const response = await original(url, options) as { data: { data: ReturnType<typeof raw>[] } };
+    if (url === '/invoices' && (options?.params as Record<string, string> | undefined)?.en_dlq === 'true') {
+      return { data: { ...response.data, data: response.data.data.filter((row: { id: string }) => !resuelto || row.id !== final.id).map((row: { id: string }) => row.id === final.id ? { ...row, cdr_codigo: '0' } : row) } };
+    }
+    if (url === '/invoices/alertas' && resuelto) return { data: { ...ALERTAS_VACIAS, dlq: { evaluado: true, pendientes: 2, gravedad: 'AVISO', mensaje: '2 trabajos pendientes' } } };
+    return response;
+  });
+  vi.mocked(apiClient.post).mockImplementation(async () => {
+    resuelto = true;
+    return { data: { resueltos: 2, mensaje: '2 trabajos de DLQ resueltos. El comprobante fiscal conserva su estado.' } };
+  });
+  render(<InvoiceMonitorPage />);
+  const button = await screen.findByRole('button', { name: 'Resolver DLQ' });
+  expect(apiClient.post).not.toHaveBeenCalled();
+  expect(within(screen.getByText(final.numero).closest('tr')!).queryByRole('button', { name: 'Reintentar' })).toBeNull();
+  fireEvent.click(button);
+  expect(await screen.findByText('2 trabajos de DLQ resueltos. El comprobante fiscal conserva su estado.')).toBeTruthy();
+  await waitFor(() => expect(screen.queryByText(final.numero)).toBeNull());
+  expect(apiClient.post).toHaveBeenCalledExactlyOnceWith('/invoices/80/resolver-dlq');
+  const card = within(screen.getByText('Cola de muertos (DLQ)').closest('[data-slot="card"]') as HTMLElement);
+  expect(card.getByText('2')).toBeTruthy();
+});
+it('el aceptado sin CDR no ofrece resolución de DLQ', async () => {
+  render(<InvoiceMonitorPage />); await screen.findByText(final.numero);
+  expect(screen.queryByRole('button', { name: 'Resolver DLQ' })).toBeNull();
+});
+it('un error del servidor al resolver conserva la fila y muestra el motivo', async () => {
+  const original = vi.mocked(apiClient.get).getMockImplementation()!;
+  vi.mocked(apiClient.get).mockImplementation(async (url, options) => {
+    const response = await original(url, options) as { data: { data: ReturnType<typeof raw>[] } };
+    if (url === '/invoices' && (options?.params as Record<string, string> | undefined)?.en_dlq === 'true') {
+      return { data: { ...response.data, data: response.data.data.map((row: { id: string }) => row.id === final.id ? { ...row, cdr_codigo: '0' } : row) } };
+    }
+    return response;
+  });
+  vi.mocked(apiClient.post).mockRejectedValue({ response: { data: { message: 'No se pudo limpiar la cola.' } } });
+  render(<InvoiceMonitorPage />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Resolver DLQ' }));
+  expect(await screen.findByText('No se pudo limpiar la cola.')).toBeTruthy();
+  expect(screen.getByText(final.numero)).toBeTruthy();
+  expect(apiClient.post).toHaveBeenCalledExactlyOnceWith('/invoices/80/resolver-dlq');
 });
