@@ -73,6 +73,7 @@ import {
 } from '@/components/ui';
 import { FileText, Send, Plus } from 'lucide-react';
 import { documentoValidoParaTipo, mensajeErrorDocumento } from '../lib/invoiceEmitValidation';
+import { useRucAutofill } from '../hooks/useRucAutofill';
 import { CustomerLookupField } from '../components/CustomerLookupField';
 import { InvoiceItemsGrid } from '../components/InvoiceItemsGrid';
 import { InvoiceDescuentoGlobal } from '../components/InvoiceDescuentoGlobal';
@@ -156,6 +157,11 @@ export default function InvoiceEmissionPage() {
   const [clienteSeleccionado, setClienteSeleccionado] = useState<import('../lib/invoiceSearch').ClienteBuscado | null>(null);
   const [clienteDoc, setClienteDoc] = useState('');
   const [clienteRazonSocial, setClienteRazonSocial] = useState('');
+  const [clienteDireccion, setClienteDireccion] = useState('');
+  const rucAutofill = useRucAutofill((datos) => {
+    setClienteRazonSocial(datos.razonSocial);
+    setClienteDireccion(datos.direccionFiscal ?? '');
+  });
   const [items, setItems] = useState<readonly ItemBorrador[]>([itemVacio('1')]);
   const [descuentoGlobal, setDescuentoGlobal] = useState<DescuentoGlobal | null>(null);
   const [agenteRetencion, setAgenteRetencion] = useState(false);
@@ -257,7 +263,7 @@ export default function InvoiceEmissionPage() {
   const [fechaEmision, setFechaEmision] = useState(hoyEnLima);
   useEffect(() => {
     setResultado((previo) => previo?.ok === false ? null : previo);
-  }, [tipo, clienteSeleccionado, clienteDoc, clienteRazonSocial, items, descuentoGlobal, agenteRetencion, correccionRetencion, formaPago, cuotas, medioPagoDetraccion, fechaEmision]);
+  }, [tipo, clienteSeleccionado, clienteDoc, clienteRazonSocial, clienteDireccion, items, descuentoGlobal, agenteRetencion, correccionRetencion, formaPago, cuotas, medioPagoDetraccion, fechaEmision]);
 
   /** Motivo por el que la fecha de emisión no sirve, o `null` (D9). */
   const problemaFecha = problemaDeFechaEmision(fechaEmision);
@@ -418,7 +424,7 @@ export default function InvoiceEmissionPage() {
         correlativo: 0, // lo asigna la serie en el backend
         clienteId: clienteSeleccionado?.id,
         clienteTipoDocumento: clienteSeleccionado?.tipoDocumento,
-        clienteDireccion: clienteSeleccionado?.direccion,
+        clienteDireccion,
         clienteDoc,
         clienteTipoDoc: tipo === '01' ? '6' : '1',
         clienteRazonSocial,
@@ -646,6 +652,8 @@ export default function InvoiceEmissionPage() {
                 placeholderDocumento={tipo === '01' ? '20100070970' : '70123456'}
                 errorDocumento={clienteDoc.length > 0 && !documentoValidoParaTipo(tipo, clienteDoc) ? mensajeErrorDocumento(tipo) : undefined}
                 onDocumentoChange={(valor) => {
+                  rucAutofill.consultar(valor);
+                  setClienteDireccion('');
                   const identidad = editarIdentidadCliente({ documento: clienteDoc, razonSocial: clienteRazonSocial, confirmado: Boolean(clienteSeleccionado) }, 'documento', valor);
                   setClienteSeleccionado(null);
                   setClienteDoc(identidad.documento);
@@ -656,6 +664,8 @@ export default function InvoiceEmissionPage() {
                   setItems((prev) => prev.map((it) => ({ ...it, descuento: null })));
                 }}
                 onRazonSocialChange={(valor) => {
+                  rucAutofill.cancelar();
+                  if (clienteSeleccionado) setClienteDireccion('');
                   const identidad = editarIdentidadCliente({ documento: clienteDoc, razonSocial: clienteRazonSocial, confirmado: Boolean(clienteSeleccionado) }, 'nombre', valor);
                   setClienteSeleccionado(null);
                   setClienteDoc(identidad.documento);
@@ -666,6 +676,8 @@ export default function InvoiceEmissionPage() {
                   setItems((prev) => prev.map((it) => ({ ...it, descuento: null })));
                 }}
                 onElegir={(cliente) => {
+                  rucAutofill.cancelar();
+                  setClienteDireccion(cliente.direccion ?? '');
                   setClienteSeleccionado(cliente);
                   setClienteDoc(cliente.numeroDocumento);
                   setClienteRazonSocial(cliente.razonSocial);
@@ -683,7 +695,11 @@ export default function InvoiceEmissionPage() {
                   }
                 }}
               />
-
+              <div className="space-y-1 sm:col-span-2">
+                <label htmlFor="direccion-cliente" className="text-xs font-medium">Dirección del cliente</label>
+                <Input id="direccion-cliente" maxLength={1500} aria-label="Dirección del cliente" value={clienteDireccion} onChange={(e) => { rucAutofill.cancelar(); setClienteDireccion(e.target.value); }} />
+              </div>
+              {rucAutofill.aviso && <PageText role="status" className="sm:col-span-2">{rucAutofill.aviso}</PageText>}
 
             </CardContent>
           </Card>

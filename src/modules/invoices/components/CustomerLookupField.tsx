@@ -117,6 +117,6 @@ export const CustomerLookupField = ({ documento, razonSocial, onElegir, onDocume
       {lista('nombre')}
     </div>
     {!disabled && canEmitInvoices && <button type="button" className="text-xs text-primary underline" onClick={() => { setConsulta(null); setRegistering(true); }}>Registrar cliente nuevo</button>}
-    {registering && canEmitInvoices && <PartnerFormDialog initialRole="CLIENTE" requiredRole="CLIENTE" initialDocument={documento} initialName={razonSocial} onClose={() => setRegistering(false)} onSaved={(partner) => elegir(partnerToCustomer(partner))} />}
+    {registering && canEmitInvoices && <PartnerFormDialog enableRucLookup initialRole="CLIENTE" requiredRole="CLIENTE" initialDocument={documento} initialName={razonSocial} onClose={() => setRegistering(false)} onSaved={(partner) => elegir(partnerToCustomer(partner))} />}
   </div>;
 };

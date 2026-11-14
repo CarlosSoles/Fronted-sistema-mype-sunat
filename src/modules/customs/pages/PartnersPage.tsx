@@ -169,7 +169,7 @@ export default function PartnersPage({ context = 'customs' }: { context?: 'custo
       <PartnerDetailDrawer partnerId={selectedId} onClose={() => setSelectedId(null)} readOnly={!canWrite} />
 
 
-      {canWrite && isNewOpen && <PartnerFormDialog onClose={() => setIsNewOpen(false)} initialRole={billing ? 'CLIENTE' : 'PROVEEDOR'} allowOffline={!billing} />}
+      {canWrite && isNewOpen && <PartnerFormDialog onClose={() => setIsNewOpen(false)} enableRucLookup={billing} initialRole={billing ? 'CLIENTE' : 'PROVEEDOR'} allowOffline={!billing} />}
       {canWrite && editingPartner && <PartnerFormDialog partner={editingPartner} onClose={() => setEditingPartner(null)} />}
     </Page>
   );
