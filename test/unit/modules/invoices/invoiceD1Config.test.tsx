@@ -31,7 +31,7 @@ it('carga el GET, presenta origen por grupo y MOCK, sin rellenar secretos', asyn
   for (const label of ['Usuario SOL', 'Nueva contraseña SOL', 'Nueva contraseña del certificado']) {
     expect((screen.getByLabelText(label) as HTMLInputElement).value).toBe('');
   }
-  expect((screen.getByLabelText('RUC (no editable)') as HTMLInputElement).readOnly).toBe(true);
+  expect((screen.getByLabelText('RUC emisor (M1)') as HTMLInputElement).readOnly).toBe(false);
   client.clear();
 });
 it('PUT solo envía lo escrito y cambiado; limpia las contraseñas después de guardar', async () => {

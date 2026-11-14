@@ -16,6 +16,7 @@ export const tipoComprobantePorPerfil = (
 };
 
 export interface ConfiguracionInput {
+  issuer_ruc?: string | null;
   local_anexo?: string | null;
   cuenta_banco_nacion?: string | null;
   domicilio_fiscal?: string | null;
@@ -43,6 +44,7 @@ export interface EstadoCertificadoBackend {
 }
 
 export interface ConfiguracionBackend {
+  origen_ruc?: 'issuer_config' | 'company';
   ruc?: string;
   local_anexo?: string | null;
   cuenta_banco_nacion?: string | null;

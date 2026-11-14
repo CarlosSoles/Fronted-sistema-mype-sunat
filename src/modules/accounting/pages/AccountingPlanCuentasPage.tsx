@@ -67,6 +67,7 @@ function buildTree(accounts: AccountingAccount[]): TreeNode[] {
 export default function AccountingPlanCuentasPage() {
   const [search, setSearch] = useState('');
   const [abrirAlta, setAbrirAlta] = useState(false);
+  const [abrirTesoreria, setAbrirTesoreria] = useState(false);
   const [nueva, setNueva] = useState({ code: '', name: '', parentCode: '' });
   const [errorAlta, setErrorAlta] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -151,8 +152,11 @@ export default function AccountingPlanCuentasPage() {
         title="Plan Contable General Empresarial (PCGE 2019)"
         description={`${accounts.length} cuentas cargadas · jerarquía por elemento, cuenta y subcuenta`}
       >
+        <Button size="sm" variant="outline" onClick={() => setAbrirTesoreria(true)}>Cuentas de tesorería</Button>
         <Button size="sm" onClick={() => setAbrirAlta(true)}><Plus className="h-4 w-4 mr-1" /> Nueva subcuenta</Button>
       </PageHeader>
+
+      <TreasuryAccountsCard abierto={abrirTesoreria} onCerrar={() => setAbrirTesoreria(false)} cuentas={accounts} />
 
       <Card className="mb-4">
         <div className="p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -249,5 +253,103 @@ export default function AccountingPlanCuentasPage() {
         </DialogContent>
       </Dialog>
     </Page>
+  );
+}
+
+/**
+ * Cuentas de tesorería de la empresa: alias operativo ("BCP cuenta corriente",
+ * "Caja chica") sobre una subcuenta del PCGE. El asiento de un cobro o pago usa
+ * la subcuenta que se elija aquí, no una cuenta fija del código.
+ */
+function TreasuryAccountsCard({
+  abierto,
+  onCerrar,
+  cuentas,
+}: {
+  abierto: boolean;
+  onCerrar: () => void;
+  cuentas: AccountingAccount[];
+}) {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({ code: '', name: '', kind: 'BANCO' as 'CAJA' | 'BANCO' });
+  const [error, setError] = useState<string | null>(null);
+  const { data: tesoreria = [] } = useQuery({
+    queryKey: ['treasury-accounts'],
+    queryFn: () => accountingApi.getTreasuryAccounts(),
+  });
+
+  const refrescar = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['treasury-accounts'] });
+  };
+
+  const crear = useMutation({
+    mutationFn: () => accountingApi.createTreasuryAccount({ code: form.code, name: form.name, kind: form.kind }),
+    onSuccess: async () => { setForm({ code: '', name: '', kind: 'BANCO' }); setError(null); await refrescar(); },
+    onError: (e: any) => setError(e?.response?.data?.message ?? 'No se pudo crear la cuenta de tesorería.'),
+  });
+
+  const alternar = useMutation({
+    mutationFn: (cuenta: { id: string; isActive: boolean }) =>
+      accountingApi.updateTreasuryAccount(cuenta.id, { isActive: !cuenta.isActive }),
+    onSuccess: refrescar,
+    onError: (e: any) => setError(e?.response?.data?.message ?? 'No se pudo actualizar la cuenta.'),
+  });
+
+  // Solo subcuentas hoja: el backend rechaza cuentas de mayor con subcuentas.
+  const padres = new Set(cuentas.map((c) => c.parentCode).filter(Boolean));
+  const hojas = cuentas.filter((c) => !padres.has(c.code)).sort((a, b) => a.code.localeCompare(b.code));
+
+  return (
+    <Dialog open={abierto} onOpenChange={(open) => { if (!open) onCerrar(); }}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Cuentas de tesorería</DialogTitle>
+          <DialogDescription>
+            Subcuentas de caja o banco que usan los cobros y pagos. El nombre es operativo; el código debe existir en el PCGE.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <div className="grid gap-2 md:grid-cols-4">
+            <label className="text-xs md:col-span-2">Subcuenta PCGE
+              <select className="mt-1 h-9 w-full rounded border bg-background px-2" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })}>
+                <option value="">Seleccionar subcuenta</option>
+                {hojas.filter((c) => c.code.startsWith('10')).map((c) => <option key={c.code} value={c.code}>{c.code} · {c.name}</option>)}
+              </select>
+            </label>
+            <label className="text-xs">Tipo
+              <select className="mt-1 h-9 w-full rounded border bg-background px-2" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as 'CAJA' | 'BANCO' })}>
+                <option value="CAJA">Caja</option>
+                <option value="BANCO">Banco</option>
+              </select>
+            </label>
+            <label className="text-xs">Nombre operativo
+              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="BCP cuenta corriente" />
+            </label>
+          </div>
+          <Button size="sm" onClick={() => crear.mutate()} disabled={crear.isPending || !form.code || !form.name}>
+            {crear.isPending ? 'Agregando…' : 'Agregar cuenta'}
+          </Button>
+          {error ? <p className="text-xs text-destructive">{error}</p> : null}
+
+          <Table>
+            <TableHeader><TableRow><TableHead>Código</TableHead><TableHead>Nombre</TableHead><TableHead>Tipo</TableHead><TableHead align="right">Estado</TableHead></TableRow></TableHeader>
+            <TableBody>
+              {tesoreria.length === 0 ? <TableRow><TableCell colSpan={4}>Sin cuentas de tesorería configuradas.</TableCell></TableRow> : null}
+              {tesoreria.map((t) => (
+                <TableRow key={t.id}>
+                  <TableCell>{t.code}</TableCell>
+                  <TableCell>{t.name}</TableCell>
+                  <TableCell>{t.kind === 'CAJA' ? 'Caja' : 'Banco'}</TableCell>
+                  <TableCell align="right">
+                    <Button size="sm" variant="ghost" onClick={() => alternar.mutate(t)}>{t.isActive ? 'Desactivar' : 'Activar'}</Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -77,6 +77,8 @@ export interface LedgerResponse {
   totalDebit: number;
   totalCredit: number;
   closingBalance: number;
+  /** Subcuentas incluidas cuando se consulta una cuenta de mayor. */
+  subcuentas?: string[];
 }
 
 export interface TrialBalanceRow {

@@ -23,6 +23,8 @@ async function certificadoBase64(file: File): Promise<string> {
 export const InvoiceIssuerConfigForm = ({ config, ruc, guardar }: {
   config: Omit<ConfiguracionBackend, 'series'>; ruc: string; guardar: (input: ConfiguracionInput) => Promise<void>;
 }) => {
+  const rucConfigurado = config.origen_ruc === 'issuer_config' ? config.ruc ?? '' : '';
+  const [rucEmisor, setRucEmisor] = useState(rucConfigurado);
   const [entorno, setEntorno] = useState(config.entorno ?? '');
   const [perfilComercial, setPerfilComercial] = useState<PerfilComercial | ''>(config.perfil_comercial ?? '');
   const [fiscal, setFiscal] = useState({
@@ -46,9 +48,11 @@ export const InvoiceIssuerConfigForm = ({ config, ruc, guardar }: {
     event.preventDefault();
     setError(''); setGuardado(false); setEnviando(true);
     try {
+      if (rucEmisor !== '' && !/^[0-9]{11}$/.test(rucEmisor)) throw new Error('El RUC emisor debe tener exactamente 11 dígitos o quedar vacío para limpiar.');
       const problema = errorConfiguracionFiscal(fiscal);
       if (problema) throw new Error(problema);
       const input: ConfiguracionInput = {};
+      if (rucEmisor !== rucConfigurado) input.issuer_ruc = rucEmisor || null;
       if (entorno && entorno !== config.entorno) input.entorno = entorno as EntornoFiscal;
       const perfilActual = config.perfil_comercial ?? '';
       if (perfilComercial !== perfilActual) {
@@ -73,8 +77,10 @@ export const InvoiceIssuerConfigForm = ({ config, ruc, guardar }: {
     <p>Origen efectivo: {origen(config.origen_efectivo)}</p>
     <p>Origen SOL: {origen(config.origen_sol)}</p>
     <p>Origen certificado: {origen(config.origen_certificado)}</p>
-    <PageField label="RUC (no editable)" htmlFor="cfg-ruc"><input id="cfg-ruc" className={clase} readOnly value={config.ruc ?? ruc} /></PageField>
+    <p>RUC efectivo: {(config.ruc ?? ruc) || 'Sin configurar'}</p>
+    <p>Origen del RUC efectivo: {config.origen_ruc === 'issuer_config' ? 'Configuración del emisor M1' : config.origen_ruc === 'company' ? 'RUC de la empresa' : 'Sin información'}</p>
     <fieldset disabled={enviando} className="grid gap-4">
+      <PageField label="RUC emisor (M1)" htmlFor="cfg-ruc"><input id="cfg-ruc" className={clase} inputMode="numeric" pattern="[0-9]{11}" maxLength={11} value={rucEmisor} onChange={e => setRucEmisor(e.target.value)} /><p>11 dígitos exactos. Vacío elimina la configuración específica y utiliza el RUC de la empresa; no cambia el RUC de la sesión.</p></PageField>
       <PageField label="Ambiente" htmlFor="cfg-entorno"><select id="cfg-entorno" className={clase} value={entorno} onChange={(e) => setEntorno(e.target.value)}>
         <option value="" disabled>Sin configurar</option><option value="MOCK">SIMULADO (pruebas)</option><option value="BETA">BETA (pruebas)</option><option value="PRODUCCION">PRODUCCIÓN</option>
       </select></PageField>

@@ -84,6 +84,11 @@ export default function AccountingLedgerPage() {
             <p className="text-xs text-muted-foreground">Cuenta</p>
             <p className="font-mono font-semibold">{data.accountCode}</p>
             <p className="text-sm">{data.accountName}</p>
+            {data.subcuentas && data.subcuentas.length > 1 ? (
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Incluye subcuentas: {data.subcuentas.join(', ')}
+              </p>
+            ) : null}
           </Card>
           <Card className="p-4">
             <p className="text-xs text-muted-foreground">Debe</p>

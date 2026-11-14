@@ -53,6 +53,8 @@ const UserWarehousesPage = React.lazy(() => import('@/modules/auth/pages/UserWar
 const SalesPosPage = React.lazy(() => import('@/modules/sales/pages/SalesPosPage'));
 const SalesHistoryPage = React.lazy(() => import('@/modules/sales/pages/SalesHistoryPage'));
 const SalesQuotesPage = React.lazy(() => import('@/modules/sales/pages/SalesQuotesPage'));
+const SalesOrdersPage = React.lazy(() => import('@/modules/sales/pages/SalesQuotesPage'));
+const CashClosurePage = React.lazy(() => import('@/modules/sales/pages/CashClosurePage'));
 const InventoryKardexPage = React.lazy(() => import('@/modules/inventory/pages/InventoryKardexPage'));
 const InventoryOpeningPage = React.lazy(() => import('@/modules/inventory/pages/InventoryOpeningPage'));
 const InventoryMovementsPage = React.lazy(() => import('@/modules/inventory/pages/InventoryMovementsPage'));
@@ -77,6 +79,7 @@ const AccountingLedgerPage = React.lazy(() => import('@/modules/accounting/pages
 const AccountingTrialBalancePage = React.lazy(() => import('@/modules/accounting/pages/AccountingTrialBalancePage'));
 const AccountingIncomeStatementPage = React.lazy(() => import('@/modules/accounting/pages/AccountingIncomeStatementPage'));
 const AccountingBalanceSheetPage = React.lazy(() => import('@/modules/accounting/pages/AccountingBalanceSheetPage'));
+const AccountingAuditPage = React.lazy(() => import('@/modules/accounting/pages/AccountingAuditPage'));
 
 // Fallback de carga durante la descarga del chunk
 const PageLoadingFallback = () => (
@@ -212,6 +215,8 @@ export const AppRoutes = () => {
             <Route path="/sales/pos" element={<RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_FACTURACION']}><SalesPosPage /></RoleProtectedRoute>} />
             <Route path="/sales/historial" element={<RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}><SalesHistoryPage /></RoleProtectedRoute>} />
             <Route path="/sales/cotizaciones" element={<RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_FACTURACION']}><SalesQuotesPage /></RoleProtectedRoute>} />
+            <Route path="/sales/pedidos" element={<RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_FACTURACION']}><SalesOrdersPage /></RoleProtectedRoute>} />
+            <Route path="/sales/caja" element={<RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_FACTURACION']}><CashClosurePage /></RoleProtectedRoute>} />
             <Route path="/sales/reportes" element={<RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}><SalesReportPage /></RoleProtectedRoute>} />
 
             {/* [M3: Suite Aduanera e Inventarios] ADMIN, OPERADOR_ADUANAS, CONTADOR, AUDITOR */}
@@ -585,6 +590,14 @@ export const AppRoutes = () => {
               element={
                 <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
                   <AccountingBalanceSheetPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/accounting/auditoria"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <AccountingAuditPage />
                 </RoleProtectedRoute>
               }
             />

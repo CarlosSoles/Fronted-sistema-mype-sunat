@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Card, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Input, Page, PageHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
 import { collectionsApi } from '../services/collectionsApi';
+import { accountingApi } from '@/modules/accounting/services/accountingApi';
+import { AccountDistributionEditor, toDistributionPayload, type DistributionRow } from '@/modules/accounting/components/AccountDistributionEditor';
 const descargarCsv = (nombre: string, filas: Array<Array<string | number>>) => {
   const contenido = filas.map((f) => f.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
   const blob = new Blob([`\uFEFF${contenido}`], { type: 'text/csv;charset=utf-8;' });
@@ -22,10 +24,17 @@ export default function CollectionsPage() {
   const [historial, setHistorial] = useState<{ invoice: { numero: string; customerName: string; total: number }; collections: Array<{ id: string; date: string; amount: number; paymentMethod: string; bankName?: string | null; status: string }>; paid: number } | null>(null);
   const estado = useQuery({ queryKey: ['collections-statement', docConsultado], queryFn: () => collectionsApi.statement(docConsultado), enabled: Boolean(docConsultado) });
   const factura = (cartera.data ?? []).find((f) => f.id === facturaId);
-  const [form, setForm] = useState({ customerName: '', customerDoc: '', invoiceNumber: '', amount: '', date: new Date().toISOString().slice(0, 10), method: 'TRANSFERENCIA', bank: '' });
+  const [form, setForm] = useState({ customerName: '', customerDoc: '', invoiceNumber: '', amount: '', date: new Date().toISOString().slice(0, 10), method: 'TRANSFERENCIA', bank: '', treasuryAccountId: '' });
+  /** Reparto del cobro entre varias cuentas por cobrar (tarea 2). */
+  const [dist, setDist] = useState<DistributionRow[]>([]);
+  const cuentas = useQuery({ queryKey: ['accounting-accounts'], queryFn: accountingApi.getAccounts });
+  const tesoreria = useQuery({ queryKey: ['treasury-accounts'], queryFn: accountingApi.getTreasuryAccounts });
+  const filasDist = toDistributionPayload(dist);
+  const repartido = filasDist.reduce((s, d) => s + (d.amount ?? 0), 0);
+  const distCuadra = dist.length === 0 || Math.abs(repartido - (Number(form.amount) || 0)) <= 0.01;
   const [error, setError] = useState<string | null>(null);
   const anular = useMutation({ mutationFn: (id: string) => collectionsApi.annul(id), onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ['collections'] }); await queryClient.invalidateQueries({ queryKey: ['collections-receivables'] }); }, onError: (e: any) => setError(e?.response?.data?.message ?? 'No se pudo anular el cobro.') });
-  const crear = useMutation({ mutationFn: () => collectionsApi.create({ customerName: form.customerName, customerDoc: form.customerDoc || undefined, invoiceNumber: form.invoiceNumber || undefined, collectionDate: form.date, paymentMethod: form.method, bankName: form.bank || undefined, amount: Number(form.amount) }), onSuccess: async () => { setError(null); setForm({ ...form, customerName: '', customerDoc: '', invoiceNumber: '', amount: '' }); await queryClient.invalidateQueries({ queryKey: ['collections'] }); }, onError: (e: any) => setError(e?.response?.data?.message ?? 'No se pudo registrar el cobro.') });
+  const crear = useMutation({ mutationFn: () => collectionsApi.create({ customerName: form.customerName, customerDoc: form.customerDoc || undefined, invoiceNumber: form.invoiceNumber || undefined, collectionDate: form.date, paymentMethod: form.method, bankName: form.bank || undefined, amount: Number(form.amount), treasuryAccountId: form.treasuryAccountId || undefined, distributions: filasDist.length > 0 ? filasDist : undefined }), onSuccess: async () => { setError(null); setDist([]); setForm({ ...form, customerName: '', customerDoc: '', invoiceNumber: '', amount: '' }); await queryClient.invalidateQueries({ queryKey: ['collections'] }); }, onError: (e: any) => setError(e?.response?.data?.message ?? 'No se pudo registrar el cobro.') });
   return <Page>
     <PageHeader title="Cuentas por cobrar" description="Cartera, estado de cuenta y cobros con asiento 10/12" />
     {carteraTotal.data ? <Card className="p-4 mb-4 space-y-2"><div className="flex flex-wrap justify-between gap-2 text-sm"><span><Button size="sm" variant="ghost" onClick={() => { if (!carteraTotal.data) return; descargarCsv('cartera.csv', [['Documento','Cliente','Saldo'], ...carteraTotal.data.debtors.map((d) => [d.doc, d.name, d.balance.toFixed(2)])]); }}>Exportar</Button> Cartera: <strong>{money(carteraTotal.data.total)}</strong> · {carteraTotal.data.invoiceCount} facturas</span><span className="text-xs text-muted-foreground">0–30: {money(carteraTotal.data.aging.d0_30)} · 31–60: {money(carteraTotal.data.aging.d31_60)} · 61–90: {money(carteraTotal.data.aging.d61_90)} · +90: {money(carteraTotal.data.aging.d90_plus)}</span></div>{carteraTotal.data.debtors.length > 0 ? <>{carteraTotal.data.overdue.count > 0 ? <p className="text-xs text-destructive">Vencido (+30 días): {money(carteraTotal.data.overdue.total)} · {carteraTotal.data.overdue.count} facturas</p> : null}<p className="text-xs text-muted-foreground">Mayor deudor: {carteraTotal.data.debtors[0].name || carteraTotal.data.debtors[0].doc} · {money(carteraTotal.data.debtors[0].balance)}</p></> : null}</Card> : null}
@@ -38,8 +47,25 @@ export default function CollectionsPage() {
       <label className="text-xs">Monto<Input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></label>
       <label className="text-xs">Fecha<Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></label>
       <label className="text-xs">Método<select className="mt-1 h-9 w-full rounded border bg-background px-2" value={form.method} onChange={(e) => setForm({ ...form, method: e.target.value })}><option>TRANSFERENCIA</option><option>EFECTIVO</option><option>DEPOSITO</option><option>CHEQUE</option></select></label>
-      <div className="flex items-end"><Button onClick={() => crear.mutate()} disabled={crear.isPending || !form.customerName || !form.amount}>{crear.isPending ? 'Registrando…' : 'Registrar cobro'}</Button></div>
-    </div></div></Card>
+      <label className="text-xs">Cuenta de tesorería (caja o banco)
+        <select className="mt-1 h-9 w-full rounded border bg-background px-2" value={form.treasuryAccountId} onChange={(e) => setForm({ ...form, treasuryAccountId: e.target.value })}>
+          <option value="">Usar la cuenta de la regla COBRO</option>
+          {(tesoreria.data ?? []).filter((t) => t.isActive).map((t) => <option key={t.id} value={t.id}>{t.code} · {t.name}</option>)}
+        </select>
+      </label>
+      <div className="flex items-end"><Button onClick={() => crear.mutate()} disabled={crear.isPending || !form.customerName || !form.amount || !distCuadra}>{crear.isPending ? 'Registrando…' : 'Registrar cobro'}</Button></div>
+      </div>
+      <div className="mt-3">
+        <AccountDistributionEditor
+          label="Distribución del cobro entre cuentas por cobrar (opcional)"
+          total={Number(form.amount) || 0}
+          accounts={cuentas.data ?? []}
+          rows={dist}
+          onChange={setDist}
+        />
+        {!distCuadra ? <p className="mt-1 text-[11px] text-destructive">El reparto debe sumar el importe cobrado para poder registrarlo.</p> : null}
+      </div>
+    </div></Card>
     <Card flush><Table><TableHeader><TableRow><TableHead>Fecha</TableHead><TableHead>Cliente</TableHead><TableHead>Comprobante</TableHead><TableHead>Método</TableHead><TableHead>Estado</TableHead><TableHead align="right">Monto</TableHead><TableHead align="right">Acción</TableHead></TableRow></TableHeader><TableBody>
       {isLoading ? <TableRow><TableCell colSpan={7}>Cargando…</TableCell></TableRow> : null}
       {!isLoading && data.length === 0 ? <TableRow><TableCell colSpan={7}>Sin cobros registrados.</TableCell></TableRow> : null}
