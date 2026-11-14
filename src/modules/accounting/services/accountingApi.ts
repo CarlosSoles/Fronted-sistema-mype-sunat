@@ -21,6 +21,71 @@ export interface TreasuryAccount {
   isActive: boolean;
 }
 
+/** Hallazgo de la auditoría contable. */
+export interface AuditIssue {
+  severity: 'ERROR' | 'WARN';
+  code: string;
+  process?: string;
+  lineOrder?: number;
+  accountCode?: string;
+  message: string;
+}
+
+export interface AuditEntryIssue {
+  id: string;
+  entryNumber: number;
+  period: string;
+  sourceModule: string;
+  sourceReferenceId: string | null;
+  debe: number;
+  haber: number;
+  diferencia: number;
+  detalle: string;
+}
+
+export interface AuditInvoiceIssue {
+  id: string;
+  numero: string;
+  tipoComprobante: string;
+  fechaEmision: string;
+  total: number;
+  detalle: string;
+}
+
+export interface AccountingAudit {
+  companyId: string;
+  period: string | null;
+  generatedAt: string;
+  ok: boolean;
+  catalogo: { total: number; activas: number };
+  reglas: { procesos: string[]; total: number; issues: AuditIssue[] };
+  asientos: {
+    revisados: number;
+    truncado: boolean;
+    descuadrados: AuditEntryIssue[];
+    sinLineas: AuditEntryIssue[];
+    duplicados: Array<{ sourceModule: string; sourceReferenceId: string; asientos: number; detalle: string }>;
+    conCuentaInvalida: Array<{ id: string; entryNumber: number; issues: AuditIssue[] }>;
+  };
+  comprobantes: {
+    revisados: number;
+    truncado: boolean;
+    sinAsiento: AuditInvoiceIssue[];
+    sinCosto: AuditInvoiceIssue[];
+  };
+  resumen: { errors: number; warnings: number };
+}
+
+export interface RegularizationResult {
+  dryRun: boolean;
+  revisados: number;
+  pendientes: number;
+  regularizados: number;
+  omitidos: number;
+  fallidos: Array<{ id: string; numero: string; tipoComprobante: string; motivo: string }>;
+  detalle: Array<{ id: string; numero: string; tipoComprobante: string }>;
+}
+
 export const accountingApi = {
   getEntries: async (period?: string): Promise<AccountingEntry[]> => {
     return cachedGet(`accounting-entries:${period ?? 'actual'}`, async () => {
@@ -158,6 +223,26 @@ export const accountingApi = {
     const { data } = await apiClient.put<TreasuryAccount>(`/accounting/treasury-accounts/${id}`, payload);
     return data;
   },
+  /**
+   * Auditoría contable (solo lectura): reglas inválidas, asientos descuadrados o
+   * duplicados y comprobantes aceptados sin asiento o sin costo.
+   */
+  getAudit: async (period?: string): Promise<AccountingAudit> => {
+    const { data } = await apiClient.get<AccountingAudit>('/accounting/audit', { params: { period } });
+    return data;
+  },
+
+  /**
+   * Regulariza comprobantes aceptados sin asiento. Trabaja en seco por defecto;
+   * solo escribe si se envía `dryRun: false`.
+   */
+  regularizarComprobantes: async (
+    options: { dryRun?: boolean; limit?: number; ids?: string[] } = {},
+  ): Promise<RegularizationResult> => {
+    const { data } = await apiClient.post<RegularizationResult>('/invoices/accounting/reprocess', options);
+    return data;
+  },
+
   exportPleBook: async (config: PleExportConfig): Promise<Blob> => {
     const response = await apiClient.post('/accounting/ple/export', config, {
       responseType: 'blob',
