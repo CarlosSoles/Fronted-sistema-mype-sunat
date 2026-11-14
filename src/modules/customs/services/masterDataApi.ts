@@ -57,6 +57,8 @@ export type PartnerRole =
   | 'TRANSPORTISTA';
 
 export interface BusinessPartnerRecord {
+  primary_contact?: PartnerContactRecord | null;
+  primary_address?: PartnerAddressRecord | null;
   id: string;
   company_id: string;
   doc_type: string;
@@ -278,6 +280,10 @@ export const masterDataApi = {
   deletePartner: async (id: string) => {
     await apiClient.delete(`${BASE}/partners/${id}`);
   },
+  updatePartnerRecord: async (partnerId: string, kind: string, id: string, payload: Record<string, unknown>) =>
+    (await apiClient.put(`/master-data/partners/${partnerId}/${kind}/${id}`, payload)).data,
+  deletePartnerRecord: async (partnerId: string, kind: string, id: string) =>
+    (await apiClient.delete(`/master-data/partners/${partnerId}/${kind}/${id}`)).data,
   addAddress: async (partnerId: string, payload: Record<string, unknown>) => {
     const { data } = await apiClient.post<PartnerAddressRecord>(
       `${BASE}/partners/${partnerId}/addresses`,
