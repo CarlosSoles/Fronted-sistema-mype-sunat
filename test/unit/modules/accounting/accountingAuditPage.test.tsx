@@ -45,6 +45,9 @@ const informe = (over: Record<string, any> = {}) => ({
     truncado: false,
     sinAsiento: [{ id: 'p1', numero: 'COM-000001', documento: 'F001-77', proveedor: 'Proveedor SAC', fecha: '2026-11-08', total: 236, detalle: 'compra registrada sin asiento contable' }],
   },
+  cobros: {
+    deComprobantesAnulados: [{ id: 'cob-1', comprobante: 'F001-00000005', cliente: 'Cliente SAC', fecha: '2026-11-09', monto: 118, detalle: 'cobro registrado sobre un comprobante anulado' }],
+  },
   resumen: { errors: 2, warnings: 1 },
   ...over,
 });
@@ -71,6 +74,7 @@ it('muestra los hallazgos de reglas, asientos y comprobantes', async () => {
   expect(screen.getByText(/sin regla para las líneas 10, 11/)).toBeTruthy();
   expect(screen.getByText('F001-00000009')).toBeTruthy();
   expect(screen.getByText('COM-000001')).toBeTruthy();
+  expect(screen.getByText(/Cobros sobre comprobantes anulados \(1\)/)).toBeTruthy();
   expect(screen.getByText(/2 error\(es\)/)).toBeTruthy();
   expect(screen.getByText(/1 aviso\(s\)/)).toBeTruthy();
   expect(accountingApi.getAudit).toHaveBeenCalledWith(undefined);

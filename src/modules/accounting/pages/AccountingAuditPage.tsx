@@ -70,6 +70,7 @@ export default function AccountingAuditPage() {
   const data = auditoria.data;
   const sinAsiento = data?.comprobantes.sinAsiento ?? [];
   const comprasSinAsiento = data?.compras?.sinAsiento ?? [];
+  const cobrosHuerfanos = data?.cobros?.deComprobantesAnulados ?? [];
 
   return (
     <Page>
@@ -220,6 +221,24 @@ export default function AccountingAuditPage() {
                   ? `Asiento de ${reintentoCompra.compra} ${reintentoCompra.yaExistia ? 'ya existía' : 'registrado'}.`
                   : `No se pudo contabilizar ${reintentoCompra.compra}: ${reintentoCompra.motivo ?? ''}`}
               </p>
+            ) : null}
+
+            {cobrosHuerfanos.length > 0 ? (
+              <div className="space-y-1">
+                <p className="text-xs font-medium flex items-center gap-1">
+                  <AlertTriangle className="h-3.5 w-3.5" /> Cobros sobre comprobantes anulados ({cobrosHuerfanos.length})
+                </p>
+                <ul className="space-y-1">
+                  {cobrosHuerfanos.map((c) => (
+                    <li key={c.id} className="text-xs">
+                      {c.comprobante} · {c.cliente} · {money(c.monto)} ({c.fecha})
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-[11px] text-muted-foreground">
+                  La venta se anuló pero el dinero sigue registrado como cobrado: anule el cobro o registre la devolución.
+                </p>
+              </div>
             ) : null}
 
             {regularizacion ? (
