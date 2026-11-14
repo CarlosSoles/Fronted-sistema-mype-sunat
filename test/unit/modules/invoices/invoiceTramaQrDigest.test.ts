@@ -84,16 +84,16 @@ describe('trama QR con el digest real', () => {
     hashCpe: digest,
   });
 
-  it('tiene los 10 campos + el separador final', () => {
-    expect(trama.split('|')).toHaveLength(11);
+  it('tiene los 10 campos sin separador adicional', () => {
+    expect(trama.split('|')).toHaveLength(10);
   });
 
   it('arranca con el RUC del emisor', () => {
-    expect(trama.startsWith('20601234567|01|F001|47|')).toBe(true);
+    expect(trama.startsWith('20601234567|01|F001|00000047|')).toBe(true);
   });
 
-  it('termina con el digest sin relleno, no en vacío', () => {
-    expect(trama.endsWith('|ZeHAEYsi77Xs8W4s6W9PWx9eu6WsAjlLIp9mVtE998I|')).toBe(
+  it('termina con el digest con relleno, no en vacío', () => {
+    expect(trama.endsWith('|ZeHAEYsi77Xs8W4s6W9PWx9eu6WsAjlLIp9mVtE998I=')).toBe(
       true,
     );
     expect(trama).not.toMatch(/\|\|$/);
@@ -104,7 +104,7 @@ describe('trama QR con el digest real', () => {
    * Esta prueba fija el contrato —una trama sin hash es un QR inválido— y evita
    * que alguien vuelva a "rellenar" el campo.
    */
-  it('una trama construida con digest vacío termina en ||', () => {
+  it('una trama construida con digest vacío deja el último campo vacío', () => {
     const invalida = generarTramaQrSunat({
       rucEmisor: '20601234567',
       tipo: '01',
@@ -117,7 +117,8 @@ describe('trama QR con el digest real', () => {
       numDocCliente: '20100070970',
       hashCpe: '',
     });
-    expect(invalida).toMatch(/\|\|$/);
+    expect(invalida.split('|')).toHaveLength(10);
+    expect(invalida.split('|')[9]).toBe('');
     // Por eso el componente solo la pinta cuando `digest` tiene contenido.
     expect(extraerDigestValue('')).toBeNull();
   });

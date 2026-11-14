@@ -7,9 +7,9 @@ export function documentoTerceroValido(tipo: string, numero: string): boolean {
   const diferencia = 11 - suma % 11;
   return Number(numero[10]) === (diferencia === 10 ? 0 : diferencia === 11 ? 1 : diferencia);
 }
-export function errorDatosTercero(form: {docType:string;docNumber:string;legalName:string;tradeName:string;countryCode:string;email:string}, editar = false): string | undefined {
-  void editar; // El contrato conserva el indicador; alta y edición comparten validación.
-  if (!documentoTerceroValido(form.docType, form.docNumber.trim())) return 'Documento inválido: DNI de 8 dígitos o RUC de 11 dígitos con módulo 11; CE/TAX ID no vacío.';
+export function errorDatosTercero(form: {docType:string;docNumber:string;legalName:string;tradeName:string;countryCode:string;email:string}, editar = false, original?: { docType: string; docNumber: string }): string | undefined {
+  const identidadSinCambios = editar && original && form.docType === original.docType && form.docNumber === original.docNumber;
+  if (!identidadSinCambios && !documentoTerceroValido(form.docType, form.docNumber.trim())) return 'Documento inválido: DNI de 8 dígitos o RUC de 11 dígitos con módulo 11; CE/TAX ID no vacío.';
   const nombre = form.legalName.trim();
   if (!nombre || Array.from(nombre).length < 2 || Array.from(nombre).length > 200) return 'La razón social debe contener entre 2 y 200 caracteres.';
   if (!/[\p{L}]/u.test(nombre)) return 'La razón social debe contener al menos una letra.';
