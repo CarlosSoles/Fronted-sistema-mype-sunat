@@ -75,6 +75,14 @@ export const purchasesApi = {
     return data;
   },
 
+  /** Reintenta el asiento de una compra que quedó sin contabilizar. */
+  postAccounting: async (
+    id: string,
+  ): Promise<{ compra: string; asientoGenerado: boolean; motivo?: string; yaExistia: boolean }> => {
+    const { data } = await apiClient.post(`/purchases/${id}/post-accounting`);
+    return data;
+  },
+
   payPurchase: async (
     id: string,
     payload: PayPurchasePayload,

@@ -67,6 +67,7 @@ export default function AccountingDashboardPage() {
           ['Estado de Resultados', '/accounting/income-statement'],
           ['Balance General', '/accounting/balance-sheet'],
           ['Períodos contables', '/accounting/periods'],
+          ['Auditoría contable', '/accounting/auditoria'],
         ].map(([title, to]) => (
           <Link key={to} to={to} className="rounded-lg border bg-card p-4 hover:bg-muted/40 transition-colors">
             <p className="font-semibold text-sm">{title}</p>

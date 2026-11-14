@@ -79,6 +79,7 @@ const AccountingLedgerPage = React.lazy(() => import('@/modules/accounting/pages
 const AccountingTrialBalancePage = React.lazy(() => import('@/modules/accounting/pages/AccountingTrialBalancePage'));
 const AccountingIncomeStatementPage = React.lazy(() => import('@/modules/accounting/pages/AccountingIncomeStatementPage'));
 const AccountingBalanceSheetPage = React.lazy(() => import('@/modules/accounting/pages/AccountingBalanceSheetPage'));
+const AccountingAuditPage = React.lazy(() => import('@/modules/accounting/pages/AccountingAuditPage'));
 
 // Fallback de carga durante la descarga del chunk
 const PageLoadingFallback = () => (
@@ -589,6 +590,14 @@ export const AppRoutes = () => {
               element={
                 <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
                   <AccountingBalanceSheetPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/accounting/auditoria"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <AccountingAuditPage />
                 </RoleProtectedRoute>
               }
             />

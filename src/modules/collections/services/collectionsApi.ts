@@ -5,6 +5,8 @@ export interface CustomerStatement { customerDoc: string; totals: { total: numbe
 export interface PortfolioAging { total: number; invoiceCount: number; overdue: { count: number; total: number }; aging: { d0_30: number; d31_60: number; d61_90: number; d90_plus: number }; debtors: Array<{ doc: string; name: string; balance: number }>; }
 export interface InvoiceCollections { invoice: { id: string; numero: string; customerName: string; total: number; date: string }; collections: Array<{ id: string; date: string; amount: number; paymentMethod: string; bankName?: string | null; status: string }>; paid: number; }
 export interface Reconciliation { receivable: number; accounting: number; difference: number; reconciled: boolean; invoiceCount: number; }
+export interface DistributionInputPayload { accountCode: string; amount?: number; percentage?: number; }
+
 export const collectionsApi = {
   reconciliation: async (): Promise<Reconciliation> => (await apiClient.get('/collections/reconciliation')).data,
   invoiceCollections: async (id: string): Promise<InvoiceCollections> => (await apiClient.get(`/collections/invoice/${id}`)).data,
@@ -13,5 +15,23 @@ export const collectionsApi = {
   receivables: async (): Promise<ReceivableRecord[]> => (await apiClient.get('/collections/receivables')).data,
   list: async (): Promise<CollectionRecord[]> => (await apiClient.get('/collections')).data,
   annul: async (id: string) => (await apiClient.post(`/collections/${id}/annul`)).data,
-  create: async (payload: { customerName: string; customerDoc?: string; invoiceNumber?: string; description?: string; collectionDate?: string; paymentMethod?: string; bankName?: string; amount: number }) => (await apiClient.post('/collections', payload)).data,
+  /** Revierte todos los cobros vivos de un comprobante anulado. */
+  annulByInvoice: async (invoiceId: string): Promise<{ comprobante: string; cobros: number; anulados: number; fallidos: Array<{ id: string; motivo: string }> }> =>
+    (await apiClient.post(`/collections/invoice/${invoiceId}/annul`)).data,
+  distributions: async (id: string): Promise<Array<{ accountCode: string; amount: number; percentage: number }>> =>
+    (await apiClient.get<Array<{ accountCode: string; amount: number; percentage: number }>>(`/collections/${id}/distributions`)).data,
+  setDistributions: async (id: string, items: DistributionInputPayload[]) =>
+    (await apiClient.put(`/collections/${id}/distributions`, { items })).data,
+  create: async (payload: {
+    customerName: string;
+    customerDoc?: string;
+    invoiceNumber?: string;
+    description?: string;
+    collectionDate?: string;
+    paymentMethod?: string;
+    bankName?: string;
+    amount: number;
+    treasuryAccountId?: string;
+    distributions?: DistributionInputPayload[];
+  }) => (await apiClient.post('/collections', payload)).data,
 };
