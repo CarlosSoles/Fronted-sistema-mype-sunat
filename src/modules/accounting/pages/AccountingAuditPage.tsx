@@ -110,6 +110,14 @@ export default function AccountingAuditPage() {
               Procesos configurados: {data.reglas.procesos.join(', ') || 'ninguno'}
             </p>
             <ListaHallazgos issues={data.reglas.issues} vacio="Todas las reglas apuntan a cuentas válidas y completas." />
+
+            <div className="pt-2 border-t space-y-2">
+              <p className="font-semibold text-sm">Mapeos contables ({data.mapeos?.total ?? 0})</p>
+              <p className="text-xs text-muted-foreground">
+                Proceso y rol → cuenta, usados por el puente de ventas como respaldo del costo.
+              </p>
+              <ListaHallazgos issues={data.mapeos?.issues ?? []} vacio="Todos los mapeos apuntan a cuentas válidas." />
+            </div>
           </Card>
 
           <Card className="p-4 space-y-3">

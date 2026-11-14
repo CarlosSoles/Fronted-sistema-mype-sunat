@@ -28,8 +28,7 @@ const informe = (over: Record<string, any> = {}) => ({
   },
   asientos: {
     revisados: 4,
-    truncado: false,
-    descuadrados: [{ id: 'e1', entryNumber: 7, period: '2026-11', sourceModule: 'INVOICES', sourceReferenceId: 'inv-1', debe: 118, haber: 100, diferencia: 18, detalle: 'debe 118.00 contra haber 100.00' }],
+    truncado: false,    descuadrados: [{ id: 'e1', entryNumber: 7, period: '2026-11', sourceModule: 'INVOICES', sourceReferenceId: 'inv-1', debe: 118, haber: 100, diferencia: 18, detalle: 'debe 118.00 contra haber 100.00' }],
     sinLineas: [],
     duplicados: [],
     conCuentaInvalida: [],
@@ -44,6 +43,10 @@ const informe = (over: Record<string, any> = {}) => ({
     revisadas: 1,
     truncado: false,
     sinAsiento: [{ id: 'p1', numero: 'COM-000001', documento: 'F001-77', proveedor: 'Proveedor SAC', fecha: '2026-11-08', total: 236, detalle: 'compra registrada sin asiento contable' }],
+  },
+  mapeos: {
+    total: 2,
+    issues: [{ severity: 'ERROR', code: 'CUENTA_NO_EXISTE', process: 'COMPRA/VARIACION_EXISTENCIA', message: 'COMPRA/VARIACION_EXISTENCIA: la cuenta PCGE 61111 no existe en el catálogo' }],
   },
   cobros: {
     deComprobantesAnulados: [{ id: 'cob-1', comprobante: 'F001-00000005', cliente: 'Cliente SAC', fecha: '2026-11-09', monto: 118, detalle: 'cobro registrado sobre un comprobante anulado' }],
@@ -75,6 +78,7 @@ it('muestra los hallazgos de reglas, asientos y comprobantes', async () => {
   expect(screen.getByText('F001-00000009')).toBeTruthy();
   expect(screen.getByText('COM-000001')).toBeTruthy();
   expect(screen.getByText(/Cobros sobre comprobantes anulados \(1\)/)).toBeTruthy();
+  expect(screen.getByText(/la cuenta PCGE 61111 no existe/)).toBeTruthy();
   expect(screen.getByText(/2 error\(es\)/)).toBeTruthy();
   expect(screen.getByText(/1 aviso\(s\)/)).toBeTruthy();
   expect(accountingApi.getAudit).toHaveBeenCalledWith(undefined);

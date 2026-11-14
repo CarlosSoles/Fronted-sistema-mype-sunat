@@ -78,6 +78,7 @@ export interface AccountingAudit {
   ok: boolean;
   catalogo: { total: number; activas: number };
   reglas: { procesos: string[]; total: number; issues: AuditIssue[] };
+  mapeos: { total: number; issues: AuditIssue[] };
   asientos: {
     revisados: number;
     truncado: boolean;
