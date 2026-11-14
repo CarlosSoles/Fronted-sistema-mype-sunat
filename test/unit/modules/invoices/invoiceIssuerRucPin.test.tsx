@@ -1,3 +1,5 @@
+import { invoiceDetailFromDemo } from '../../../fixtures/invoiceDetailFromDemo';
+import { invoicesApi } from '@/modules/invoices/services/invoicesApi';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { apiClient } from '@/lib/axios';
@@ -9,7 +11,7 @@ import { construir } from '@/modules/invoices/data/invoiceDemoTypes';
 
 vi.mock('@/lib/axios', () => ({ apiClient: { get: vi.fn() } }));
 vi.mock('@/modules/invoices/components/InvoiceSunatConsulta', () => ({ InvoiceSunatConsulta: () => <span>Consulta SUNAT disponible</span> }));
-vi.mock('@/modules/invoices/services/invoicesApi', () => ({ invoicesApi: { getInvoiceById: vi.fn(async () => ({ historial: [] })) } }));
+vi.mock('@/modules/invoices/services/invoicesApi', () => ({ invoicesApi: { getInvoiceById: vi.fn() } }));
 vi.mock('@/modules/invoices/lib/invoiceDescarga', () => ({
   obtenerXmlDesdeBackend: vi.fn(async () => '<Invoice><DigestValue>DIGEST-PIN=</DigestValue></Invoice>'),
   extraerDigestValue: vi.fn(() => 'DIGEST-PIN='), descargarDesdeBackend: vi.fn(),
@@ -17,6 +19,7 @@ vi.mock('@/modules/invoices/lib/invoiceDescarga', () => ({
 const empresa = { tenantId: 'pin-tenant', ruc: '20614142503', razonSocial: 'Emisor de prueba' };
 const c = { ...construir({ tipo: '01', serie: 'F001', correlativo: 7, ruc: '20100070970', razonSocial: 'Cliente', fecha: '2026-11-12', base: 100, estado: 'ACEPTADO' }), hashCpe: 'DIGEST-PIN=' };
 beforeEach(() => {
+  vi.mocked(invoicesApi.getInvoiceById).mockResolvedValue(invoiceDetailFromDemo(c));
   useAuthStore.setState({ activeCompany: empresa, token: 'fake-token' });
   vi.mocked(apiClient.get).mockResolvedValue({ data: { ruc: '20601234567' } });
 });
@@ -58,7 +61,7 @@ it('PDF binario y trama usan el mismo RUC obtenido de la configuración', async 
   const emisor = await cargarIdentidadEmisora();
   const pdf = construirPdfBinarioSunat(c, emisor);
   expect(pdf).toContain('R.U.C. N° 20601234567');
-  expect(pdf).toContain('20601234567|01|F001|7|');
+  expect(pdf).toContain('20601234567|01|F001|00000007|');
   expect(pdf).not.toContain(empresa.ruc);
   expect(tramaQrDelComprobante(c, emisor)).toMatch(/^20601234567\|01\|/);
 });
@@ -71,13 +74,13 @@ it('la descarga del PDF obtiene la configuración antes de generar el archivo', 
     const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsText(blob);
   });
   expect(text).toContain('R.U.C. N° 20601234567');
-  expect(text).toContain('20601234567|01|F001|7|');
+  expect(text).toContain('20601234567|01|F001|00000007|');
 });
 it.each([true, false])('el QR del modal usa configuración disponible=%s y respaldo de sesión si falla', async available => {
   if (!available) vi.mocked(apiClient.get).mockRejectedValue(Error('Sin respuesta'));
   render(<InvoiceCdrModal comprobante={c} onCerrar={() => {}} />);
   const expected = available ? '20601234567' : empresa.ruc;
-  expect((await screen.findByText(new RegExp(`Trama QR: ${expected}\\|01\\|`))).textContent).toContain('DIGEST-PIN|');
+  expect((await screen.findByText(new RegExp(`Trama QR: ${expected}\\|01\\|`))).textContent).toContain('DIGEST-PIN=');
 });
 it('el modal no muestra una respuesta tardía del tenant anterior', async () => {
   let complete!: (value: never) => void;
