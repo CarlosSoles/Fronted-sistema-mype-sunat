@@ -56,7 +56,7 @@ export function construir(semilla: SemillaComprobante): ComprobanteDemo {
     ? calcularDetraccion(total, semilla.detraccionPct)
     : 0;
   const retencion = semilla.agenteRetencion
-    ? calcularRetencion(total, true)
+    ? calcularRetencion(total, true, 1, 0, afectacion === 'GRAVADA' ? semilla.base : 0)
     : 0;
   const tipoOperacion: TipoOperacion =
     semilla.tipoOperacion ??
