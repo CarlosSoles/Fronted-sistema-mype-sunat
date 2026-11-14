@@ -1,3 +1,4 @@
+import { InvoiceBatchRetry } from '../components/InvoiceBatchRetry';
 import { cargarPaginasMonitor } from '../lib/invoiceMonitorData';
 import { InvoiceRvieSection } from '../components/InvoiceRvieSection';
 import { InvoiceWriteButton } from '../components/InvoiceWriteButton';
@@ -174,6 +175,8 @@ export default function InvoiceMonitorPage() {
           {cargando ? 'Consultando…' : 'Actualizar'}
         </Button>
       </PageHeader>
+
+      <InvoiceBatchRetry onComplete={() => void cargar()} />
 
       {avisoReintento && (
         <Alert variant={avisoReintento.encolado ? 'success' : 'destructive'}>
