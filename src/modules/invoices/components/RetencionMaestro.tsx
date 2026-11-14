@@ -7,8 +7,8 @@ import { apiClient } from '@/lib/axios';
 type Partner = { id: string; doc_type: string; doc_number: string };
 type Estado = 'sin-documento' | 'consultando' | 'sin-registro' | 'sin-indicador' | 'error' | boolean;
 
-export function RetencionMaestro({ documento, razonSocial, valor, onChange, disabled = false }: {
-  documento: string; razonSocial: string; valor: boolean; onChange: (valor: boolean, correccion: boolean) => void; disabled?: boolean;
+export function RetencionMaestro({ documento, razonSocial, valor, onChange, disabled = false, spot = false }: {
+  documento: string; razonSocial: string; valor: boolean; onChange: (valor: boolean, correccion: boolean) => void; disabled?: boolean; spot?: boolean;
 }) {
   const { canEmitInvoices } = useRolePermissions();
   const [creando, setCreando] = useState(false);
@@ -43,7 +43,8 @@ export function RetencionMaestro({ documento, razonSocial, valor, onChange, disa
   const texto = estado === true ? 'Sí' : estado === false ? 'No' : estado === 'sin-registro' ? 'Sin registro en el maestro' : estado === 'sin-indicador' ? 'Sin indicador vigente' : estado === 'consultando' ? 'Consultando…' : estado === 'error' ? 'No se pudo consultar; selección manual' : 'Ingrese el documento del cliente';
   return <div className="space-y-1 text-sm">
     <p>Agente de retención según maestro: {texto}</p>
-    <label className="flex items-center gap-2"><input type="checkbox" checked={valor} disabled={disabled} onChange={(e) => { cambioManual.current = true; onChange(e.target.checked, true); }} />Cliente es Agente de Retención del IGV (3%)</label>
+    <label className="flex items-center gap-2"><input type="checkbox" checked={valor && !spot} disabled={disabled || spot} onChange={(e) => { cambioManual.current = true; onChange(e.target.checked, true); }} />Cliente es Agente de Retención del IGV (3%)</label>
+    {spot && <p role="status">La retención del IGV no aplica a operaciones sujetas al SPOT.</p>}
     {typeof estado === 'boolean' && valor !== estado && <p role="status">La selección difiere del maestro; quedará registrada en la bitácora.</p>}
     {estado === 'sin-registro' && canEmitInvoices && !disabled && <button type="button" onClick={() => setCreando(true)}>Crear cliente en el maestro</button>}
     {creando && canEmitInvoices && !disabled && <PartnerFormDialog initialRole="CLIENTE" requiredRole="CLIENTE" initialDocument={documento} initialName={razonSocial} onClose={() => setCreando(false)} /> }
