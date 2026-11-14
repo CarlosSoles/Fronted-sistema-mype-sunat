@@ -32,12 +32,11 @@ function montar(cambioEnConfirmacion = false) {
  const q = new QueryClient({ defaultOptions: { queries: { retry: false } } }); clientes.push(q);
  render(<QueryClientProvider client={q}><InvoiceEmitModal seriesConfiguradas={seriesConfiguradasPrueba} tipoInicial="07" fecha="2026-11-05" existentes={[factura]} onEmitir={vi.fn()} onCerrar={vi.fn()} /></QueryClientProvider>);
  fireEvent.change(screen.getByLabelText('Documento afectado'), { target: { value: 'F001-00000056' } });
- return waitFor(() => expect((screen.getByLabelText('Descripción de la línea 1') as HTMLInputElement).value).toBe('Cemento real'));
+ return waitFor(() => expect(screen.getByLabelText('Descripción de la línea 1').textContent).toBe('Cemento real'));
 }
 it('campo máximo 2, error visible y bloqueo aunque el importe de 3 unidades quepa', async () => {
  await montar(); const cantidad = screen.getByLabelText('Cantidad de la línea 1') as HTMLInputElement;
  await waitFor(() => expect(cantidad.max).toBe('2'));
- fireEvent.change(screen.getByLabelText('Valor unitario de la línea 1'), { target: { value: '1' } });
  fireEvent.change(cantidad, { target: { value: '3' } });
  expect(screen.getByText(/Supera las unidades disponibles del origen/)).toBeTruthy();
  expect(cantidad.getAttribute('aria-invalid')).toBe('true');
@@ -90,7 +89,6 @@ it('dinero exacto con unidades parciales muestra error y bloquea emitir en motiv
  await montar();
  // 2 unidades a 59; al indicar 1 a 118 el dinero sigue siendo el total del origen.
  fireEvent.change(screen.getByLabelText('Cantidad de la línea 1'), { target: { value: '1' } });
- fireEvent.change(screen.getByLabelText('Valor unitario de la línea 1'), { target: { value: '100' } });
  expect(screen.getByText(/El motivo total exige todas las unidades pendientes de MAT-1/)).toBeTruthy();
  expect((screen.getByRole('button', { name: 'Emitir Nota de Crédito' }) as HTMLButtonElement).disabled).toBe(true);
  expect(apiClient.post).not.toHaveBeenCalled();
