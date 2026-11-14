@@ -208,18 +208,25 @@ export default function AccountingPlanCuentasPage() {
                   </TableRow>
                 ) : (
                   filtered.map((account) => (
-                    <TableRow key={account.code}>
-                      <TableCell className="font-mono font-bold">{account.code}</TableCell>
+                    <TableRow key={account.code} className="transition-colors hover:bg-muted/40">
+                      <TableCell className="whitespace-nowrap font-mono text-xs font-semibold">{account.code}</TableCell>
                       <TableCell>{account.name}</TableCell>
-                      <TableCell>{account.element}</TableCell>
+                      <TableCell className="text-muted-foreground">{account.element}</TableCell>
                       <TableCell align="center">
                         <Badge variant={account.nature === 'Deudora' ? 'secondary' : 'outline'}>
                           {account.nature}
                         </Badge>
                       </TableCell>
-                      <TableCell align="center">—</TableCell>
+                      <TableCell align="center" className="text-muted-foreground/60">—</TableCell>
                       <TableCell align="center">
-                        <Badge variant={account.isActive ? 'outline' : 'secondary'}>
+                        <Badge
+                          variant="outline"
+                          className={
+                            account.isActive
+                              ? 'border-emerald-600/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400'
+                              : 'text-muted-foreground'
+                          }
+                        >
                           {account.isActive ? 'Activa' : 'Inactiva'}
                         </Badge>
                       </TableCell>

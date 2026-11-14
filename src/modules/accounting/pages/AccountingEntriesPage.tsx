@@ -12,6 +12,7 @@ import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/axios';
 import { cachedGet } from '@/lib/offlineCache';
 import { DoubleEntryBalanceCard } from '../components/DoubleEntryBalanceCard';
+import { Toolbar } from '../components/AccountingUI';
 import {
   Badge,
   Button,
@@ -165,6 +166,13 @@ const etiquetaOrigen = (source: string): string => {
   return etiquetas[source] ?? source;
 };
 
+/** Tono del distintivo de origen: ayuda a separar visualmente los diarios. */
+const tonoOrigen = (source: string): string => {
+  if (source === 'INVOICES') return 'border-sky-600/30 bg-sky-500/5 text-sky-700 dark:text-sky-400';
+  if (source === 'CUSTOMS') return 'border-violet-600/30 bg-violet-500/5 text-violet-700 dark:text-violet-400';
+  return 'border-border text-muted-foreground';
+};
+
 type Diario = 'TODOS' | 'VEN' | 'COM' | 'CAJ' | 'OPV';
 
 const diarioDe = (entry: Entry): Exclude<Diario, 'TODOS'> => {
@@ -253,22 +261,15 @@ export default function AccountingEntriesPage() {
         ) : null}
       </PageHeader>
 
-      <Card className="p-4">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="space-y-1">
-            <label
-              className="text-xs font-medium text-foreground"
-              htmlFor="periodo-contable"
-            >
-              Período contable
-            </label>
-            <PeriodInput id="periodo-contable" value={period} onChange={setPeriod} className="w-44" />
-          </div>
-          <p className="text-xs text-muted-foreground pb-2">
-            Se consultan solo los asientos de este período.
-          </p>
+      <Toolbar>
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground" htmlFor="periodo-contable">
+            Período contable
+          </label>
+          <PeriodInput id="periodo-contable" value={period} onChange={setPeriod} className="w-44" />
         </div>
-      </Card>
+        <p className="pb-2 text-xs text-muted-foreground">Se consultan solo los asientos de este período.</p>
+      </Toolbar>
 
       {loadError ? (
         <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
@@ -290,14 +291,14 @@ export default function AccountingEntriesPage() {
       <Card flush>
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>N° Asiento</TableHead>
-              <TableHead>Fecha</TableHead>
-              <TableHead>Glosa / Concepto</TableHead>
-              <TableHead>Origen</TableHead>
-              <TableHead align="right">Total Debe</TableHead>
-              <TableHead align="right">Total Haber</TableHead>
-              <TableHead align="center">Estado</TableHead>
+            <TableRow className="bg-muted/40 hover:bg-muted/40">
+              <TableHead className="text-[11px] font-semibold uppercase tracking-wider">N° Asiento</TableHead>
+              <TableHead className="text-[11px] font-semibold uppercase tracking-wider">Fecha</TableHead>
+              <TableHead className="text-[11px] font-semibold uppercase tracking-wider">Glosa / Concepto</TableHead>
+              <TableHead className="text-[11px] font-semibold uppercase tracking-wider">Origen</TableHead>
+              <TableHead align="right" className="text-[11px] font-semibold uppercase tracking-wider">Total Debe</TableHead>
+              <TableHead align="right" className="text-[11px] font-semibold uppercase tracking-wider">Total Haber</TableHead>
+              <TableHead align="center" className="text-[11px] font-semibold uppercase tracking-wider">Estado</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -309,42 +310,46 @@ export default function AccountingEntriesPage() {
               </TableRow>
             ) : filtrados.length > 0 ? (
               filtrados.map((entry) => (
-                <TableRow key={entry.id} className="cursor-pointer hover:bg-muted/40" onClick={() => setDetalle(entry)}>
-                  <TableCell className="font-mono text-xs">
-                    {entry.numeroAsiento}
-                  </TableCell>
-                  <TableCell>{formatDateToPeru(entry.fechaContable)}</TableCell>
+                <TableRow
+                  key={entry.id}
+                  className="cursor-pointer transition-colors hover:bg-muted/50"
+                  onClick={() => setDetalle(entry)}
+                >
+                  <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">{entry.numeroAsiento}</TableCell>
+                  <TableCell className="whitespace-nowrap tabular-nums">{formatDateToPeru(entry.fechaContable)}</TableCell>
                   <TableCell>
-                    <div className="space-y-1">
-                      <span>{entry.glosa}</span>
+                    <div className="space-y-1.5">
+                      <span className="font-medium leading-snug">{entry.glosa}</span>
                       <div className="flex flex-wrap gap-1">
                         {entry.lines.slice(0, 3).map((linea, index) => (
-                          <Badge
-                            key={`${entry.id}-${index}`}
-                            variant="outline"
-                            className="font-mono text-[10px]"
-                          >
+                          <Badge key={`${entry.id}-${index}`} variant="outline" className="font-mono text-[10px] text-muted-foreground">
                             {linea.accountCode}
                           </Badge>
                         ))}
+                        {entry.lines.length > 3 ? (
+                          <span className="text-[10px] text-muted-foreground">+{entry.lines.length - 3}</span>
+                        ) : null}
                       </div>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="secondary">
+                    <Badge variant="outline" className={tonoOrigen(entry.sourceModule)}>
                       {etiquetaOrigen(entry.sourceModule)}
                     </Badge>
                   </TableCell>
-                  <TableCell align="right">
+                  <TableCell align="right" className="whitespace-nowrap font-medium tabular-nums">
                     {formatCurrency(entry.totalDebe, 'PEN')}
                   </TableCell>
-                  <TableCell align="right">
+                  <TableCell align="right" className="whitespace-nowrap font-medium tabular-nums">
                     {formatCurrency(entry.totalHaber, 'PEN')}
                   </TableCell>
                   <TableCell align="center">
                     <Badge
-                      variant={
-                        entry.estaCuadrado ? 'secondary' : 'destructive'
+                      variant="outline"
+                      className={
+                        entry.estaCuadrado
+                          ? 'border-emerald-600/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400'
+                          : 'border-destructive/30 bg-destructive/5 text-destructive'
                       }
                     >
                       {entry.estaCuadrado ? 'Cuadrado' : 'Descuadrado'}
@@ -355,12 +360,16 @@ export default function AccountingEntriesPage() {
             ) : (
               <TableRow>
                 <TableCell colSpan={7} align="center">
-                  <BookOpen aria-hidden="true" />
-                  <PageText variant="muted">
-                    {loadError
-                      ? 'No se pudo cargar el período. Usa Refrescar para reintentar.'
-                      : `No hay asientos contables en ${period}. Las facturas aceptadas por SUNAT aparecerán aquí automáticamente.`}
-                  </PageText>
+                  <div className="flex flex-col items-center gap-2 py-8">
+                    <span className="grid h-10 w-10 place-items-center rounded-full bg-muted text-muted-foreground">
+                      <BookOpen aria-hidden="true" className="h-5 w-5" />
+                    </span>
+                    <PageText variant="muted">
+                      {loadError
+                        ? 'No se pudo cargar el período. Usa Refrescar para reintentar.'
+                        : `No hay asientos contables en ${period}. Las facturas aceptadas por SUNAT aparecerán aquí automáticamente.`}
+                    </PageText>
+                  </div>
                 </TableCell>
               </TableRow>
             )}
