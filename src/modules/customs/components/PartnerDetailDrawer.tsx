@@ -1,3 +1,4 @@
+import { etiquetaCondicionPago } from '../lib/paymentTerms';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -138,7 +139,7 @@ export function PartnerDetailDrawer({ partnerId, onClose, readOnly = false }: Pr
               <div className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-2">
                 <div><p className="text-muted-foreground">Documento</p><p className="font-mono font-semibold">{p.doc_type} - {p.doc_number}</p></div>
                 <div><p className="text-muted-foreground">País</p><p className="font-semibold">{p.country_code}</p></div>
-                <div><p className="text-muted-foreground">Condición de pago</p><p className="font-semibold">{p.payment_terms || 'No definida'}</p></div>
+                <div><p className="text-muted-foreground">Condición de pago</p><p className="font-semibold">{etiquetaCondicionPago(p.payment_terms, 'No definida')}</p></div>
                 <div><p className="text-muted-foreground">Moneda</p><p className="font-semibold">{p.currency_code || 'PEN'}</p></div>
                 <div className="flex items-start gap-2"><Mail className="mt-0.5 h-3.5 w-3.5 text-muted-foreground" /><span>{p.email || 'Sin correo'}</span></div>
                 <div className="flex items-start gap-2"><Phone className="mt-0.5 h-3.5 w-3.5 text-muted-foreground" /><span>{p.phone || 'Sin teléfono'}</span></div>
