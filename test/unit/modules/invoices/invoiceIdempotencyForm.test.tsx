@@ -1,3 +1,4 @@
+import { seleccionarProductoPrueba } from '../../../fixtures/invoiceEmissionProduct';
 import { beforeEach as billingBeforeEach } from 'vitest';
 import { useAuthStore as billingAuth } from '@/stores/authStore';
 import { apiClient } from '@/lib/axios';
@@ -14,7 +15,7 @@ import { enqueueInvoiceEmission } from '@/lib/outbox';
 
 vi.mock('@/lib/axios', () => ({ apiClient: { get: vi.fn(async (url: string) => ({ data: url === '/invoices/config' ? { series: [{ document_type: '01', series: 'F001', is_active: true }, { document_type: '03', series: 'B001', is_active: true }] } : [] })) } }));
 vi.mock('@/lib/outbox', () => ({ enqueueInvoiceEmission: vi.fn(async () => 'queued') }));
-vi.mock('@/modules/invoices/services/inventoryProductsApi', () => ({ cargarProductosAlmacen: vi.fn(async () => []) }));
+vi.mock('@/modules/invoices/services/inventoryProductsApi', () => ({ cargarProductosAlmacen: vi.fn(async () => [{sku:'SERV',descripcion:'Servicio',unidad:'NIU',valorUnitario:100,precioUnitario:118,afectacion:'10',stock:100,vendible:true}]) }));
 vi.mock('@/modules/invoices/components/RetencionMaestro', () => ({ RetencionMaestro: () => null }));
 vi.mock('@/modules/invoices/services/invoicesApi', () => ({ invoicesApi: { buscarClientes: vi.fn(async () => []), emitirComprobante: vi.fn() } }));
 const clients: QueryClient[] = [];
@@ -29,8 +30,7 @@ async function montar(via: string, serieEsperada = 'F001') {
   if (via === 'pagina') await waitFor(() => expect((screen.getByLabelText('Serie configurada') as HTMLSelectElement).value).toBe(serieEsperada));
   fireEvent.change(screen.getByLabelText(via === 'modal' ? 'RUC / DNI del cliente' : 'RUC del cliente'), { target: { value: '20100070970' } });
   fireEvent.change(screen.getByLabelText('Razón social / nombre'), { target: { value: 'Cliente de prueba' } });
-  fireEvent.change(screen.getByLabelText('Descripción de la línea 1'), { target: { value: 'Servicio' } });
-  fireEvent.change(screen.getByLabelText('Valor unitario de la línea 1'), { target: { value: '100' } });
+  await seleccionarProductoPrueba();
   return { onEmitir, emitir: () => fireEvent.click(screen.getByRole('button', { name: via === 'modal' ? 'Emitir Factura' : 'Emitir comprobante' })) };
 }
 it.each(['modal', 'pagina'])('%s: 409 conserva todos los datos y reintentar conserva la clave; editar inicia otro intento', async via => {
@@ -48,7 +48,7 @@ it.each(['modal', 'pagina'])('%s: 409 conserva todos los datos y reintentar cons
   await screen.findByText(/Conflicto de emisión \(409\)/);
   expect(vi.mocked(invoicesApi.emitirComprobante).mock.calls[1]).toEqual(primera);
   expect(datos()).toEqual(['Cliente de prueba', 'Servicio', '100.00']);
-  fireEvent.change(screen.getByLabelText('Descripción de la línea 1'), { target: { value: 'Otro servicio' } });
+  fireEvent.change(screen.getByLabelText('Cantidad de la línea 1'), { target: { value: '2' } });
   emitir();
   await waitFor(() => expect(invoicesApi.emitirComprobante).toHaveBeenCalledTimes(3));
   expect(vi.mocked(invoicesApi.emitirComprobante).mock.calls[2][1]).not.toBe(primera[1]);
@@ -67,8 +67,7 @@ it.each(['modal', 'pagina'])('%s: después de un alta exitosa incluso el mismo c
   await waitFor(() => expect(invoicesApi.emitirComprobante).toHaveBeenCalledTimes(1));
   await waitFor(() => expect((screen.getByRole('button', { name: via === 'modal' ? 'Emitir Factura' : 'Emitir comprobante' }) as HTMLButtonElement).disabled).toBe(false));
   if (via === 'pagina') {
-    fireEvent.change(screen.getByLabelText('Descripción de la línea 1'), { target: { value: 'Servicio' } });
-    fireEvent.change(screen.getByLabelText('Valor unitario de la línea 1'), { target: { value: '100' } });
+    await seleccionarProductoPrueba();
   }
   emitir();
   await waitFor(() => expect(invoicesApi.emitirComprobante).toHaveBeenCalledTimes(2));

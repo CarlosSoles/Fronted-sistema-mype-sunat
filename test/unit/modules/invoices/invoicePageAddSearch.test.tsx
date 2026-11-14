@@ -23,34 +23,33 @@ function mount(via='pagina',tipo='01') {
  const q=new QueryClient({defaultOptions:{queries:{retry:false,gcTime:0}}});clients.push(q);
  render(<QueryClientProvider client={q}><MemoryRouter initialEntries={[`/invoices/emision?tipo=${tipo}`]}>{via==='modal'?<InvoiceEmitModal tipoInicial="01" fecha="2026-11-13" seriesConfiguradas={[{document_type:'01',series:'F001',is_active:true}]} existentes={[]} onEmitir={vi.fn()} onCerrar={vi.fn()}/>:<Routes><Route path="/invoices/emision" element={<InvoiceEmissionPage/>}/></Routes>}</MemoryRouter></QueryClientProvider>);
 }
-it.each(['01','03'].flatMap(tipo=>['Añadir ítem','+ Añadir ítem'].map(button=>({tipo,button}))))('ruta $tipo: $button reutiliza repetidamente, enfoca y permite escribir',async({tipo,button})=>{
+it.each(['01','03'])('ruta %s: solo la selección del catálogo crea una línea',async tipo=>{
  mount('pagina',tipo);const user=userEvent.setup();const search=await screen.findByRole('combobox',{name:'Buscar producto'});
+ expect(screen.queryByLabelText('Código de la línea 1')).toBeNull();
+ expect(screen.queryByRole('button',{name:/Añadir ítem/})).toBeNull();
+ for(let n=0;n<3;n++){await user.click(search);await user.keyboard('{Alt>}l{/Alt}');expect(document.activeElement).toBe(search);expect(screen.queryByLabelText('Descripción de la línea 1')).toBeNull();}
+ await user.keyboard('CEM');await user.click(screen.getByRole('button',{name:/CEM-001 · Cemento prueba/}));
  const code=screen.getByLabelText('Código de la línea 1') as HTMLInputElement;
- expect(code.readOnly).toBe(true);await user.type(code,'PRUEBA');expect(code.value).toBe('');
- for(let n=0;n<3;n++){await user.click(screen.getByRole('button',{name:button}));expect(document.activeElement).toBe(search);expect(screen.queryByLabelText('Descripción de la línea 2')).toBeNull();}
- await user.keyboard('CEM');expect((search as HTMLInputElement).value).toBe('CEM');
- await user.click(screen.getByRole('button',{name:/CEM-001 · Cemento prueba/}));expect(code.value).toBe('CEM-001');
- await user.type(code,'PRUEBA');expect(code.value).toBe('CEM-001');
- await user.click(screen.getByRole('button',{name:button}));await user.click(screen.getByRole('button',{name:button}));
- expect(screen.getByLabelText('Descripción de la línea 2')).toBeTruthy();expect(screen.queryByLabelText('Descripción de la línea 3')).toBeNull();
- expect((screen.getByLabelText('Código de la línea 2') as HTMLInputElement).readOnly).toBe(true);
+ expect(code.readOnly).toBe(true);expect(code.value).toBe('CEM-001');
+ await user.click(search);await user.keyboard('{Alt>}l{/Alt}');expect(screen.queryByLabelText('Descripción de la línea 2')).toBeNull();
+ await user.click(screen.getByRole('button',{name:'Eliminar la línea 1'}));expect(screen.queryByLabelText('Código de la línea 1')).toBeNull();
 });
-it.each(['pagina','modal'])('%s: atajo y adición rellenan la primera fila vacía disponible',async via=>{
+it.each(['pagina','modal'])('%s: Alt+L solo enfoca búsqueda con líneas seleccionadas',async via=>{
  mount(via);const user=userEvent.setup();const search=await screen.findByRole('combobox',{name:'Buscar producto'});
- await user.click(search);await user.keyboard('{Alt>}l{/Alt}');expect(document.activeElement).toBe(search);expect(screen.queryByLabelText('Descripción de la línea 2')).toBeNull();
+ await user.click(search);await user.keyboard('{Alt>}l{/Alt}');expect(document.activeElement).toBe(search);expect(screen.queryByLabelText('Descripción de la línea 1')).toBeNull();
  await user.keyboard('CEM');await user.click(screen.getByRole('button',{name:/CEM-001 · Cemento prueba/}));
  await user.click(search);await user.keyboard('{Alt>}l{/Alt}');await user.keyboard('{Alt>}l{/Alt}');
- expect(screen.getByLabelText('Descripción de la línea 2')).toBeTruthy();expect(screen.queryByLabelText('Descripción de la línea 3')).toBeNull();
+ expect(screen.queryByLabelText('Descripción de la línea 2')).toBeNull();
  await user.keyboard('CEM');await user.click(screen.getByRole('button',{name:/CEM-001 · Cemento prueba/}));
  await user.click(screen.getByRole('button',{name:'Mantener separada'}));
- expect((screen.getByLabelText('Código de la línea 2') as HTMLInputElement).value).toBe('CEM-001');expect(screen.queryByLabelText('Descripción de la línea 3')).toBeNull();
+ expect((screen.getByLabelText('Código de la línea 2') as HTMLInputElement).value).toBe('CEM-001');
 });
 it.each(['cargando','error','vacio'] as const)('catálogo %s tiene explicación visible y recibe el foco al añadir',async mode=>{
  fixture.mode=mode;mount();const user=userEvent.setup();
  const message=mode==='cargando'?/Cargando productos del almacén/:mode==='error'?/No se pudo cargar el catálogo del almacén/:/No hay productos disponibles en el almacén/;
  const status=await screen.findByText(message);
  expect(screen.queryByRole('combobox',{name:'Buscar producto'})).toBeNull();
- await user.click(screen.getByRole('button',{name:'Añadir ítem'}));expect(document.activeElement).toBe(status);
+ status.focus();await user.keyboard('{Alt>}l{/Alt}');expect(document.activeElement).toBe(status);
  expect(screen.queryByLabelText('Descripción de la línea 2')).toBeNull();
  await waitFor(()=>expect(status.textContent).toMatch(message));
 });

@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { InvoiceEmitResumen } from '@/modules/invoices/components/InvoiceEmitResumen';
 import { it, expect } from 'vitest';
 import { pagoSegunDeposito } from '@/modules/invoices/lib/invoicePagoPresentacion';
-import { borradorInicial } from '@/modules/invoices/lib/invoiceEmitDraft';
+import { borradorConLinea as borradorInicial } from '../../../fixtures/invoiceEmissionProduct';
 import { calcularFlujo } from '@/modules/invoices/lib/invoiceFlujoPago';
 import { borradorAPayloadEmision } from '@/modules/invoices/lib/invoiceEmitPayload';
 it.each([[730.17,73.02,0,73,657.17],[735,73.5,0,74,661],[730.17,73.02,10,73,647.17],[118,0,0,0,118]])('conserva total %s con depósito redondeado %s', (total,detraccion,retencion,bn,directo) => {

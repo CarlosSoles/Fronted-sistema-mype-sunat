@@ -1,3 +1,5 @@
+vi.mock('@/modules/invoices/services/inventoryProductsApi',()=>({cargarProductosAlmacen:vi.fn(async()=>[{sku:'SERV',descripcion:'Servicio',unidad:'NIU',valorUnitario:100,precioUnitario:118,afectacion:'10',stock:100,vendible:true}])}));
+import { seleccionarProductoPrueba } from '../../../fixtures/invoiceEmissionProduct';
 import { seriesConfiguradasPrueba } from '../../../fixtures/invoiceSeries';
 import { useState } from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -112,6 +114,7 @@ it('solo habilita descuentos por línea y globales cuando el cliente admite desc
   const conDesc: BusinessPartnerRecord = { ...partner, id: 'c-si-desc', doc_number: '20555555551', legal_name: 'Cliente Con Descuento', allows_discount: true };
   vi.mocked(masterDataApi.getPartners).mockResolvedValue([sinDesc, conDesc]);
   render(<QueryClientProvider client={client}><InvoiceEmitModal seriesConfiguradas={seriesConfiguradasPrueba} tipoInicial="01" fecha="2026-11-06" existentes={[]} onEmitir={vi.fn()} onCerrar={vi.fn()} /></QueryClientProvider>);
+  await seleccionarProductoPrueba();
   const descLinea = () => screen.getByLabelText('Tipo de descuento de la línea 1') as HTMLSelectElement;
   const descGlobal = () => screen.getByLabelText('Descuento global (Catálogo 53)') as HTMLSelectElement;
   expect(descLinea().disabled).toBe(true);

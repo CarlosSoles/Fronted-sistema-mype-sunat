@@ -1,3 +1,4 @@
+import { seleccionarProductoPrueba } from '../../../fixtures/invoiceEmissionProduct';
 import { beforeEach as billingBeforeEach } from 'vitest';
 import { useAuthStore as billingAuth } from '@/stores/authStore';
 import {afterEach,beforeEach,expect,it,vi} from 'vitest';
@@ -13,12 +14,12 @@ import {itemVacio} from '@/modules/invoices/lib/invoiceItems';
 vi.mock('@/lib/axios',()=>({apiClient:{get:vi.fn()}}));
 vi.mock('@/modules/invoices/components/RetencionMaestro',()=>({RetencionMaestro:()=>null}));
 vi.mock('@/modules/invoices/services/invoicesApi',()=>({invoicesApi:{emitirComprobante:vi.fn(async()=>{throw Error('Captura local')})}}));
-vi.mock('@/modules/invoices/services/inventoryProductsApi',()=>({cargarProductosAlmacen:vi.fn(async()=>[{sku:'SERV',descripcion:'Servicio',unidad:'NIU',valorUnitario:100,precioUnitario:118,afectacion:'10',stock:100,vendible:true}])}));
+vi.mock('@/modules/invoices/services/inventoryProductsApi',()=>({cargarProductosAlmacen:vi.fn(async()=>[{sku:'SERV',descripcion:'Servicio',unidad:'ZZ',valorUnitario:100,precioUnitario:118,afectacion:'10',stock:100,vendible:true}])}));
 const clients:QueryClient[]=[];const serie={document_type:'01',series:'F001',is_active:true};
 beforeEach(()=>{vi.clearAllMocks();vi.mocked(apiClient.get).mockImplementation(async path=>({data:String(path).includes('config')?{series:[serie]}:[]}));});
 afterEach(()=>{cleanup();clients.splice(0).forEach(c=>c.clear());});
-async function form(via:string){const q=new QueryClient({defaultOptions:{queries:{retry:false,gcTime:0}}});clients.push(q);render(<QueryClientProvider client={q}><MemoryRouter>{via==='modal'?<InvoiceEmitModal tipoInicial="01" fecha="2026-11-12" existentes={[]} seriesConfiguradas={[serie]} onEmitir={()=>{}} onCerrar={()=>{}}/>:<InvoiceEmissionPage/>}</MemoryRouter></QueryClientProvider>);await screen.findByLabelText('Buscar producto');fireEvent.change(document.getElementById('doc-cliente')!,{target:{value:'20100070970'}});fireEvent.change(screen.getByLabelText('Razón social / nombre'),{target:{value:'Cliente'}});fireEvent.change(screen.getByLabelText('Código de la línea 1'),{target:{value:'SERV'}});fireEvent.change(screen.getByLabelText('Descripción de la línea 1'),{target:{value:'Servicio'}});fireEvent.change(screen.getByLabelText('Valor unitario de la línea 1'),{target:{value:'100'}});}
-const bad=[['nombre','',/razón social/],['nombre','A'.repeat(1501),/1500/],['descripcion','A'.repeat(501),/500/],['cantidad','1.2345',/3 decimales/],['valor','0',/onerosa/]] as const;
+async function form(via:string){const q=new QueryClient({defaultOptions:{queries:{retry:false,gcTime:0}}});clients.push(q);render(<QueryClientProvider client={q}><MemoryRouter>{via==='modal'?<InvoiceEmitModal tipoInicial="01" fecha="2026-11-12" existentes={[]} seriesConfiguradas={[serie]} onEmitir={()=>{}} onCerrar={()=>{}}/>:<InvoiceEmissionPage/>}</MemoryRouter></QueryClientProvider>);await screen.findByLabelText('Buscar producto');fireEvent.change(document.getElementById('doc-cliente')!,{target:{value:'20100070970'}});fireEvent.change(screen.getByLabelText('Razón social / nombre'),{target:{value:'Cliente'}});await seleccionarProductoPrueba();}
+const bad=[['nombre','',/razón social/],['nombre','A'.repeat(1501),/1500/],['cantidad','1.2345',/3 decimales/]] as const;
 it.each(['modal','pagina'])('%s bloquea las mismas entradas antes del POST',async via=>{
  for(const [field,value,message] of bad){await form(via);const labels={nombre:'Razón social / nombre',descripcion:'Descripción de la línea 1',cantidad:'Cantidad de la línea 1',valor:'Valor unitario de la línea 1'};fireEvent.change(screen.getByLabelText(labels[field]),{target:{value}});if(via==='modal'){fireEvent.click(screen.getByRole('button',{name:/^Emitir /}));}else{fireEvent.submit(document.querySelector('form')!);}expect(screen.queryAllByText(message).length).toBeGreaterThan(0);expect(invoicesApi.emitirComprobante).not.toHaveBeenCalled();cleanup();}
 }, 20000);
@@ -28,3 +29,9 @@ it.each(['07','08'])('nota %s conserva referencia gratuita y valores históricos
 
 // Las operaciones de esta suite se ejecutan con un rol autorizado de facturación.
 billingBeforeEach(() => { billingAuth.setState({ user: { id: 'billing-test', email: 'billing@example.invalid', role: 'ADMIN' } }); });
+
+it('rechaza descripción o precio inválidos recibidos del catálogo antes del POST',()=>{
+ const line={...itemVacio('p'),codigo:'P',descripcion:'A'.repeat(501),valorUnitario:0};
+ const errors=problemasContenidoEmision({tipo:'01',clienteRazonSocial:'Cliente',items:[line]}).join(' ');
+ expect(errors).toContain('500');expect(errors).toContain('onerosa');
+});

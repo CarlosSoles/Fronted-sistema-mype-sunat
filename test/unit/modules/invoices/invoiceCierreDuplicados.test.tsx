@@ -19,11 +19,13 @@ it('6C precio distinto impide fusión y permite solo separación expresa', () =>
  expect((screen.getByRole('button', { name: 'Fusionar cantidades' }) as HTMLButtonElement).disabled).toBe(true);
 });
 
-it('6C SKU manual repetido pide decisión antes de fusionar y valida stock agregado', async () => {
+it('6C selección repetida pide decisión y valida stock agregado al fusionar', async () => {
  const { useState } = await import('react');
- function Form() { const [items, setItems] = useState([{ ...itemDesdeProducto(p, '1'), cantidad: 2 }, { ...itemDesdeProducto(p, '2'), codigo: '' }]);
- return <InvoiceItemsGrid items={items} productos={[{ ...p, stock: 2 }]} onCambiar={(i, patch) => setItems(prev => prev.map((x,n) => n === i ? { ...x, ...patch } : x))} onEliminar={i => setItems(prev => prev.filter((_,n) => n !== i))} onAgregar={vi.fn()} onAgregarBolsa={vi.fn()} />; }
- render(<Form />); const code = screen.getByLabelText('Código de la línea 2'); fireEvent.focus(code); fireEvent.change(code, { target: { value: 'ARE' } }); fireEvent.blur(code);
+ function Form() { const [items, setItems] = useState([{ ...itemDesdeProducto(p, '1'), cantidad: 2 }]);
+ return <InvoiceItemsGrid items={items} productos={[{ ...p, stock: 2 }]} onCambiar={(i, patch) => setItems(prev => prev.map((x,n) => n === i ? { ...x, ...patch } : x))} onEliminar={vi.fn()} onAgregarConProducto={vi.fn()} />; }
+ render(<Form />);
+ fireEvent.change(screen.getByLabelText('Buscar producto'), { target: { value: 'ARE' } }); fireEvent.click(screen.getByRole('button', { name: /ARE · Arena/ }));
  expect(screen.getByRole('dialog')).toBeTruthy(); fireEvent.click(screen.getByRole('button', { name: 'Fusionar cantidades' }));
- expect(screen.queryByLabelText('Código de la línea 2')).toBeNull(); expect(screen.getAllByText(/stock|disponible/i).length).toBeGreaterThan(0);
+ expect((screen.getByLabelText('Cantidad de la línea 1') as HTMLInputElement).value).toBe('3');
+ expect(screen.getAllByText(/stock|disponible/i).length).toBeGreaterThan(0);
 });
