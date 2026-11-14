@@ -62,6 +62,7 @@ export interface EmitirComprobantePayload {
   customer_identity_type?: string;
   customer_identity_number?: string;
   customer_legal_name: string;
+  customer_address?: string;
   /** YYYY-MM-DD; si falta, el backend usa la fecha del servidor. */
   fecha_emision?: string;
   agente_retencion?: boolean;
