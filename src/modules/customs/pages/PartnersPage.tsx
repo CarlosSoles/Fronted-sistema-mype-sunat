@@ -1,3 +1,4 @@
+import { etiquetaCondicionPago } from '../lib/paymentTerms';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Page, PageHeader, Button, Badge, Card, Input } from '@/components/ui';
@@ -117,8 +118,8 @@ export default function PartnersPage({ context = 'customs' }: { context?: 'custo
                   </td>
                   <td className="p-3">
                     {p.has_credit === true || (p.has_credit == null && Boolean(p.payment_terms && p.payment_terms !== 'CONTADO'))
-                      ? `Crédito (${p.payment_terms || 'Habilitado'})`
-                      : p.payment_terms || '—'}
+                      ? `Crédito (${etiquetaCondicionPago(p.payment_terms, 'Habilitado')})`
+                      : etiquetaCondicionPago(p.payment_terms)}
                     {p.allows_discount === true ? ' · Con desc.' : ''}
                   </td>
                   <td className="p-3">{p.email || p.phone || '—'}</td>
