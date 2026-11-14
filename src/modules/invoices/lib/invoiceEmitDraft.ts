@@ -62,6 +62,7 @@ export interface BorradorEmision {
   items: readonly ItemBorrador[];
   descuentoGlobal?: DescuentoGlobal | null;
   formaPago: 'Contado' | 'Credito';
+  medioPago: import('../types/invoiceEmision.types').MedioPagoVenta;
   /**
    * Cronograma editable (TA-64). Si está vacío se reparte el neto
    * automáticamente en `numeroCuotas` partes.
@@ -111,6 +112,7 @@ export const borradorInicial = (
   items: [],
   descuentoGlobal: null,
   formaPago: 'Contado',
+  medioPago: 'EFECTIVO',
   cuotas: [],
   numeroCuotas: 2,
   codigoDetraccion: '',

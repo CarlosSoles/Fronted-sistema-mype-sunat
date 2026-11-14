@@ -17,6 +17,7 @@ export interface CreateNationalPurchasePayload {
   issueDate: string;
   warehouseCode?: string;
   currencyCode?: string;
+  pricesIncludeIgv?: boolean;
   responsible?: string;
   notes?: string;
   items: NationalPurchaseItemPayload[];
@@ -35,6 +36,7 @@ export interface NationalPurchaseRecord {
   netAmount: number;
   igvAmount: number;
   totalAmount: number;
+  pricesIncludeIgv?: boolean;
   status: string;
   paidAmount?: number;
   balance?: number;

@@ -503,6 +503,17 @@ export const InvoiceEmitModal = ({
               crédito registrado en el maestro.
             </PageText>
           )}
+          {b.formaPago === 'Contado' && (
+            <select aria-label="Medio de pago" className="h-8 rounded-md border border-input bg-background px-2 text-xs" value={b.medioPago} onChange={(e) => actualizar({ medioPago: e.target.value as typeof b.medioPago })}>
+              <option value="EFECTIVO">Efectivo</option>
+              <option value="YAPE">Yape</option>
+              <option value="PLIN">Plin</option>
+              <option value="TARJETA">Tarjeta</option>
+              <option value="TRANSFERENCIA">Transferencia</option>
+              <option value="DEPOSITO">Depósito</option>
+              <option value="CHEQUE">Cheque</option>
+            </select>
+          )}
         </div>
 
         {b.formaPago === 'Credito' && (

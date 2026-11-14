@@ -107,6 +107,7 @@ export default function SalesPosPage() {
         customer_identity_number: documento.trim() || undefined,
         customer_legal_name: cliente.trim(),
         forma_pago: formaPago,
+        ...(formaPago === 'Contado' ? { medio_pago: medioPago as never } : {}),
         ...(formaPago === 'Credito' ? { cuotas: [{ monto: Number(total.toFixed(2)), vencimiento }] } : {}),
         items: carrito.map((l) => ({
           codigo: l.producto.sku,
