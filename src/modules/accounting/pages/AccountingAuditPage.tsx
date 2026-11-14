@@ -3,6 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, RefreshCw, ShieldAlert } from 'lucide-react';
 import { Badge, Button, Card, Page, PageHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
 import { accountingApi, type AuditIssue, type RegularizationResult } from '../services/accountingApi';
+import { purchasesApi } from '@/modules/purchases/services/purchasesApi';
 import { PeriodInput } from '@/components/common/PeriodInput';
 
 /**
@@ -37,6 +38,9 @@ const ListaHallazgos = ({ issues, vacio }: { issues: AuditIssue[]; vacio: string
 export default function AccountingAuditPage() {
   const [period, setPeriod] = useState('');
   const [regularizacion, setRegularizacion] = useState<RegularizationResult | null>(null);
+  const [reintentoCompra, setReintentoCompra] = useState<
+    { compra: string; asientoGenerado: boolean; motivo?: string; yaExistia: boolean } | null
+  >(null);
 
   const auditoria = useQuery({
     queryKey: ['accounting-audit', period],
@@ -48,8 +52,24 @@ export default function AccountingAuditPage() {
     onSuccess: (data) => setRegularizacion(data),
   });
 
+  const reintentar = useMutation({
+    mutationFn: (id: string) => purchasesApi.postAccounting(id),
+    onSuccess: async (data) => {
+      setReintentoCompra(data);
+      await auditoria.refetch();
+    },
+    onError: (e: any) =>
+      setReintentoCompra({
+        compra: '',
+        asientoGenerado: false,
+        motivo: e?.response?.data?.message ?? 'No se pudo reintentar el asiento.',
+        yaExistia: false,
+      }),
+  });
+
   const data = auditoria.data;
   const sinAsiento = data?.comprobantes.sinAsiento ?? [];
+  const comprasSinAsiento = data?.compras?.sinAsiento ?? [];
 
   return (
     <Page>
@@ -165,6 +185,41 @@ export default function AccountingAuditPage() {
                 <p className="text-xs font-medium flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5" /> Ventas sin costo contabilizado ({data.comprobantes.sinCosto.length})</p>
                 <ul className="space-y-1">{data.comprobantes.sinCosto.map((c) => <li key={c.id} className="text-xs">{c.numero} · {c.detalle}</li>)}</ul>
               </div>
+            ) : null}
+
+            {comprasSinAsiento.length > 0 ? (
+              <div className="space-y-1">
+                <p className="text-xs font-medium">Compras registradas sin asiento ({comprasSinAsiento.length})</p>
+                <Table>
+                  <TableHeader><TableRow><TableHead>Compra</TableHead><TableHead>Documento</TableHead><TableHead>Proveedor</TableHead><TableHead align="right">Total</TableHead><TableHead align="right">Acción</TableHead></TableRow></TableHeader>
+                  <TableBody>
+                    {comprasSinAsiento.map((c) => (
+                      <TableRow key={c.id}>
+                        <TableCell>{c.numero}</TableCell>
+                        <TableCell>{c.documento}</TableCell>
+                        <TableCell>{c.proveedor}</TableCell>
+                        <TableCell align="right">{money(c.total)}</TableCell>
+                        <TableCell align="right">
+                          <Button size="sm" variant="outline" disabled={reintentar.isPending} onClick={() => reintentar.mutate(c.id)}>
+                            Reintentar asiento
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                <p className="text-[11px] text-muted-foreground">
+                  Si falla, corrija las reglas COMPRA antes de reintentar.
+                </p>
+              </div>
+            ) : null}
+
+            {reintentoCompra ? (
+              <p className={`text-xs ${reintentoCompra.asientoGenerado ? 'text-emerald-600' : 'text-destructive'}`}>
+                {reintentoCompra.asientoGenerado
+                  ? `Asiento de ${reintentoCompra.compra} ${reintentoCompra.yaExistia ? 'ya existía' : 'registrado'}.`
+                  : `No se pudo contabilizar ${reintentoCompra.compra}: ${reintentoCompra.motivo ?? ''}`}
+              </p>
             ) : null}
 
             {regularizacion ? (

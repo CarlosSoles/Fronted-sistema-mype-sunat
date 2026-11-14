@@ -52,6 +52,16 @@ export interface AuditInvoiceIssue {
   detalle: string;
 }
 
+export interface AuditPurchaseIssue {
+  id: string;
+  numero: string;
+  documento: string;
+  proveedor: string;
+  fecha: string;
+  total: number;
+  detalle: string;
+}
+
 export interface AccountingAudit {
   companyId: string;
   period: string | null;
@@ -72,6 +82,11 @@ export interface AccountingAudit {
     truncado: boolean;
     sinAsiento: AuditInvoiceIssue[];
     sinCosto: AuditInvoiceIssue[];
+  };
+  compras: {
+    revisadas: number;
+    truncado: boolean;
+    sinAsiento: AuditPurchaseIssue[];
   };
   resumen: { errors: number; warnings: number };
 }
