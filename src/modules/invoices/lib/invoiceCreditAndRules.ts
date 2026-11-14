@@ -107,20 +107,19 @@ export interface ParametrosTramaQr {
 
 /**
  * Genera la trama QR de 10 campos que exige SUNAT en la representación impresa.
- * Formato: ruc|tipo|serie|correlativo|igv|total|fecha|tipoDoc|numDoc|hash|
+ * Formato: ruc|tipo|serie|correlativo|igv|total|fecha|tipoDoc|numDoc|hash
  */
 export const generarTramaQrSunat = (p: ParametrosTramaQr): string => {
   return [
     p.rucEmisor,
     p.tipo,
     p.serie,
-    String(p.correlativo),
+    String(p.correlativo).padStart(8, '0'),
     p.igv.toFixed(2),
     p.total.toFixed(2),
-    (() => { const partes = p.fecha.slice(0, 10).split('-'); return partes.length === 3 ? `${partes[2]}-${partes[1]}-${partes[0]}` : p.fecha; })(),
+    p.fecha.slice(0, 10),
     p.tipoDocCliente,
     p.numDocCliente,
-    (p.hashCpe ?? '').replace(/=+$/, '').replace(/\s+/g, ''),
-    '',
+    (p.hashCpe ?? '').replace(/\s+/g, ''),
   ].join('|');
 };
