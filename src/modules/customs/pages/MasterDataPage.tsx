@@ -27,6 +27,7 @@ import {
   Trash2,
   Globe,
   Anchor,
+  Wrench,
 } from 'lucide-react';
 import {
   masterDataApi,
@@ -36,14 +37,15 @@ import {
   type CountryRecord,
   type PortRecord,
   type ExchangeRateRecord,
+  type CustomsServiceRecord,
 } from '../services/masterDataApi';
 import {
   inventoryLedgerApi,
   type AccountingMappingRecord,
 } from '@/modules/inventory/services/inventoryLedgerApi';
 
-type TabKey = 'currencies' | 'rates' | 'incoterms' | 'countries' | 'ports' | 'documents' | 'mappings';
-type DialogKey = 'currency' | 'rate' | 'incoterm' | 'document' | 'mapping' | 'country' | 'port' | null;
+type TabKey = 'currencies' | 'rates' | 'incoterms' | 'countries' | 'ports' | 'documents' | 'services' | 'mappings';
+type DialogKey = 'currency' | 'rate' | 'incoterm' | 'document' | 'mapping' | 'country' | 'port' | 'service' | null;
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -62,6 +64,7 @@ const TABS: Array<{ key: TabKey; label: string; icon: typeof Coins }> = [
   { key: 'countries', label: 'Países', icon: Globe },
   { key: 'ports', label: 'Puertos', icon: Anchor },
   { key: 'documents', label: 'Documentos', icon: FileText },
+  { key: 'services', label: 'Servicios Aduaneros / Gastos de Despacho', icon: Wrench },
   { key: 'mappings', label: 'Cuentas PCGE', icon: BookOpen },
 ];
 
@@ -73,7 +76,7 @@ export default function MasterDataPage() {
 
   useEffect(() => {
     const qTab = searchParams.get('tab') as TabKey;
-    if (qTab && ['currencies', 'rates', 'incoterms', 'countries', 'ports', 'documents', 'mappings'].includes(qTab)) {
+    if (qTab && ['currencies', 'rates', 'incoterms', 'countries', 'ports', 'documents', 'services', 'mappings'].includes(qTab)) {
       setTab(qTab);
     }
   }, [searchParams]);
@@ -123,6 +126,16 @@ export default function MasterDataPage() {
     isActive: true,
   });
   const [mappingForm, setMappingForm] = useState<AccountingMappingRecord | null>(null);
+  const [serviceForm, setServiceForm] = useState({
+    sku: '',
+    description: '',
+    category: 'SERVICIOS_ADUANEROS',
+    sunatUnitCode: 'ZZ',
+    taxAffectation: '10',
+    costPrice: 0,
+    salePrice: 0,
+    isActive: true,
+  });
 
   const currencies = useQuery({
     queryKey: ['master-data', 'currencies'],
@@ -147,6 +160,11 @@ export default function MasterDataPage() {
   const documents = useQuery({
     queryKey: ['master-data', 'documents'],
     queryFn: masterDataApi.getDocumentTypes,
+  });
+  const customsServices = useQuery({
+    queryKey: ['master-data', 'services'],
+    queryFn: masterDataApi.getCustomsServices,
+    enabled: tab === 'services',
   });
   const mappings = useQuery({
     queryKey: ['accounting', 'mappings'],
@@ -327,8 +345,29 @@ export default function MasterDataPage() {
     onError: (e) => setError(apiError(e)),
   });
 
+  // Guardar / Actualizar Servicio Aduanero
+  const serviceMutation = useMutation({
+    mutationFn: () => masterDataApi.upsertCustomsService(serviceForm),
+    onSuccess: () => {
+      invalidate('services');
+      queryClient.invalidateQueries({ queryKey: ['inventory-products'] });
+      setDialog(null);
+      setError(null);
+    },
+    onError: (e) => setError(apiError(e)),
+  });
+
+  const deleteServiceMutation = useMutation({
+    mutationFn: (sku: string) => masterDataApi.deleteCustomsService(sku),
+    onSuccess: () => {
+      invalidate('services');
+      queryClient.invalidateQueries({ queryKey: ['inventory-products'] });
+    },
+    onError: (e) => alert(apiError(e)),
+  });
+
   const loadError =
-    currencies.error ?? rates.error ?? incoterms.error ?? countries.error ?? ports.error ?? documents.error ?? mappings.error;
+    currencies.error ?? rates.error ?? incoterms.error ?? countries.error ?? ports.error ?? documents.error ?? customsServices.error ?? mappings.error;
 
   const refresh = () => {
     if (tab === 'currencies') currencies.refetch();
@@ -337,6 +376,7 @@ export default function MasterDataPage() {
     if (tab === 'countries') countries.refetch();
     if (tab === 'ports') ports.refetch();
     if (tab === 'documents') documents.refetch();
+    if (tab === 'services') customsServices.refetch();
     if (tab === 'mappings') mappings.refetch();
   };
 
@@ -368,6 +408,35 @@ export default function MasterDataPage() {
       setDocumentForm({ code: '', name: '', stage: 'EMBARQUE', isRequired: false, isActive: true });
       setDialog('document');
     }
+    if (tab === 'services') {
+      setServiceForm({
+        sku: '',
+        description: '',
+        category: 'SERVICIOS_ADUANEROS',
+        sunatUnitCode: 'ZZ',
+        taxAffectation: '10',
+        costPrice: 0,
+        salePrice: 0,
+        isActive: true,
+      });
+      setDialog('service');
+    }
+  };
+
+  const startEditService = (s: CustomsServiceRecord) => {
+    setError(null);
+    setIsEditing(true);
+    setServiceForm({
+      sku: s.sku,
+      description: s.description,
+      category: s.category || 'AGENCIA_ADUANA',
+      sunatUnitCode: s.sunat_unit_code || 'ZZ',
+      taxAffectation: s.tax_affectation || '10',
+      costPrice: Number(s.cost_price || 0),
+      salePrice: Number(s.sale_price || 0),
+      isActive: s.is_active !== false,
+    });
+    setDialog('service');
   };
 
   const startEditRate = (r: ExchangeRateRecord) => {
@@ -908,6 +977,90 @@ export default function MasterDataPage() {
           </table>
         )}
 
+        {/* Servicios Aduaneros */}
+        {tab === 'services' && (
+          <table className="w-full text-left text-xs">
+            <thead className="bg-muted/50 text-muted-foreground uppercase">
+              <tr>
+                <th className="p-3">Código / SKU</th>
+                <th className="p-3">Descripción del Servicio</th>
+                <th className="p-3">Categoría Aduanera</th>
+                <th className="p-3 text-center">Unidad SUNAT</th>
+                <th className="p-3 text-right">Costo Ref. (S/)</th>
+                <th className="p-3 text-center">Afectación</th>
+                <th className="p-3 text-center">Estado</th>
+                <th className="p-3 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {customsServices.isLoading ? (
+                <tr>
+                  <td colSpan={8} className="p-6 text-center text-muted-foreground">
+                    Cargando servicios aduaneros sincronizados...
+                  </td>
+                </tr>
+              ) : (customsServices.data ?? []).length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="p-6 text-center text-muted-foreground">
+                    No hay servicios aduaneros registrados. Presiona "+ Nuevo" para crear uno.
+                  </td>
+                </tr>
+              ) : (
+                (customsServices.data ?? []).map((s) => (
+                  <tr key={s.id || s.sku} className="border-t hover:bg-muted/20">
+                    <td className="p-3 font-mono font-bold text-primary">{s.sku}</td>
+                    <td className="p-3 font-medium text-foreground">{s.description}</td>
+                    <td className="p-3">
+                      <Badge variant="outline" className="text-[10px]">
+                        {s.category || 'SERVICIOS_ADUANEROS'}
+                      </Badge>
+                    </td>
+                    <td className="p-3 text-center font-mono">{s.sunat_unit_code || 'ZZ'}</td>
+                    <td className="p-3 text-right font-mono font-medium">
+                      {s.cost_price ? `S/ ${Number(s.cost_price).toFixed(2)}` : '—'}
+                    </td>
+                    <td className="p-3 text-center">
+                      <Badge variant="secondary" className="text-[10px]">
+                        {s.tax_affectation === '10' ? '10 Gravado (18%)' : s.tax_affectation || '10'}
+                      </Badge>
+                    </td>
+                    <td className="p-3 text-center">
+                      <Badge variant={s.is_active ? 'default' : 'secondary'}>
+                        {s.is_active ? 'Activo' : 'Inactivo'}
+                      </Badge>
+                    </td>
+                    <td className="p-3 text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => startEditService(s)}
+                          className="h-7 w-7 p-0 text-primary hover:text-primary/80"
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={deleteServiceMutation.isPending}
+                          onClick={() => {
+                            if (window.confirm(`¿Está seguro de desactivar el servicio aduanero ${s.sku}?`)) {
+                              deleteServiceMutation.mutate(s.sku);
+                            }
+                          }}
+                          className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        )}
+
         {/* Mappings Contables PCGE */}
         {tab === 'mappings' && (
           <table className="w-full text-left text-xs">
@@ -1378,6 +1531,117 @@ export default function MasterDataPage() {
               className="gap-1.5"
             >
               <Save className="h-3.5 w-3.5" /> Guardar Asignación
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Servicio Aduanero */}
+      <Dialog open={dialog === 'service'} onOpenChange={(open) => !open && setDialog(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{isEditing ? 'Editar Servicio Aduanero' : 'Nuevo Servicio Aduanero'}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3 text-xs">
+            <div>
+              <p className="mb-1 font-medium">Código / SKU *</p>
+              <Input
+                placeholder="ej. SRV-AGENCIA-ADU"
+                value={serviceForm.sku}
+                disabled={isEditing}
+                onChange={(e) => setServiceForm({ ...serviceForm, sku: e.target.value.toUpperCase() })}
+                className="font-mono uppercase font-bold"
+              />
+            </div>
+            <div>
+              <p className="mb-1 font-medium">Descripción del Servicio *</p>
+              <Input
+                placeholder="ej. Servicio de Agenciamiento Aduanero y Despacho"
+                value={serviceForm.description}
+                onChange={(e) => setServiceForm({ ...serviceForm, description: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <p className="mb-1 font-medium">Categoría Aduanera</p>
+                <select
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs"
+                  value={serviceForm.category}
+                  onChange={(e) => setServiceForm({ ...serviceForm, category: e.target.value })}
+                >
+                  <option value="SERVICIOS_ADUANEROS">SERVICIOS_ADUANEROS (Gastos de Despacho)</option>
+                  <option value="ORIGEN_IMPORTACION">ORIGEN_IMPORTACION (Gastos en Origen)</option>
+                  <option value="AGENCIA_ADUANA">Agencia de Aduana</option>
+                  <option value="FLETE_LOCAL">Flete Local / Transporte Callao</option>
+                  <option value="ALMACENAJE">Almacén Portuario (APM/DPW)</option>
+                  <option value="ESTIBA">Cuadrilla / Estiba</option>
+                  <option value="INSPECCION">Inspección / SENASA / DIGESA</option>
+                  <option value="OTROS">Otros Gastos Aduaneros</option>
+                </select>
+              </div>
+              <div>
+                <p className="mb-1 font-medium">Unidad SUNAT</p>
+                <select
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs font-mono"
+                  value={serviceForm.sunatUnitCode}
+                  onChange={(e) => setServiceForm({ ...serviceForm, sunatUnitCode: e.target.value })}
+                >
+                  <option value="ZZ">ZZ - Servicio</option>
+                  <option value="NIU">NIU - Unidad</option>
+                  <option value="E48">E48 - Unidad de Servicio</option>
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <p className="mb-1 font-medium">Costo Referencial (S/)</p>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value={serviceForm.costPrice}
+                  onChange={(e) => setServiceForm({ ...serviceForm, costPrice: Number(e.target.value) })}
+                />
+              </div>
+              <div>
+                <p className="mb-1 font-medium">Afectación IGV</p>
+                <select
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs"
+                  value={serviceForm.taxAffectation}
+                  onChange={(e) => setServiceForm({ ...serviceForm, taxAffectation: e.target.value })}
+                >
+                  <option value="10">10 - Gravado Operación Onerosa (18%)</option>
+                  <option value="20">20 - Exonerado</option>
+                  <option value="30">30 - Inafecto</option>
+                </select>
+              </div>
+            </div>
+            {isEditing && (
+              <div>
+                <p className="mb-1 font-medium">Estado</p>
+                <select
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs"
+                  value={serviceForm.isActive ? '1' : '0'}
+                  onChange={(e) => setServiceForm({ ...serviceForm, isActive: e.target.value === '1' })}
+                >
+                  <option value="1">Activo</option>
+                  <option value="0">Inactivo</option>
+                </select>
+              </div>
+            )}
+            <p className="text-[11px] text-muted-foreground bg-muted/40 p-2 rounded border">
+              ℹ️ Este servicio se sincroniza automáticamente con el catálogo general de <strong>inventarios</strong> con tipo <code>is_service: true</code> para ser facturable en Compras sin generar stock físico.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialog(null)}>Cancelar</Button>
+            <Button
+              onClick={() => serviceMutation.mutate()}
+              disabled={serviceMutation.isPending || !serviceForm.sku.trim() || !serviceForm.description.trim()}
+              className="gap-1.5"
+            >
+              <Save className="h-3.5 w-3.5" /> Guardar Servicio
             </Button>
           </DialogFooter>
         </DialogContent>

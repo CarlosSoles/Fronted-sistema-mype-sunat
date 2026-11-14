@@ -99,7 +99,7 @@ export const PendingSettlementsTable: React.FC<PendingSettlementsTableProps> = (
                         onClick={() => onOpenPayModal(s)}
                       >
                         <CreditCard className="h-3 w-3" />
-                        Pagar CDA
+                        Pagar / Enviar a Compras
                       </Button>
                     )}
                   </TableCell>

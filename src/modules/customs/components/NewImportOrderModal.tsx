@@ -13,7 +13,6 @@ import {
   Ship,
   Plus,
   Trash2,
-  DollarSign,
   Loader2,
   AlertCircle,
   Building2,
@@ -23,6 +22,8 @@ import {
   Phone,
   MapPin,
   Search,
+  FileText,
+  FileUp,
 } from 'lucide-react';
 import {
   importOrdersApi,
@@ -82,6 +83,8 @@ export const NewImportOrderModal: React.FC<NewImportOrderModalProps> = ({
   const [estimatedFreight, setEstimatedFreight] = useState(0);
   const [estimatedInsurance, setEstimatedInsurance] = useState(0);
   const [proformaNumber, setProformaNumber] = useState('');
+  const [documentUrl, setDocumentUrl] = useState('');
+  const [documentFileName, setDocumentFileName] = useState('');
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<OrderItemRow[]>([
     { productCode: '', description: '', hsCode: '', quantity: 10, unitPriceFob: 0 },
@@ -270,6 +273,8 @@ export const NewImportOrderModal: React.FC<NewImportOrderModalProps> = ({
       estimatedFreight: Number(estimatedFreight) || 0,
       estimatedInsurance: Number(estimatedInsurance) || 0,
       proformaNumber: proformaNumber.trim() || undefined,
+      documentUrl: documentUrl.trim() || undefined,
+      documentFileName: documentFileName.trim() || undefined,
       notes: notes.trim() || undefined,
       responsible: 'Operador Comercio Exterior',
       items: items.map((it) => ({
@@ -288,7 +293,7 @@ export const NewImportOrderModal: React.FC<NewImportOrderModalProps> = ({
       onClose();
     } catch (err: any) {
       setErrorMessage(
-        err.response?.data?.message || err.message || 'Error al emitir la orden de importación.'
+        err.response?.data?.message || err.message || 'Error al registrar el pedido al exterior.'
       );
     } finally {
       setIsSubmitting(false);
@@ -301,10 +306,10 @@ export const NewImportOrderModal: React.FC<NewImportOrderModalProps> = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg">
             <Ship className="h-5 w-5 text-primary" />
-            Nueva Orden de Compra Internacional
+            Registrar Pedido al Exterior (Orden Internacional)
           </DialogTitle>
           <p className="text-xs text-muted-foreground">
-            Emisión de pedido al exterior conforme a Incoterms 2020 (CCI) y normativa de Valoración Aduanera SUNAT (Acuerdo de Valor OMC).
+            Registro de pedido de compra al exterior conforme a Incoterms 2020 y normativa de Valoración Aduanera SUNAT.
           </p>
         </DialogHeader>
 
@@ -728,6 +733,49 @@ export const NewImportOrderModal: React.FC<NewImportOrderModalProps> = ({
                 />
               </div>
             </div>
+
+            {/* Adjuntar Documento de Sustento / Proforma o Cotización */}
+            <div className="p-2.5 rounded-lg border border-dashed border-sky-300 dark:border-sky-800 bg-sky-50/50 dark:bg-sky-950/20 mt-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-1.5">
+                <span className="text-[11px] font-semibold text-sky-800 dark:text-sky-300 flex items-center gap-1.5">
+                  <FileText className="h-3.5 w-3.5 text-sky-600" />
+                  Adjuntar Documento / Sustento (Proforma, Cotización o Pedido Exterior)
+                </span>
+                <span className="text-[10px] text-muted-foreground">PDF, Imagen o URL de la orden</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                <div className="sm:col-span-8">
+                  <Input
+                    placeholder="URL o enlace del documento (ej: https://.../proforma-001.pdf)"
+                    value={documentUrl}
+                    onChange={(e) => setDocumentUrl(e.target.value)}
+                    className="h-8 text-xs bg-background"
+                  />
+                </div>
+                <div className="sm:col-span-4">
+                  <input
+                    type="file"
+                    id="order-doc-file"
+                    className="hidden"
+                    accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setDocumentFileName(file.name);
+                        setDocumentUrl(`file://${file.name}`);
+                      }
+                    }}
+                  />
+                  <label
+                    htmlFor="order-doc-file"
+                    className="cursor-pointer h-8 px-3 rounded-md border border-input bg-background hover:bg-accent text-xs flex items-center justify-center gap-1.5 truncate"
+                  >
+                    <FileUp className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="truncate">{documentFileName || 'Seleccionar archivo local'}</span>
+                  </label>
+                </div>
+              </div>
+            </div>
           </div>
 
           {isCompactTabs && (
@@ -1008,12 +1056,12 @@ export const NewImportOrderModal: React.FC<NewImportOrderModalProps> = ({
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Emitiendo Orden...
+                  Registrando Pedido...
                 </>
               ) : (
                 <>
-                  <DollarSign className="h-4 w-4" />
-                  Emitir Orden de Importación
+                  <Ship className="h-4 w-4" />
+                  Registrar Pedido al Exterior
                 </>
               )}
             </Button>

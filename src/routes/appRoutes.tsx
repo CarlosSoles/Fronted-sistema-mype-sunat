@@ -36,6 +36,7 @@ const DeclarationsListPage = React.lazy(() => import('@/modules/customs/pages/De
 const DuaRegistrationWizardPage = React.lazy(() => import('@/modules/customs/pages/DuaRegistrationWizardPage'));
 const CustomsLiquidationPage = React.lazy(() => import('@/modules/customs/pages/CustomsLiquidationPage'));
 const LandedCostSheetPage = React.lazy(() => import('@/modules/customs/pages/LandedCostSheetPage'));
+const CustomsAccountingPage = React.lazy(() => import('@/modules/customs/pages/CustomsAccountingPage'));
 const ForeignSuppliersPage = React.lazy(() => import('@/modules/customs/pages/ForeignSuppliersPage'));
 const PartnersPage = React.lazy(() => import('@/modules/customs/pages/PartnersPage'));
 const MasterDataPage = React.lazy(() => import('@/modules/customs/pages/MasterDataPage'));
@@ -342,6 +343,16 @@ export const AppRoutes = () => {
                   allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
                 >
                   <LandedCostSheetPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/customs/accounting"
+              element={
+                <RoleProtectedRoute
+                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
+                >
+                  <CustomsAccountingPage />
                 </RoleProtectedRoute>
               }
             />

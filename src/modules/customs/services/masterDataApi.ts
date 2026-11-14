@@ -39,6 +39,19 @@ export interface PortRecord {
   status: string;
 }
 
+export interface CustomsServiceRecord {
+  id: string;
+  sku: string;
+  description: string;
+  category: string;
+  sunat_unit_code: string;
+  tax_affectation: string;
+  cost_price: number | null;
+  sale_price: number | null;
+  is_active: boolean;
+  is_service: boolean;
+}
+
 export interface DocumentTypeRecord {
   code: string;
   name: string;
@@ -316,6 +329,36 @@ export const masterDataApi = {
     const { data } = await apiClient.put<AccountingMappingRecord>(
       `${BASE}/accounting-mappings`,
       payload,
+    );
+    return data;
+  },
+
+  // Servicios Aduaneros / Gastos de Despacho (Sincronizados con inventory_products)
+  getCustomsServices: async (): Promise<CustomsServiceRecord[]> => {
+    const { data } = await apiClient.get<CustomsServiceRecord[]>(
+      `${BASE}/services`,
+    );
+    return data;
+  },
+  upsertCustomsService: async (payload: {
+    sku: string;
+    description: string;
+    category?: string;
+    sunatUnitCode?: string;
+    taxAffectation?: string;
+    costPrice?: number;
+    salePrice?: number;
+    isActive?: boolean;
+  }) => {
+    const { data } = await apiClient.put<CustomsServiceRecord>(
+      `${BASE}/services`,
+      payload,
+    );
+    return data;
+  },
+  deleteCustomsService: async (sku: string) => {
+    const { data } = await apiClient.delete(
+      `${BASE}/services/${encodeURIComponent(sku)}`,
     );
     return data;
   },

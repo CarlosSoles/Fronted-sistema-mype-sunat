@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Page, PageHeader, Button, Card, Badge, Input } from '@/components/ui';
 import {
   FileText,
@@ -54,10 +54,20 @@ const STAGES = [
 
 export default function ImportOrdersPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [orders, setOrders] = useState<ImportOrderRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('openNew') === 'true') {
+      setIsNewModalOpen(true);
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete('openNew');
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   // Orden seleccionada para inspección 360°
   const [selectedOrder, setSelectedOrder] = useState<ImportOrderRecord | null>(null);
@@ -224,7 +234,7 @@ export default function ImportOrdersPage() {
             className="gap-1.5 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-sm"
           >
             <Plus className="h-3.5 w-3.5" />
-            Nuevo Pedido al Exterior
+            + Registrar Pedido al Exterior
           </Button>
         </div>
       </PageHeader>
@@ -269,6 +279,12 @@ export default function ImportOrdersPage() {
               <p className="text-[10px] text-muted-foreground">Cta 2811 ➔ Cta 2011</p>
             </div>
           </div>
+        </div>
+        <div className="mt-2 text-[11px] text-muted-foreground bg-muted/40 p-2 rounded border border-border/50 flex items-center gap-2">
+          <Clock className="h-3.5 w-3.5 text-sky-500 shrink-0" />
+          <span>
+            <strong>Gestión Progresiva:</strong> El registro de este pedido apertura el expediente comercial. Los 14 hitos documentarios y logísticos se actualizan conforme avanza el despacho aduanero y arribo de la carga (no es necesario completarlos al inicio).
+          </span>
         </div>
       </Card>
 

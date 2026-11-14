@@ -18,6 +18,7 @@ export interface CreatePurchasePayload {
   currencyCode?: string;
   responsible?: string;
   notes?: string;
+  shipmentId?: string;
   items: PurchaseItemPayload[];
 }
 

@@ -20,6 +20,24 @@ export const inventoryApi = {
   },
 
   /**
+   * Obtiene todos los productos y servicios activos registrados en la empresa.
+   */
+  getAllProducts: async (options?: { includeServices?: boolean }): Promise<Array<{
+    id: string;
+    sku: string;
+    description: string;
+    isService: boolean;
+    isInventory: boolean;
+    unitCode: string;
+    costPrice?: number;
+    salePrice?: number;
+  }>> => {
+    const params = options?.includeServices === false ? { includeServices: 'false' } : {};
+    const response = await apiClient.get('/inventory/stocks/products', { params });
+    return response.data || [];
+  },
+
+  /**
    * Registra un nuevo producto en el catálogo maestro y BD.
    */
   registerProduct: async (payload: ProductFormData) => {

@@ -22,6 +22,7 @@ import {
   Building2,
   Warehouse,
   CheckCircle2,
+  Ship,
 } from 'lucide-react';
 
 interface PurchaseItemRow {
@@ -52,29 +53,46 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
   const [issueDate, setIssueDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [warehouseCode, setWarehouseCode] = useState('ALM-01');
   const [currencyCode, setCurrencyCode] = useState('PEN');
+  const [shipmentId, setShipmentId] = useState('');
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<PurchaseItemRow[]>([
     { sku: '', description: '', quantity: 1, unitCost: 0 },
   ]);
 
-  const [availableProducts, setAvailableProducts] = useState<Array<{ sku: string; name: string; currentCost?: number }>>([]);
+  const [availableProducts, setAvailableProducts] = useState<
+    Array<{ sku: string; name: string; isService?: boolean; currentCost?: number }>
+  >([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Cargar catálogo de productos para autocompletar SKUs
+  // Cargar catálogo de productos y servicios para autocompletar SKUs
   useEffect(() => {
     if (isOpen) {
-      inventoryApi.getStockBalances().then((res) => {
-        if (res?.balances) {
-          const list = res.balances.map((b) => ({
+      Promise.all([
+        inventoryApi.getAllProducts().catch(() => []),
+        inventoryApi.getStockBalances().catch(() => ({ totalValuationPen: 0, totalItemsCount: 0, balances: [] })),
+      ]).then(([allProds, balancesRes]) => {
+        const balancesMap = new Map((balancesRes?.balances || []).map((b) => [b.sku.toUpperCase(), b]));
+        if (allProds && allProds.length > 0) {
+          const list = allProds.map((p) => {
+            const bal = balancesMap.get(p.sku.toUpperCase());
+            return {
+              sku: p.sku,
+              name: p.description || p.sku,
+              isService: p.isService,
+              currentCost: p.costPrice ?? bal?.averageUnitCost,
+            };
+          });
+          setAvailableProducts(list);
+        } else if (balancesRes?.balances) {
+          const list = balancesRes.balances.map((b) => ({
             sku: b.sku,
             name: b.description || b.sku,
+            isService: false,
             currentCost: b.averageUnitCost,
           }));
           setAvailableProducts(list);
         }
-      }).catch(() => {
-        // Silencioso si falla la precarga de catálogo
       });
     }
   }, [isOpen]);
@@ -152,6 +170,7 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
       issueDate,
       warehouseCode,
       currencyCode,
+      shipmentId: shipmentId.trim() || undefined,
       notes: notes.trim() || undefined,
       items: items.map((it) => ({
         sku: it.sku.trim().toUpperCase(),
@@ -308,6 +327,23 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
                 </select>
               </div>
             </div>
+
+            {/* Vinculación opcional con Importaciones */}
+            <div className="pt-2 border-t mt-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                <label className="font-semibold text-foreground text-[11px] flex items-center gap-1.5">
+                  <Ship className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400" />
+                  Asociar a Expediente de Importación (Opcional - Gastos Locales Landed Cost)
+                </label>
+                <span className="text-[10px] text-muted-foreground">Para servicios de agenciamiento, flete local o almacenaje</span>
+              </div>
+              <Input
+                placeholder="ej: EXP-2026-0001 (Se integrará a la Hoja de Liquidación de Costeo Aduanero)"
+                value={shipmentId}
+                onChange={(e) => setShipmentId(e.target.value.toUpperCase())}
+                className="mt-1 h-8 text-xs font-mono uppercase bg-background"
+              />
+            </div>
           </div>
 
           {/* Detalle de Productos Facturados */}
@@ -315,7 +351,7 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
             <div className="flex items-center justify-between">
               <h3 className="font-semibold text-foreground flex items-center gap-1.5 text-xs">
                 <Warehouse className="h-4 w-4 text-emerald-600" />
-                Mercaderías Adquiridas (Entrada a Kardex)
+                Mercaderías y Servicios Adquiridos (NIC 2)
               </h3>
               <Button
                 type="button"
@@ -325,7 +361,7 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
                 className="h-7 text-xs gap-1"
               >
                 <Plus className="h-3.5 w-3.5" />
-                Agregar Producto
+                Agregar Ítem
               </Button>
             </div>
 
@@ -333,7 +369,7 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
             <datalist id="products-catalog-list">
               {availableProducts.map((p) => (
                 <option key={p.sku} value={p.sku}>
-                  {p.name}
+                  {p.isService ? `[SERVICIO] ${p.name}` : p.name}
                 </option>
               ))}
             </datalist>
