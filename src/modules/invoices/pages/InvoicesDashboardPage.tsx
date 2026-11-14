@@ -20,7 +20,7 @@ export default function InvoicesDashboardPage() {
     ? `DLQ ${dlqPendientes}`
     : certificadoGrave
       ? 'Certificado'
-      : 'Certificado sin datos';
+      : alertas.data?.antiguedad?.gravedad === 'CRITICO' ? 'Plazo de envío' : 'Certificado sin datos';
 
   const kpis = [
     { label: 'Facturado neto', value: money(m?.facturado ?? 0), icon: TrendingUp },
@@ -68,6 +68,7 @@ export default function InvoicesDashboardPage() {
           <p className="font-semibold mb-1">Alertas operativas</p>
           <p className="text-muted-foreground">Certificado: {alertas.data.certificado.mensaje}</p>
           <p className="text-muted-foreground">Cola DLQ: {alertas.data.dlq.mensaje}</p>
+          {alertas.data.antiguedad && <p className="text-muted-foreground">Plazo de envío: {alertas.data.antiguedad.mensaje}</p>}
         </Card>
       ) : null}
 

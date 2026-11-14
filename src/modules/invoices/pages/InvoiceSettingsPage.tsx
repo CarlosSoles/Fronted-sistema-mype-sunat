@@ -18,8 +18,7 @@ import { invoiceConfigError } from '../lib/invoiceConfigError';
 
 export default function InvoiceSettingsPage() {
   // El RUC sale de la empresa ACTIVA de la sesión y no de un campo del
-  // formulario: la identidad fiscal no se cambia desde aquí (invalidaría los
-  // comprobantes ya emitidos).
+  // formulario: la configuración específica del emisor M1 se guarda aparte.
   const ruc = (useAuthStore((state) => state.activeCompany?.ruc) ?? '').trim();
 
   const { data, error, cargando, guardar, recargar } = useInvoiceConfig(ruc);

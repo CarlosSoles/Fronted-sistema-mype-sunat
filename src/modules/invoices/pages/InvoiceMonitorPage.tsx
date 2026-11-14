@@ -1,3 +1,4 @@
+import { InvoiceSendAgeAlert } from '../components/InvoiceSendAgeAlert';
 import { InvoiceBatchRetry } from '../components/InvoiceBatchRetry';
 import { cargarPaginasMonitor } from '../lib/invoiceMonitorData';
 import { InvoiceRvieSection } from '../components/InvoiceRvieSection';
@@ -248,6 +249,7 @@ export default function InvoiceMonitorPage() {
         </Card>
       </PageGrid>
 
+      {alertas.antiguedad && <InvoiceSendAgeAlert alerta={alertas.antiguedad} />}
       </>) : !error ? <div role="status">Cargando estado del monitor…</div> : null}
 
       {alertas && <Card flush>
