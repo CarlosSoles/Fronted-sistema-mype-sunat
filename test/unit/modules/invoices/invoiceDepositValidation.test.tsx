@@ -4,7 +4,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import InvoiceDetractionsPage from '@/modules/invoices/pages/InvoiceDetractionsPage';
-import { errorMontoDeposito } from '@/modules/invoices/lib/invoiceDepositValidation';
+import { errorMontoDeposito, errorConstanciaDeposito } from '@/modules/invoices/lib/invoiceDepositValidation';
 const mocks = vi.hoisted(() => ({ post: vi.fn(), get: vi.fn().mockResolvedValue({data:[{id:'i1', numero:'F001-00000001',date:'2026-11-12',customer:'Cliente',total:1180,detraction:118}]}) }));
 vi.mock('@/lib/axios', () => ({apiClient:mocks}));
 describe('monto del depósito', () => {
@@ -26,4 +26,9 @@ describe('monto del depósito', () => {
   expect(amount).toHaveValue('1.23');
   expect(mocks.post).not.toHaveBeenCalled(); qc.clear();
  });
+});
+
+describe('constancia opcional numérica', () => {
+ it.each(['', '  ', '00123', ' 00123 '])('admite %s', valor => expect(errorConstanciaDeposito(valor)).toBeUndefined());
+ it.each(['ABC', '1-2', '1 2', '１２'])('rechaza %s', valor => expect(errorConstanciaDeposito(valor)).toContain('solo dígitos'));
 });
