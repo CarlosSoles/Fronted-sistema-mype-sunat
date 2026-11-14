@@ -93,8 +93,9 @@ export const calcularRetencion = (
   importeTotal: number,
   esAgenteRetencion: boolean,
   tipoCambio = 1,
+  montoDetraccion = 0,
 ): number => {
-  if (!esAgenteRetencion) return 0;
+  if (!esAgenteRetencion || montoDetraccion > 0) return 0;
 
   const totalEnSoles = round2(importeTotal * tipoCambio);
   if (totalEnSoles <= UMBRAL_SOLES) return 0;
@@ -131,9 +132,10 @@ export const liquidarComprobante = (
     importeTotal,
     opciones.esAgenteRetencion ?? false,
     tipoCambio,
+    montoDetraccion,
   );
 
-  // La detracción y la retención se descuentan del neto que paga el cliente.
+  // SPOT efectivo excluye la retención IGV; solo un régimen reduce el neto.
   const netoPendientePago = round2(importeTotal - montoDetraccion - montoRetencion);
 
   return {
