@@ -66,6 +66,7 @@ export const borradorAPayloadEmision = (
     customer_identity_type: b.clienteDoc.length === 11 ? '6' : '1',
     customer_identity_number: b.clienteDoc.replace(/\D/g, ''),
     customer_legal_name: b.clienteRazonSocial.trim(),
+    ...(b.clienteDireccion?.trim() ? { customer_address: b.clienteDireccion.trim() } : {}),
     fecha_emision: b.fecha,
     agente_retencion: !esNota && b.agenteRetencion,
     ...(b.correccionRetencion ? { correccion_retencion: true } : {}),
