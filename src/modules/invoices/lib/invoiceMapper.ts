@@ -24,7 +24,7 @@ import type {
   InvoiceItem,
   Moneda,
 } from '../types/invoice.types';
-import { MOTIVOS_NC, MOTIVOS_ND } from './invoiceEmitValidation';
+import { descripcionMotivoNota } from './invoiceNoteReason';
 
 /** Fila del backend tal como llega por HTTP. */
 export interface ComprobanteBackend {
@@ -264,11 +264,7 @@ export const aInvoice = (fila: ComprobanteBackend): Invoice => {
       ? {
           codigo: fila.credit_debit_reason_code,
           descripcion:
-            MOTIVOS_NC.find((m) => m.codigo === fila.credit_debit_reason_code)
-              ?.descripcion ??
-            MOTIVOS_ND.find((m) => m.codigo === fila.credit_debit_reason_code)
-              ?.descripcion ??
-            '',
+            descripcionMotivoNota(fila.tipo_comprobante, fila.credit_debit_reason_code),
         }
       : undefined,
     reintentable: esReintentable(fila.estado),
@@ -338,16 +334,9 @@ export const aInvoiceDetalle = (fila: ComprobanteDetalleBackend): Invoice => {
     motivoNota: fila.credit_debit_reason_code
       ? {
           codigo: fila.credit_debit_reason_code,
-          // La columna guarda SOLO el código; la descripción vive en el
-          // Catálogo 09. Sin resolverla aquí, la ficha pintaba "(06 - )" con el
-          // hueco a la vista, que se lee como un dato roto. Si el código no está
-          // en el catálogo se muestra el código y nada más: no se inventa.
+          // El tipo determina el catálogo; los códigos desconocidos no se describen.
           descripcion:
-            MOTIVOS_NC.find((m) => m.codigo === fila.credit_debit_reason_code)
-              ?.descripcion ??
-            MOTIVOS_ND.find((m) => m.codigo === fila.credit_debit_reason_code)
-              ?.descripcion ??
-            '',
+            descripcionMotivoNota(fila.tipo_comprobante, fila.credit_debit_reason_code),
         }
       : undefined,
   };
