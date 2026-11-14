@@ -17,10 +17,10 @@ it.each(['07', '08'] as const)('precarga identidad fija y permite ajustar cantid
   render(<QueryClientProvider client={query}><InvoiceEmitModal seriesConfiguradas={seriesConfiguradasPrueba} tipoInicial={tipo} fecha="2026-11-05" existentes={[factura]} onEmitir={vi.fn()} onCerrar={vi.fn()} /></QueryClientProvider>);
   expect(screen.getByText(/Factura o Boleta aceptada u observada/)).toBeTruthy();
   fireEvent.change(screen.getByLabelText('Documento afectado'), { target: { value: 'F001-00000056' } });
-  await waitFor(() => expect((screen.getByLabelText('Descripción de la línea 1') as HTMLInputElement).value).toBe('Cemento real'));
-  expect((screen.getByLabelText('Valor unitario de la línea 1') as HTMLInputElement).value).toBe('50.00');
-  expect((screen.getByLabelText('Descripción de la línea 1') as HTMLTextAreaElement).readOnly).toBe(true);
-  expect((screen.getByLabelText('Descripción de la línea 1') as HTMLInputElement).value).toBe('Cemento real');
+  await waitFor(() => expect(screen.getByLabelText('Descripción de la línea 1').textContent).toBe('Cemento real'));
+  expect(screen.getByLabelText('Valor unitario de la línea 1').textContent).toBe('50.00');
+  expect(screen.getByLabelText('Descripción de la línea 1').tagName).toBe('SPAN');
+  expect(screen.getByLabelText('Descripción de la línea 1').textContent).toBe('Cemento real');
   expect(await screen.findByText(/Disponible según servidor S\/ 118.00/)).toBeTruthy();
   query.clear();
 });
