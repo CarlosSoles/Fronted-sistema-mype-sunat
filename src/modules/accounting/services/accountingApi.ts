@@ -12,6 +12,15 @@ import {
   type PleExportConfig,
 } from '../types/accounting.types';
 
+export interface TreasuryAccount {
+  id: string;
+  code: string;
+  name: string;
+  kind: 'CAJA' | 'BANCO';
+  currency: string;
+  isActive: boolean;
+}
+
 export const accountingApi = {
   getEntries: async (period?: string): Promise<AccountingEntry[]> => {
     return cachedGet(`accounting-entries:${period ?? 'actual'}`, async () => {
@@ -127,6 +136,28 @@ export const accountingApi = {
     });
   },
 
+/** Subcuentas de caja/banco configuradas por la empresa. */
+  getTreasuryAccounts: async (): Promise<TreasuryAccount[]> => {
+    const { data } = await apiClient.get<TreasuryAccount[]>('/accounting/treasury-accounts');
+    return data;
+  },
+
+  createTreasuryAccount: async (payload: {
+    code: string;
+    name: string;
+    kind?: 'CAJA' | 'BANCO';
+  }): Promise<TreasuryAccount> => {
+    const { data } = await apiClient.post<TreasuryAccount>('/accounting/treasury-accounts', payload);
+    return data;
+  },
+
+  updateTreasuryAccount: async (
+    id: string,
+    payload: { name?: string; kind?: 'CAJA' | 'BANCO'; isActive?: boolean },
+  ): Promise<TreasuryAccount> => {
+    const { data } = await apiClient.put<TreasuryAccount>(`/accounting/treasury-accounts/${id}`, payload);
+    return data;
+  },
   exportPleBook: async (config: PleExportConfig): Promise<Blob> => {
     const response = await apiClient.post('/accounting/ple/export', config, {
       responseType: 'blob',
