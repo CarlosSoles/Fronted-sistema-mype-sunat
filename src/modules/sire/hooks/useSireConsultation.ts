@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { sireApi } from '../services/sireApi';
-import { redactSireSecret } from '../services/sireApiHttp';
 import type {
   SireJobStatus,
   SirePeriodo,
@@ -51,11 +50,8 @@ export const useSireConsultation = (): UseSireConsultation => {
   const attemptsRef = useRef(0);
   // Un sondeo en vuelo por ejecución: evita GET solapados si el servidor
   // tarda más que el intervalo. Se indexa por ejecución para que el `finally`
-  // de una ejecución vieja no libere el_FLAG de la nueva.
+  // de una ejecución vieja no libere el FLAG de la nueva.
   const pendingRunsRef = useRef<Set<number>>(new Set());
-  // Solo vive en memoria para poder ocultar la clave SOL en los mensajes de
-  // error del backend. Se limpia al terminar el trabajo y nunca se renderiza.
-  const secretRef = useRef('');
 
   const stopPolling = useCallback(() => {
     if (timerRef.current !== null) {
@@ -66,7 +62,7 @@ export const useSireConsultation = (): UseSireConsultation => {
 
   useEffect(() => {
     return () => {
-      // Invalida respuestas en vuelo y cancela el sondeo al desmontar.
+      // Invalida respuestas en vuelo y cancela el sondeo con clearInterval al desmontar.
       runRef.current += 1;
       if (timerRef.current !== null) {
         clearInterval(timerRef.current);
@@ -74,8 +70,6 @@ export const useSireConsultation = (): UseSireConsultation => {
       }
     };
   }, []);
-
-  const redact = useCallback((message: string) => redactSireSecret(message, secretRef.current), []);
 
   const poll = useCallback(
     async (id: string, run: number) => {
@@ -98,7 +92,6 @@ export const useSireConsultation = (): UseSireConsultation => {
 
         if (response.status === 'COMPLETED') {
           stopPolling();
-          secretRef.current = '';
           setPeriods(response.periods);
           setJobStatus('COMPLETED');
           setIsLoading(false);
@@ -116,7 +109,6 @@ export const useSireConsultation = (): UseSireConsultation => {
 
         if (response.status === 'FAILED') {
           stopPolling();
-          secretRef.current = '';
           setPeriods([]);
           setJobStatus('FAILED');
           setStatusMessage(null);
@@ -131,15 +123,13 @@ export const useSireConsultation = (): UseSireConsultation => {
 
         // PENDING o PROCESSING: el worker todavía está trabajando.
         setJobStatus(response.status);
-        setStatusMessage('Consultando a SUNAT…');
+        setStatusMessage('Consultando a SUNAT...');
       } catch (cause) {
         if (run !== runRef.current) return;
         stopPolling();
-        // Se redacta la clave SOL antes de soltar la referencia en memoria.
         const message = cause instanceof Error
-          ? redact(cause.message)
+          ? cause.message
           : 'No se pudo consultar el estado de la consulta de periodos SIRE.';
-        secretRef.current = '';
         setPeriods([]);
         setStatusMessage(null);
         setError(message);
@@ -148,7 +138,7 @@ export const useSireConsultation = (): UseSireConsultation => {
         pendingRunsRef.current.delete(run);
       }
     },
-    [redact, stopPolling],
+    [stopPolling],
   );
 
   const consultar = useCallback(
@@ -157,14 +147,13 @@ export const useSireConsultation = (): UseSireConsultation => {
       const run = runRef.current + 1;
       runRef.current = run;
       attemptsRef.current = 0;
-      secretRef.current = payload.solPassword;
 
       setIsLoading(true);
       setError(null);
       setPeriods([]);
       setJobStatus(null);
       setMessageId(null);
-      setStatusMessage('Enviando la solicitud de consulta a SUNAT…');
+      setStatusMessage('Consultando a SUNAT...');
 
       try {
         const accepted = await sireApi.requestPeriodos(payload);
@@ -172,7 +161,7 @@ export const useSireConsultation = (): UseSireConsultation => {
 
         setMessageId(accepted.messageId);
         setJobStatus('PENDING');
-        setStatusMessage('Consultando a SUNAT…');
+        setStatusMessage('Consultando a SUNAT...');
 
         timerRef.current = setInterval(() => {
           void poll(accepted.messageId, run);
@@ -181,21 +170,19 @@ export const useSireConsultation = (): UseSireConsultation => {
       } catch (cause) {
         if (run !== runRef.current) return;
         const message = cause instanceof Error
-          ? redact(cause.message)
+          ? cause.message
           : 'No se pudo iniciar la consulta de periodos SIRE.';
-        secretRef.current = '';
         setIsLoading(false);
         setStatusMessage(null);
         setError(message);
       }
     },
-    [poll, redact, stopPolling],
+    [poll, stopPolling],
   );
 
   const limpiar = useCallback(() => {
     stopPolling();
     runRef.current += 1;
-    secretRef.current = '';
     setIsLoading(false);
     setStatusMessage(null);
     setError(null);

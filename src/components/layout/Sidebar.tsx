@@ -176,6 +176,7 @@ export const NAV_ITEMS: NavItem[] = [
     developer: 'Diego Toledo',
     allowedRoles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
     subItems: [
+      { title: 'Configuración SUNAT', path: '/sire/configuracion', icon: Settings },
       { title: 'Importar Propuesta', path: '/sire/importar', icon: FileUp },
       { title: 'Consulta de periodos', path: '/sire/periodos', icon: Search },
       { title: 'Conciliación y Cruce', path: '/sire/conciliacion', icon: GitCompareArrows },

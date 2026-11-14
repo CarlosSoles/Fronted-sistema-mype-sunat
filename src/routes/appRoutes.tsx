@@ -59,6 +59,7 @@ const InventoryKardexPage = React.lazy(() => import('@/modules/inventory/pages/I
 const InventoryOpeningPage = React.lazy(() => import('@/modules/inventory/pages/InventoryOpeningPage'));
 const InventoryMovementsPage = React.lazy(() => import('@/modules/inventory/pages/InventoryMovementsPage'));
 const ProductKardexPage = React.lazy(() => import('@/modules/inventory/pages/ProductKardexPage'));
+const SireConfiguracionPage = React.lazy(() => import('@/modules/sire/pages/SireConfiguracionPage'));
 const SireReconciliationPage = React.lazy(() => import('@/modules/sire/pages/SireReconciliationPage'));
 const SireImportPage = React.lazy(() => import('@/modules/sire/pages/SireImportPage'));
 const SirePeriodosPage = React.lazy(() => import('@/modules/sire/pages/SirePeriodosPage'));
@@ -501,7 +502,16 @@ export const AppRoutes = () => {
               path="/sire"
               element={<Navigate to="/sire/conciliacion" replace />}
             />
-            <Route
+                        <Route
+              path="/sire/configuracion"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <SireConfiguracionPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route path="/sire/config" element={<Navigate to="/sire/configuracion" replace />} />
+<Route
               path="/sire/importar"
               element={
                 <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>

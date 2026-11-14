@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import {
   Alert,
   AlertDescription,
@@ -8,7 +8,6 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  Input,
   Page,
   PageHeader,
   Select,
@@ -31,7 +30,7 @@ import {
   type SireBookCode,
   type SirePeriodo,
 } from '../types/sire.types';
-import { getBookCodeFeedback, getSolUserFeedback } from '../validators/sireSchema';
+import { getBookCodeFeedback } from '../validators/sireSchema';
 
 const SIN_DATO = '—';
 
@@ -49,16 +48,18 @@ const PeriodosTable = ({ periods }: { periods: SirePeriodo[] }) => (
         </TableRow>
       </TableHeader>
       <TableBody>
-        {periods.length ? periods.map((periodo, index) => (
-          <TableRow key={`${periodo.period}-${index}`}>
-            <TableCell>{periodo.period}</TableCell>
-            <TableCell>{periodo.bookCode ?? SIN_DATO}</TableCell>
-            <TableCell>{periodo.status ?? SIN_DATO}</TableCell>
-            <TableCell align="right">{periodo.recordCount ?? SIN_DATO}</TableCell>
-            <TableCell>{periodo.startDate ?? SIN_DATO}</TableCell>
-            <TableCell>{periodo.endDate ?? SIN_DATO}</TableCell>
-          </TableRow>
-        )) : (
+        {periods.length ? (
+          periods.map((periodo, index) => (
+            <TableRow key={`${periodo.period}-${index}`}>
+              <TableCell>{periodo.period}</TableCell>
+              <TableCell>{periodo.bookCode ?? SIN_DATO}</TableCell>
+              <TableCell>{periodo.status ?? SIN_DATO}</TableCell>
+              <TableCell align="right">{periodo.recordCount ?? SIN_DATO}</TableCell>
+              <TableCell>{periodo.startDate ?? SIN_DATO}</TableCell>
+              <TableCell>{periodo.endDate ?? SIN_DATO}</TableCell>
+            </TableRow>
+          ))
+        ) : (
           <TableRow>
             <TableCell colSpan={6} align="center">
               SUNAT no devolvió periodos para el libro consultado.
@@ -72,9 +73,7 @@ const PeriodosTable = ({ periods }: { periods: SirePeriodo[] }) => (
 
 export default function SirePeriodosPage() {
   const [bookCode, setBookCode] = useState<SireBookCode | ''>('');
-  const [solUser, setSolUser] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
-  const passwordInput = useRef<HTMLInputElement>(null);
   const {
     isLoading,
     statusMessage,
@@ -88,20 +87,15 @@ export default function SirePeriodosPage() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const solPassword = passwordInput.current?.value ?? '';
     const bookCodeError = getBookCodeFeedback(bookCode);
-    const solUserError = getSolUserFeedback(solUser);
 
-    if (bookCodeError || solUserError || !solPassword.trim()) {
-      setValidationError(bookCodeError ?? solUserError ?? 'La clave SOL es obligatoria.');
-      if (passwordInput.current) passwordInput.current.value = '';
+    if (bookCodeError || !bookCode) {
+      setValidationError(bookCodeError ?? 'El código de libro es obligatorio.');
       return;
     }
 
     setValidationError(null);
-    // La clave SOL se envía una sola vez y no se conserva en estado React.
-    if (passwordInput.current) passwordInput.current.value = '';
-    await consultar({ bookCode: bookCode as SireBookCode, solUser: solUser.trim(), solPassword });
+    await consultar({ bookCode: bookCode as SireBookCode });
   };
 
   const errorMessage = validationError ?? error;
@@ -141,42 +135,29 @@ export default function SirePeriodosPage() {
                 </SelectContent>
               </Select>
             </label>
-            <label className="block max-w-sm space-y-1.5 text-sm font-medium">
-              Usuario SOL
-              <Input
-                aria-label="Usuario SOL"
-                autoComplete="username"
-                maxLength={50}
-                placeholder="MODDATOS"
-                value={solUser}
-                disabled={isLoading}
-                onChange={(event) => {
-                  setSolUser(event.target.value);
-                  setValidationError(null);
-                  limpiar();
-                }}
-              />
-            </label>
-            <label className="block max-w-sm space-y-1.5 text-sm font-medium">
-              Clave SOL
-              <Input
-                aria-label="Clave SOL"
-                autoComplete="new-password"
-                ref={passwordInput}
-                type="password"
-                disabled={isLoading}
-                onChange={() => {
-                  setValidationError(null);
-                  limpiar();
-                }}
-              />
-            </label>
+
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Search aria-hidden="true" />}
-              {isLoading ? 'Consultando…' : 'Consultar periodos'}
+              {isLoading ? (
+                <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <Search className="h-4 w-4" aria-hidden="true" />
+              )}
+              {isLoading ? 'Consultando a SUNAT...' : 'Consultar'}
             </Button>
           </form>
-          {statusMessage && <p role="status" className="mt-4">{statusMessage}</p>}
+
+          {isLoading && (
+            <div role="status" className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+              <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+              <span>Consultando a SUNAT...</span>
+            </div>
+          )}
+
+          {!isLoading && statusMessage && (
+            <p role="status" className="mt-4 text-sm text-muted-foreground">
+              {statusMessage}
+            </p>
+          )}
         </CardContent>
       </Card>
 

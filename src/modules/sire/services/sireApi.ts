@@ -6,6 +6,8 @@ import type {
   ReconcileRequest,
   ReconcileResponse,
   ReconcileScenario,
+  SireConfiguracionPayload,
+  SireConfiguracionStatus,
   SireHistoryResponse,
   SirePeriodosAcceptedResponse,
   SirePeriodosRequest,
@@ -22,6 +24,7 @@ import {
 } from './sireApiHttp';
 import {
   isBackendReconciliation,
+  isConfiguracionStatusResponse,
   isImportResponse,
   isPeriodosAcceptedResponse,
   isPeriodosStatusResponse,
@@ -43,6 +46,68 @@ const SIRE_PERIODOS_STATUS_TIMEOUT_MS = 15_000;
 
 
 export const sireApi = {
+  /**
+   * Estado de la configuración SIRE de la empresa.
+   *
+   * El backend solo devuelve `{ configured: boolean }`: nunca las credenciales
+   * ni parte de ellas, por eso la pantalla puede mostrar "Ya configurado"
+   * sin exponer ningún secreto.
+   */
+  async getConfiguracionStatus(): Promise<SireConfiguracionStatus> {
+    const response = await requestSireApi<unknown>('/sire/configuracion/status', { method: 'GET' });
+    if (!isConfiguracionStatusResponse(response)) {
+      throw new SireApiError(
+        'El servidor devolvió el estado de la configuración SIRE con un formato inválido.',
+        null,
+      );
+    }
+    return { configured: response.configured };
+  },
+
+  /**
+   * Guarda (o actualiza) las credenciales SIRE de la empresa.
+   *
+   * Los campos que no se envían se conservan tal como estaban en el backend,
+   * así que se puede enviar solo lo que cambió. El RUC nunca se envía: la
+   * empresa sale de la sesión.
+   */
+  async saveConfiguracion(payload: SireConfiguracionPayload): Promise<SireConfiguracionStatus> {
+    const body: Record<string, string> = {};
+    if (payload.clientId !== undefined) body.clientId = payload.clientId;
+    if (payload.clientSecret !== undefined) body.clientSecret = payload.clientSecret;
+    if (payload.solUser !== undefined) body.solUser = payload.solUser;
+    if (payload.solPassword !== undefined) body.solPassword = payload.solPassword;
+
+    if (Object.keys(body).length === 0) {
+      throw new SireApiError('No se recibió ninguna credencial SIRE para guardar.', 400);
+    }
+
+    try {
+      const response = await requestSireApi<unknown>('/sire/configuracion', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      });
+      if (!isConfiguracionStatusResponse(response)) {
+        throw new SireApiError(
+          'El servidor devolvió el resultado de la configuración SIRE con un formato inválido.',
+          null,
+        );
+      }
+      return { configured: response.configured };
+    } catch (cause) {
+      const status = cause instanceof SireApiError ? cause.status : null;
+      const message = cause instanceof Error ? cause.message : '';
+      const redacted = redactSireSecret(
+        redactSireSecret(message, payload.clientSecret ?? ''),
+        payload.solPassword ?? '',
+      );
+      throw new SireApiError(
+        redacted || 'No se pudo guardar la configuración SIRE de la empresa.',
+        status,
+      );
+    }
+  },
+
   async closePeriod(period: string, bookType: SireBookType): Promise<CloseSirePeriodResponse> {
     assertValidPeriod(period);
     const response = await requestSireApi<unknown>('/sire/close', {
@@ -100,25 +165,25 @@ export const sireApi = {
    * El backend responde HTTP 202 con `{ messageId, status: "PENDING" }`; el
    * seguimiento del trabajo se hace con `getPeriodosStatus(messageId)`.
    *
+   * Las credenciales SOL ya no se envían: el backend las resuelve desde la
+   * configuración SIRE de la empresa (`POST /sire/configuracion`), por eso el
+   * cuerpo solo lleva el libro consultado.
+   *
    * Si la cola no pudo publicar el trabajo el backend responde el mismo 202 con
    * `status: "FAILED"` y un mensaje accionable: aquí se convierte en error para
    * que la pantalla muestre ese texto y no uno genérico.
    */
   async requestPeriodos(payload: SirePeriodosRequest): Promise<SirePeriodosAcceptedResponse> {
-    const bookCode = payload.bookCode.trim();
-    const solUser = payload.solUser.trim();
-    const solPassword = payload.solPassword;
+    const bookCode = payload.bookCode?.trim() ?? '';
 
     if (!bookCode) throw new SireApiError('El código de libro es obligatorio.', 400);
-    if (!solUser) throw new SireApiError('El usuario SOL es obligatorio.', 400);
-    if (!solPassword.trim()) throw new SireApiError('La clave SOL es obligatoria.', 400);
 
     try {
       const response = await requestSireApi<unknown>(
         '/sire/periodos',
         {
           method: 'POST',
-          body: JSON.stringify({ bookCode, solUser, solPassword }),
+          body: JSON.stringify({ bookCode }),
         },
         { timeoutMs: SIRE_PERIODOS_REQUEST_TIMEOUT_MS },
       );
@@ -139,7 +204,7 @@ export const sireApi = {
       return { messageId: response.messageId, status: 'PENDING' };
     } catch (cause) {
       const status = cause instanceof SireApiError ? cause.status : null;
-      const message = cause instanceof Error ? redactSireSecret(cause.message, solPassword) : '';
+      const message = cause instanceof Error ? cause.message : '';
       throw new SireApiError(message || 'No se pudo encolar la consulta de periodos SIRE.', status);
     }
   },

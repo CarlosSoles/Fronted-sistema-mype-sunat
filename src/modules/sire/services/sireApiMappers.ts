@@ -5,6 +5,7 @@ import type {
   ReconcileResponse,
   ReconcileScenario,
   SireBookType,
+  SireConfiguracionStatus,
   SirePeriodo,
   SirePeriodosAcceptedResponse,
   SirePeriodosStatus,
@@ -168,6 +169,15 @@ export const mapPeriodosStatus = (response: SirePeriodosStatusResponse): SirePer
   ...(response.bookCode ? { bookCode: response.bookCode } : {}),
 });
 
+
+/**
+ * Contrato de `GET /sire/configuracion/status` y `POST /sire/configuracion`.
+ *
+ * El backend solo devuelve el indicador de configuración: nunca las
+ * credenciales ni parte de ellas.
+ */
+export const isConfiguracionStatusResponse = (value: unknown): value is SireConfiguracionStatus =>
+  isRecord(value) && typeof value.configured === 'boolean';
 
 const isNullableNumber = (value: unknown): value is number | null =>
   value === null || isNumber(value);

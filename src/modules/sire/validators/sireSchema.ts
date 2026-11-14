@@ -38,3 +38,22 @@ export const getSolUserFeedback = (solUser: string): string | null => {
   if (/\s/.test(value)) return 'El usuario SOL no puede contener espacios.';
   return null;
 };
+
+export const getClientIdFeedback = (clientId: string): string | null => {
+  const value = clientId.trim();
+  if (!value) return 'El Client ID es obligatorio.';
+  if (value.length > 200) return 'El Client ID admite hasta 200 caracteres.';
+  return null;
+};
+
+export const getClientSecretFeedback = (clientSecret: string): string | null => {
+  if (!clientSecret.trim()) return 'El Client Secret es obligatorio.';
+  if (clientSecret.length > 400) return 'El Client Secret admite hasta 400 caracteres.';
+  return null;
+};
+
+export const getSolPasswordFeedback = (solPassword: string): string | null => {
+  if (!solPassword.trim()) return 'La clave SOL es obligatoria.';
+  if (solPassword.length > 128) return 'La clave SOL admite hasta 128 caracteres.';
+  return null;
+};

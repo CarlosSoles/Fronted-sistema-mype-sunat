@@ -115,10 +115,40 @@ export const SIRE_BOOK_CODE_LABELS: Record<SireBookCode, string> = {
   '080000': '080000 · Registro de Compras Electrónico (RCE)',
 };
 
+/**
+ * Consulta de periodos a SUNAT.
+ *
+ * El backend resuelve las credenciales SOL desde la configuración SIRE de la
+ * empresa (`POST /api/v1/sire/configuracion`), así que el frontend ya no
+ * envía usuario ni clave SOL: solo el libro consultado.
+ */
 export interface SirePeriodosRequest {
   bookCode: SireBookCode;
-  solUser: string;
-  solPassword: string;
+}
+
+/**
+ * Credenciales SIRE/SUNAT de la empresa.
+ *
+ * Los cuatro campos son opcionales: el backend conserva tal como estaban las
+ * credenciales que no se envían, de modo que se puede guardar solo lo que
+ * cambió. Nunca se envía el RUC: sale de la empresa autenticada.
+ */
+export interface SireConfiguracionPayload {
+  clientId?: string;
+  clientSecret?: string;
+  solUser?: string;
+  solPassword?: string;
+}
+
+/**
+ * Estado de la configuración SIRE de la empresa.
+ *
+ * `configured` es `true` cuando la empresa tiene las cuatro credenciales
+ * (`clientId`, `clientSecret`, `solUser`, `solPassword`) presentes y no vacías.
+ * El backend nunca devuelve los valores: solo este indicador.
+ */
+export interface SireConfiguracionStatus {
+  configured: boolean;
 }
 
 /**
