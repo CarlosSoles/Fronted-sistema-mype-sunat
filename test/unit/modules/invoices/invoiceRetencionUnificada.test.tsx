@@ -15,12 +15,12 @@ it.each([[118, 0], [700, 0], [701, 21.03], [1180, 35.4], [1770, 53.1]])('retiene
   expect(calcularRetencion(total, true)).toBe(esperado);
 });
 
-it('cuadra el cronograma después de detracción y retención', () => {
+it('cuadra el cronograma con detracción y excluye retención simultánea', () => {
   const base = borradorInicial('01', '2026-11-06');
   const b = { ...base, agenteRetencion: true, codigoDetraccion: '027', items: [{ ...base.items[0], valorUnitario: 1000, codigoDetraccion: '027' }] };
   const flujo = calcularFlujo(b);
-  expect(flujo).toMatchObject({ importeTotal: 1180, detraccion: 47.2, neto: 1097.4 });
-  expect(validarCronograma([{ monto: 548.7, vencimiento: '2026-12-06' }, { monto: 548.7, vencimiento: '2027-01-06' }], flujo.neto, b.fecha).cuadra).toBe(true);
+  expect(flujo).toMatchObject({ importeTotal: 1180, detraccion: 47.2, neto: 1132.8 });
+  expect(validarCronograma([{ monto: 566.4, vencimiento: '2026-12-06' }, { monto: 566.4, vencimiento: '2027-01-06' }], flujo.neto, b.fecha).cuadra).toBe(true);
 });
 
 it('el modal distribuye el neto tras la retención al elegir crédito', () => {
