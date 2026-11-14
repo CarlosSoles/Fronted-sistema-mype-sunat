@@ -31,10 +31,8 @@ import {
 import { formatCurrency, formatDateToPeru } from '@/lib/formatters';
 import {
   BookOpen,
-  CheckCircle2,
   Eye,
   PlusCircle,
-  TriangleAlert,
 } from 'lucide-react';
 import { useRolePermissions } from '@/hooks/useRolePermissions';
 import ManualEntryModal from '../components/ManualEntryModal';
@@ -167,13 +165,6 @@ const etiquetaOrigen = (source: string): string => {
   return etiquetas[source] ?? source;
 };
 
-/** Tono del distintivo de origen: ayuda a separar visualmente los diarios. */
-const tonoOrigen = (source: string): string => {
-  if (source.includes('INVOICE')) return 'border-sky-600/30 bg-sky-500/5 text-sky-700 dark:text-sky-400';
-  if (source.includes('CUSTOMS')) return 'border-violet-600/30 bg-violet-500/5 text-violet-700 dark:text-violet-400';
-  return 'border-border text-muted-foreground';
-};
-
 type Diario = 'TODOS' | 'VEN' | 'COM' | 'CAJ' | 'OPV';
 
 const diarioDe = (entry: Entry): Exclude<Diario, 'TODOS'> => {
@@ -293,12 +284,12 @@ export default function AccountingEntriesPage() {
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/40 hover:bg-muted/40">
+              <TableHead className="text-[11px] font-semibold uppercase tracking-wider">Fecha contable</TableHead>
               <TableHead className="text-[11px] font-semibold uppercase tracking-wider">N° Asiento</TableHead>
-              <TableHead className="text-[11px] font-semibold uppercase tracking-wider">Fecha</TableHead>
-              <TableHead className="text-[11px] font-semibold uppercase tracking-wider">Glosa / Concepto</TableHead>
-              <TableHead className="text-[11px] font-semibold uppercase tracking-wider">Origen</TableHead>
-              <TableHead align="right" className="text-[11px] font-semibold uppercase tracking-wider">Total Debe</TableHead>
-              <TableHead align="right" className="text-[11px] font-semibold uppercase tracking-wider">Total Haber</TableHead>
+              <TableHead className="text-[11px] font-semibold uppercase tracking-wider">Concepto</TableHead>
+              <TableHead className="text-[11px] font-semibold uppercase tracking-wider">Diario</TableHead>
+              <TableHead align="right" className="text-[11px] font-semibold uppercase tracking-wider">Total</TableHead>
+              <TableHead align="center" className="text-[11px] font-semibold uppercase tracking-wider">Estado</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -315,8 +306,9 @@ export default function AccountingEntriesPage() {
                   className="cursor-pointer transition-colors hover:bg-muted/50"
                   onClick={() => setDetalle(entry)}
                 >
+                  <TableCell className="whitespace-nowrap tabular-nums">{formatDateToPeru(entry.fechaContable)}</TableCell>
                   <TableCell className="whitespace-nowrap">
-                    <span className="flex items-center gap-1.5">
+                    <span className="flex items-center gap-1">
                       <button
                         type="button"
                         aria-label={`Ver detalle del asiento ${entry.numeroAsiento}`}
@@ -325,41 +317,29 @@ export default function AccountingEntriesPage() {
                       >
                         <Eye className="h-3.5 w-3.5" />
                       </button>
-                      <span className="font-mono text-xs text-muted-foreground">{entry.numeroAsiento}</span>
-                      {/* El estado va como icono para no robar ancho a la tabla. */}
-                      {entry.estaCuadrado ? (
-                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-label="Cuadrado" />
-                      ) : (
-                        <TriangleAlert className="h-3.5 w-3.5 shrink-0 text-destructive" aria-label="Descuadrado" />
-                      )}
+                      <span className="font-mono text-xs font-medium">{entry.numeroAsiento}</span>
                     </span>
                   </TableCell>
-                  <TableCell className="whitespace-nowrap tabular-nums">{formatDateToPeru(entry.fechaContable)}</TableCell>
                   <TableCell>
-                    <div className="space-y-1.5">
-                      <span className="font-medium leading-snug">{entry.glosa}</span>
-                      <div className="flex flex-wrap gap-1">
-                        {entry.lines.slice(0, 3).map((linea, index) => (
-                          <Badge key={`${entry.id}-${index}`} variant="outline" className="font-mono text-[10px] text-muted-foreground">
-                            {linea.accountCode}
-                          </Badge>
-                        ))}
-                        {entry.lines.length > 3 ? (
-                          <span className="text-[10px] text-muted-foreground">+{entry.lines.length - 3}</span>
-                        ) : null}
-                      </div>
-                    </div>
+                    <span className="block max-w-[440px] truncate" title={entry.glosa}>{entry.glosa}</span>
                   </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={tonoOrigen(entry.sourceModule)}>
-                      {etiquetaOrigen(entry.sourceModule)}
-                    </Badge>
+                  <TableCell className="whitespace-nowrap text-muted-foreground">
+                    {DIARIOS.find((d) => d.key === diarioDe(entry))?.label ?? '—'}
                   </TableCell>
                   <TableCell align="right" className="whitespace-nowrap font-medium tabular-nums">
                     {formatCurrency(entry.totalDebe, 'PEN')}
                   </TableCell>
-                  <TableCell align="right" className="whitespace-nowrap font-medium tabular-nums">
-                    {formatCurrency(entry.totalHaber, 'PEN')}
+                  <TableCell align="center">
+                    <Badge
+                      variant="outline"
+                      className={
+                        entry.estaCuadrado
+                          ? 'border-emerald-600/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400'
+                          : 'border-destructive/30 bg-destructive/5 text-destructive'
+                      }
+                    >
+                      {entry.estaCuadrado ? 'Cuadrado' : 'Descuadrado'}
+                    </Badge>
                   </TableCell>
                 </TableRow>
               ))
