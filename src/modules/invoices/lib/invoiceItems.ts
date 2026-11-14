@@ -38,10 +38,16 @@ export interface UnidadMedida {
  *
  * No se listan las ~90 unidades del catálogo completo porque el formulario se
  * usa con guantes: se ofrecen las que aplican al rubro y el resto entra por la
- * API. NIU es la unidad por defecto y la única válida para servicios.
+ * API. ZZ conserva la unidad de servicios; las medidas y agrupaciones admiten fracciones.
  */
 export const UNIDADES_MEDIDA: readonly UnidadMedida[] = [
-  { codigo: 'NIU', descripcion: 'Unidad (bienes y servicios)' },
+  { codigo: 'NIU', descripcion: 'Unidad' },
+  { codigo: 'ZZ', descripcion: 'Servicio / mutuo acuerdo' },
+  { codigo: 'PK', descripcion: 'Paquete' },
+  { codigo: 'SET', descripcion: 'Juego / conjunto' },
+  { codigo: 'GRM', descripcion: 'Gramo' },
+  { codigo: 'MTK', descripcion: 'Metro cuadrado' },
+  { codigo: 'GLL', descripcion: 'Galón' },
   { codigo: 'BG', descripcion: 'Bolsa' },
   { codigo: 'BX', descripcion: 'Caja' },
   { codigo: 'DZN', descripcion: 'Docena' },
@@ -232,8 +238,16 @@ export interface ErrorItem {
 export const cantidadValida = (cantidad: number): boolean =>
   Number.isFinite(cantidad) && cantidad > 0 && new Decimal(cantidad).decimalPlaces() <= 3;
 
+/** Unidades que representan piezas o envases indivisibles en emisión. */
+export const unidadDiscreta = (unidad: string): boolean =>
+  ['NIU', 'BG', 'BX', 'PK', 'SET'].includes(unidad.trim().toUpperCase());
+
+export const cantidadValidaParaUnidad = (cantidad: number, unidad: string, esNota = false): boolean =>
+  cantidadValida(cantidad) && (esNota || !unidadDiscreta(unidad) || Number.isSafeInteger(cantidad));
+
 export const validarItems = (
   items: readonly ItemBorrador[],
+  esNota = false,
 ): readonly ErrorItem[] => {
   if (items.length === 0) {
     return [{ indice: -1, motivos: ['El comprobante necesita al menos un ítem.'] }];
@@ -256,8 +270,8 @@ export const validarItems = (
     }
     if (!Number.isFinite(item.cantidad) || item.cantidad <= 0) {
       motivos.push('La cantidad debe ser mayor que cero.');
-    } else if (!cantidadValida(item.cantidad)) {
-      motivos.push('La cantidad admite como máximo 3 decimales.');
+    } else if (!cantidadValidaParaUnidad(item.cantidad, item.unidad, esNota)) {
+      motivos.push(!esNota && unidadDiscreta(item.unidad) ? 'La cantidad debe ser entera y positiva para esta unidad.' : 'La cantidad admite como máximo 3 decimales.');
     }
     if (!Number.isFinite(item.valorUnitario) || item.valorUnitario < 0) {
       motivos.push('El valor unitario no puede ser negativo.');

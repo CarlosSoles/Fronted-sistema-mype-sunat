@@ -19,7 +19,7 @@ export function problemasContenidoEmision(input: {
   const errores: string[] = [];
   if (!input.clienteRazonSocial.trim()) errores.push('Falta la razón social del cliente.');
   if (Array.from(input.clienteRazonSocial).length > 1500) errores.push('La razón social del cliente admite como máximo 1500 caracteres.');
-  for (const error of validarItems(input.items)) {
+  for (const error of validarItems(input.items, ['07', '08'].includes(input.tipo))) {
     errores.push(...error.motivos.map(m => `${error.indice >= 0 ? `Línea ${error.indice + 1}` : 'Detalle'}: ${m}`));
   }
   if (bolsasBloqueadasEnBoleta(input.tipo, input.items) && input.items.some(item => item.icbper > 0)) errores.push(BOLETA_GRATUITA_BOLSAS);

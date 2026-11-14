@@ -26,3 +26,10 @@ export function agregarItemConBusqueda(
   destino?.focus();
   destino?.scrollIntoView?.({ block: 'center' });
 }
+
+/** Atajo de emisión: dirige al catálogo sin crear líneas libres. */
+export function enfocarBusquedaProducto(formulario: HTMLElement | null): void {
+  const destino = formulario?.querySelector<HTMLElement>('[data-invoice-product-search], [data-invoice-product-status]');
+  destino?.focus();
+  destino?.scrollIntoView?.({ block: 'center' });
+}
