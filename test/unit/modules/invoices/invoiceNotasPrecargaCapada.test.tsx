@@ -1,3 +1,4 @@
+import { seleccionarProductoPrueba } from '../../../fixtures/invoiceEmissionProduct';
 import { afterEach, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -7,6 +8,7 @@ import { InvoiceEmitModal } from '@/modules/invoices/components/InvoiceEmitModal
 import { construir } from '@/modules/invoices/data/invoiceDemoTypes';
 import { apiClient } from '@/lib/axios';
 import { seriesConfiguradasPrueba } from '../../../fixtures/invoiceSeries';
+vi.mock('@/modules/invoices/services/inventoryProductsApi',()=>({cargarProductosAlmacen:vi.fn(async()=>[{sku:'SERV',descripcion:'Servicio elegido',unidad:'NIU',valorUnitario:100,precioUnitario:118,afectacion:'10',stock:100,vendible:true}])}));
 vi.mock('@/lib/axios', () => ({ apiClient: { get: vi.fn(), post: vi.fn() } }));
 const origen = [2,3].map(cantidad => ({ codigo:'CEM-001', descripcion:'Cemento real', unidad:'NIU', cantidad, valor_unitario:35, precio_unitario:41.3, afectacion:'10', descuentos:[] }));
 const cantidades = [{ codigo:'CEM-001', original:5, pendiente:4 }];
@@ -58,8 +60,8 @@ it('espera cantidades pendientes antes de precargar el detalle',async()=>{
 it('un detalle tardío no sobrescribe una edición posterior del usuario',async()=>{
  let resolver!: (v:unknown)=>void;const detalle=new Promise(resolve=>{resolver=resolve;});const h=montar({detalle});
  await waitFor(()=>expect(apiClient.get).toHaveBeenCalledWith(`/invoices/${h.id}`));
- fireEvent.change(screen.getByLabelText('Descripción de la línea 1'),{target:{value:'Edición del usuario'}});
- await act(async()=>{resolver(h.detalle);});await waitFor(()=>expect((screen.getByLabelText('Descripción de la línea 1') as HTMLInputElement).value).toBe('Edición del usuario'));
+ await seleccionarProductoPrueba();
+ await act(async()=>{resolver(h.detalle);});await waitFor(()=>expect((screen.getByLabelText('Descripción de la línea 1') as HTMLInputElement).value).toBe('Servicio elegido'));
  expect(screen.getAllByLabelText(/Cantidad de la línea/)).toHaveLength(1);
 });
 it('un refresco de saldo no vuelve a precargar ni borra cantidades ya editadas',async()=>{

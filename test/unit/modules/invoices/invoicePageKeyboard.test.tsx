@@ -18,23 +18,23 @@ it('Alt+C/P/L funciona desde body y por code, sin duplicarse dentro del formular
  await montar();
  fireEvent.keyDown(document.body,{altKey:true,key:'ç',code:'KeyC'});expect(document.activeElement).toBe(document.getElementById('doc-cliente'));
  fireEvent.keyDown(document.body,{altKey:true,key:'π',code:'KeyP'});expect(document.activeElement).toBe(screen.getByLabelText('Buscar producto'));
- fireEvent.keyDown(document.body,{altKey:true,key:'¬',code:'KeyL'});expect(screen.getAllByLabelText(/Descripción de la línea/)).toHaveLength(1);
- fireEvent.change(screen.getByLabelText('Descripción de la línea 1'),{target:{value:'Línea editada'}});
- fireEvent.keyDown(screen.getByLabelText('Descripción de la línea 1'),{altKey:true,key:'l',code:'KeyL'});expect(screen.getAllByLabelText(/Descripción de la línea/)).toHaveLength(2);
+ fireEvent.keyDown(document.body,{altKey:true,key:'¬',code:'KeyL'});expect(screen.queryAllByLabelText(/Descripción de la línea/)).toHaveLength(0);
+
+ fireEvent.keyDown(screen.getByLabelText('Buscar producto'),{altKey:true,key:'l',code:'KeyL'});expect(screen.queryAllByLabelText(/Descripción de la línea/)).toHaveLength(0);
  expect(document.activeElement).toBe(screen.getByLabelText('Buscar producto'));
 });
 it('Ctrl+Enter fuera del form abre revisión y confirmar ejecuta las validaciones y un solo POST',async()=>{
- await montar();fireEvent.change(document.getElementById('doc-cliente')!,{target:{value:'20100070970'}});fireEvent.change(screen.getByLabelText('Razón social / nombre'),{target:{value:'Cliente'}});fireEvent.change(screen.getByLabelText('Código de la línea 1'),{target:{value:'CEM'}});fireEvent.change(screen.getByLabelText('Descripción de la línea 1'),{target:{value:'Cemento'}});fireEvent.change(screen.getByLabelText('Valor unitario de la línea 1'),{target:{value:'100'}});
+ await montar();fireEvent.change(document.getElementById('doc-cliente')!,{target:{value:'20100070970'}});fireEvent.change(screen.getByLabelText('Razón social / nombre'),{target:{value:'Cliente'}});fireEvent.change(screen.getByLabelText('Buscar producto'),{target:{value:'CEM'}});fireEvent.click(screen.getByRole('button',{name:/CEM · Cemento/}));
  fireEvent.keyDown(document.body,{ctrlKey:true,key:'Enter',code:'Enter'});expect(screen.getByRole('dialog')).toBeTruthy();expect(invoicesApi.emitirComprobante).not.toHaveBeenCalled();
  fireEvent.click(screen.getByRole('button',{name:'Confirmar emisión revisada'}));await waitFor(()=>expect(invoicesApi.emitirComprobante).toHaveBeenCalledTimes(1));
 });
 it('no captura los atajos de otro diálogo y elimina el listener al desmontar',async()=>{
  await montar();const dialog=document.createElement('div');dialog.setAttribute('role','dialog');document.body.append(dialog);
- fireEvent.keyDown(document.body,{altKey:true,key:'l',code:'KeyL'});fireEvent.keyDown(dialog,{ctrlKey:true,key:'Enter'});expect(screen.getAllByLabelText(/Descripción de la línea/)).toHaveLength(1);expect(screen.queryByRole('button',{name:'Confirmar emisión revisada'})).toBeNull();dialog.remove();
+ fireEvent.keyDown(document.body,{altKey:true,key:'l',code:'KeyL'});fireEvent.keyDown(dialog,{ctrlKey:true,key:'Enter'});expect(screen.queryAllByLabelText(/Descripción de la línea/)).toHaveLength(0);expect(screen.queryByRole('button',{name:'Confirmar emisión revisada'})).toBeNull();dialog.remove();
  cleanup();fireEvent.keyDown(document.body,{altKey:true,key:'l',code:'KeyL'});expect(screen.queryByLabelText('Descripción de la línea 1')).toBeNull();
 });
 it('conserva alcance del modal y reconoce Option por code',async()=>{
- await montar(true);fireEvent.keyDown(screen.getByLabelText('Buscar producto'),{altKey:true,key:'¬',code:'KeyL'});expect(screen.getAllByLabelText(/Descripción de la línea/)).toHaveLength(1);fireEvent.change(screen.getByLabelText('Descripción de la línea 1'),{target:{value:'Producto editado'}});fireEvent.keyDown(screen.getByLabelText('Buscar producto'),{altKey:true,key:'¬',code:'KeyL'});expect(screen.getAllByLabelText(/Descripción de la línea/)).toHaveLength(2);
+ await montar(true);fireEvent.keyDown(screen.getByLabelText('Buscar producto'),{altKey:true,key:'¬',code:'KeyL'});expect(screen.queryAllByLabelText(/Descripción de la línea/)).toHaveLength(0);fireEvent.keyDown(screen.getByLabelText('Buscar producto'),{altKey:true,key:'¬',code:'KeyL'});expect(screen.queryAllByLabelText(/Descripción de la línea/)).toHaveLength(0);
 });
 
 // Las operaciones de esta suite se ejecutan con un rol autorizado de facturación.

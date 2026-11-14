@@ -1,3 +1,4 @@
+import { seleccionarProductoPrueba } from '../../../fixtures/invoiceEmissionProduct';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -13,7 +14,7 @@ import { seriesConfiguradasPrueba } from '../../../fixtures/invoiceSeries';
 vi.mock('@/lib/axios', () => ({ apiClient: { get: vi.fn(), put: vi.fn() } }));
 vi.mock('@/modules/customs/services/masterDataApi', () => ({ masterDataApi: { getPartners: vi.fn(), getPartner: vi.fn(), createPartner: vi.fn() } }));
 vi.mock('@/modules/invoices/services/invoicesApi', () => ({ invoicesApi: { emitirComprobante: vi.fn() } }));
-vi.mock('@/modules/invoices/services/inventoryProductsApi', () => ({ cargarProductosAlmacen: vi.fn(async () => []) }));
+vi.mock('@/modules/invoices/services/inventoryProductsApi', () => ({ cargarProductosAlmacen: vi.fn(async () => [{sku:'SERV',descripcion:'Servicio',unidad:'NIU',valorUnitario:100,precioUnitario:118,afectacion:'10',stock:100,vendible:true}]) }));
 vi.mock('@/modules/invoices/components/RetencionMaestro', () => ({ RetencionMaestro: () => null }));
 const ruc = '20100070970';
 const datos = { ruc, razonSocial: 'RECEPTOR CONSULTADO SAC', direccionFiscal: 'Av. Receptor 123', ubigeo: '150101', estadoContribuyente: 'ACTIVO', condicionDomicilio: 'HABIDO' };
@@ -36,7 +37,7 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); clients.splice(0).forEach(q => q.clear()); useAuthStore.getState().logout(); vi.resetAllMocks(); });
 async function emitir() {
-  escribir('Descripción de la línea 1', 'Servicio ficticio'); escribir('Valor unitario de la línea 1', '100');
+  await seleccionarProductoPrueba();
   fireEvent.click(screen.getByRole('button', { name: 'Emitir comprobante' }));
   await waitFor(() => expect(invoicesApi.emitirComprobante).toHaveBeenCalledTimes(1));
 }
