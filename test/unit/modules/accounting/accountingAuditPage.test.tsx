@@ -49,6 +49,11 @@ const informe = (over: Record<string, any> = {}) => ({
     truncado: false,
     sinAsiento: [{ id: 'p1', numero: 'COM-000001', documento: 'F001-77', proveedor: 'Proveedor SAC', fecha: '2026-11-08', total: 236, detalle: 'compra registrada sin asiento contable' }],
   },
+  gastos: {
+    revisados: 1,
+    truncado: false,
+    sinAsiento: [{ id: 'g1', descripcion: 'Luz del mes', proveedor: 'Luz del Sur', documento: 'F001-1', fecha: '2026-11-10', total: 118, detalle: 'gasto registrado sin asiento contable' }],
+  },
   mapeos: {
     total: 2,
     issues: [{ severity: 'ERROR', code: 'CUENTA_NO_EXISTE', process: 'COMPRA/VARIACION_EXISTENCIA', message: 'COMPRA/VARIACION_EXISTENCIA: la cuenta PCGE 61111 no existe en el catálogo' }],
@@ -82,6 +87,7 @@ it('muestra los hallazgos de reglas, asientos y comprobantes', async () => {
   expect(screen.getByText(/sin regla para las líneas 10, 11/)).toBeTruthy();
   expect(screen.getByText('F001-00000009')).toBeTruthy();
   expect(screen.getByText('COM-000001')).toBeTruthy();
+  expect(screen.getByText('Luz del mes')).toBeTruthy();
   expect(screen.getByText(/Cobros sobre comprobantes anulados \(1\)/)).toBeTruthy();
   expect(screen.getByText(/la cuenta PCGE 61111 no existe/)).toBeTruthy();
   expect(screen.getByText(/2 error\(es\)/)).toBeTruthy();

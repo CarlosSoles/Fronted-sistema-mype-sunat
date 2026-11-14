@@ -5,6 +5,7 @@ import { Badge, Button, Card, Page, PageHeader, Table, TableBody, TableCell, Tab
 import { accountingApi, type AuditIssue, type RegularizationResult } from '../services/accountingApi';
 import { purchasesApi } from '@/modules/purchases/services/purchasesApi';
 import { collectionsApi } from '@/modules/collections/services/collectionsApi';
+import { expensesApi } from '@/modules/expenses/services/expensesApi';
 import { PeriodInput } from '@/components/common/PeriodInput';
 
 /**
@@ -78,9 +79,17 @@ export default function AccountingAuditPage() {
     onError: (e: any) => setErrorAnulacion(e?.response?.data?.message ?? 'No se pudo anular el cobro.'),
   });
 
+  /** Reintenta el asiento de un gasto que quedó sin contabilizar. */
+  const contabilizarGasto = useMutation({
+    mutationFn: (id: string) => expensesApi.post(id),
+    onSuccess: async () => { await auditoria.refetch(); },
+    onError: (e: any) => setErrorAnulacion(e?.response?.data?.message ?? 'No se pudo contabilizar el gasto.'),
+  });
+
   const data = auditoria.data;
   const sinAsiento = data?.comprobantes.sinAsiento ?? [];
   const comprasSinAsiento = data?.compras?.sinAsiento ?? [];
+  const gastosSinAsiento = data?.gastos?.sinAsiento ?? [];
   const cobrosHuerfanos = data?.cobros?.deComprobantesAnulados ?? [];
 
   return (
@@ -240,6 +249,35 @@ export default function AccountingAuditPage() {
                   ? `Asiento de ${reintentoCompra.compra} ${reintentoCompra.yaExistia ? 'ya existía' : 'registrado'}.`
                   : `No se pudo contabilizar ${reintentoCompra.compra}: ${reintentoCompra.motivo ?? ''}`}
               </p>
+            ) : null}
+
+            {gastosSinAsiento.length > 0 ? (
+              <div className="space-y-1">
+                <p className="text-xs font-medium">Gastos registrados sin asiento ({gastosSinAsiento.length})</p>
+                <Table>
+                  <TableHeader><TableRow><TableHead>Gasto</TableHead><TableHead>Proveedor</TableHead><TableHead>Fecha</TableHead><TableHead align="right">Total</TableHead><TableHead align="right">Acción</TableHead></TableRow></TableHeader>
+                  <TableBody>
+                    {gastosSinAsiento.map((g) => (
+                      <TableRow key={g.id}>
+                        <TableCell>{g.descripcion}</TableCell>
+                        <TableCell>{g.proveedor}</TableCell>
+                        <TableCell>{g.fecha}</TableCell>
+                        <TableCell align="right">{money(g.total)}</TableCell>
+                        <TableCell align="right">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={contabilizarGasto.isPending}
+                            onClick={() => contabilizarGasto.mutate(g.id)}
+                          >
+                            Contabilizar
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             ) : null}
 
             {cobrosHuerfanos.length > 0 ? (
