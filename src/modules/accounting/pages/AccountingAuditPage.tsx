@@ -4,6 +4,7 @@ import { AlertTriangle, CheckCircle2, RefreshCw, ShieldAlert } from 'lucide-reac
 import { Badge, Button, Card, Page, PageHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
 import { accountingApi, type AuditIssue, type RegularizationResult } from '../services/accountingApi';
 import { purchasesApi } from '@/modules/purchases/services/purchasesApi';
+import { collectionsApi } from '@/modules/collections/services/collectionsApi';
 import { PeriodInput } from '@/components/common/PeriodInput';
 
 /**
@@ -41,6 +42,7 @@ export default function AccountingAuditPage() {
   const [reintentoCompra, setReintentoCompra] = useState<
     { compra: string; asientoGenerado: boolean; motivo?: string; yaExistia: boolean } | null
   >(null);
+  const [errorAnulacion, setErrorAnulacion] = useState<string | null>(null);
 
   const auditoria = useQuery({
     queryKey: ['accounting-audit', period],
@@ -65,6 +67,15 @@ export default function AccountingAuditPage() {
         motivo: e?.response?.data?.message ?? 'No se pudo reintentar el asiento.',
         yaExistia: false,
       }),
+  });
+
+  // Anular un cobro huérfano se hace desde acá, uno por uno y con confirmación:
+  // la reversión en cascada al anular la venta es una decisión pendiente del
+  // área contable, no algo que este proceso deba decidir solo.
+  const anularCobro = useMutation({
+    mutationFn: (id: string) => collectionsApi.annul(id),
+    onSuccess: async () => { await auditoria.refetch(); },
+    onError: (e: any) => setErrorAnulacion(e?.response?.data?.message ?? 'No se pudo anular el cobro.'),
   });
 
   const data = auditoria.data;
@@ -236,16 +247,37 @@ export default function AccountingAuditPage() {
                 <p className="text-xs font-medium flex items-center gap-1">
                   <AlertTriangle className="h-3.5 w-3.5" /> Cobros sobre comprobantes anulados ({cobrosHuerfanos.length})
                 </p>
-                <ul className="space-y-1">
-                  {cobrosHuerfanos.map((c) => (
-                    <li key={c.id} className="text-xs">
-                      {c.comprobante} · {c.cliente} · {money(c.monto)} ({c.fecha})
-                    </li>
-                  ))}
-                </ul>
+                <Table>
+                  <TableHeader><TableRow><TableHead>Comprobante</TableHead><TableHead>Cliente</TableHead><TableHead>Fecha</TableHead><TableHead align="right">Monto</TableHead><TableHead align="right">Acción</TableHead></TableRow></TableHeader>
+                  <TableBody>
+                    {cobrosHuerfanos.map((c) => (
+                      <TableRow key={c.id}>
+                        <TableCell>{c.comprobante}</TableCell>
+                        <TableCell>{c.cliente}</TableCell>
+                        <TableCell>{c.fecha}</TableCell>
+                        <TableCell align="right">{money(c.monto)}</TableCell>
+                        <TableCell align="right">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={anularCobro.isPending}
+                            onClick={() => {
+                              if (window.confirm(`¿Anular el cobro de ${c.cliente} por ${money(c.monto)}? Se generará el asiento de reversión.`)) {
+                                anularCobro.mutate(c.id);
+                              }
+                            }}
+                          >
+                            Anular cobro
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
                 <p className="text-[11px] text-muted-foreground">
-                  La venta se anuló pero el dinero sigue registrado como cobrado: anule el cobro o registre la devolución.
+                  La venta se anuló pero el dinero sigue registrado como cobrado: anule el cobro para que tesorería y cartera cuadren.
                 </p>
+                {errorAnulacion ? <p className="text-xs text-destructive">{errorAnulacion}</p> : null}
               </div>
             ) : null}
 

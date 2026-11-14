@@ -4,12 +4,17 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import AccountingAuditPage from '@/modules/accounting/pages/AccountingAuditPage';
 import { accountingApi } from '@/modules/accounting/services/accountingApi';
+import { collectionsApi } from '@/modules/collections/services/collectionsApi';
 
 vi.mock('@/modules/accounting/services/accountingApi', () => ({
   accountingApi: {
     getAudit: vi.fn(),
     regularizarComprobantes: vi.fn(),
   },
+}));
+
+vi.mock('@/modules/collections/services/collectionsApi', () => ({
+  collectionsApi: { annul: vi.fn() },
 }));
 
 const informe = (over: Record<string, any> = {}) => ({
@@ -106,4 +111,28 @@ it('informa cuando la auditoría no puede cargarse', async () => {
   vi.mocked(accountingApi.getAudit).mockRejectedValue(new Error('sin conexión'));
   renderPage();
   expect(await screen.findByText('No se pudo cargar la auditoría.')).toBeTruthy();
+});
+
+it('anula un cobro huérfano desde la auditoría, con confirmación', async () => {
+  vi.mocked(accountingApi.getAudit).mockResolvedValue(informe() as never);
+  vi.mocked(collectionsApi.annul).mockResolvedValue({ status: 'ANULADO' } as never);
+  const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(true);
+  const user = userEvent.setup();
+  renderPage();
+
+  await user.click(await screen.findByRole('button', { name: 'Anular cobro' }));
+
+  await waitFor(() => expect(collectionsApi.annul).toHaveBeenCalledWith('cob-1'));
+  expect(confirmar).toHaveBeenCalled();
+});
+
+it('no anula el cobro si se cancela la confirmación', async () => {
+  vi.mocked(accountingApi.getAudit).mockResolvedValue(informe() as never);
+  vi.spyOn(window, 'confirm').mockReturnValue(false);
+  const user = userEvent.setup();
+  renderPage();
+
+  await user.click(await screen.findByRole('button', { name: 'Anular cobro' }));
+
+  expect(collectionsApi.annul).not.toHaveBeenCalled();
 });
