@@ -6,7 +6,7 @@ import { EnviarBajaPanel } from '@/modules/invoices/components/EnviarBajaPanel';
 import { InvoiceAggregateMonitor } from '@/modules/invoices/components/InvoiceAggregateMonitor';
 import { invoicesApi } from '@/modules/invoices/services/invoicesApi';
 import type { VistaPreviaResumen } from '@/modules/invoices/lib/invoiceResumenes';
-vi.mock('@/modules/invoices/services/invoicesApi', () => ({ invoicesApi: { previsualizarBaja: vi.fn(), enviarBaja: vi.fn(), getAgregados: vi.fn(), consultarAgregado: vi.fn() } }));
+vi.mock('@/modules/invoices/services/invoicesApi', () => ({ invoicesApi: { previsualizarBaja: vi.fn(), enviarBaja: vi.fn(), previsualizarAnulacionNotas: vi.fn(), enviarAnulacionNotas: vi.fn(), getAgregados: vi.fn(), consultarAgregado: vi.fn() } }));
 const vista: VistaPreviaResumen = { envio: { identificador: 'RA-20261109-001', tipo: 'COMUNICACION_BAJA', fechaReferencia: '2026-11-09', correlativo: 1, lineas: 1 }, errores: [], xml: '<VoidedDocuments/>', lineas: [
   { id: 'i', serie: 'F001', correlativo: 62, tipoComprobante: '01', fechaEmision: '2026-11-09', estado: 'ACEPTADO', incluido: true, total: 118, dias: 0, motivoExclusion: '' },
   { id: 'nc', serie: 'F001', correlativo: 61, tipoComprobante: '01', fechaEmision: '2026-11-09', estado: 'ACEPTADO', incluido: false, total: 118, dias: 0, motivoExclusion: 'Neutralizado por nota de crédito de saldo completo.' },
@@ -71,3 +71,63 @@ it('6c-7 muestra tipo, importe y estado recibidos por fila sin recalcular',()=>{
 
 // Las operaciones de esta suite se ejecutan con un rol autorizado de facturación.
 billingBeforeEach(() => { billingAuth.setState({ user: { id: 'billing-test', email: 'billing@example.invalid', role: 'ADMIN' } }); });
+
+it.each([
+  ['07', 'BC01', false], ['08', 'BD01', false], ['07', 'FC01', true], ['08', 'FD01', true],
+])('selección RA de nota %s/%s admite=%s aunque una vista antigua la incluya', (tipoComprobante, serie, elegible) => {
+  const linea = { ...vista.lineas[0], id: serie, tipoComprobante, serie, incluido: true };
+  render(<EnviarBajaPanel fecha="2026-11-09" vista={{ ...vista, lineas: [linea] }} onEnviado={vi.fn()} />);
+  const checkbox = screen.getByLabelText(`Dar de baja ${serie}-00000062`) as HTMLInputElement;
+  expect(checkbox.disabled).toBe(!elegible);
+  if (!elegible) expect(screen.getByText(/su baja corresponde al resumen diario \(RC\)/)).toBeTruthy();
+  else {
+    fireEvent.click(checkbox);
+    expect((screen.getByRole('button', { name: 'Ver XML de selección' }) as HTMLButtonElement).disabled).toBe(false);
+  }
+  expect(invoicesApi.enviarBaja).not.toHaveBeenCalled();
+});
+it('una selección que deja de ser elegible no pasa a preview ni a envío', () => {
+  const linea = { ...vista.lineas[0], id: 'nota', tipoComprobante: '07', serie: 'FC01', incluido: true };
+  const { rerender } = render(<EnviarBajaPanel fecha="2026-11-09" vista={{ ...vista, lineas: [linea] }} onEnviado={vi.fn()} />);
+  fireEvent.click(screen.getByLabelText('Dar de baja FC01-00000062'));
+  rerender(<EnviarBajaPanel fecha="2026-11-09" vista={{ ...vista, lineas: [{ ...linea, serie: 'BC01' }] }} onEnviado={vi.fn()} />);
+  expect((screen.getByLabelText('Dar de baja BC01-00000062') as HTMLInputElement).checked).toBe(false);
+  expect((screen.getByRole('button', { name: 'Ver XML de selección' }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole('button', { name: 'Enviar baja a SUNAT' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(invoicesApi.previsualizarBaja).not.toHaveBeenCalled(); expect(invoicesApi.enviarBaja).not.toHaveBeenCalled();
+});
+
+it('explica el motivo requerido al borrarlo y retira el error al completarlo', () => {
+  render(<EnviarBajaPanel fecha="2026-11-09" vista={vista} onEnviado={vi.fn()} />);
+  fireEvent.click(screen.getByLabelText('Dar de baja F001-00000062'));
+  const motivo = screen.getByLabelText('Motivo de baja F001-00000062');
+  fireEvent.change(motivo, { target: { value: '   ' } });
+  expect(screen.getByText('El motivo de baja es obligatorio.')).toBeTruthy();
+  expect(motivo.getAttribute('aria-invalid')).toBe('true');
+  expect(document.getElementById(motivo.getAttribute('aria-describedby')!)?.textContent).toBe('El motivo de baja es obligatorio.');
+  expect((screen.getByRole('button', { name: 'Ver XML de selección' }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.change(motivo, { target: { value: 'Corrección comercial' } });
+  expect(screen.queryByText('El motivo de baja es obligatorio.')).toBeNull();
+  expect(motivo.getAttribute('aria-invalid')).toBe('false');
+  expect((screen.getByRole('button', { name: 'Ver XML de selección' }) as HTMLButtonElement).disabled).toBe(false);
+  expect(invoicesApi.previsualizarBaja).not.toHaveBeenCalled();
+});
+
+it('anula BC/BD por RC solo con selección, XML y confirmación de no otorgamiento', async () => {
+  const v = { ...vista, xml: '<SummaryDocuments><cbc:ConditionCode>3</cbc:ConditionCode></SummaryDocuments>', lineas: ['BC01', 'BD01'].map((serie, i) => ({ ...vista.lineas[0], id: serie, serie, tipoComprobante: i === 0 ? '07' : '08', incluido: true })) };
+  vi.mocked(invoicesApi.previsualizarAnulacionNotas).mockResolvedValue(v);
+  vi.mocked(invoicesApi.enviarAnulacionNotas).mockResolvedValue({ enviado: true, identificador: 'RC-20261109-001', jobId: 'job', incluidos: 2, motivo: null });
+  render(<EnviarBajaPanel modo="RC" fecha="2026-11-09" vista={v} onEnviado={vi.fn()} />);
+  fireEvent.click(screen.getByLabelText('Dar de baja BC01-00000062'));
+  fireEvent.click(screen.getByLabelText('Dar de baja BD01-00000062'));
+  fireEvent.click(screen.getByRole('button', { name: 'Ver XML de selección' }));
+  await screen.findByText('XML de los documentos seleccionados');
+  expect((screen.getByRole('button', { name: 'Enviar anulación RC a SUNAT' }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(screen.getByLabelText('Confirmo que estas notas no fueron otorgadas al receptor.'));
+  fireEvent.click(screen.getByRole('button', { name: 'Enviar anulación RC a SUNAT' }));
+  expect(invoicesApi.enviarAnulacionNotas).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Confirmar anulación RC en SUNAT' }));
+  await screen.findByRole('status');
+  expect(invoicesApi.enviarAnulacionNotas).toHaveBeenCalledExactlyOnceWith('2026-11-09', [{ id: 'BC01', motivo: 'Anulación de la operación' }, { id: 'BD01', motivo: 'Anulación de la operación' }]);
+  expect(invoicesApi.enviarBaja).not.toHaveBeenCalled();
+});

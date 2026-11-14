@@ -126,6 +126,7 @@ export const MOTIVOS_NC = [
   { codigo: '06', descripcion: 'Devolución total' },
   { codigo: '07', descripcion: 'Devolución por ítem' },
   { codigo: '09', descripcion: 'Disminución en el valor' },
+  { codigo: '10', descripcion: 'Otros conceptos' },
   {
     codigo: '13',
     descripcion: 'Ajustes de montos y/o fechas de pago al crédito',

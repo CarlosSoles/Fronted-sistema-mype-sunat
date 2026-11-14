@@ -61,7 +61,7 @@ import {
  * desincronizarse entre sí.
  */
 
-type Pestana = 'resumen' | 'baja';
+type Pestana = 'resumen' | 'baja' | 'anulacion';
 
 export default function InvoiceBajasPage() {
   const solicitud = useRef(0);
@@ -81,7 +81,7 @@ export default function InvoiceBajasPage() {
       const datos =
         tipo === 'resumen'
           ? await invoicesApi.getVistaResumen(dia)
-          : await invoicesApi.getVistaBaja(dia);
+          : tipo === 'baja' ? await invoicesApi.getVistaBaja(dia) : await invoicesApi.getVistaAnulacionNotas(dia);
       if (actual === solicitud.current) setVista(datos);
     } catch (e: unknown) {
       if (actual !== solicitud.current) return;
@@ -176,6 +176,8 @@ export default function InvoiceBajasPage() {
           >
             Anulación de comprobante (RA)
           </Button>
+          <Button type="button" size="sm" role="tab" aria-selected={pestana === 'anulacion'} variant={pestana === 'anulacion' ? 'default' : 'ghost'}
+            onClick={() => { solicitud.current++; setVista(null); setPestana('anulacion'); }}>Anulación de notas (RC)</Button>
         </div>
 
         <div className="space-y-1">
@@ -198,7 +200,7 @@ export default function InvoiceBajasPage() {
       <PageText variant="caption">
         {pestana === 'resumen'
           ? 'El resumen diario agrupa las boletas (03) y sus notas del día. SUNAT devuelve un TICKET y el CDR se consulta después.'
-          : 'Aquí se ANULA un comprobante ante SUNAT: la factura (01) ya aceptada deja de tener efecto. No es una baja de mercadería ni un ajuste de inventario — para eso se usa el Kardex del módulo de inventario. Una BOLETA tampoco se anula aquí: se resta en un resumen posterior (regla 2308).'}
+          : pestana === 'anulacion' ? 'Anula notas BC/BD ya aceptadas mediante RC, dentro de 7 días de su aceptación acreditada. Solo notas no otorgadas al receptor.' : 'Aquí se ANULA un comprobante ante SUNAT: la factura (01) ya aceptada deja de tener efecto. No es una baja de mercadería ni un ajuste de inventario — para eso se usa el Kardex del módulo de inventario. Una BOLETA tampoco se anula aquí: se resta en un resumen posterior (regla 2308).'}
       </PageText>
 
       {error && (
@@ -242,7 +244,7 @@ export default function InvoiceBajasPage() {
                   {mensajeReenvio}
                 </div>
               )}
-              {pestana === 'baja' ? <EnviarBajaPanel key={fecha} fecha={fecha} vista={vista} onEnviado={() => void cargar(pestana, fecha)} /> : <Table>
+              {pestana !== 'resumen' ? <EnviarBajaPanel key={`${pestana}:${fecha}`} modo={pestana === 'anulacion' ? 'RC' : 'RA'} fecha={fecha} vista={vista} onEnviado={() => void cargar(pestana, fecha)} /> : <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Comprobante</TableHead>

@@ -68,7 +68,7 @@ export interface SaldoNota { motivos_totales: string[]; cantidades_pendientes: C
 export type ResultadoConsultaSunat =
   | { tipo: 'RECUPERADO'; estado: string; codigo: string | null; mensaje?: string | null; referencia?: string | null }
   | { tipo: 'NO_ENCONTRADO' }
-  | { tipo: 'INCIERTO'; motivo: string };
+  | { tipo: 'INCIERTO' | 'SIN_TRANSMISION'; motivo: string };
 
 export interface ResultadoReprocesoPuente {
   completo: boolean; yaCompleto: boolean; asientoId?: string; asientoOmitido: boolean;
@@ -77,9 +77,22 @@ export interface ResultadoReprocesoPuente {
 }
 
 export const invoicesApi = {
+  resolverDlq: async (id: string): Promise<{ resueltos: number; mensaje: string }> => {
+    const { data } = await apiClient.post<{ resueltos: number; mensaje: string }>(`/invoices/${encodeURIComponent(id)}/resolver-dlq`);
+    return data;
+  },
   reprocesarPuente: async (id: string): Promise<ResultadoReprocesoPuente> => {
     const { data } = await apiClient.post<ResultadoReprocesoPuente>(`/invoices/${encodeURIComponent(id)}/reprocesar-puente`);
     return data;
+  },
+  getVistaAnulacionNotas: async (fecha: string): Promise<VistaPreviaResumen> => {
+    const { data } = await apiClient.get<VistaPreviaResumen>('/invoices/resumenes/anulacion-notas', { params: { fecha } }); return data;
+  },
+  previsualizarAnulacionNotas: async (fecha: string, lineas: SeleccionBaja[]): Promise<VistaPreviaResumen> => {
+    const { data } = await apiClient.post<VistaPreviaResumen>('/invoices/resumenes/anulacion-notas/vista', { lineas }, { params: { fecha } }); return data;
+  },
+  enviarAnulacionNotas: async (fecha: string, lineas: SeleccionBaja[]): Promise<ResultadoEnvioAgregado> => {
+    const { data } = await apiClient.post<ResultadoEnvioAgregado>('/invoices/resumenes/anulacion-notas/enviar', { lineas, noOtorgado: true }, { params: { fecha } }); return data;
   },
   previsualizarBaja: async (fecha: string, lineas: SeleccionBaja[]): Promise<VistaPreviaResumen> => {
     const { data } = await apiClient.post<VistaPreviaResumen>('/invoices/resumenes/baja/vista', { lineas }, { params: { fecha } }); return data;
@@ -93,9 +106,9 @@ export const invoicesApi = {
   },
   consultarSunat: async (id: string): Promise<ResultadoConsultaSunat> => {
     const { data } = await apiClient.post<ResultadoConsultaSunat>(`/invoices/${encodeURIComponent(id)}/consultar-sunat`);
-    if (!data || !['RECUPERADO', 'NO_ENCONTRADO', 'INCIERTO'].includes(data.tipo) ||
+    if (!data || !['RECUPERADO', 'NO_ENCONTRADO', 'INCIERTO', 'SIN_TRANSMISION'].includes(data.tipo) ||
       (data.tipo === 'RECUPERADO' && (typeof data.estado !== 'string' || (data.codigo !== null && typeof data.codigo !== 'string'))) ||
-      (data.tipo === 'INCIERTO' && typeof data.motivo !== 'string')) throw new Error('Respuesta de consulta SUNAT no válida.');
+      ((data.tipo === 'INCIERTO' || data.tipo === 'SIN_TRANSMISION') && typeof data.motivo !== 'string')) throw new Error('Respuesta de consulta SUNAT no válida.');
     return data;
   },
   getSaldoNota: async (id: string): Promise<SaldoNota> => {

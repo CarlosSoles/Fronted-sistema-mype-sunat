@@ -509,3 +509,19 @@ describe('origen y motivo de la nota', () => {
     });
   });
 });
+
+
+describe('motivos de nota por tipo en listado y detalle', () => {
+  it.each([
+    ['07', '01', 'Anulación de la operación'],
+    ['07', '02', 'Anulación por error en el RUC'],
+    ['07', '03', 'Corrección por error en la descripción'],
+    ['08', '01', 'Intereses por mora'],
+    ['08', '02', 'Aumento en el valor'],
+    ['08', '03', 'Penalidades / otros conceptos'],
+  ])('%s / %s corresponde a %s', (tipo, codigo, descripcion) => {
+    const row = fila({ tipo_comprobante: tipo, credit_debit_reason_code: codigo });
+    expect(aInvoice(row).motivoNota).toEqual({ codigo, descripcion });
+    expect(aInvoiceDetalle(row as ComprobanteDetalleBackend).motivoNota).toEqual({ codigo, descripcion });
+  });
+});
