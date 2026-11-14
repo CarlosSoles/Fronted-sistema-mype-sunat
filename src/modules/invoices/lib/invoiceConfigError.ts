@@ -1,6 +1,8 @@
 import axios from 'axios';
 
 const mensajes: Record<string, string> = {
+  ISSUER_RUC_INVALID: 'El RUC emisor debe tener exactamente 11 dígitos o quedar vacío para limpiar.',
+  ISSUER_SOL_RUC_MISMATCH: 'El RUC emisor no coincide con el usuario SOL configurado.',
   CONFIG_INPUT_INVALID: 'Revise los campos y sus longitudes.',
   CONFIG_ENV_INVALID: 'Seleccione un ambiente válido.',
   CONFIG_CERT_INVALID: 'El certificado o su contraseña no son válidos. Revise el archivo PKCS#12, la vigencia y el RUC.',

@@ -37,10 +37,16 @@ export interface AlertaDlq {
   mensaje: string;
 }
 
+export interface AlertaAntiguedadEnvio {
+  evaluado: boolean; gravedad: GravedadAlerta; mensaje: string;
+  documentos: { id: string; numero: string; tipoComprobante: string; estado: string; fechaEmision: string; fechaLimite: string; diasRestantes: number }[];
+}
+
 /** Respuesta completa de `GET /api/v1/invoices/alertas`. */
 export interface AlertasOperativas {
   certificado: AlertaCertificado;
   dlq: AlertaDlq;
+  antiguedad?: AlertaAntiguedadEnvio;
   gravedadGlobal: GravedadAlerta;
   consultadoEl: string;
 }
@@ -121,10 +127,17 @@ export const normalizarAlertas = (
         : 'El estado de la cola de muertos no está disponible.',
   };
 
+  const edad = crudo?.antiguedad;
+  const antiguedad: AlertaAntiguedadEnvio | undefined = edad ? {
+    evaluado: Boolean(edad.evaluado), gravedad: esGravedad(edad.gravedad) ? edad.gravedad : 'SIN_DATOS',
+    mensaje: typeof edad.mensaje === 'string' ? edad.mensaje : 'Antigüedad de envío no disponible.',
+    documentos: Array.isArray(edad.documentos) ? edad.documentos.filter(d => d && typeof d.id === 'string' && typeof d.numero === 'string' && typeof d.fechaLimite === 'string' && Number.isFinite(d.diasRestantes)) : [],
+  } : undefined;
   return {
     certificado,
     dlq: alertaDlq,
-    gravedadGlobal: gravedadMaxima([certificado.gravedad, alertaDlq.gravedad]),
+    ...(antiguedad ? { antiguedad } : {}),
+    gravedadGlobal: gravedadMaxima([certificado.gravedad, alertaDlq.gravedad, ...(antiguedad ? [antiguedad.gravedad] : [])]),
     consultadoEl:
       typeof crudo?.consultadoEl === 'string' ? crudo.consultadoEl : '',
   };
