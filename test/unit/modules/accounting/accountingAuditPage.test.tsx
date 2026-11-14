@@ -59,7 +59,7 @@ const informe = (over: Record<string, any> = {}) => ({
     issues: [{ severity: 'ERROR', code: 'CUENTA_NO_EXISTE', process: 'COMPRA/VARIACION_EXISTENCIA', message: 'COMPRA/VARIACION_EXISTENCIA: la cuenta PCGE 61111 no existe en el catálogo' }],
   },
   cobros: {
-    deComprobantesAnulados: [{ id: 'cob-1', comprobante: 'F001-00000005', cliente: 'Cliente SAC', fecha: '2026-11-09', monto: 118, detalle: 'cobro registrado sobre un comprobante anulado' }],
+    deComprobantesAnulados: [{ id: 'cob-1', invoiceId: 'inv-anulada', comprobante: 'F001-00000005', cliente: 'Cliente SAC', fecha: '2026-11-09', monto: 118, detalle: 'cobro registrado sobre un comprobante anulado' }],
   },
   resumen: { errors: 2, warnings: 1 },
   ...over,

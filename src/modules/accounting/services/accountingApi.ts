@@ -64,6 +64,7 @@ export interface AuditPurchaseIssue {
 
 export interface AuditCollectionIssue {
   id: string;
+  invoiceId: string;
   comprobante: string;
   cliente: string;
   fecha: string;

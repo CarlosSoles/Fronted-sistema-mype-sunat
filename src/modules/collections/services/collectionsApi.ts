@@ -15,6 +15,9 @@ export const collectionsApi = {
   receivables: async (): Promise<ReceivableRecord[]> => (await apiClient.get('/collections/receivables')).data,
   list: async (): Promise<CollectionRecord[]> => (await apiClient.get('/collections')).data,
   annul: async (id: string) => (await apiClient.post(`/collections/${id}/annul`)).data,
+  /** Revierte todos los cobros vivos de un comprobante anulado. */
+  annulByInvoice: async (invoiceId: string): Promise<{ comprobante: string; cobros: number; anulados: number; fallidos: Array<{ id: string; motivo: string }> }> =>
+    (await apiClient.post(`/collections/invoice/${invoiceId}/annul`)).data,
   distributions: async (id: string): Promise<Array<{ accountCode: string; amount: number; percentage: number }>> =>
     (await apiClient.get<Array<{ accountCode: string; amount: number; percentage: number }>>(`/collections/${id}/distributions`)).data,
   setDistributions: async (id: string, items: DistributionInputPayload[]) =>

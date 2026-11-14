@@ -89,6 +89,20 @@ export default function AccountingAuditPage() {
     onError: (e: any) => setErrorAnulacion(e?.response?.data?.message ?? 'No se pudo anular el cobro.'),
   });
 
+  /** Revierte de una vez todos los cobros vivos de un comprobante anulado. */
+  const anularCobrosDeComprobante = useMutation({
+    mutationFn: (invoiceId: string) => collectionsApi.annulByInvoice(invoiceId),
+    onSuccess: async (r) => {
+      setErrorAnulacion(
+        r.fallidos.length > 0
+          ? `Se anularon ${r.anulados} de ${r.cobros}; fallaron ${r.fallidos.length}: ${r.fallidos.map((f) => f.motivo).join(' | ')}`
+          : null,
+      );
+      await auditoria.refetch();
+    },
+    onError: (e: any) => setErrorAnulacion(e?.response?.data?.message ?? 'No se pudieron anular los cobros.'),
+  });
+
   /** Reintenta el asiento de un gasto que quedó sin contabilizar. */
   const contabilizarGasto = useMutation({
     mutationFn: (id: string) => expensesApi.post(id),
@@ -101,6 +115,15 @@ export default function AccountingAuditPage() {
   const comprasSinAsiento = data?.compras?.sinAsiento ?? [];
   const gastosSinAsiento = data?.gastos?.sinAsiento ?? [];
   const cobrosHuerfanos = data?.cobros?.deComprobantesAnulados ?? [];
+  const cobrosAgrupados = cobrosHuerfanos.reduce<Array<{ invoiceId: string; comprobante: string; cantidad: number }>>(
+    (grupos, cobro) => {
+      const existente = grupos.find((g) => g.invoiceId === cobro.invoiceId);
+      if (existente) existente.cantidad += 1;
+      else grupos.push({ invoiceId: cobro.invoiceId, comprobante: cobro.comprobante, cantidad: 1 });
+      return grupos;
+    },
+    [],
+  );
 
   return (
     <Page>
@@ -295,6 +318,25 @@ export default function AccountingAuditPage() {
                 <p className="text-xs font-medium flex items-center gap-1">
                   <AlertTriangle className="h-3.5 w-3.5" /> Cobros sobre comprobantes anulados ({cobrosHuerfanos.length})
                 </p>
+                {cobrosAgrupados.length > 1 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {cobrosAgrupados.map((grupo) => (
+                      <Button
+                        key={grupo.invoiceId}
+                        size="sm"
+                        variant="outline"
+                        disabled={anularCobrosDeComprobante.isPending || !grupo.invoiceId}
+                        onClick={() => {
+                          if (window.confirm(`¿Anular los ${grupo.cantidad} cobro(s) de ${grupo.comprobante}? Se generará un asiento de reversión por cada uno.`)) {
+                            anularCobrosDeComprobante.mutate(grupo.invoiceId);
+                          }
+                        }}
+                      >
+                        Anular los {grupo.cantidad} de {grupo.comprobante}
+                      </Button>
+                    ))}
+                  </div>
+                ) : null}
                 <Table>
                   <TableHeader><TableRow><TableHead>Comprobante</TableHead><TableHead>Cliente</TableHead><TableHead>Fecha</TableHead><TableHead align="right">Monto</TableHead><TableHead align="right">Acción</TableHead></TableRow></TableHeader>
                   <TableBody>
