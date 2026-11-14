@@ -156,3 +156,30 @@ it('preparación local conserva Reintentar y no entra al filtro de incertidumbre
 
 // Las operaciones de esta suite se ejecutan con un rol autorizado de facturación.
 billingBeforeEach(() => { billingAuth.setState({ user: { id: 'billing-test', email: 'billing@example.invalid', role: 'ADMIN' } }); });
+
+it('confirma la última lectura de la cola en Lima y conserva la hora si falla actualizar', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  try {
+    vi.setSystemTime(new Date('2026-11-14T15:00:00Z'));
+    render(<InvoiceMonitorPage />);
+    const marca = await screen.findByLabelText('Última actualización de la cola');
+    expect(marca.textContent).toBe('10:00:00');
+    vi.setSystemTime(new Date('2026-11-14T15:01:00Z'));
+    fireEvent.click(screen.getByRole('button', { name: 'Actualizar' }));
+    await waitFor(() => expect(marca.getAttribute('datetime')).toBe('2026-11-14T15:01:00.000Z'));
+    vi.mocked(invoicesApi.getAlertas).mockRejectedValueOnce(new Error('Lectura no disponible'));
+    vi.setSystemTime(new Date('2026-11-14T15:02:00Z'));
+    fireEvent.click(screen.getByRole('button', { name: 'Actualizar' }));
+    await screen.findByText('Lectura no disponible');
+    expect(marca.getAttribute('datetime')).toBe('2026-11-14T15:01:00.000Z');
+  } finally { vi.useRealTimers(); }
+});
+it('mantiene el tipo y la acción junto a nombres y motivos largos', async () => {
+  const row = { ...comprobante, clienteRazonSocial: 'Cliente con una razón social extensa '.repeat(8), resultadoPresentacion: { origen: 'PREPARACION_LOCAL', codigo: 'M1_PREPARATION_DATOS_INVALIDOS', motivo: 'Revise los datos del comprobante '.repeat(8) } } as typeof comprobante;
+  vi.mocked(invoicesApi.getInvoices).mockResolvedValue({ data: [row], total: 1, page: 1, pageSize: 100, totalPages: 1 });
+  render(<InvoiceMonitorPage />);
+  const fila = (await screen.findByText(comprobante.numero)).closest('tr')!;
+  expect(within(fila).getByText('Factura (01)')).toBeTruthy();
+  expect(within(fila).getByRole('button', { name: 'Reintentar' })).toBeTruthy();
+  expect(within(fila).getByText(row.resultadoPresentacion!.motivo!.trim())).toBeTruthy();
+});

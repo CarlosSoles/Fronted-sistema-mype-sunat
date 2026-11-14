@@ -225,6 +225,10 @@ export const problemasDeNota = (
     });
   }
 
+  if (borrador.tipo === '07' && borrador.motivoCodigo === '10' && (!borrador.motivoDescripcion.trim() || borrador.motivoDescripcion.trim().toLocaleLowerCase('es') === 'otros conceptos')) {
+    problemas.push({ campo: 'motivo', mensaje: 'Describa el ajuste y su sustento para Otros conceptos.' });
+  }
+
   if (!(totalNota > 0)) {
     problemas.push({
       campo: 'monto',

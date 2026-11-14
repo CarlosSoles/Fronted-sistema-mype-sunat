@@ -57,7 +57,7 @@ it('el permiso no anula el bloqueo operativo ni el título propio',()=>{
  expect((screen.getByRole('button') as HTMLButtonElement).disabled).toBe(true);expect(screen.getByRole('button').title).toBe('Procesando');
 });
 it('motivos de notas coinciden con los catálogos operativos del backend',()=>{
- expect(MOTIVOS_NC.map(x=>x.codigo)).toEqual(['01','02','03','04','05','06','07','09','13']);expect(MOTIVOS_ND.map(x=>x.codigo)).toEqual(['01','02','03','11','12']);
+ expect(MOTIVOS_NC.map(x=>x.codigo)).toEqual(['01','02','03','04','05','06','07','09','10','13']);expect(MOTIVOS_ND.map(x=>x.codigo)).toEqual(['01','02','03','11','12']);
 });
 it.each([false,true])('documentos de terceros se validan también en edición=%s',editar=>{
  const form={docType:'6',docNumber:'20100070970',legalName:'Cliente',tradeName:'',countryCode:'PE',email:''};

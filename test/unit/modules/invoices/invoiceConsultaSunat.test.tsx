@@ -23,6 +23,7 @@ it('detalle consulta solo por acción explícita y muestra estado, código y men
   expect(onCerrar).not.toHaveBeenCalled(); expect(screen.getByRole('dialog')).toBeTruthy();
 });
 it.each([
+  [{ tipo: 'SIN_TRANSMISION', motivo: 'Sin transmisión acreditada' }, 'SIN_TRANSMISION', 'Sin transmisión acreditada'],
   [{ tipo: 'NO_ENCONTRADO' }, 'NO_ENCONTRADO', 'Comprobante no encontrado en SUNAT.'],
   [{ tipo: 'INCIERTO', motivo: 'La consulta no pudo determinar el estado' }, 'INCIERTO', 'La consulta no pudo determinar el estado'],
 ])('presenta consulta %j sin inventar aceptación ni código', async (data, estado, mensaje) => {

@@ -25,7 +25,7 @@ export const InvoiceSunatConsulta = ({ id }: { id: string }) => {
         <PageText variant="label">Resultado de consulta SUNAT</PageText>
         <PageText variant="caption">Estado: {resultado.tipo === 'RECUPERADO' ? resultado.estado : resultado.tipo}</PageText>
         <PageText variant="caption">Código: {resultado.tipo === 'RECUPERADO' ? resultado.codigo ?? 'No informado' : 'No informado'}</PageText>
-        <PageText variant="caption">Mensaje: {resultado.tipo === 'RECUPERADO' ? resultado.mensaje ?? 'No informado' : resultado.tipo === 'INCIERTO' ? resultado.motivo : 'Comprobante no encontrado en SUNAT.'}</PageText>
+        <PageText variant="caption">Mensaje: {resultado.tipo === 'RECUPERADO' ? resultado.mensaje ?? 'No informado' : (resultado.tipo === 'INCIERTO' || resultado.tipo === 'SIN_TRANSMISION') ? resultado.motivo : 'Comprobante no encontrado en SUNAT.'}</PageText>
       </div>}
     </section>
   );

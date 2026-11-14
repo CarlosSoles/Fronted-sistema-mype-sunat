@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import InvoiceBajasPage from '@/modules/invoices/pages/InvoiceBajasPage';
 import { invoicesApi } from '@/modules/invoices/services/invoicesApi';
 
-vi.mock('@/modules/invoices/services/invoicesApi', () => ({ invoicesApi: { getVistaResumen: vi.fn(), getVistaBaja: vi.fn() } }));
+vi.mock('@/modules/invoices/services/invoicesApi', () => ({ invoicesApi: { getVistaResumen: vi.fn(), getVistaBaja: vi.fn(), getVistaAnulacionNotas: vi.fn() } }));
 vi.mock('@/modules/invoices/components/EnviarResumenDiarioBoton', () => ({ EnviarResumenDiarioBoton: () => null }));
 
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
@@ -21,4 +21,17 @@ describe('Bajas: respuestas fuera de orden', () => {
     expect(screen.queryByText('RC-ANTERIOR')).toBeNull();
     expect(screen.getByText('RA-ACTUAL')).toBeTruthy();
   });
+});
+
+it('la pestaña de anulación de notas carga RC separado de las altas y de RA', async () => {
+ const v = { envio: { identificador: 'RC-ANULACION', tipo: 'RESUMEN_DIARIO' as const, fechaReferencia: '2026-11-14', correlativo: 1, lineas: 0 }, errores: [], lineas: [], xml: null };
+ vi.mocked(invoicesApi.getVistaResumen).mockResolvedValue({ ...v, envio: { ...v.envio, identificador: 'RC-ALTA' } });
+ vi.mocked(invoicesApi.getVistaAnulacionNotas).mockResolvedValue(v);
+ render(<InvoiceBajasPage />);
+ await screen.findByText('RC-ALTA');
+ fireEvent.click(screen.getByRole('tab', { name: 'Anulación de notas (RC)' }));
+ await screen.findByText('RC-ANULACION');
+ expect(invoicesApi.getVistaAnulacionNotas).toHaveBeenCalledTimes(1);
+ expect(invoicesApi.getVistaBaja).not.toHaveBeenCalled();
+ expect(screen.getByLabelText('Confirmo que estas notas no fueron otorgadas al receptor.')).toBeTruthy();
 });

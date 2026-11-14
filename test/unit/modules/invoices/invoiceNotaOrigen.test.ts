@@ -298,3 +298,11 @@ it('6H permite observado como origen y conserva las exclusiones de otros estados
  expect(admiteNota(comprobante({ estado: 'OBSERVADO' }))).toBe(true);
  expect(admiteNota(comprobante({ estado: 'RECHAZADO' }))).toBe(false);
 });
+
+it('Otros conceptos exige sustento específico y conserva las guardas del origen', () => {
+  const b = borradorNota({ motivoCodigo: '10', motivoDescripcion: '' });
+  expect(problemasDeNota(b, [comprobante()], 59).some(p => p.campo === 'motivo')).toBe(true);
+  expect(problemasDeNota({ ...b, motivoDescripcion: 'Otros conceptos' }, [comprobante()], 59).some(p => p.campo === 'motivo')).toBe(true);
+  expect(problemasDeNota({ ...b, motivoDescripcion: 'Ajuste monetario por reclamo sustentado' }, [comprobante()], 59)).toEqual([]);
+  expect(problemasDeNota({ ...b, motivoDescripcion: 'Ajuste monetario por reclamo sustentado' }, [], 59).some(p => p.campo === 'documentoAfectado')).toBe(true);
+});
