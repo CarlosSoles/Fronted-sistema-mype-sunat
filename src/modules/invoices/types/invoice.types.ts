@@ -49,6 +49,7 @@ export interface ComprobanteOrigenNota {
 }
 
 export interface Invoice {
+  rucEmisor?: string;
   /** null indica que la cola no pudo consultarse; nunca se infiere del historial. */
   enDlq?: boolean | null;
   importesBandeja?: ImportesBandeja;
