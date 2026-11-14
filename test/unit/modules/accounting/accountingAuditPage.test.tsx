@@ -92,7 +92,19 @@ it('muestra los hallazgos de reglas, asientos y comprobantes', async () => {
   expect(screen.getByText(/la cuenta PCGE 61111 no existe/)).toBeTruthy();
   expect(screen.getByText(/2 error\(es\)/)).toBeTruthy();
   expect(screen.getByText(/1 aviso\(s\)/)).toBeTruthy();
-  expect(accountingApi.getAudit).toHaveBeenCalledWith(undefined);
+  // La pantalla abre en el mes en curso, no en todo el histórico.
+  expect(accountingApi.getAudit).toHaveBeenCalledWith(expect.stringMatching(/^\d{4}-\d{2}$/));
+});
+
+it('permite revisar todo el histórico', async () => {
+  vi.mocked(accountingApi.getAudit).mockResolvedValue(informe() as never);
+  const user = userEvent.setup();
+  renderPage();
+
+  await screen.findByText('COM-000001');
+  await user.click(screen.getByRole('button', { name: /Ver todo el histórico/ }));
+
+  await waitFor(() => expect(accountingApi.getAudit).toHaveBeenCalledWith(undefined));
 });
 
 it('simula la regularización sin escribir y luego la ejecuta', async () => {

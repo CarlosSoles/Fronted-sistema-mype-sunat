@@ -21,6 +21,16 @@ import { PeriodInput } from '@/components/common/PeriodInput';
 const money = (n: number) =>
   `S/ ${Number(n).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+/**
+ * La pantalla abre en el mes en curso: revisar todo el histórico de una empresa
+ * con años de asientos topa con el límite de filas del backend y tarda. El
+ * histórico completo queda a un clic.
+ */
+const periodoActual = (): string => {
+  const hoy = new Date();
+  return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
+};
+
 const ListaHallazgos = ({ issues, vacio }: { issues: AuditIssue[]; vacio: string }) => {
   if (issues.length === 0) return <p className="text-xs text-muted-foreground">{vacio}</p>;
   return (
@@ -38,7 +48,7 @@ const ListaHallazgos = ({ issues, vacio }: { issues: AuditIssue[]; vacio: string
 };
 
 export default function AccountingAuditPage() {
-  const [period, setPeriod] = useState('');
+  const [period, setPeriod] = useState(periodoActual);
   const [regularizacion, setRegularizacion] = useState<RegularizationResult | null>(null);
   const [reintentoCompra, setReintentoCompra] = useState<
     { compra: string; asientoGenerado: boolean; motivo?: string; yaExistia: boolean } | null
