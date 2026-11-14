@@ -35,7 +35,9 @@ import {
 import { formatCurrency, formatDateToPeru } from '@/lib/formatters';
 import {
   BookOpen,
+  CheckCircle2,
   PlusCircle,
+  TriangleAlert,
 } from 'lucide-react';
 import { useRolePermissions } from '@/hooks/useRolePermissions';
 import ManualEntryModal from '../components/ManualEntryModal';
@@ -160,7 +162,9 @@ const mapearAsiento = (
 const etiquetaOrigen = (source: string): string => {
   const etiquetas: Record<string, string> = {
     INVOICES: 'Facturación',
+    M1_INVOICES: 'Facturación',
     CUSTOMS: 'Importaciones',
+    M1_CUSTOMS: 'Importaciones',
     MANUAL: 'Manual',
   };
   return etiquetas[source] ?? source;
@@ -168,8 +172,8 @@ const etiquetaOrigen = (source: string): string => {
 
 /** Tono del distintivo de origen: ayuda a separar visualmente los diarios. */
 const tonoOrigen = (source: string): string => {
-  if (source === 'INVOICES') return 'border-sky-600/30 bg-sky-500/5 text-sky-700 dark:text-sky-400';
-  if (source === 'CUSTOMS') return 'border-violet-600/30 bg-violet-500/5 text-violet-700 dark:text-violet-400';
+  if (source.includes('INVOICE')) return 'border-sky-600/30 bg-sky-500/5 text-sky-700 dark:text-sky-400';
+  if (source.includes('CUSTOMS')) return 'border-violet-600/30 bg-violet-500/5 text-violet-700 dark:text-violet-400';
   return 'border-border text-muted-foreground';
 };
 
@@ -298,13 +302,12 @@ export default function AccountingEntriesPage() {
               <TableHead className="text-[11px] font-semibold uppercase tracking-wider">Origen</TableHead>
               <TableHead align="right" className="text-[11px] font-semibold uppercase tracking-wider">Total Debe</TableHead>
               <TableHead align="right" className="text-[11px] font-semibold uppercase tracking-wider">Total Haber</TableHead>
-              <TableHead align="center" className="text-[11px] font-semibold uppercase tracking-wider">Estado</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} align="center">
+                <TableCell colSpan={6} align="center">
                   <PageText variant="muted">Cargando asientos...</PageText>
                 </TableCell>
               </TableRow>
@@ -315,7 +318,17 @@ export default function AccountingEntriesPage() {
                   className="cursor-pointer transition-colors hover:bg-muted/50"
                   onClick={() => setDetalle(entry)}
                 >
-                  <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">{entry.numeroAsiento}</TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    <span className="flex items-center gap-1.5">
+                      <span className="font-mono text-xs text-muted-foreground">{entry.numeroAsiento}</span>
+                      {/* El estado va como icono para no robar ancho a la tabla. */}
+                      {entry.estaCuadrado ? (
+                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-label="Cuadrado" />
+                      ) : (
+                        <TriangleAlert className="h-3.5 w-3.5 shrink-0 text-destructive" aria-label="Descuadrado" />
+                      )}
+                    </span>
+                  </TableCell>
                   <TableCell className="whitespace-nowrap tabular-nums">{formatDateToPeru(entry.fechaContable)}</TableCell>
                   <TableCell>
                     <div className="space-y-1.5">
@@ -343,23 +356,11 @@ export default function AccountingEntriesPage() {
                   <TableCell align="right" className="whitespace-nowrap font-medium tabular-nums">
                     {formatCurrency(entry.totalHaber, 'PEN')}
                   </TableCell>
-                  <TableCell align="center">
-                    <Badge
-                      variant="outline"
-                      className={
-                        entry.estaCuadrado
-                          ? 'border-emerald-600/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400'
-                          : 'border-destructive/30 bg-destructive/5 text-destructive'
-                      }
-                    >
-                      {entry.estaCuadrado ? 'Cuadrado' : 'Descuadrado'}
-                    </Badge>
-                  </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={7} align="center">
+                <TableCell colSpan={6} align="center">
                   <div className="flex flex-col items-center gap-2 py-8">
                     <span className="grid h-10 w-10 place-items-center rounded-full bg-muted text-muted-foreground">
                       <BookOpen aria-hidden="true" className="h-5 w-5" />
