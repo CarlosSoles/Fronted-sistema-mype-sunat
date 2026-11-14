@@ -1,3 +1,4 @@
+import { useRucAutofill } from '@/modules/invoices/hooks/useRucAutofill';
 import { errorDatosTercero } from '../libPartnerValidation';
 import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -22,10 +23,11 @@ interface Props {
   initialDocument?: string;
   initialName?: string;
   allowOffline?: boolean;
+  enableRucLookup?: boolean;
 }
 
 /** Mounted only while open, so every opening starts with the current partner/defaults. */
-export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PROVEEDOR', requiredRole, initialDocument = '', initialName = '', allowOffline = false }: Props) {
+export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PROVEEDOR', requiredRole, initialDocument = '', initialName = '', allowOffline = false, enableRucLookup = false }: Props) {
   const numeroRef = useRef<HTMLInputElement>(null), nombreRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
@@ -40,6 +42,9 @@ export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PR
     isActive: partner?.is_active ?? true,
   });
   const [roles, setRoles] = useState<PartnerRole[]>(partner ? [...partner.roles] : [initialRole]);
+  const rucAutofill = useRucAutofill((datos) => {
+    setForm((actual) => ({ ...actual, legalName: datos.razonSocial, address: datos.direccionFiscal ?? '' }));
+  });
   const [error, setError] = useState('');
   const [errorDocumento, setErrorDocumento] = useState('');
   const [existing, setExisting] = useState<BusinessPartnerRecord | null>(null);
@@ -55,7 +60,7 @@ export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PR
       return data;
     },
   });
-  const toggleRole = (role: PartnerRole) => setRoles((prev) => prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]);
+  const toggleRole = (role: PartnerRole) => { rucAutofill.cancelar(); setRoles((prev) => prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]); };
   const guardarIndicadores = async (partnerId: string) => {
     const hoy = new Date().toISOString().slice(0, 10);
     await Promise.all([
@@ -120,6 +125,7 @@ export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PR
     <DialogContent onOpenAutoFocus={e => { const field = !form.docNumber.trim() ? numeroRef.current : !form.legalName.trim() ? nombreRef.current : null; if (field) { e.preventDefault(); field.focus(); } }} className="max-h-[90vh] max-w-2xl overflow-y-auto">
       <DialogHeader><DialogTitle>{partner ? 'Editar cliente / proveedor' : 'Nuevo cliente / proveedor'}</DialogTitle></DialogHeader>
       {error && <p role="alert" className="text-destructive">{error}</p>}
+      {rucAutofill.aviso && <p role="status" className="text-sm">{rucAutofill.aviso}</p>}
       {!existing && errorValidacion && <p role="alert" className="text-destructive">{errorValidacion}</p>}
       {existing ? <div>
         <p>El documento ya pertenece a {existing.legal_name}. Puede añadir el rol {requiredRole} conservando sus demás roles.</p>
@@ -129,7 +135,7 @@ export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PR
           <div className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-2">
             <div>
               <p className="mb-1 font-medium">Tipo de documento</p>
-              <select aria-label="Tipo de documento" className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm" disabled={!!partner} value={form.docType} onChange={(e) => setForm({ ...form, docType: e.target.value })}>
+              <select aria-label="Tipo de documento" className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm" disabled={!!partner} value={form.docType} onChange={(e) => { rucAutofill.cancelar(); setForm({ ...form, docType: e.target.value }); }}>
                 <option value="6">RUC (Registro Único de Contribuyente)</option>
                 <option value="1">DNI (Documento Nacional de Identidad)</option>
                 <option value="4">Carné de extranjería</option>
@@ -139,11 +145,14 @@ export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PR
             <div>
               <p className="mb-1 font-medium">Número <span aria-hidden="true">*</span></p>
               <Input ref={numeroRef} aria-required="true" aria-invalid={!form.docNumber.trim()} aria-describedby={!form.docNumber.trim() ? "partner-numero-error" : undefined} aria-label="Número" disabled={!!partner} placeholder="Ej. 20100000001 o TAX ID" value={form.docNumber} onChange={(e) => {
+                rucAutofill.cancelar();
                 if (form.docType === '6') {
                   const digitos = e.target.value.replace(/\D/g, '').slice(0, 11);
                   if (digitos && !/^[12]/.test(digitos)) { setErrorDocumento('El RUC debe iniciar con 1 o 2 (10, 15, 16, 17 o 20).'); return; }
                   if (digitos.length >= 2 && !['10', '15', '16', '17', '20'].includes(digitos.slice(0, 2))) { setErrorDocumento('El prefijo del RUC debe ser 10, 15, 16, 17 o 20.'); return; }
-                  setErrorDocumento(''); setForm({ ...form, docNumber: digitos }); return;
+                  setErrorDocumento(''); setForm({ ...form, docNumber: digitos });
+                  if (enableRucLookup && roles.includes('CLIENTE') && form.countryCode === 'PE') rucAutofill.consultar(digitos);
+                  return;
                 }
                 const valor = form.docType === '1' ? e.target.value.replace(/\D/g, '').slice(0, 8) : e.target.value;
                 setErrorDocumento(''); setForm({ ...form, docNumber: valor });
@@ -152,7 +161,7 @@ export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PR
             </div>
             <div className="sm:col-span-2">
               <p className="mb-1 font-medium">Razón social <span aria-hidden="true">*</span></p>
-              <Input ref={nombreRef} aria-required="true" aria-invalid={!form.legalName.trim()} aria-describedby={!form.legalName.trim() ? "partner-nombre-error" : undefined} aria-label="Razón social" maxLength={200} placeholder="Nombre o Razón Social oficial" value={form.legalName} onChange={(e) => setForm({ ...form, legalName: e.target.value })} />
+              <Input ref={nombreRef} aria-required="true" aria-invalid={!form.legalName.trim()} aria-describedby={!form.legalName.trim() ? "partner-nombre-error" : undefined} aria-label="Razón social" maxLength={200} placeholder="Nombre o Razón Social oficial" value={form.legalName} onChange={(e) => { rucAutofill.cancelar(); setForm({ ...form, legalName: e.target.value }); }} />
               {errorValidacion && errorValidacion.toLowerCase().includes('razón social') ? <p id="partner-nombre-error" className="text-xs text-destructive">{errorValidacion}</p> : !form.legalName.trim() ? <p id="partner-nombre-error" className="text-xs text-destructive">Indique la razón social o nombre.</p> : null}
             </div>
             <div>
@@ -161,7 +170,7 @@ export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PR
             </div>
             <div>
               <p className="mb-1 font-medium">País (ISO ej. PE, CN, US)</p>
-              <Input aria-label="País (ISO ej. PE, CN, US)" maxLength={2} placeholder="PE" value={form.countryCode} onChange={(e) => setForm({ ...form, countryCode: e.target.value })} />
+              <Input aria-label="País (ISO ej. PE, CN, US)" maxLength={2} placeholder="PE" value={form.countryCode} onChange={(e) => { rucAutofill.cancelar(); setForm({ ...form, countryCode: e.target.value }); }} />
             </div>
             <div>
               <p className="mb-1 font-medium">Condición de pago</p>
@@ -223,7 +232,7 @@ export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PR
             </div>
             <div className="sm:col-span-2">
               <p className="mb-1 font-medium">Dirección fiscal / operativa</p>
-              <Input aria-label="Dirección fiscal / operativa" placeholder="Av. Principal 123, Ciudad, País" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+              <Input aria-label="Dirección fiscal / operativa" placeholder="Av. Principal 123, Ciudad, País" value={form.address} onChange={(e) => { rucAutofill.cancelar(); setForm({ ...form, address: e.target.value }); }} />
             </div>
             <div className="sm:col-span-2">
               <p className="mb-1 font-medium">Roles asignados <span aria-hidden="true">*</span></p>
