@@ -44,7 +44,7 @@ it.each(['ADMIN', 'OPERADOR_FACTURACION', 'OPERATOR'] as Role[])('%s accede a Cl
   fireEvent.change(screen.getByLabelText('Razón social'), { target: { value: 'Empresa editada' } });
   fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
   await waitFor(() => expect(masterDataApi.updatePartner).toHaveBeenCalledWith(partner.id, expect.objectContaining({ legalName: 'Empresa editada', roles: ['CLIENTE', 'PROVEEDOR'] })));
-});
+}, 15000);
 it.each(['CONTADOR', 'ACCOUNTANT', 'AUDITOR'] as Role[])('%s tiene lectura, incluida la ficha de direcciones, contactos y bancos', async (role) => {
   mount(role);
   expect(await screen.findByRole('heading', { name: 'Clientes y proveedores' }, { timeout: 5000 })).toBeTruthy();

@@ -120,7 +120,7 @@ const motivosPendientes = (
   if (b.serie.length !== 4) motivos.push('La serie debe tener 4 caracteres.');
 
   // D9: la fecha de emisión es editable, así que puede quedar imposible.
-  const problemaFecha = problemaDeFechaEmision(b.fecha);
+  const problemaFecha = problemaDeFechaEmision(b.fecha, undefined, b.tipo);
   if (problemaFecha) motivos.push(problemaFecha);
 
   if (!documentoValidoParaTipo(b.tipo, b.clienteDoc)) {
@@ -529,7 +529,7 @@ export const InvoiceEmitModal = ({
           />
         )}
 
-        <RetencionMaestro documento={b.clienteDoc} razonSocial={b.clienteRazonSocial} valor={b.agenteRetencion}
+        <RetencionMaestro spot={flujo.detraccion > 0} documento={b.clienteDoc} razonSocial={b.clienteRazonSocial} valor={b.agenteRetencion}
           disabled={esTipoNota(b.tipo)} onChange={(agenteRetencion, correccionRetencion) => actualizar({ agenteRetencion, correccionRetencion })} />
 
         <MedioPagoDetraccionSelect aplica={flujo.detraccion > 0} value={b.medioPagoDetraccion}

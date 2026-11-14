@@ -1,3 +1,4 @@
+import { etiquetaCondicionPago } from '../lib/paymentTerms';
 import { useRucAutofill } from '@/modules/invoices/hooks/useRucAutofill';
 import { errorDatosTercero } from '../libPartnerValidation';
 import { useRef, useState } from 'react';
@@ -175,12 +176,7 @@ export function PartnerFormDialog({ onClose, onSaved, partner, initialRole = 'PR
             <div>
               <p className="mb-1 font-medium">Condición de pago</p>
               <select aria-label="Condición de pago" className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm" value={form.paymentTerms} onChange={(e) => setForm({ ...form, paymentTerms: e.target.value, hasCredit: e.target.value !== 'CONTADO' })}>
-                <option value="CONTADO">Contado</option>
-                <option value="15_DIAS">15 días</option>
-                <option value="30_DIAS">30 días</option>
-                <option value="45_DIAS">45 días</option>
-                <option value="60_DIAS">60 días</option>
-                <option value="CARTA_CREDITO">Carta de crédito</option>
+                {['CONTADO', '15_DIAS', '30_DIAS', '45_DIAS', '60_DIAS', 'CARTA_CREDITO'].map((valor) => <option key={valor} value={valor}>{etiquetaCondicionPago(valor)}</option>)}
               </select>
               <label className="mt-2 flex items-center gap-2 text-xs">
                 <input

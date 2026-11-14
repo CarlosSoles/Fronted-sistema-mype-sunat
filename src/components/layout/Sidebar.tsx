@@ -1,4 +1,4 @@
-import { Fragment, useState, useEffect } from 'react';
+import { Fragment, useState, useEffect, useRef } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useUiStore } from '@/stores/uiStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -28,13 +28,14 @@ import {
   ClipboardCheck,
   History,
   Settings,
+  ShoppingCart,
   Ship,
   ShoppingBag,
   Search,
   Sparkles,
 } from 'lucide-react';
 
-interface SubNavItem {
+export interface SubNavItem {
   title: string;
   path: string;
   icon: React.ComponentType<{ className?: string }>;
@@ -50,7 +51,7 @@ interface SubNavItem {
   group?: string;
 }
 
-interface NavItem {
+export interface NavItem {
   title: string;
   path: string;
   icon: React.ComponentType<{ className?: string }>;
@@ -60,7 +61,21 @@ interface NavItem {
   subItems?: SubNavItem[];
 }
 
-const NAV_ITEMS: NavItem[] = [
+export const NAV_ITEMS: NavItem[] = [
+  {
+    title: 'Ventas',
+    path: '/sales',
+    icon: ShoppingCart,
+    developer: 'Ventas',
+    allowedRoles: ['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
+    subItems: [
+      { title: 'Punto de venta', path: '/sales/pos', icon: ShoppingCart, allowedRoles: ['ADMIN', 'OPERADOR_FACTURACION'] },
+      { title: 'Cotizaciones', path: '/sales/cotizaciones', icon: FileText, allowedRoles: ['ADMIN', 'OPERADOR_FACTURACION'] },
+      { title: 'Historial de ventas', path: '/sales/historial', icon: History },
+      { title: 'Reporte de ventas y margen', path: '/sales/reportes', icon: LayoutDashboard, allowedRoles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'] },
+      { title: 'Cuentas por cobrar y cobros', path: '/sales/cobranzas', icon: WalletCards, allowedRoles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'] },
+    ],
+  },
   {
     title: 'Facturación UBL 2.1',
     path: '/invoices',
@@ -69,7 +84,6 @@ const NAV_ITEMS: NavItem[] = [
     allowedRoles: ['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT'],
     subItems: [
       { title: 'Resumen de facturación', path: '/invoices/dashboard', icon: LayoutDashboard },
-      { title: 'Reporte de ventas', path: '/invoices/reportes/ventas', icon: LayoutDashboard },
       { title: 'Detracciones', path: '/invoices/detracciones', icon: WalletCards },
       { title: 'Facturas y Boletas', path: '/invoices/facturas', icon: FileText },
       { title: 'Clientes y proveedores', path: '/invoices/clientes', icon: Building2 },
@@ -93,6 +107,16 @@ const NAV_ITEMS: NavItem[] = [
         icon: Settings,
         allowedRoles: ['ADMIN'],
       },
+    ],
+  },
+  {
+    title: 'Administración',
+    path: '/usuarios',
+    icon: Settings,
+    developer: 'Administración',
+    allowedRoles: ['ADMIN'],
+    subItems: [
+      { title: 'Usuarios y almacenes', path: '/usuarios/almacenes', icon: Settings },
     ],
   },
   {
@@ -122,6 +146,7 @@ const NAV_ITEMS: NavItem[] = [
       { title: 'Registro de compras', path: '/purchases', icon: Receipt },
       { title: 'Cuentas por pagar', path: '/purchases/payables', icon: WalletCards },
       { title: 'Proveedores', path: '/invoices/clientes', icon: Building2 },
+      { title: 'Gastos', path: '/purchases/expenses', icon: Receipt, allowedRoles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'] },
     ],
   },
   {
@@ -156,20 +181,6 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
-    title: 'Cobros',
-    path: '/collections',
-    icon: WalletCards,
-    developer: 'Oliver Saldaña',
-    allowedRoles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
-  },
-  {
-    title: 'Gastos',
-    path: '/expenses',
-    icon: Receipt,
-    developer: 'Oliver Saldaña',
-    allowedRoles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
-  },
-  {
     title: 'Contabilidad PCGE',
     path: '/accounting',
     icon: BookOpen,
@@ -197,6 +208,8 @@ export const Sidebar = () => {
   const navigate = useNavigate();
   const currentRole = user?.role;
 
+  const asideRef = useRef<HTMLElement>(null);
+  const [menuQuery, setMenuQuery] = useState('');
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({
     '/customs': true,
     '/inventory': true,
@@ -217,6 +230,15 @@ export const Sidebar = () => {
         setExpandedItems((prev) => ({ ...prev, [item.path]: true }));
       }
     });
+  }, [location.pathname]);
+
+  // Mantiene visible el módulo activo aunque el menú tenga muchos ítems.
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      const activo = asideRef.current?.querySelector<HTMLElement>('[aria-current="page"]');
+      activo?.scrollIntoView?.({ block: 'nearest' });
+    });
+    return () => cancelAnimationFrame(frame);
   }, [location.pathname]);
 
   const toggleExpand = (item: NavItem) => {
@@ -252,9 +274,18 @@ export const Sidebar = () => {
     if (!currentRole || currentRole === 'ADMIN') return true;
     return item.allowedRoles.includes(currentRole);
   });
+  const terminoMenu = menuQuery.trim().toLowerCase();
+  const filteredNavItems = visibleNavItems.flatMap((item) => {
+    if (!terminoMenu) return [item];
+    const coincidePadre = `${item.title} ${item.path}`.toLowerCase().includes(terminoMenu);
+    const subItems = item.subItems?.filter((sub) => `${sub.title} ${sub.path}`.toLowerCase().includes(terminoMenu));
+    if (coincidePadre || subItems?.length) return [{ ...item, subItems: coincidePadre ? item.subItems : subItems }];
+    return [];
+  });
 
   return (
     <aside
+      ref={asideRef}
       className={cn(
         'border-r bg-card transition-all duration-300 flex flex-col shrink-0',
         isSidebarCollapsed
@@ -275,14 +306,15 @@ export const Sidebar = () => {
       </div>
 
       <nav className="flex-1 p-2 space-y-1.5 overflow-y-auto">
-        {visibleNavItems.map((item) => {
+        {!isSidebarCollapsed ? <div className="relative px-1 pb-1"><Search className="absolute left-3 top-2 h-3.5 w-3.5 text-muted-foreground" /><input aria-label="Buscar en el menú" placeholder="Buscar módulo…" value={menuQuery} onChange={(e) => setMenuQuery(e.target.value)} className="h-8 w-full rounded-md border bg-background pl-8 pr-2 text-xs outline-none focus:ring-1 focus:ring-ring" /></div> : null}
+        {filteredNavItems.map((item) => {
           const isModuleActive =
             location.pathname === item.path ||
             location.pathname.startsWith(`${item.path}/`) ||
             Boolean(item.subItems?.some((sub) =>
               location.pathname === sub.path || location.pathname.startsWith(`${sub.path}/`),
             ));
-          const isExpanded = Boolean(expandedItems[item.path]);
+          const isExpanded = Boolean(terminoMenu) || Boolean(expandedItems[item.path]);
 
           return (
             <div key={item.path} className="space-y-1">

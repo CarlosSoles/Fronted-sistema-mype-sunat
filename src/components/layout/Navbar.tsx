@@ -5,7 +5,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useUiStore } from '@/stores/uiStore';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Building2, Menu, Moon, Sun } from 'lucide-react';
+import { Building2, Menu, Moon, Search, Sun } from 'lucide-react';
 import { UserNavDropdown } from './UserNavDropdown';
 
 export const Navbar = () => {
@@ -43,6 +43,7 @@ export const Navbar = () => {
               Sin empresa seleccionada
             </span>
           )}
+          <Button variant="outline" size="sm" onClick={() => window.dispatchEvent(new Event('open-command-palette'))} className="hidden gap-2 text-xs sm:flex" aria-label="Buscar módulo o acción"><Search className="h-3.5 w-3.5" />Buscar<kbd className="rounded border px-1 text-[10px] text-muted-foreground">⌘K</kbd></Button>
           <OfflineBadge />
           <OutboxBadge />
         </div>

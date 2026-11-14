@@ -68,7 +68,7 @@ export const borradorAPayloadEmision = (
     customer_legal_name: b.clienteRazonSocial.trim(),
     ...(b.clienteDireccion?.trim() ? { customer_address: b.clienteDireccion.trim() } : {}),
     fecha_emision: b.fecha,
-    agente_retencion: !esNota && b.agenteRetencion,
+    agente_retencion: !esNota && b.agenteRetencion && calcularFlujo(b).detraccion <= 0,
     ...(b.correccionRetencion ? { correccion_retencion: true } : {}),
     forma_pago: b.formaPago,
     cuotas:

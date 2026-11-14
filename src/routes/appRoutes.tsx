@@ -49,6 +49,10 @@ const PurchasesPayablesPage = React.lazy(() => import('@/modules/inventory/pages
 const InventoryTransfersPage = React.lazy(() => import('@/modules/inventory/pages/InventoryTransfersPage'));
 const InventoryAdjustmentsPage = React.lazy(() => import('@/modules/inventory/pages/InventoryAdjustmentsPage'));
 const InventoryConfigPage = React.lazy(() => import('@/modules/inventory/pages/InventoryConfigPage'));
+const UserWarehousesPage = React.lazy(() => import('@/modules/auth/pages/UserWarehousesPage'));
+const SalesPosPage = React.lazy(() => import('@/modules/sales/pages/SalesPosPage'));
+const SalesHistoryPage = React.lazy(() => import('@/modules/sales/pages/SalesHistoryPage'));
+const SalesQuotesPage = React.lazy(() => import('@/modules/sales/pages/SalesQuotesPage'));
 const InventoryKardexPage = React.lazy(() => import('@/modules/inventory/pages/InventoryKardexPage'));
 const InventoryOpeningPage = React.lazy(() => import('@/modules/inventory/pages/InventoryOpeningPage'));
 const InventoryMovementsPage = React.lazy(() => import('@/modules/inventory/pages/InventoryMovementsPage'));
@@ -203,6 +207,12 @@ export const AppRoutes = () => {
             />
 
             <Route path="/invoices/configuracion/precios" element={<RoleProtectedRoute allowedRoles={['ADMIN']}><InvoicePricesPage /></RoleProtectedRoute>} />
+            <Route path="/usuarios/almacenes" element={<RoleProtectedRoute allowedRoles={['ADMIN']}><UserWarehousesPage /></RoleProtectedRoute>} />
+            <Route path="/sales" element={<RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_FACTURACION']}><SalesPosPage /></RoleProtectedRoute>} />
+            <Route path="/sales/pos" element={<RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_FACTURACION']}><SalesPosPage /></RoleProtectedRoute>} />
+            <Route path="/sales/historial" element={<RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}><SalesHistoryPage /></RoleProtectedRoute>} />
+            <Route path="/sales/cotizaciones" element={<RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_FACTURACION']}><SalesQuotesPage /></RoleProtectedRoute>} />
+            <Route path="/sales/reportes" element={<RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}><SalesReportPage /></RoleProtectedRoute>} />
 
             {/* [M3: Suite Aduanera e Inventarios] ADMIN, OPERADOR_ADUANAS, CONTADOR, AUDITOR */}
             <Route
@@ -579,10 +589,26 @@ export const AppRoutes = () => {
               }
             />
             <Route
+              path="/sales/cobranzas"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <CollectionsPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
               path="/collections"
               element={
                 <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
                   <CollectionsPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/purchases/expenses"
+              element={
+                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                  <ExpensesPage />
                 </RoleProtectedRoute>
               }
             />
