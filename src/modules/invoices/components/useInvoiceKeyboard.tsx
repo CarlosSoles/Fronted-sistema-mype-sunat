@@ -27,7 +27,7 @@ export function useInvoiceKeyboard(add: () => void, emitir: () => void, busy: bo
   if (pageScope || (e.target as HTMLElement).closest('[role="dialog"], [role="alertdialog"]') !== e.currentTarget.closest('[role="dialog"], [role="alertdialog"]')) return;
   ejecutar(e.nativeEvent, e.currentTarget);
  };
- const ayuda = <><p className="text-xs">Atajos: Alt+C cliente · Alt+P producto · Alt+L nueva línea · Ctrl+Enter revisar emisión · Escape cerrar sugerencias. Flechas/Enter seleccionan; Tab navega.</p>
+ const ayuda = <><p className="text-xs">Atajos: Alt+C cliente · Alt+P producto · Alt+L buscar producto · Ctrl+Enter revisar emisión · Escape cerrar sugerencias. Flechas/Enter seleccionan; Tab navega.</p>
  <Dialog open={review} onOpenChange={setReview}><DialogContent><DialogTitle>Revisar emisión</DialogTitle><DialogDescription>Revise cliente, almacén, líneas y totales. Confirmar ejecuta las mismas validaciones del botón Emitir.</DialogDescription><Button type="button" disabled={busy} onClick={() => { setReview(false); emitir(); }}>Confirmar emisión revisada</Button><Button type="button" onClick={() => setReview(false)}>Volver a revisar</Button></DialogContent></Dialog></>;
  return { handler, ayuda };
 }
