@@ -134,6 +134,7 @@ export const NAV_ITEMS: NavItem[] = [
       { title: '2. Tránsito y arribo', path: '/customs/shipments', icon: FolderGit2 },
       { title: '3. Despacho y DAM', path: '/customs/declarations', icon: FileCheck2 },
       { title: '4. Recojo y almacén (Kardex)', path: '/customs/landed-cost', icon: Calculator },
+      { title: 'Contabilidad y Asientos Aduaneros (PCGE / NIC 2)', path: '/customs/accounting', icon: BookOpen },
       { title: 'Proveedores del exterior', path: '/customs/suppliers', icon: Building2 },
       { title: 'Configuración aduanera', path: '/customs/config', icon: Settings, allowedRoles: ['ADMIN'] },
     ],

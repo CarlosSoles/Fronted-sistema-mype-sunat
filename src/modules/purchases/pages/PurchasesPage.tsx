@@ -9,6 +9,7 @@ import {
   History,
   AlertCircle,
   PackageCheck,
+  Ship,
 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
@@ -35,16 +36,19 @@ import { purchasesApi } from '../services/purchasesApi';
 import type { PurchaseRecord, PurchasePaymentRecord } from '../types/purchases.types';
 import { NationalPurchaseModal } from '../components/NationalPurchaseModal';
 import { PurchaseDetailModal } from '../components/PurchaseDetailModal';
+import { NewImportOrderModal } from '@/modules/customs/components/NewImportOrderModal';
 import { formatDateTimeToPeru } from '@/lib/formatters';
 
-const money = (n: number) =>
-  `S/ ${n.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const formatMoney = (n: number, currency = 'PEN') =>
+  `${currency === 'USD' ? '$' : 'S/'} ${Number(n || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const money = (n: number) => formatMoney(n, 'PEN');
 
 export default function PurchasesPage() {
   const queryClient = useQueryClient();
 
   // Estados de control de modales
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [detailPurchase, setDetailPurchase] = useState<PurchaseRecord | null>(null);
   const [paymentPurchase, setPaymentPurchase] = useState<PurchaseRecord | null>(null);
   const [paymentHistory, setPaymentHistory] = useState<PurchasePaymentRecord[] | null>(null);
@@ -139,13 +143,23 @@ export default function PurchasesPage() {
         title="Módulo de Compras"
         description="Gestión integral de compras nacionales, comprobantes de proveedores, asientos contables de naturaleza/destino y cuentas por pagar"
       >
-        <Button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
-        >
-          <Plus className="h-4 w-4" />
-          + Nueva Compra Nacional
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+          >
+            <Plus className="h-4 w-4" />
+            + Nueva Compra Nacional
+          </Button>
+          <Button
+            onClick={() => setIsImportModalOpen(true)}
+            variant="outline"
+            className="gap-2 border-sky-600 text-sky-700 hover:bg-sky-50 dark:border-sky-400 dark:text-sky-300 dark:hover:bg-sky-950/40 shadow-xs"
+          >
+            <Ship className="h-4 w-4 text-sky-600 dark:text-sky-400" />
+            + Registrar Pedido al Exterior
+          </Button>
+        </div>
       </PageHeader>
 
       {(errorMessage || queryError) && (
@@ -218,20 +232,32 @@ export default function PurchasesPage() {
               </TableRow>
             )}
             {filteredPurchases.map((p) => {
+              const isImport = p.documentSerial === 'IMP' || p.purchaseNumber?.startsWith('OC-');
               const saldo = p.pendingAmount ?? p.totalAmount - (p.paidAmount ?? 0);
               return (
                 <TableRow key={p.id}>
                   <TableCell className="font-mono text-xs font-semibold text-emerald-600">
-                    {p.purchaseNumber}
+                    <div className="flex items-center gap-1.5">
+                      <span>{p.purchaseNumber}</span>
+                      {isImport && (
+                        <Badge variant="outline" className="text-[9px] bg-sky-50 text-sky-700 border-sky-300 dark:bg-sky-950 dark:text-sky-300 font-sans">
+                          EXTERIOR
+                        </Badge>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <div className="font-medium text-xs text-foreground">{p.supplierName}</div>
                     <div className="text-[11px] text-muted-foreground font-mono">
-                      RUC: {p.supplierDocNumber}
+                      {isImport ? 'Tax ID / País:' : 'RUC:'} {p.supplierDocNumber}
                     </div>
                   </TableCell>
                   <TableCell className="font-mono text-xs">
-                    {p.documentSerial}-{p.documentNumber}
+                    {isImport ? (
+                      <span className="text-sky-600 font-semibold">{p.purchaseNumber}</span>
+                    ) : (
+                      `${p.documentSerial}-${p.documentNumber}`
+                    )}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
                     {new Date(p.issueDate).toLocaleDateString('es-PE')}
@@ -239,10 +265,10 @@ export default function PurchasesPage() {
                   <TableCell className="text-xs font-mono">{p.warehouseCode}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">{p.createdAt ? formatDateTimeToPeru(p.createdAt) : '-'}</TableCell>
                   <TableCell align="right" className="font-mono text-xs font-semibold">
-                    {money(p.totalAmount)}
+                    {formatMoney(p.totalAmount, p.currencyCode)}
                   </TableCell>
                   <TableCell align="right" className="font-mono text-xs text-emerald-600">
-                    {money(p.paidAmount ?? 0)}
+                    {formatMoney(p.paidAmount ?? 0, p.currencyCode)}
                   </TableCell>
                   <TableCell
                     align="right"
@@ -250,7 +276,7 @@ export default function PurchasesPage() {
                       saldo > 0 ? 'text-amber-600' : 'text-muted-foreground'
                     }`}
                   >
-                    {money(saldo)}
+                    {formatMoney(saldo, p.currencyCode)}
                   </TableCell>
                   <TableCell>
                     <Badge variant={p.receptionStatus === 'RECIBIDA' ? 'default' : p.receptionStatus === 'PARCIAL' ? 'secondary' : 'outline'} className="text-[10px]">
@@ -523,6 +549,18 @@ export default function PurchasesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Modal de Registro de Pedido al Exterior (Dual Paso 1 / Compras) */}
+      {isImportModalOpen && (
+        <NewImportOrderModal
+          isOpen={isImportModalOpen}
+          onClose={() => setIsImportModalOpen(false)}
+          onSuccess={() => {
+            setIsImportModalOpen(false);
+            void refetch();
+            void queryClient.invalidateQueries({ queryKey: ['import-orders'] });
+          }}
+        />
+      )}
     </Page>
   );
 }

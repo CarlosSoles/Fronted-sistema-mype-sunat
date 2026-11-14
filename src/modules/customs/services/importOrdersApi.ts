@@ -30,6 +30,8 @@ export interface CreateImportOrderPayload {
   estimatedFreight?: number;
   estimatedInsurance?: number;
   proformaNumber?: string;
+  documentUrl?: string;
+  documentFileName?: string;
   notes?: string;
   responsible?: string;
   items: ImportOrderItemPayload[];

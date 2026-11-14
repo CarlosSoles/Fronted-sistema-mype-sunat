@@ -40,7 +40,27 @@ export default function LandedCostSheetPage() {
     queryFn: customsDeclarationsApi.getDeclarations,
   });
 
-  const activeDec = declarationsQuery.data?.find((d) => d.shipment_id === shipmentId);
+  const selectedShipment = eligibleShipmentsQuery.data?.find(
+    (s) => s.id === shipmentId || s.shipment_number === shipmentId,
+  );
+
+  const declarationId =
+    selectedShipment?.declarations?.[0]?.id ||
+    declarationsQuery.data?.find(
+      (d) => d.shipment_id === shipmentId || (selectedShipment && d.shipment_id === selectedShipment.id),
+    )?.id;
+
+  const singleDecQuery = useQuery({
+    queryKey: ['customs-declaration-detail', declarationId],
+    queryFn: () => customsDeclarationsApi.getDeclarationById(declarationId!),
+    enabled: Boolean(declarationId),
+  });
+
+  const activeDec =
+    singleDecQuery.data ||
+    declarationsQuery.data?.find(
+      (d) => d.shipment_id === shipmentId || (selectedShipment && d.shipment_id === selectedShipment.id),
+    );
 
   const receiptItems = activeDec?.series && activeDec.series.length > 0
     ? activeDec.series.map((s) => ({
