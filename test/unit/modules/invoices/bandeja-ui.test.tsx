@@ -1,3 +1,4 @@
+import { invoiceDetailFromDemo } from '../../../fixtures/invoiceDetailFromDemo';
 import { porApartado } from '@/modules/invoices/lib/invoiceFilters';
 import {afterEach,expect,it,vi} from 'vitest';
 import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
@@ -44,9 +45,9 @@ it.each([true,false])('fila verificada=%s publica importes o inconsistencia',ver
  if(verificado){expect(screen.getByText('S/ 950.00')).toBeTruthy();expect(screen.getByText('S/ 0.00')).toBeTruthy();}
 });
 it.each([['ERROR_RED','TRANSPORTE_INCIERTO',false,true],['ERROR_RED',undefined,false,true],['ENVIADO',undefined,false,true],['PENDIENTE',undefined,false,false],['ACEPTADO',undefined,true,false],['OBSERVADO',undefined,true,false],['ERROR_RED','PREPARACION_LOCAL',false,false],['RECHAZADO','SUNAT',false,false]] as const)('modal %s origen %s CDR=%s consulta=%s',async(estadoBackend,origen,tieneCdr,visible)=>{
- vi.mocked(invoicesApi.getInvoiceById).mockResolvedValue({historial:[],tieneCdr} as never);
  const resultadoPresentacion=origen?{origen,codigo:null,motivo:null}:undefined;
  const item={...c,estadoBackend,estado:(estadoBackend==='ERROR_RED'?'SIN_CONFIRMAR':estadoBackend==='ENVIADO'||estadoBackend==='PENDIENTE'?'EN_COLA':estadoBackend) as never,resultadoPresentacion};
+ vi.mocked(invoicesApi.getInvoiceById).mockResolvedValue({...invoiceDetailFromDemo(item),tieneCdr});
  render(<InvoiceCdrModal comprobante={item} onCerrar={vi.fn()}/>);
  expect(screen.queryByText('Consulta SUNAT disponible')).toBeNull();
  await screen.findByText('No hay eventos de auditoría registrados.');await waitFor(()=>expect(Boolean(screen.queryByText('Consulta SUNAT disponible'))).toBe(visible));
