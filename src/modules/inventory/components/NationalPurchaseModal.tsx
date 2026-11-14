@@ -52,6 +52,7 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
   const [documentNumber, setDocumentNumber] = useState('');
   const [issueDate, setIssueDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [warehouseCode, setWarehouseCode] = useState('ALM-01');
+  const [pricesIncludeIgv, setPricesIncludeIgv] = useState(false);
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<PurchaseItemRow[]>([
     { sku: '', quantity: 1, unitCost: 0 },
@@ -64,12 +65,13 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Cálculos en tiempo real
-  const netAmount = items.reduce(
+  const totalIngresado = items.reduce(
     (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.unitCost) || 0),
     0
   );
-  const igvAmount = netAmount * 0.18;
-  const totalAmount = netAmount + igvAmount;
+  const netAmount = pricesIncludeIgv ? totalIngresado / 1.18 : totalIngresado;
+  const igvAmount = pricesIncludeIgv ? totalIngresado - netAmount : netAmount * 0.18;
+  const totalAmount = pricesIncludeIgv ? totalIngresado : netAmount + igvAmount;
 
   const handleAddItem = () => {
     setItems((prev) => [...prev, { sku: '', quantity: 1, unitCost: 0 }]);
@@ -153,6 +155,7 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
       documentNumber: documentNumber.trim(),
       issueDate,
       warehouseCode,
+      pricesIncludeIgv,
       notes: notes.trim() || undefined,
       items: items.map((it) => ({
         sku: it.sku.trim().toUpperCase(),
@@ -314,6 +317,10 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
 
           {/* Detalle de Productos */}
           <div className="space-y-2">
+            <label className="flex items-center gap-2 rounded-md border bg-muted/30 p-2 text-xs">
+              <input type="checkbox" checked={pricesIncludeIgv} onChange={(e) => setPricesIncludeIgv(e.target.checked)} />
+              Los precios ingresados ya incluyen IGV
+            </label>
             <div className="flex justify-between items-center">
               <h3 className="font-semibold text-foreground">Productos / Ítems Recibidos</h3>
               <Button
@@ -334,7 +341,7 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
                   <tr className="border-b bg-muted/60 text-muted-foreground uppercase">
                     <th className="p-2 w-36">Código SKU *</th>
                     <th className="p-2 w-28">Cantidad *</th>
-                    <th className="p-2 w-36">Costo Unit. Neto (S/) *</th>
+                    <th className="p-2 w-40">{pricesIncludeIgv ? 'Precio Unit. con IGV *' : 'Costo Unit. Neto *'}</th>
                     <th className="p-2 w-32 text-right">Subtotal (S/)</th>
                     <th className="p-2 w-12 text-center"></th>
                   </tr>
@@ -342,6 +349,7 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
                 <tbody className="divide-y">
                   {items.map((row, idx) => {
                     const rowSubtotal = (Number(row.quantity) || 0) * (Number(row.unitCost) || 0);
+                    const rowNeto = pricesIncludeIgv ? rowSubtotal / 1.18 : rowSubtotal;
                     return (
                       <tr key={idx} className="hover:bg-muted/20">
                         <td className="p-2">
@@ -382,7 +390,8 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
                           {costosRef[row.sku.trim().toUpperCase()] ? <p className="mt-1 text-[10px] text-muted-foreground">Costo ref.: S/ {costosRef[row.sku.trim().toUpperCase()].toFixed(2)}</p> : null}
                         </td>
                         <td className="p-2 text-right font-mono font-medium">
-                          S/ {rowSubtotal.toFixed(2)}
+                          S/ {pricesIncludeIgv ? rowNeto.toFixed(2) : rowSubtotal.toFixed(2)}
+                          {pricesIncludeIgv ? <p className="text-[10px] font-normal text-muted-foreground">Final S/ {rowSubtotal.toFixed(2)}</p> : null}
                         </td>
                         <td className="p-2 text-center">
                           <Button

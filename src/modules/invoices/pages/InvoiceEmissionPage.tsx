@@ -170,6 +170,7 @@ export default function InvoiceEmissionPage() {
   // que reparten las cuotas ya existían y estaban probadas en
   // `invoiceEmitDraft`, así que aquí solo se guarda el estado.
   const [formaPago, setFormaPago] = useState<'Contado' | 'Credito'>('Contado');
+  const [medioPago, setMedioPago] = useState<import('../types/invoiceEmision.types').MedioPagoVenta>('EFECTIVO');
   const [cuotas, setCuotas] = useState<readonly CuotaBorrador[]>([]);
   const intento = useRef(crearIntentoEmision());
   const [enviando, setEnviando] = useState(false);
@@ -429,6 +430,7 @@ export default function InvoiceEmissionPage() {
         items,
         descuentoGlobal,
         formaPago,
+        medioPago,
         cuotas,
         numeroCuotas: cuotas.length || 2,
         codigoDetraccion: '',
@@ -624,6 +626,21 @@ export default function InvoiceEmissionPage() {
                   </PageText>
                 )}
               </div>
+
+              {formaPago === 'Contado' && (
+                <label className="space-y-1.5 text-xs font-medium text-foreground">
+                  Medio de pago
+                  <select aria-label="Medio de pago" className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 font-normal" value={medioPago} onChange={(e) => setMedioPago(e.target.value as import('../types/invoiceEmision.types').MedioPagoVenta)}>
+                    <option value="EFECTIVO">Efectivo</option>
+                    <option value="YAPE">Yape</option>
+                    <option value="PLIN">Plin</option>
+                    <option value="TARJETA">Tarjeta</option>
+                    <option value="TRANSFERENCIA">Transferencia</option>
+                    <option value="DEPOSITO">Depósito</option>
+                    <option value="CHEQUE">Cheque</option>
+                  </select>
+                </label>
+              )}
 
               {formaPago === 'Credito' && (
                 <CreditInstallmentsEditor

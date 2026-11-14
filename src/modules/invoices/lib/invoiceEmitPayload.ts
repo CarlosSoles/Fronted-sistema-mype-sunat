@@ -71,6 +71,7 @@ export const borradorAPayloadEmision = (
     agente_retencion: !esNota && b.agenteRetencion && calcularFlujo(b).detraccion <= 0,
     ...(b.correccionRetencion ? { correccion_retencion: true } : {}),
     forma_pago: b.formaPago,
+    ...(b.formaPago === 'Contado' ? { medio_pago: b.medioPago } : {}),
     cuotas:
       b.formaPago === 'Credito'
         ? b.cuotas.map((c) => ({
