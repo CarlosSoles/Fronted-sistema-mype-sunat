@@ -1,3 +1,4 @@
+import { seleccionarProductoPrueba } from '../../../fixtures/invoiceEmissionProduct';
 import { beforeEach as billingBeforeEach } from 'vitest';
 import { useAuthStore as billingAuth } from '@/stores/authStore';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -12,7 +13,7 @@ import { invoicesApi } from '@/modules/invoices/services/invoicesApi';
 import { apiClient } from '@/lib/axios';
 import { seriesConfiguradasPrueba } from '../../../fixtures/invoiceSeries';
 vi.mock('@/lib/axios', () => ({ apiClient: { get: vi.fn() } }));
-vi.mock('@/modules/invoices/services/inventoryProductsApi', () => ({ cargarProductosAlmacen: vi.fn(async () => []) }));
+vi.mock('@/modules/invoices/services/inventoryProductsApi', () => ({ cargarProductosAlmacen: vi.fn(async () => [{sku:'SERV',descripcion:'Servicio',unidad:'NIU',valorUnitario:100,precioUnitario:118,afectacion:'10',stock:100,vendible:true}]) }));
 vi.mock('@/modules/invoices/services/invoicesApi', () => ({ invoicesApi: { emitirComprobante: vi.fn() } }));
 vi.mock('@/modules/invoices/components/RetencionMaestro', () => ({ RetencionMaestro: () => null }));
 const cliente = { id: 'c', doc_type: '6', doc_number: '20100070970', legal_name: 'Ferretería Los Andes S.A.C.', roles: ['CLIENTE'], is_active: true, has_credit: false };
@@ -30,8 +31,7 @@ it.each(['pagina', 'modal'].flatMap(via => ['clic', 'teclado', 'texto-sin-confir
   render(<QueryClientProvider client={q}><MemoryRouter>{via === 'pagina' ? <InvoiceEmissionPage /> : <InvoiceEmitModal tipoInicial="01" seriesConfiguradas={seriesConfiguradasPrueba} fecha={hoyEnLima()} existentes={[]} onEmitir={vi.fn()} onCerrar={vi.fn()} />}</MemoryRouter></QueryClientProvider>);
   if (via === 'pagina') await waitFor(() => expect((screen.getByLabelText('Serie configurada') as HTMLSelectElement).value).toBe('F001'));
   // Preparar una línea antes de elegir al cliente evita editar los datos del cliente después de seleccionarlo.
-  await usuario.type(screen.getByLabelText('Descripción de la línea 1'), 'Artículo de prueba');
-  await usuario.clear(screen.getByLabelText('Valor unitario de la línea 1')); await usuario.type(screen.getByLabelText('Valor unitario de la línea 1'), '118');
+  await seleccionarProductoPrueba();
   await usuario.type(screen.getByLabelText(via === 'pagina' ? 'RUC del cliente' : 'RUC / DNI del cliente'), cliente.doc_number);
   const sugerencia = await screen.findByRole('button', { name: /Ferretería Los Andes/ }, { timeout: 3000 });
   if (modo === 'clic') await usuario.click(sugerencia);

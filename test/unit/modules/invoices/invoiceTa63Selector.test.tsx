@@ -1,3 +1,4 @@
+import { seleccionarProductoPrueba } from '../../../fixtures/invoiceEmissionProduct';
 import { beforeEach as billingBeforeEach } from 'vitest';
 import { useAuthStore as billingAuth } from '@/stores/authStore';
 import { seriesConfiguradasPrueba } from '../../../fixtures/invoiceSeries';
@@ -14,12 +15,12 @@ import { borradorAPayloadEmision } from '@/modules/invoices/lib/invoiceEmitPaylo
 import { hoyEnLima } from '@/modules/invoices/lib/invoiceFecha';
 
 vi.mock('@/lib/axios', () => ({ apiClient: { get: vi.fn(async (url: string) => ({ data: url === '/invoices/config' ? { series: [{ document_type: '01', series: 'F001', is_active: true }, { document_type: '03', series: 'B001', is_active: true }] } : [] })) } }));
-vi.mock('@/modules/invoices/services/inventoryProductsApi', () => ({ cargarProductosAlmacen: vi.fn(async () => []) }));
+vi.mock('@/modules/invoices/services/inventoryProductsApi', () => ({ cargarProductosAlmacen: vi.fn(async () => [{sku:'SERV',descripcion:'Servicio',unidad:'NIU',valorUnitario:1000,precioUnitario:1180,afectacion:'10',stock:100,vendible:true}]) }));
 vi.mock('@/modules/invoices/services/invoicesApi', () => ({ invoicesApi: {
   buscarClientes: vi.fn(async () => []), emitirComprobante: vi.fn(async () => { throw new Error('Respuesta de prueba'); }),
 } }));
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
-it('conserva los 22 códigos exactos y omite el campo sin detracción efectiva, incluso si quedó elegido', () => {
+it('conserva los 22 códigos exactos y omite el campo sin detracción efectiva, incluso si quedó elegido', async () => {
   expect(Object.keys(CATALOGO_59_MEDIOS_PAGO)).toHaveLength(22);
   const b = { ...borradorInicial('01', hoyEnLima()), medioPagoDetraccion: '003' as const };
   expect(borradorAPayloadEmision(b)).not.toHaveProperty('medio_pago_detraccion');
@@ -33,8 +34,7 @@ it.each(['modal', 'pagina'])('%s: solo aparece con detracción, bloquea vacío y
   expect(screen.queryByLabelText('Medio de pago de la detracción')).toBeNull();
   fireEvent.change(screen.getByLabelText(via === 'modal' ? 'RUC / DNI del cliente' : 'RUC del cliente'), { target: { value: '20100070970' } });
   fireEvent.change(screen.getByLabelText('Razón social / nombre'), { target: { value: 'Cliente de prueba' } });
-  fireEvent.change(screen.getByLabelText('Descripción de la línea 1'), { target: { value: 'Servicio' } });
-  fireEvent.change(screen.getByLabelText('Valor unitario de la línea 1'), { target: { value: '1000' } });
+  await seleccionarProductoPrueba();
   fireEvent.change(screen.getByLabelText('Detracción de la línea 1'), { target: { value: '009' } });
   const selector = screen.getByLabelText('Medio de pago de la detracción') as HTMLSelectElement;
   expect(selector.value).toBe('');

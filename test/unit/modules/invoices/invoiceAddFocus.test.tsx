@@ -11,11 +11,11 @@ vi.mock('@/lib/axios',()=>({apiClient:{get:vi.fn(async()=>({data:[]}))}}));
 vi.mock('@/modules/invoices/services/inventoryProductsApi',()=>({cargarProductosAlmacen:vi.fn(async()=>[producto])}));
 beforeEach(()=>useAuthStore.setState({user:{id:'test',email:'test@example.invalid',role:'ADMIN'}}));
 afterEach(cleanup);
-it('añadir enfoca buscador, reutiliza la vacía y elegir producto bloquea el SKU',async()=>{
+it('el atajo enfoca buscador sin alta vacía y elegir producto bloquea el SKU',async()=>{
  const client=new QueryClient({defaultOptions:{queries:{retry:false}}});
  render(<QueryClientProvider client={client}><InvoiceEmitModal tipoInicial="01" seriesConfiguradas={seriesConfiguradasPrueba} fecha="2026-11-13" existentes={[]} onEmitir={vi.fn()} onCerrar={vi.fn()}/></QueryClientProvider>);
  const buscador=await screen.findByRole('combobox',{name:'Buscar producto'});
- fireEvent.click(screen.getByRole('button',{name:'+ Añadir ítem'}));
+ fireEvent.keyDown(buscador,{altKey:true,key:'l',code:'KeyL'});
  expect(document.activeElement).toBe(buscador);
  expect(screen.queryByLabelText('Descripción de la línea 2')).toBeNull();
  fireEvent.change(buscador,{target:{value:'PRO'}});
@@ -23,17 +23,18 @@ it('añadir enfoca buscador, reutiliza la vacía y elegir producto bloquea el SK
  await waitFor(()=>expect((screen.getByLabelText('Código de la línea 1') as HTMLInputElement).readOnly).toBe(true));
  expect((screen.getByLabelText('Código de la línea 1') as HTMLInputElement).value).toBe('PRO-1');
  expect(screen.queryByLabelText('Descripción de la línea 2')).toBeNull();
- fireEvent.click(screen.getByRole('button',{name:'+ Añadir ítem'}));
+ fireEvent.keyDown(buscador,{altKey:true,key:'l',code:'KeyL'});
  expect(document.activeElement).toBe(buscador);
- expect(screen.getByLabelText('Descripción de la línea 2')).toBeTruthy();
+ expect(screen.queryByLabelText('Descripción de la línea 2')).toBeNull();
  fireEvent.keyDown(buscador,{altKey:true,key:'l',code:'KeyL'});
  expect(document.activeElement).toBe(buscador);
  client.clear();
 });
-it('SKU manual sigue editable y el del catálogo ofrece explicación',()=>{
+it('código y descripción son de solo lectura con explicación para sustituir producto',()=>{
  const elegido=itemDesdeProducto(producto,'b');
  render(<InvoiceItemsGrid items={[itemVacio('a'),elegido]} onCambiar={vi.fn()} onEliminar={vi.fn()} onAgregar={vi.fn()} onAgregarBolsa={vi.fn()}/>);
- expect((screen.getByLabelText('Código de la línea 1') as HTMLInputElement).readOnly).toBe(false);
+ expect((screen.getByLabelText('Código de la línea 1') as HTMLInputElement).readOnly).toBe(true);
+ expect((screen.getByLabelText('Descripción de la línea 2') as HTMLTextAreaElement).readOnly).toBe(true);
  expect((screen.getByLabelText('Código de la línea 2') as HTMLInputElement).readOnly).toBe(true);
  expect(screen.getByLabelText('Código de la línea 2').title).toContain('elija otro producto');
 });

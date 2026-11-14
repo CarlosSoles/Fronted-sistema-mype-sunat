@@ -7,7 +7,7 @@ import { InvoiceIssuerConfigForm } from '@/modules/invoices/components/InvoiceIs
 import { invoicesApi } from '@/modules/invoices/services/invoicesApi';
 import { construir } from '@/modules/invoices/data/invoiceDemoTypes';
 
-vi.mock('@/modules/invoices/services/invoicesApi', () => ({ invoicesApi: { buscarClientes: vi.fn(async () => []), getSaldoNota: vi.fn(async () => ({ total: 1770, devuelto: 100.01, disponible: 1669.99, motivos_totales: ['01', '02', '06'], cantidades_pendientes: [] })), emitirComprobante: vi.fn() } }));
+vi.mock('@/modules/invoices/services/invoicesApi', () => ({ invoicesApi: { buscarClientes: vi.fn(async () => []), getInvoiceById: vi.fn(async()=>({lineasOrigen:[{codigo:'SERV',descripcion:'Servicio',unidad:'NIU',cantidad:1,valor_unitario:2000,precio_unitario:2360,afectacion:'10'}]})), getSaldoNota: vi.fn(async () => ({ total: 1770, devuelto: 100.01, disponible: 1669.99, motivos_totales: ['01', '02', '06'], cantidades_pendientes: [{codigo:'SERV',original:1,pendiente:1}] })), emitirComprobante: vi.fn() } }));
 describe('saldo de nota de crédito', () => {
   it('consulta y muestra el saldo y bloquea exceso sin emitir', async () => {
     const factura = construir({ tipo: '01', serie: 'F001', correlativo: 56, ruc: '20100070970', razonSocial: 'Cliente', fecha: '2026-11-05', base: 1500, estado: 'ACEPTADO' });
@@ -16,19 +16,18 @@ describe('saldo de nota de crédito', () => {
     fireEvent.change(screen.getByLabelText('Documento afectado'), { target: { value: 'F001-00000056' } });
     expect(await screen.findByText(/Disponible según servidor S\/ 1669.99/)).toBeTruthy();
     expect(screen.getByText(/base S\/ 1500.00/)).toBeTruthy();
-    fireEvent.change(screen.getByLabelText('Descripción de la línea 1'), { target: { value: 'Servicio' } });
-    fireEvent.change(screen.getByLabelText('Valor unitario de la línea 1'), { target: { value: '2000' } });
+    await screen.findByLabelText('Valor unitario de la línea 1');
     expect(screen.getByText(/La nota supera el saldo disponible/)).toBeTruthy();
     expect((screen.getByRole('button', { name: 'Emitir Nota de Crédito' }) as HTMLButtonElement).disabled).toBe(true);
     cleanup(); query.clear();
   });
 });
 
-it('muestra saldo en nota de débito y parte de línea vacía', async () => {
+it('muestra saldo en nota de débito e inicia sin líneas libres', async () => {
   const factura = construir({ tipo: '01', serie: 'F001', correlativo: 56, ruc: '20100070970', razonSocial: 'Cliente', fecha: '2026-11-05', base: 1500, estado: 'ACEPTADO' });
   const query = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(<QueryClientProvider client={query}><InvoiceEmitModal seriesConfiguradas={seriesConfiguradasPrueba} tipoInicial="08" fecha="2026-11-05" existentes={[factura]} onEmitir={vi.fn()} onCerrar={vi.fn()} /></QueryClientProvider>);
-  expect((screen.getByLabelText('Código de la línea 1') as HTMLInputElement).value).toBe('');
+  expect(screen.queryByLabelText('Código de la línea 1')).toBeNull();
   fireEvent.change(screen.getByLabelText('Documento afectado'), { target: { value: 'F001-00000056' } });
   expect(await screen.findByText(/Disponible según servidor S\/ 1669.99/)).toBeTruthy();
   cleanup(); query.clear();
@@ -49,7 +48,7 @@ it('muestra el comprobante origen (tipo, serie-número, cliente e importe) desde
   const query = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(<QueryClientProvider client={query}><InvoiceEmitModal seriesConfiguradas={seriesConfiguradasPrueba} tipoInicial="07" fecha="2026-11-05" existentes={[factura]} onEmitir={vi.fn()} onCerrar={vi.fn()} /></QueryClientProvider>);
   const docInput = screen.getByLabelText('Documento afectado');
-  const lineaInput = screen.getByLabelText('Descripción de la línea 1');
+  const lineaInput = screen.getByRole('region',{name:'Líneas del comprobante'});
   expect(docInput.compareDocumentPosition(lineaInput) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   fireEvent.change(docInput, { target: { value: 'F001-00000056' } });
   const resumen = screen.getByTestId('resumen-comprobante-origen');

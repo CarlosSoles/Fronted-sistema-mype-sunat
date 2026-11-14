@@ -16,21 +16,21 @@ it('muestra descripción al abandonar o editar y revisa todos los campos al aña
  expect(screen.queryByText('La descripción es obligatoria.')).toBeNull();
  fireEvent.blur(screen.getByLabelText('Descripción de la línea 1'));
  expect(screen.getByText('La descripción es obligatoria.')).toBeTruthy();
- fireEvent.change(screen.getByLabelText('Descripción de la línea 1'),{target:{value:' '}});
- fireEvent.click(screen.getByRole('button',{name:'+ Añadir ítem'}));
+ fireEvent.blur(screen.getByLabelText('Valor unitario de la línea 1'));
+
  expect(screen.getByLabelText('Valor unitario de la línea 1').getAttribute('aria-invalid')).toBe('true');
- expect(callbacks.onAgregar).toHaveBeenCalled();
+ expect(callbacks.onAgregar).not.toHaveBeenCalled();
 });
 it('marca valor al editar y mantiene los mensajes asociados a cada campo',()=>{
  const item={...itemVacio('a'),descripcion:'Servicio',valorUnitario:10,cantidad:0};
  const {rerender}=render(<InvoiceItemsGrid items={[item]} {...callbacks}/>);
- fireEvent.change(screen.getByLabelText('Valor unitario de la línea 1'),{target:{value:'0'}});
+ fireEvent.blur(screen.getByLabelText('Valor unitario de la línea 1'));
  rerender(<InvoiceItemsGrid items={[{...item,valorUnitario:0}]} {...callbacks}/>);
  expect(screen.getByText('El valor unitario de una línea onerosa debe ser mayor que cero.')).toBeTruthy();
  fireEvent.blur(screen.getByLabelText('Cantidad de la línea 1'));
- expect(screen.getByText('La cantidad debe ser positiva y tener como máximo 3 decimales.')).toBeTruthy();
+ expect(screen.getByText('La cantidad debe ser entera y positiva para esta unidad.')).toBeTruthy();
  rerender(<InvoiceItemsGrid items={[{...item,cantidad:1}]} {...callbacks}/>);
- expect(screen.queryByText('La cantidad debe ser positiva y tener como máximo 3 decimales.')).toBeNull();
+ expect(screen.queryByText('La cantidad debe ser entera y positiva para esta unidad.')).toBeNull();
 });
 it('admite cero en notas onerosas, exige referencia gratuita y cantidad válida',()=>{
  const item={...itemVacio('a'),descripcion:'Producto'};
@@ -46,18 +46,11 @@ it('intento de emisión enfoca la primera línea inválida sin enviar; conserva 
  const client=new QueryClient({defaultOptions:{queries:{retry:false}}});
  render(<QueryClientProvider client={client}><InvoiceEmitModal tipoInicial="01" seriesConfiguradas={seriesConfiguradasPrueba} fecha="2026-11-13" existentes={[]} onEmitir={vi.fn()} onCerrar={vi.fn()}/></QueryClientProvider>);
  fireEvent.click(screen.getByRole('button',{name:'Emitir Factura'}));
- expect(document.activeElement).toBe(screen.getByLabelText('Descripción de la línea 1'));
- expect(screen.getByText('La descripción es obligatoria.')).toBeTruthy();
  expect(screen.getByText('Falta completar')).toBeTruthy();
- fireEvent.change(screen.getByLabelText('Descripción de la línea 1'),{target:{value:'Servicio'}});
- fireEvent.click(screen.getByRole('button',{name:'Emitir Factura'}));
- expect(document.activeElement).toBe(screen.getByLabelText('Valor unitario de la línea 1'));
- fireEvent.change(screen.getByLabelText('Valor unitario de la línea 1'),{target:{value:'10'}});
- fireEvent.click(screen.getByRole('button',{name:'Emitir Factura'}));
- expect(screen.getByText('Falta completar')).toBeTruthy();
+ expect(screen.queryByLabelText('Descripción de la línea 1')).toBeNull();
  fireEvent.keyDown(screen.getByRole('dialog', { name: 'Emitir Comprobante Electrónico' }),{key:'Escape',code:'Escape'});
  expect(screen.getByRole('dialog', { name: 'Emitir Comprobante Electrónico' })).toBeTruthy();
- fireEvent.keyDown(screen.getByLabelText('Descripción de la línea 1'),{ctrlKey:true,key:'Enter',code:'Enter'});
+ fireEvent.keyDown(screen.getByRole('dialog', { name: 'Emitir Comprobante Electrónico' }),{ctrlKey:true,key:'Enter',code:'Enter'});
  fireEvent.click(screen.getByRole('button',{name:'Confirmar emisión revisada'}));
  expect(screen.getByText('Falta completar')).toBeTruthy();
  client.clear();

@@ -13,7 +13,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { borradorAPayloadEmision, problemaDeCronograma } from '@/modules/invoices/lib/invoiceEmitPayload';
-import { borradorInicial } from '@/modules/invoices/lib/invoiceEmitDraft';
+import { borradorConLinea as borradorInicial } from '../../../fixtures/invoiceEmissionProduct';
 import { repartirEnCuotas } from '@/modules/invoices/lib/invoiceDetraccion';
 import type { ItemBorrador } from '@/modules/invoices/lib/invoiceItems';
 

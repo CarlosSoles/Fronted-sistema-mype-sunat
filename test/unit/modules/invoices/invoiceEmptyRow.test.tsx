@@ -17,10 +17,11 @@ it.each([{codigo:'SKU',descripcion:''},{codigo:'',descripcion:'Producto'},null])
  const items=line?[{...itemVacio('a'),...line}]:[];const create=vi.fn(()=>itemVacio('nueva'));
  expect(agregarFilaModal(items,create)).toEqual([...items,itemVacio('nueva')]);expect(create).toHaveBeenCalledTimes(1);
 });
-it.each(['07','08'] as const)('botón real en nota %s reutiliza vacía y luego agrega sin reemplazar texto editado',tipo=>{
+it.each(['07','08'] as const)('nota %s inicia sin líneas libres y conserva acceso al catálogo',tipo=>{
  const client=new QueryClient({defaultOptions:{queries:{retry:false}}});
  render(<QueryClientProvider client={client}><InvoiceEmitModal seriesConfiguradas={seriesConfiguradasPrueba} tipoInicial={tipo} fecha="2026-11-13" existentes={[]} onEmitir={vi.fn()} onCerrar={vi.fn()}/></QueryClientProvider>);
- fireEvent.click(screen.getByRole('button',{name:'+ Añadir ítem'}));expect(screen.queryByLabelText('Descripción de la línea 2')).toBeNull();
- fireEvent.change(screen.getByLabelText('Descripción de la línea 1'),{target:{value:'Producto editado'}});
- fireEvent.click(screen.getByRole('button',{name:'+ Añadir ítem'}));expect(screen.getByLabelText('Descripción de la línea 2')).toBeTruthy();expect((screen.getByLabelText('Descripción de la línea 1') as HTMLInputElement).value).toBe('Producto editado');client.clear();
+ expect(screen.queryByRole('button',{name:/Añadir ítem/})).toBeNull();
+ expect(screen.queryByLabelText('Descripción de la línea 1')).toBeNull();
+ fireEvent.keyDown(screen.getByRole('dialog'),{altKey:true,key:'l',code:'KeyL'});
+ expect(screen.queryByLabelText('Descripción de la línea 1')).toBeNull();client.clear();
 });
