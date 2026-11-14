@@ -13,15 +13,11 @@ import { apiClient } from '@/lib/axios';
 import { cachedGet } from '@/lib/offlineCache';
 import { DoubleEntryBalanceCard } from '../components/DoubleEntryBalanceCard';
 import { Toolbar } from '../components/AccountingUI';
+import { EntryDetailSheet, type EntryDetail } from '../components/EntryDetailSheet';
 import {
   Badge,
   Button,
   Card,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
   Page,
   PageHeader,
   PageText,
@@ -36,6 +32,7 @@ import { formatCurrency, formatDateToPeru } from '@/lib/formatters';
 import {
   BookOpen,
   CheckCircle2,
+  Eye,
   PlusCircle,
   TriangleAlert,
 } from 'lucide-react';
@@ -320,6 +317,14 @@ export default function AccountingEntriesPage() {
                 >
                   <TableCell className="whitespace-nowrap">
                     <span className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        aria-label={`Ver detalle del asiento ${entry.numeroAsiento}`}
+                        onClick={(evento) => { evento.stopPropagation(); setDetalle(entry); }}
+                        className="rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                      </button>
                       <span className="font-mono text-xs text-muted-foreground">{entry.numeroAsiento}</span>
                       {/* El estado va como icono para no robar ancho a la tabla. */}
                       {entry.estaCuadrado ? (
@@ -378,15 +383,28 @@ export default function AccountingEntriesPage() {
         </Table>
       </Card>
 
-      <Dialog open={Boolean(detalle)} onOpenChange={(open) => { if (!open) setDetalle(null); }}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader><DialogTitle>Asiento {detalle?.numeroAsiento}</DialogTitle><DialogDescription>{detalle?.glosa} · {detalle ? formatDateToPeru(detalle.fechaContable) : ''}</DialogDescription></DialogHeader>
-          {detalle ? <div className="space-y-3">
-            <p className="text-xs text-muted-foreground">Origen: {etiquetaOrigen(detalle.sourceModule)} {detalle.sourceReferenceId ? `· ${detalle.sourceReferenceId}` : ''}</p>
-            <Table><TableHeader><TableRow><TableHead>Cuenta</TableHead><TableHead>Nombre</TableHead><TableHead align="right">Debe</TableHead><TableHead align="right">Haber</TableHead></TableRow></TableHeader><TableBody>{detalle.lines.map((l, i) => <TableRow key={i}><TableCell className="font-mono">{l.accountCode}</TableCell><TableCell>{l.accountName}</TableCell><TableCell align="right">{formatCurrency(l.debitAmount, 'PEN')}</TableCell><TableCell align="right">{formatCurrency(l.creditAmount, 'PEN')}</TableCell></TableRow>)}</TableBody></Table>
-          </div> : null}
-        </DialogContent>
-      </Dialog>
+      <EntryDetailSheet
+        entry={
+          detalle
+            ? ({
+                id: detalle.id,
+                numero: detalle.numeroAsiento,
+                fecha: detalle.fechaContable,
+                glosa: detalle.glosa,
+                origen: etiquetaOrigen(detalle.sourceModule),
+                referencia: detalle.sourceReferenceId,
+                lineas: detalle.lines.map((linea) => ({
+                  code: linea.accountCode,
+                  name: linea.accountName,
+                  debit: linea.debitAmount,
+                  credit: linea.creditAmount,
+                })),
+              } satisfies EntryDetail)
+            : null
+        }
+        open={Boolean(detalle)}
+        onOpenChange={(open) => { if (!open) setDetalle(null); }}
+      />
 
       <ManualEntryModal
         open={isModalOpen}
