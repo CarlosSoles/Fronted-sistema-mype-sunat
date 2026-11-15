@@ -2,9 +2,14 @@ import { cleanup, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { afterEach, describe, expect, it } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ProtectedRoute } from '@/routes/ProtectedRoute';
 import { RoleProtectedRoute } from '@/routes/RoleProtectedRoute';
 import { useAuthStore } from '@/stores/authStore';
+
+const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+const wrap = (ui: React.ReactNode) => <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>;
 
 afterEach(() => {
   cleanup();
@@ -16,14 +21,14 @@ describe('Navigation Guards: ProtectedRoute & RoleProtectedRoute', () => {
     useAuthStore.getState().logout();
 
     render(
-      <MemoryRouter initialEntries={['/dashboard']}>
+      wrap(<MemoryRouter initialEntries={['/dashboard']}>
         <Routes>
           <Route path="/login" element={<div>Pantalla de Login</div>} />
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<div>Contenido Privado</div>} />
           </Route>
         </Routes>
-      </MemoryRouter>
+      </MemoryRouter>)
     );
 
     expect(screen.getByText('Pantalla de Login')).toBeInTheDocument();
@@ -39,7 +44,7 @@ describe('Navigation Guards: ProtectedRoute & RoleProtectedRoute', () => {
     });
 
     render(
-      <MemoryRouter initialEntries={['/accounting']}>
+      wrap(<MemoryRouter initialEntries={['/accounting']}>
         <Routes>
           <Route
             path="/accounting"
@@ -50,7 +55,7 @@ describe('Navigation Guards: ProtectedRoute & RoleProtectedRoute', () => {
             }
           />
         </Routes>
-      </MemoryRouter>
+      </MemoryRouter>)
     );
 
     expect(screen.getByText('Módulo Restringido')).toBeInTheDocument();
@@ -68,7 +73,7 @@ describe('Navigation Guards: ProtectedRoute & RoleProtectedRoute', () => {
     });
 
     render(
-      <MemoryRouter initialEntries={['/accounting']}>
+      wrap(<MemoryRouter initialEntries={['/accounting']}>
         <Routes>
           <Route
             path="/accounting"
@@ -79,7 +84,7 @@ describe('Navigation Guards: ProtectedRoute & RoleProtectedRoute', () => {
             }
           />
         </Routes>
-      </MemoryRouter>
+      </MemoryRouter>)
     );
 
     expect(screen.getByText('Libros Contables PLE')).toBeInTheDocument();
