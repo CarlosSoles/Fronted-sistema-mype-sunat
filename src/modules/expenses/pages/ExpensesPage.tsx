@@ -5,6 +5,7 @@ import { expensesApi } from '../services/expensesApi';
 import { accountingApi } from '@/modules/accounting/services/accountingApi';
 import { AccountDistributionEditor, toDistributionPayload, type DistributionRow } from '@/modules/accounting/components/AccountDistributionEditor';
 import { rucValido } from '@/modules/invoices/lib/invoiceEmitValidation';
+import { apiClient } from '@/lib/axios';
 
 const money = (n: string | number) => `S/ ${Number(n).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -13,6 +14,7 @@ export default function ExpensesPage() {
   const { data = [], isLoading } = useQuery({ queryKey: ['expenses'], queryFn: expensesApi.list });
   const [form, setForm] = useState({ description: '', supplierName: '', supplierDoc: '', documentNumber: '', expenseDate: new Date().toISOString().slice(0, 10), baseAmount: '', igvAmount: '', totalAmount: '' });
   const [error, setError] = useState<string | null>(null);
+  const [sunatMsg, setSunatMsg] = useState('');
   const [pagos, setPagos] = useState<Array<{ id: string; date: string; amount: number; paymentMethod: string; bankName?: string | null; concept: string }> | null>(null);
   /** Reparto de la base entre varias cuentas contables (tarea 2). */
   const [dist, setDist] = useState<DistributionRow[]>([]);
@@ -28,6 +30,13 @@ export default function ExpensesPage() {
   const distCuadra = dist.length === 0 || Math.abs(repartido - base) <= 0.01;
 
   const rucOk = !form.supplierDoc || rucValido(form.supplierDoc);
+  const consultarRuc = async () => {
+    if (form.supplierDoc.length !== 11 || !rucValido(form.supplierDoc)) return;
+    try {
+      const { data } = await apiClient.get<{ razonSocial?: string }>(`/sunat/ruc/${form.supplierDoc}`);
+      if (data.razonSocial) { setForm((f) => ({ ...f, supplierName: data.razonSocial! })); setSunatMsg('Razón social completada desde SUNAT.'); }
+    } catch { setSunatMsg('No se pudo consultar SUNAT; complete el proveedor manualmente.'); }
+  };
   const anular = useMutation({ mutationFn: (id: string) => expensesApi.annul(id), onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ['expenses'] }); }, onError: (e: any) => setError(e?.response?.data?.message ?? 'No se pudo anular el gasto.') });
   const verPagos = async (id: string) => { try { setPagos(await expensesApi.listPayments(id)); } catch { setError('No se pudo cargar el historial de pagos.'); } };
   const pagar = useMutation({
@@ -65,7 +74,7 @@ export default function ExpensesPage() {
         <div className="grid gap-3 md:grid-cols-3">
           <label className="text-xs">Descripción<Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
           <label className="text-xs">Proveedor<Input value={form.supplierName} onChange={(e) => setForm({ ...form, supplierName: e.target.value })} /></label>
-          <label className="text-xs">RUC<Input value={form.supplierDoc} inputMode="numeric" maxLength={11} onChange={(e) => setForm({ ...form, supplierDoc: e.target.value.replace(/\D/g, '').slice(0, 11) })} />{!rucOk ? <span className="text-[10px] text-destructive">RUC inválido (módulo 11)</span> : null}</label>
+          <label className="text-xs">RUC<Input value={form.supplierDoc} inputMode="numeric" maxLength={11} onBlur={() => void consultarRuc()} onChange={(e) => { setSunatMsg(''); setForm({ ...form, supplierDoc: e.target.value.replace(/\D/g, '').slice(0, 11) }); }} />{!rucOk ? <span className="text-[10px] text-destructive">RUC inválido (módulo 11)</span> : null}{sunatMsg ? <span className="text-[10px] text-muted-foreground">{sunatMsg}</span> : null}</label>
           <label className="text-xs">Documento<Input value={form.documentNumber} onChange={(e) => setForm({ ...form, documentNumber: e.target.value })} /></label>
           <label className="text-xs">Fecha<Input type="date" value={form.expenseDate} onChange={(e) => setForm({ ...form, expenseDate: e.target.value })} /></label>
           <label className="text-xs">Base<Input type="number" value={form.baseAmount} onChange={(e) => setForm({ ...form, baseAmount: e.target.value })} /></label>

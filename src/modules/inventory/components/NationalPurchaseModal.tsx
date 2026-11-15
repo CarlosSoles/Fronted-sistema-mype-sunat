@@ -16,6 +16,7 @@ import {
 import { inventoryApi } from '../services/inventoryApi';
 import { masterDataApi } from '@/modules/customs/services/masterDataApi';
 import { PartnerFormDialog } from '@/modules/customs/components/PartnerFormDialog';
+import { apiClient } from '@/lib/axios';
 import {
   ShoppingBag,
   Plus,
@@ -60,6 +61,7 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
   const [costosRef, setCostosRef] = useState<Record<string, number>>({});
   const [nuevoProveedor, setNuevoProveedor] = useState(false);
   const [proveedorExiste, setProveedorExiste] = useState<boolean | null>(null);
+  const [sunatMsg, setSunatMsg] = useState('');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -113,9 +115,20 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
       const lista = await masterDataApi.getPartners({ q: doc });
       const match = lista.find((p) => p.doc_number === doc);
       setProveedorExiste(Boolean(match));
-      if (match) setSupplierName(match.legal_name);
+      if (match) { setSupplierName(match.legal_name); setSunatMsg(''); return; }
     } catch {
-      setProveedorExiste(null);
+      // Se intenta la consulta externa como respaldo.
+    }
+    try {
+      const { data } = await apiClient.get<{ razonSocial?: string; estadoContribuyente?: string; condicionDomicilio?: string }>(`/sunat/ruc/${doc}`);
+      if (data.razonSocial) {
+        setSupplierName(data.razonSocial);
+        setSunatMsg(`SUNAT: ${data.estadoContribuyente ?? ''} ${data.condicionDomicilio ?? ''}`.trim());
+      }
+      setProveedorExiste(false);
+    } catch {
+      setProveedorExiste(false);
+      setSunatMsg('');
     }
   };
 
@@ -233,6 +246,7 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
                 />
               </div>
             </div>
+            {sunatMsg ? <p className="text-[11px] text-sky-600">{sunatMsg}</p> : null}
             {proveedorExiste === false ? <div className="flex items-center justify-between gap-2"><p className="text-[11px] text-amber-600">El RUC no está en el maestro.</p><Button type="button" size="sm" variant="outline" onClick={() => setNuevoProveedor(true)} className="h-7 gap-1 text-xs"><UserPlus className="h-3.5 w-3.5" />Registrar proveedor</Button></div> : null}
             {proveedorExiste === true ? <p className="text-[11px] text-emerald-600">Proveedor encontrado en el maestro.</p> : null}
           </div>
