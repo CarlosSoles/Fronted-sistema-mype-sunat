@@ -10,6 +10,7 @@ import {
   AlertCircle,
   PackageCheck,
   Ship,
+  XCircle,
 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
@@ -58,6 +59,12 @@ export default function PurchasesPage() {
     setReceiveTarget(p);
     setReceiveQty(Object.fromEntries(p.items.map((i) => [i.id, String(Math.max(0, i.quantity - (i.receivedQuantity ?? 0)))])));
   };
+  const anular = useMutation({
+    mutationFn: (id: string) => purchasesApi.cancelPurchase(id),
+    onSuccess: () => { void refetch(); void queryClient.invalidateQueries({ queryKey: ['purchase-payables'] }); void queryClient.invalidateQueries({ queryKey: ['accounting-entries'] }); },
+    onError: (e: any) => setErrorMessage(e?.response?.data?.message ?? 'No se pudo anular la compra.'),
+  });
+
   const recepcion = useMutation({
     mutationFn: () => purchasesApi.receivePurchase(receiveTarget!.id, { items: receiveTarget!.items.map((i) => ({ itemId: i.id, quantity: Number(receiveQty[i.id] ?? 0) })).filter((i) => i.quantity > 0) }),
     onSuccess: () => { setReceiveTarget(null); void refetch(); void queryClient.invalidateQueries({ queryKey: ['purchase-payables'] }); void queryClient.invalidateQueries({ queryKey: ['inventory-stocks'] }); void queryClient.invalidateQueries({ queryKey: ['inventory-movements'] }); void queryClient.invalidateQueries({ queryKey: ['accounting-entries'] }); },
@@ -327,6 +334,9 @@ export default function PurchasesPage() {
                           Recibir
                         </Button>
                       )}
+                      {p.status !== 'ANULADA' && (p.paidAmount ?? 0) === 0 && p.receptionStatus === 'PENDIENTE' ? (
+                        <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-destructive" onClick={() => { if (window.confirm(`¿Anular la compra ${p.purchaseNumber}? Se revertirá el asiento de compra.`)) anular.mutate(p.id); }}><XCircle className="h-3.5 w-3.5" />Anular</Button>
+                      ) : null}
                       {p.status !== 'PAGADA' && p.status !== 'ANULADA' && (
                         <Button
                           size="sm"

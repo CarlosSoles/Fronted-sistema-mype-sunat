@@ -83,6 +83,11 @@ export const purchasesApi = {
     return data;
   },
 
+  cancelPurchase: async (id: string): Promise<PurchaseRecord> => {
+    const { data } = await apiClient.post<PurchaseRecord>(`/purchases/${id}/cancel`);
+    return data;
+  },
+
   payPurchase: async (
     id: string,
     payload: PayPurchasePayload,
