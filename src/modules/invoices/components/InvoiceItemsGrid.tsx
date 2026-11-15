@@ -130,19 +130,19 @@ export const InvoiceItemsGrid = ({
       ) : null}
 
       <div className="max-w-full overflow-x-hidden rounded-lg" role="region" aria-label="Líneas del comprobante" tabIndex={0}>
-        <table className="block w-full text-xs lg:table lg:table-fixed">
+        <table className="block w-full text-xs lg:table lg:table-auto">
           <thead className="sr-only lg:not-sr-only lg:table-header-group lg:border-b lg:bg-muted/40 lg:text-[11px] lg:text-muted-foreground">
             <tr className="lg:table-row">
-              <th className="px-2 py-1.5 text-left font-medium lg:w-[90px]">Código</th>
-              <th className="px-2 py-1.5 text-left font-medium">Descripción</th>
-              <th className="px-2 py-1.5 text-left font-medium lg:w-[64px]">Und.</th>
-              <th className="px-2 py-1.5 text-right font-medium lg:w-[84px]">Cant.</th>
-              <th className="px-2 py-1.5 text-right font-medium lg:w-[84px]" aria-label="Valor unitario (sin IGV)" title="Valor unitario sin IGV">V.U.</th>
-              <th className="px-2 py-1.5 text-left font-medium lg:w-[130px]">Desc. Cat. 53</th>
-              <th className="px-2 py-1.5 text-right font-medium lg:w-[76px]" title="Cantidad de bolsas · S/ 0.50 c/u">Bolsas</th>
-              <th className="px-2 py-1.5 text-left font-medium lg:w-[160px]">Afectación / Detrac.</th>
-              <th className="px-2 py-1.5 text-right font-medium lg:w-[88px]">Total</th>
-              <th className="px-1 py-1.5 lg:w-[36px]" aria-label="Acciones" />
+              <th className="px-1.5 py-1.5 text-left font-medium whitespace-nowrap">Código</th>
+              <th className="px-1.5 py-1.5 text-left font-medium min-w-[110px]">Descripción</th>
+              <th className="px-1 py-1.5 text-left font-medium whitespace-nowrap">Und.</th>
+              <th className="px-1 py-1.5 text-right font-medium whitespace-nowrap">Cant.</th>
+              <th className="px-1 py-1.5 text-right font-medium whitespace-nowrap" aria-label="Valor unitario (sin IGV)" title="Valor unitario sin IGV">V.U.</th>
+              <th className="px-1 py-1.5 text-left font-medium whitespace-nowrap">Desc. Cat. 53</th>
+              <th className="px-1 py-1.5 text-right font-medium whitespace-nowrap" title="Cantidad de bolsas · S/ 0.50 c/u">Bolsas</th>
+              <th className="px-1.5 py-1.5 text-left font-medium whitespace-nowrap">Afectación / Detrac.</th>
+              <th className="px-1.5 py-1.5 text-right font-medium whitespace-nowrap">Total</th>
+              <th className="px-1 py-1.5 w-8" aria-label="Acciones" />
             </tr>
           </thead>
           <tbody className="block space-y-2 lg:table-row-group lg:space-y-0 lg:divide-y">
@@ -293,7 +293,7 @@ export const InvoiceItemsGrid = ({
                       {item.afectacion === 'GRATUITA' ? <select aria-label={`Motivo de gratuidad de la línea ${i + 1}`} className={CLASE_CELDA} value={item.codigoAfectacion ?? ''} disabled={esNota} onChange={e => onCambiar(i, { codigoAfectacion: e.target.value })}>
                         <option value="">Motivo</option>
                         {OPCIONES_GRATUITAS.map(([codigo, nombre]) => <option key={codigo} value={codigo}>{codigo} - {nombre}</option>)}
-                      </select> : <span aria-label={`Afectación de la línea ${i + 1}`} className="truncate text-[11px] text-muted-foreground" title={`${codigoAfectacion} - ${NOMBRES_AFECTACION[codigoAfectacion] ?? item.afectacion} · Tributo ${tributo}`}>
+                      </select> : <span aria-label={`Afectación de la línea ${i + 1}`} className="block max-w-[140px] truncate text-[11px] text-muted-foreground" title={`${codigoAfectacion} - ${NOMBRES_AFECTACION[codigoAfectacion] ?? item.afectacion} · Tributo ${tributo}`}>
                         {codigoAfectacion} · {NOMBRES_AFECTACION[codigoAfectacion] ?? item.afectacion} · Tributo {tributo}
                       </span>}
                     </div>
