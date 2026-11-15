@@ -1,7 +1,9 @@
 import { Fragment, useState, useEffect, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useUiStore } from '@/stores/uiStore';
 import { useAuth } from '@/hooks/useAuth';
+import { modulePermissionsApi } from '@/modules/auth/services/modulePermissionsApi';
 import { type Role } from '@/modules/auth/types/auth.types';
 import { cn } from '@/lib/utils';
 import {
@@ -120,6 +122,7 @@ export const NAV_ITEMS: NavItem[] = [
     allowedRoles: ['ADMIN'],
     subItems: [
       { title: 'Usuarios y almacenes', path: '/usuarios/almacenes', icon: Settings },
+      { title: 'Permisos por módulo', path: '/usuarios/permisos', icon: Settings },
     ],
   },
   {
@@ -275,9 +278,14 @@ export const Sidebar = () => {
     return subs.filter((sub) => !sub.allowedRoles || sub.allowedRoles.includes(currentRole));
   };
 
+  const { data: permisosModulo = [] } = useQuery({ queryKey: ['module-permissions-me'], queryFn: modulePermissionsApi.mine });
+  const moduloDeRuta: Record<string, string> = { '/invoices': 'M1', '/customs': 'M2', '/sire': 'M3', '/accounting': 'M4', '/inventory': 'M6', '/sales': 'M7', '/purchases': 'M8', '/usuarios': 'M9' };
+  const modulosVisibles = new Set(permisosModulo.filter((p) => p.canView).map((p) => p.moduleCode));
   const visibleNavItems = NAV_ITEMS.filter((item) => {
     if (!currentRole || currentRole === 'ADMIN') return true;
-    return item.allowedRoles.includes(currentRole);
+    if (!item.allowedRoles.includes(currentRole)) return false;
+    const modulo = moduloDeRuta[item.path];
+    return !modulo || modulosVisibles.size === 0 || modulosVisibles.has(modulo);
   });
   const terminoMenu = menuQuery.trim().toLowerCase();
   const filteredNavItems = visibleNavItems.flatMap((item) => {
