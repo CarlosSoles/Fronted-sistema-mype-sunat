@@ -244,13 +244,14 @@ export default function AccountingPlanCuentasPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos los tipos</SelectItem>
+                {/* Elementos del PCGE: el 2 no es Pasivo, es Activo realizable. */}
                 <SelectItem value="1">Activo</SelectItem>
-                <SelectItem value="2">Pasivo</SelectItem>
-                <SelectItem value="3">Patrimonio</SelectItem>
-                <SelectItem value="4">Ingresos</SelectItem>
-                <SelectItem value="5">Gastos</SelectItem>
-                <SelectItem value="6">Cuentas analíticas</SelectItem>
-                <SelectItem value="7">Ingresos por naturaleza</SelectItem>
+                <SelectItem value="2">Activo realizable</SelectItem>
+                <SelectItem value="3">Activo inmovilizado</SelectItem>
+                <SelectItem value="4">Pasivo</SelectItem>
+                <SelectItem value="5">Patrimonio</SelectItem>
+                <SelectItem value="6">Gastos</SelectItem>
+                <SelectItem value="7">Ingresos</SelectItem>
                 <SelectItem value="8">Saldos intermediarios</SelectItem>
                 <SelectItem value="9">Costos de producción</SelectItem>
               </SelectContent>

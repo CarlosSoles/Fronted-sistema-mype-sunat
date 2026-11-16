@@ -38,28 +38,40 @@ export default function AccountingPeriodsPage() {
     queryClient.setQueryData<any[]>(['accounting-periods'], (prev) => prev?.map((p) => p.period === periodo.period ? { ...p, ...periodo } : p));
   };
 
+  /**
+   * Mensaje del error del servidor, o el texto de respaldo.
+   *
+   * Antes la pantalla mostraba siempre un texto genérico y era imposible saber
+   * si fallaba por la empresa activa, por permiso o porque el período ya existía.
+   */
+  const mensajeDeError = (e: any, respaldo: string): string => {
+    const texto = e?.response?.data?.message;
+    if (Array.isArray(texto)) return texto.join(' · ');
+    return typeof texto === 'string' && texto.trim() ? texto : respaldo;
+  };
+
   const openYear = useMutation({
     mutationFn: (y: number) => accountingApi.openFiscalYear(y),
     onSuccess: async () => { setError(null); await invalidate(); },
-    onError: () => setError('No se pudo abrir el año fiscal.'),
+    onError: (e: any) => setError(mensajeDeError(e, 'No se pudo abrir el año fiscal.')),
   });
 
   const closingEntry = useMutation({
     mutationFn: (y: number) => accountingApi.generateClosingEntry(y),
     onSuccess: async () => { setError(null); await invalidate(); },
-    onError: () => setError('No se pudo generar el asiento de cierre. Verifique que el año tenga asientos y no esté cerrado.'),
+    onError: (e: any) => setError(mensajeDeError(e, 'No se pudo generar el asiento de cierre. Verifique que el año tenga asientos y no esté cerrado.')),
   });
 
   const closeAnnual = useMutation({
     mutationFn: (y: number) => accountingApi.closeAnnual(y),
     onSuccess: async (data) => { setError(null); setOk(data.closingEntryCreated ? 'Asiento de cierre generado y año bloqueado.' : 'El asiento de cierre ya existía; año bloqueado.'); await invalidate(); },
-    onError: (e: any) => setError(e?.response?.data?.message ?? 'No se pudo cerrar el año completo.'),
+    onError: (e: any) => setError(mensajeDeError(e, 'No se pudo cerrar el año completo.')),
   });
 
   const closeYear = useMutation({
     mutationFn: (y: number) => accountingApi.closeFiscalYear(y),
     onSuccess: async () => { setError(null); await invalidate(); },
-    onError: () => setError('No se pudo cerrar el año fiscal.'),
+    onError: (e: any) => setError(mensajeDeError(e, 'No se pudo cerrar el año fiscal.')),
   });
 
   const openPeriod = useMutation({
@@ -69,7 +81,7 @@ export default function AccountingPeriodsPage() {
       actualizarPeriodo(periodo);
       await invalidate();
     },
-    onError: () => setError('No se pudo abrir el período. Verifica la empresa activa.'),
+    onError: (e: any) => setError(mensajeDeError(e, 'No se pudo abrir el período.')),
   });
 
   const closePeriod = useMutation({

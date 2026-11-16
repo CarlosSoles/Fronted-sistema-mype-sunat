@@ -206,7 +206,7 @@ export default function ManualEntryModal({ open, onClose, onSaved, proximoNumero
               </label>
               <Input
                 id="asiento-origen"
-                placeholder="Ej. Caja / Ventas"
+                placeholder="Ej. Tienda principal"
                 value={responsible}
                 onChange={(e) => setResponsible(e.target.value)}
               />
