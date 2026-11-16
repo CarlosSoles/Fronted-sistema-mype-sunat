@@ -39,9 +39,10 @@ describe('BA-01 · el documento del cliente depende del tipo de CPE', () => {
     expect(documentoValidoParaTipo('01', '20601012342')).toBe(false);
   });
 
-  it('la Boleta exige DNI de 8 dígitos y no acepta RUC', () => {
+  it('la Boleta admite DNI de 8 dígitos y RUC válido', () => {
     expect(documentoValidoParaTipo('03', CLIENTE_DNI)).toBe(true);
-    expect(documentoValidoParaTipo('03', FACTURA_RUC)).toBe(false);
+    expect(documentoValidoParaTipo('03', FACTURA_RUC)).toBe(true);
+    expect(documentoValidoParaTipo('03', '20601012342')).toBe(false);
   });
 
   it('las notas aceptan RUC o DNI porque heredan el adquirente', () => {
