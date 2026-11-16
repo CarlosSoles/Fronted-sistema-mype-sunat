@@ -12,3 +12,19 @@ export function serverModules(){
 export function serverActions(){
  const current=role();return ['INVOICE_EDIT_ISSUE_DATE','INVOICE_FORCE_RESEND','INVOICE_RESOLVE_DLQ','INVOICE_REPROCESS_BRIDGE'].map(actionCode=>({role:current??'',actionCode,allowed:current==='ADMIN'||current==='OPERADOR_FACTURACION'&&actionCode==='INVOICE_RESOLVE_DLQ'}));
 }
+
+import technical from './dynamicPermissions.json';
+const SYSTEM=['ADMIN','CONTADOR','OPERADOR_FACTURACION','OPERADOR_ADUANAS','AUDITOR'];
+const NAMES:Record<string,string>={ADMIN:'Administrador',CONTADOR:'Contador',OPERADOR_FACTURACION:'Operador de facturación',OPERADOR_ADUANAS:'Operador de aduanas',AUDITOR:'Auditor'};
+export const TEST_ACTIONS=technical.actions.map(a=>[a.code,a.name] as const);
+export const TEST_ROLES=SYSTEM;
+export const serverRoleRows=()=>SYSTEM.map(code=>({code,name:NAMES[code],isSystem:true}));
+export const serverCatalog=()=>({actions:technical.actions,menus:technical.menus});
+export const serverMenuRows=()=>SYSTEM.flatMap(role=>technical.menus.map(m=>({role,menuCode:m.code,canView:m.roles.includes(role)})));
+export function serverSnapshot(){
+ const current=role()??'';const modules=serverModules();
+ const actions=technical.actions.map(a=>({role:current,actionCode:a.code,allowed:a.roles.includes(current),available:SYSTEM.includes(current)&&(!a.reservedAdmin||current==='ADMIN')&&(a.accessGate?Boolean(technical.actions.find(d=>d.code===a.accessGate)?.roles.includes(current)):a.roles.includes(current))}));
+ const menus=technical.menus.map(m=>({...m,canView:m.roles.includes(current)&&Boolean(modules.find(row=>row.moduleCode===m.moduleCode)?.canView)}));
+ const preferred=current==='CONTADOR'?'/accounting':current==='OPERADOR_ADUANAS'?'/customs':'/invoices/dashboard';
+ return {ui:{showDuaCreation:['ADMIN','OPERADOR_ADUANAS'].includes(current),showAccountingCreation:['ADMIN','CONTADOR'].includes(current)},role:{code:current,name:NAMES[current]??current,isSystem:SYSTEM.includes(current)},modules,actions,menus,homePath:menus.find(m=>m.canView&&m.path===preferred)?.path??menus.find(m=>m.canView)?.path??null,customRolesEnabled:false};
+}
