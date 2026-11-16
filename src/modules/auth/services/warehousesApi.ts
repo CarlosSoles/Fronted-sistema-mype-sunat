@@ -3,7 +3,7 @@ import { apiClient } from '@/lib/axios';
 export interface WarehouseOption { warehouse_code: string; description: string; sunat_establishment_code?: string }
 export interface UserWarehouseRow { id: string; email: string; fullName: string; role: string; isActive: boolean; warehouseCodes: string[] }
 
-export interface CreateUserInput { name: string; email: string; password: string; role: 'ADMIN' | 'CONTADOR' | 'OPERADOR_FACTURACION' | 'OPERADOR_ADUANAS' | 'AUDITOR' }
+export interface CreateUserInput { name: string; email: string; password: string; role: string }
 export type CreatedUser = Omit<UserWarehouseRow, 'warehouseCodes'> & { companyId: string };
 
 export const warehousesApi = {

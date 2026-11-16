@@ -5,7 +5,6 @@ export const MODULES_PERMISOS = [
   ['M1', 'Facturación'], ['M2', 'Importaciones'], ['M3', 'SIRE'], ['M4', 'Contabilidad'], ['M5', 'Resiliencia'],
   ['M6', 'Inventario y Kardex'], ['M7', 'Ventas'], ['M8', 'Compras'], ['M9', 'Seguridad y Accesos'], ['M10', 'Experiencia de Usuario'],
 ] as const;
-export const ROLES_PERMISOS = ['ADMIN', 'CONTADOR', 'OPERADOR_FACTURACION', 'OPERADOR_ADUANAS', 'AUDITOR'] as const;
 export const modulePermissionsApi = {
   list: async (): Promise<ModulePermission[]> => (await apiClient.get<ModulePermission[]>('/auth/module-permissions')).data,
   mine: async (): Promise<ModulePermission[]> => (await apiClient.get<ModulePermission[]>('/auth/module-permissions/me')).data,
