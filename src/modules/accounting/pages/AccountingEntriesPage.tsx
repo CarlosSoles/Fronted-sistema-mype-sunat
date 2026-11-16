@@ -169,14 +169,24 @@ const mapearAsiento = (
 
 type Diario = 'TODOS' | 'VEN' | 'COM' | 'CAJ' | 'OPV';
 
+/**
+ * Diario al que pertenece el asiento.
+ *
+ * `OPV` es el valor por defecto de la base, así que muchos asientos históricos
+ * de ventas quedaron ahí aunque su diario real sea Ventas. Por eso, cuando el
+ * código es genérico (OPV/GAS) o falta, se deduce por las cuentas: 70 ingresos,
+ * 60 compras, 10 con 12 cobros. `IMP` son las importaciones y van a Compras.
+ */
 const diarioDe = (entry: Entry): Exclude<Diario, 'TODOS'> => {
-  if (entry.journalCode && ['VEN', 'COM', 'CAJ', 'OPV', 'GAS'].includes(entry.journalCode)) {
-    return entry.journalCode === 'GAS' ? 'OPV' : entry.journalCode as Exclude<Diario, 'TODOS'>;
-  }
-  const codigos = entry.lines.map((l) => l.accountCode);
-  if (codigos.some((c) => c.startsWith('70'))) return 'VEN';
-  if (codigos.some((c) => c.startsWith('10')) && codigos.some((c) => c.startsWith('12'))) return 'CAJ';
-  if (codigos.some((c) => c.startsWith('60'))) return 'COM';
+  const codigo = entry.journalCode;
+  if (codigo === 'VEN') return 'VEN';
+  if (codigo === 'COM' || codigo === 'IMP') return 'COM';
+  if (codigo === 'CAJ') return 'CAJ';
+
+  const cuentas = entry.lines.map((l) => l.accountCode);
+  if (cuentas.some((c) => c.startsWith('70'))) return 'VEN';
+  if (cuentas.some((c) => c.startsWith('60'))) return 'COM';
+  if (cuentas.some((c) => c.startsWith('10')) && cuentas.some((c) => c.startsWith('12'))) return 'CAJ';
   return 'OPV';
 };
 
