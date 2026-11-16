@@ -1,150 +1,40 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { empresaApi } from '../services/empresaApi';
-import { sireApi } from '../services/sireApi';
 import { SireApiError } from '../services/sireApiHttp';
-import type {
-  EmpresaConfiguracionPayload,
-  EmpresaRucValidacion,
-  SireConfiguracionPayload,
-  SireConfiguracionStatus,
-} from '../types/sire.types';
+import type { EmpresaConfiguracionPayload, EmpresaRucValidacion } from '../types/sire.types';
 
 export interface UseSireConfiguracion {
-  /** Está consultando el estado de la configuración (`GET .../status`). */
-  isLoading: boolean;
-  /** Está guardando las credenciales (`POST .../configuracion`). */
-  isSaving: boolean;
   /** Está guardando los datos globales de la empresa (`PUT /empresa/configuracion`). */
   isSavingCompany: boolean;
   /** Está validando el RUC contra Decolecta (`GET /empresa/validar-ruc/:ruc`). */
   isValidatingRuc: boolean;
-  /** La empresa ya tiene las cuatro credenciales guardadas. */
-  configured: boolean;
-  /** Error al consultar el estado de la configuración. */
-  error: string | null;
-  /** Error al guardar las credenciales. */
-  saveError: string | null;
   /** Error al guardar los datos globales de la empresa. */
   companyError: string | null;
   /** Error al validar el RUC de la empresa. */
   rucError: string | null;
-  /** Confirmación de un guardado correcto. */
-  successMessage: string | null;
   /** Confirmación del guardado de los datos de la empresa. */
   companySuccessMessage: string | null;
-  /** Guarda las credenciales enviadas y devuelve si quedaron completas. */
-  save: (payload: SireConfiguracionPayload) => Promise<boolean>;
   /** Guarda los datos globales de la empresa. */
   saveCompany: (payload: EmpresaConfiguracionPayload) => Promise<boolean>;
   /** Valida el RUC y devuelve la razón social, o `null` si falla. */
   validateRuc: (ruc: string) => Promise<EmpresaRucValidacion | null>;
-  /** Vuelve a consultar el estado de la configuración. */
-  reload: () => Promise<void>;
-  /** Limpia los mensajes de resultado (sin tocar el estado consultado). */
+  /** Limpia los mensajes de resultado. */
   resetMessages: () => void;
 }
 
 /**
- * Estado de la configuración SIRE de la empresa.
+ * Estado de los datos globales de la empresa para la configuración SIRE.
  *
- * Al montar la pantalla consulta `GET /sire/configuracion/status`; el backend
- * solo devuelve `{ configured }`, nunca las credenciales. El guardado va a
- * `POST /sire/configuracion` y devuelve el mismo indicador.
+ * El guardado va a `PUT /empresa/configuracion` y la validación del RUC a
+ * `GET /empresa/validar-ruc/:ruc`. Las credenciales SIRE/SUNAT se administran
+ * en su propia pantalla.
  */
 export const useSireConfiguracion = (): UseSireConfiguracion => {
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
   const [isSavingCompany, setIsSavingCompany] = useState(false);
   const [isValidatingRuc, setIsValidatingRuc] = useState(false);
-  const [configured, setConfigured] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
   const [companyError, setCompanyError] = useState<string | null>(null);
   const [rucError, setRucError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [companySuccessMessage, setCompanySuccessMessage] = useState<string | null>(null);
-
-  const runRef = useRef(0);
-
-  const reload = useCallback(async () => {
-    const run = runRef.current + 1;
-    runRef.current = run;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const status: SireConfiguracionStatus = await sireApi.getConfiguracionStatus();
-      if (run !== runRef.current) return;
-      setConfigured(status.configured);
-    } catch (cause) {
-      if (run !== runRef.current) return;
-      setConfigured(false);
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : 'No se pudo consultar el estado de la configuración SIRE.',
-      );
-    } finally {
-      if (run === runRef.current) setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-
-    const init = async () => {
-      try {
-        const status = await sireApi.getConfiguracionStatus();
-        if (active) {
-          setConfigured(status.configured);
-        }
-      } catch (cause) {
-        if (active) {
-          setConfigured(false);
-          setError(
-            cause instanceof Error
-              ? cause.message
-              : 'No se pudo consultar el estado de la configuración SIRE.',
-          );
-        }
-      } finally {
-        if (active) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    void init();
-
-    return () => {
-      active = false;
-      runRef.current += 1;
-    };
-  }, []);
-
-  const save = useCallback(async (payload: SireConfiguracionPayload) => {
-    const run = runRef.current + 1;
-    runRef.current = run;
-    setIsSaving(true);
-    setSaveError(null);
-    setSuccessMessage(null);
-    try {
-      const status = await sireApi.saveConfiguracion(payload);
-      if (run !== runRef.current) return false;
-      setConfigured(status.configured);
-      setSuccessMessage('Credenciales guardadas exitosamente.');
-      return status.configured;
-    } catch (cause) {
-      if (run !== runRef.current) return false;
-      setSaveError(
-        cause instanceof Error
-          ? cause.message
-          : 'No se pudo guardar la configuración SIRE de la empresa.',
-      );
-      return false;
-    } finally {
-      if (run === runRef.current) setIsSaving(false);
-    }
-  }, []);
 
   const saveCompany = useCallback(async (payload: EmpresaConfiguracionPayload) => {
     setIsSavingCompany(true);
@@ -186,29 +76,19 @@ export const useSireConfiguracion = (): UseSireConfiguracion => {
   }, []);
 
   const resetMessages = useCallback(() => {
-    setSaveError(null);
-    setSuccessMessage(null);
     setCompanyError(null);
     setCompanySuccessMessage(null);
     setRucError(null);
   }, []);
 
   return {
-    isLoading,
-    isSaving,
     isSavingCompany,
     isValidatingRuc,
-    configured,
-    error,
-    saveError,
     companyError,
     rucError,
-    successMessage,
     companySuccessMessage,
-    save,
     saveCompany,
     validateRuc,
-    reload,
     resetMessages,
   };
 };

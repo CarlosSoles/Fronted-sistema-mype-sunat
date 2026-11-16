@@ -64,6 +64,7 @@ const InventoryOpeningPage = React.lazy(() => import('@/modules/inventory/pages/
 const InventoryMovementsPage = React.lazy(() => import('@/modules/inventory/pages/InventoryMovementsPage'));
 const ProductKardexPage = React.lazy(() => import('@/modules/inventory/pages/ProductKardexPage'));
 const SireConfiguracionPage = React.lazy(() => import('@/modules/sire/pages/SireConfiguracionPage'));
+const SireCredentialsPage = React.lazy(() => import('@/modules/sire/pages/SireCredentialsPage'));
 const SireMapeoContablePage = React.lazy(() => import('@/modules/sire/pages/SireMapeoContablePage'));
 const SireReconciliationPage = React.lazy(() => import('@/modules/sire/pages/SireReconciliationPage'));
 const SireImportPage = React.lazy(() => import('@/modules/sire/pages/SireImportPage'));
@@ -535,6 +536,14 @@ export const AppRoutes = () => {
               element={
                 <RoleProtectedRoute >
                   <SireConfiguracionPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/sire/credenciales"
+              element={
+                <RoleProtectedRoute >
+                  <SireCredentialsPage />
                 </RoleProtectedRoute>
               }
             />

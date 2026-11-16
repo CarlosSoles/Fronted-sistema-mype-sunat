@@ -23,6 +23,7 @@ import {
   WalletCards,
   FolderGit2,
   GitCompareArrows,
+  KeyRound,
   LayoutDashboard,
   ListChecks,
   FileUp,
@@ -182,6 +183,7 @@ export const NAV_ITEMS: NavItem[] = [
 
     subItems: [
       { title: 'Configuración SUNAT', path: '/sire/configuracion', icon: Settings },
+      { title: 'Credenciales SUNAT', path: '/sire/credenciales', icon: KeyRound },
       { title: 'Mapeo Contable', path: '/sire/mapeo-contable', icon: ListChecks },
       { title: 'Importar Propuesta', path: '/sire/importar', icon: FileUp },
       { title: 'Consulta de periodos', path: '/sire/periodos', icon: Search },
