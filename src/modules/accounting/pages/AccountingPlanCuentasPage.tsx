@@ -14,6 +14,11 @@ import {
   Input,
   Page,
   PageHeader,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Table,
   TableBody,
   TableCell,
@@ -66,6 +71,8 @@ function buildTree(accounts: AccountingAccount[]): TreeNode[] {
 
 export default function AccountingPlanCuentasPage() {
   const [search, setSearch] = useState('');
+  const [filtroTipo, setFiltroTipo] = useState('');
+  const [filtroEstado, setFiltroEstado] = useState<'TODOS' | 'ACTIVA' | 'INACTIVA'>('TODOS');
   const [abrirAlta, setAbrirAlta] = useState(false);
   const [abrirTesoreria, setAbrirTesoreria] = useState(false);
   const [nueva, setNueva] = useState({ code: '', name: '', parentCode: '' });
@@ -88,13 +95,18 @@ export default function AccountingPlanCuentasPage() {
   const tree = useMemo(() => buildTree(accounts), [accounts]);
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return null;
-    return accounts.filter(
-      (account) =>
-        account.code.toLowerCase().includes(term) ||
-        account.name.toLowerCase().includes(term),
-    );
-  }, [accounts, search]);
+    const hayFiltros = Boolean(term || filtroTipo || filtroEstado !== 'TODOS');
+    if (!hayFiltros) return null;
+    return accounts.filter((account) => {
+      if (filtroTipo && !account.code.startsWith(filtroTipo)) return false;
+      if (filtroEstado === 'ACTIVA' && !account.isActive) return false;
+      if (filtroEstado === 'INACTIVA' && account.isActive) return false;
+      if (term && !account.code.toLowerCase().includes(term) && !account.name.toLowerCase().includes(term)) {
+        return false;
+      }
+      return true;
+    });
+  }, [accounts, search, filtroTipo, filtroEstado]);
 
   const toggle = (code: string) => {
     setExpanded((prev) => {
@@ -149,8 +161,8 @@ export default function AccountingPlanCuentasPage() {
   return (
     <Page>
       <PageHeader
-        title="Plan Contable General Empresarial (PCGE 2019)"
-        description={`${accounts.length} cuentas cargadas · jerarquía por elemento, cuenta y subcuenta`}
+        title="Plan de Cuentas"
+        description={`${accounts.length} cuentas · jerarquía por elemento, cuenta y subcuenta`}
       >
         <Button size="sm" variant="outline" onClick={() => setAbrirTesoreria(true)}>Cuentas de tesorería</Button>
         <Button size="sm" onClick={() => setAbrirAlta(true)}><Plus className="h-4 w-4 mr-1" /> Nueva subcuenta</Button>
@@ -159,22 +171,47 @@ export default function AccountingPlanCuentasPage() {
       <TreasuryAccountsCard abierto={abrirTesoreria} onCerrar={() => setAbrirTesoreria(false)} cuentas={accounts} />
 
       <Card className="mb-4">
-        <div className="p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="relative w-full md:max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <div className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center">
+          <div className="relative w-full lg:max-w-sm">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               className="pl-9"
-              placeholder="Buscar por código o nombre de cuenta"
+              placeholder="Buscar por código o nombre"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
           </div>
-          <div className="flex gap-2 flex-wrap">
-            {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((element) => (
-              <Badge key={element} variant="outline">
-                Elemento {element}: {accounts.filter((account) => account.code.startsWith(element)).length}
-              </Badge>
-            ))}
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={filtroTipo || 'todos'} onValueChange={(v) => setFiltroTipo(v === 'todos' ? '' : v)}>
+              <SelectTrigger className="h-9 w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos los tipos</SelectItem>
+                <SelectItem value="1">Activo</SelectItem>
+                <SelectItem value="2">Pasivo</SelectItem>
+                <SelectItem value="3">Patrimonio</SelectItem>
+                <SelectItem value="4">Ingresos</SelectItem>
+                <SelectItem value="5">Gastos</SelectItem>
+                <SelectItem value="6">Cuentas analíticas</SelectItem>
+                <SelectItem value="7">Ingresos por naturaleza</SelectItem>
+                <SelectItem value="8">Saldos intermediarios</SelectItem>
+                <SelectItem value="9">Costos de producción</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filtroEstado} onValueChange={(v) => setFiltroEstado(v as 'TODOS' | 'ACTIVA' | 'INACTIVA')}>
+              <SelectTrigger className="h-9 w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TODOS">Todos los estados</SelectItem>
+                <SelectItem value="ACTIVA">Activas</SelectItem>
+                <SelectItem value="INACTIVA">Inactivas</SelectItem>
+              </SelectContent>
+            </Select>
+            <span className="ml-auto text-xs tabular-nums text-muted-foreground">
+              {(filtered ?? accounts).length} cuenta(s)
+            </span>
           </div>
         </div>
       </Card>

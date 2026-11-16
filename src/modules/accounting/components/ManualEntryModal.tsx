@@ -38,6 +38,8 @@ interface ManualEntryModalProps {
   period: string;
   onClose: () => void;
   onSaved: () => void;
+  /** Número que le tocará al asiento, calculado con los asientos del período. */
+  proximoNumero?: (fecha: string) => string;
 }
 
 const round2 = (value: number) => Math.round(value * 100) / 100;
@@ -49,7 +51,7 @@ const hoy = () => {
 };
 const lineaVacia = (): LineDraft => ({ accountCode: '', description: '', debit: '', credit: '' });
 
-export default function ManualEntryModal({ open, onClose, onSaved }: ManualEntryModalProps) {
+export default function ManualEntryModal({ open, onClose, onSaved, proximoNumero }: ManualEntryModalProps) {
   const [entryDate, setEntryDate] = useState(hoy);
   const [journalCode, setJournalCode] = useState('OPV');
   const [responsible, setResponsible] = useState('');
@@ -89,8 +91,10 @@ export default function ManualEntryModal({ open, onClose, onSaved }: ManualEntry
   }, [lines]);
 
   const cuadrado = totales.debit > 0 && Math.abs(totales.debit - totales.credit) < 0.005;
+  // Referencia completa: el correlativo sale de los asientos ya cargados del
+  // período; si aún no hay ninguno, será el 0001.
   const [anio, mes] = entryDate.split('-');
-  const referencia = `MISC/${anio}/${mes}/····`;
+  const referencia = proximoNumero ? proximoNumero(entryDate) : `MISC/${anio}/${mes}/0001`;
 
   const updateLine = (index: number, patch: Partial<LineDraft>) => {
     setLines((prev) => prev.map((line, i) => (i === index ? { ...line, ...patch } : line)));
@@ -197,10 +201,15 @@ export default function ManualEntryModal({ open, onClose, onSaved }: ManualEntry
               </Select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground" htmlFor="asiento-responsable">
-                Responsable (opcional)
+              <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground" htmlFor="asiento-origen">
+                Origen (opcional)
               </label>
-              <Input id="asiento-responsable" value={responsible} onChange={(e) => setResponsible(e.target.value)} />
+              <Input
+                id="asiento-origen"
+                placeholder="Ej. Caja / Ventas"
+                value={responsible}
+                onChange={(e) => setResponsible(e.target.value)}
+              />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
               <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground" htmlFor="asiento-concepto">

@@ -169,14 +169,24 @@ const mapearAsiento = (
 
 type Diario = 'TODOS' | 'VEN' | 'COM' | 'CAJ' | 'OPV';
 
+/**
+ * Diario al que pertenece el asiento.
+ *
+ * `OPV` es el valor por defecto de la base, así que muchos asientos históricos
+ * de ventas quedaron ahí aunque su diario real sea Ventas. Por eso, cuando el
+ * código es genérico (OPV/GAS) o falta, se deduce por las cuentas: 70 ingresos,
+ * 60 compras, 10 con 12 cobros. `IMP` son las importaciones y van a Compras.
+ */
 const diarioDe = (entry: Entry): Exclude<Diario, 'TODOS'> => {
-  if (entry.journalCode && ['VEN', 'COM', 'CAJ', 'OPV', 'GAS'].includes(entry.journalCode)) {
-    return entry.journalCode === 'GAS' ? 'OPV' : entry.journalCode as Exclude<Diario, 'TODOS'>;
-  }
-  const codigos = entry.lines.map((l) => l.accountCode);
-  if (codigos.some((c) => c.startsWith('70'))) return 'VEN';
-  if (codigos.some((c) => c.startsWith('10')) && codigos.some((c) => c.startsWith('12'))) return 'CAJ';
-  if (codigos.some((c) => c.startsWith('60'))) return 'COM';
+  const codigo = entry.journalCode;
+  if (codigo === 'VEN') return 'VEN';
+  if (codigo === 'COM' || codigo === 'IMP') return 'COM';
+  if (codigo === 'CAJ') return 'CAJ';
+
+  const cuentas = entry.lines.map((l) => l.accountCode);
+  if (cuentas.some((c) => c.startsWith('70'))) return 'VEN';
+  if (cuentas.some((c) => c.startsWith('60'))) return 'COM';
+  if (cuentas.some((c) => c.startsWith('10')) && cuentas.some((c) => c.startsWith('12'))) return 'CAJ';
   return 'OPV';
 };
 
@@ -216,8 +226,14 @@ const periodoDeRango = (desde: string, hasta: string): string => {
  * El backend numera 001-202611-001; aquí se presenta en el formato de la lista
  * para que año, mes y correlativo se lean de un vistazo.
  */
-const numeroFormateado = (entry: Entry): string => {
-  // El correlativo se numera por período contable, no por la fecha: si se usa
+/**
+ * Origen visible: si el contador escribió un área en el alta manual ("Caja /
+ * Ventas"), manda ese texto; si no, el módulo que generó el asiento.
+ */
+const etiquetaOrigenDe = (entry: Entry): string =>
+  entry.responsible?.trim() || etiquetaOrigen(entry.sourceModule);
+
+const numeroFormateado = (entry: Entry): string => {  // El correlativo se numera por período contable, no por la fecha: si se usa
   // la fecha y no coinciden, el número mostrado no existe en la base.
   const periodo = entry.period && /^\d{4}-\d{2}$/.test(entry.period)
     ? entry.period
@@ -290,6 +306,22 @@ export default function AccountingEntriesPage() {
   }, [entries, diario, desde, hasta, busqueda]);
 
   const rangoInvalido = Boolean(desde && hasta && desde > hasta);
+
+  // Siguiente correlativo por período, para mostrar la referencia completa en
+  // el alta manual sin inventar el número.
+  const proximoNumero = useMemo(() => {
+    const ultimo = new Map<string, number>();
+    for (const entry of entries) {
+      const periodo = entry.period ?? entry.fechaContable.slice(0, 7);
+      const correlativo = Number(entry.numeroAsiento.match(/(\d+)$/)?.[1] ?? 0);
+      ultimo.set(periodo, Math.max(ultimo.get(periodo) ?? 0, correlativo));
+    }
+    return (fecha: string): string => {
+      const periodo = fecha.slice(0, 7);
+      const siguiente = (ultimo.get(periodo) ?? 0) + 1;
+      return `MISC/${periodo.replace('-', '/')}/${String(siguiente).padStart(4, '0')}`;
+    };
+  }, [entries]);
 
   // El diario solo se muestra como columna cuando la pestaña es "Todos"; en las
   // demás ya se sabe qué diario se está mirando.
@@ -426,7 +458,7 @@ export default function AccountingEntriesPage() {
                     </TableCell>
                   ) : null}
                   <TableCell className="whitespace-nowrap text-muted-foreground">
-                    {etiquetaOrigen(entry.sourceModule)}
+                    {etiquetaOrigenDe(entry)}
                   </TableCell>
                   <TableCell align="right" className="whitespace-nowrap font-medium tabular-nums">
                     {formatCurrency(entry.totalDebe, 'PEN')}
@@ -473,11 +505,9 @@ export default function AccountingEntriesPage() {
                 numero: numeroFormateado(detalle),
                 fecha: detalle.fechaContable,
                 glosa: detalle.glosa,
-                origen: etiquetaOrigen(detalle.sourceModule),
+                origen: etiquetaOrigenDe(detalle),
                 diario: DIARIOS.find((d) => d.key === diarioDe(detalle))?.label ?? null,
                 referencia: detalle.sourceReferenceId,
-                createdAt: detalle.createdAt,
-                responsable: detalle.responsible ?? null,
                 observacion: detalle.observation ?? null,
                 lineas: detalle.lines.map((linea) => ({
                   code: linea.accountCode,
@@ -495,6 +525,7 @@ export default function AccountingEntriesPage() {
       <ManualEntryModal
         open={isModalOpen}
         period={period}
+        proximoNumero={proximoNumero}
         onClose={() => setIsModalOpen(false)}
         onSaved={() => void refetch()}
       />

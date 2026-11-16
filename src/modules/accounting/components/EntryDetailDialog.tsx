@@ -23,31 +23,18 @@ export interface EntryDetail {
   origen: string;
   diario?: string | null;
   referencia?: string | null;
-  responsable?: string | null;
   observacion?: string | null;
-  createdAt?: string | null;
   lineas: Array<{ code: string; name: string; debit: number; credit: number }>;
 }
 
 const money = (value: number) => formatCurrency(Number(value) || 0, 'PEN');
 
-/** Fecha y hora del registro, sin conversiones que corran el día. */
-const fechaHora = (valor?: string | null): string => {
-  if (!valor) return '—';
-  const fecha = new Date(valor);
-  if (Number.isNaN(fecha.getTime())) return '—';
-  return `${formatDateToPeru(fecha)} ${fecha.toLocaleTimeString('es-PE', {
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'America/Lima',
-  })}`;
-};
-
 /**
  * Detalle de un asiento en ventana flotante centrada.
  *
- * Mismo overlay y mismo tratamiento que "Nuevo asiento": el listado se sigue
- * viendo detrás. Se abre solo desde el icono de la fila.
+ * El ancho queda fijo y las columnas se reparten con `table-fixed`: así el
+ * contenido largo se recorta en vez de empujar la tabla y obligar a desplazar
+ * el modal a la derecha.
  */
 export function EntryDetailDialog({
   entry,
@@ -87,16 +74,15 @@ export function EntryDetailDialog({
               </div>
               <p className="text-xs text-muted-foreground">
                 {formatDateToPeru(entry.fecha)}
-                {entry.diario ? ` · ${entry.diario}` : ''} · Creado: {fechaHora(entry.createdAt)}
+                {entry.diario ? ` · ${entry.diario}` : ''}
               </p>
             </DialogHeader>
 
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <Chip etiqueta="Número / Referencia" valor={entry.referencia || entry.numero} />
               <Chip etiqueta="Fecha contable" valor={formatDateToPeru(entry.fecha)} />
-              <Chip etiqueta="Creado" valor={fechaHora(entry.createdAt)} />
               <Chip etiqueta="Diario contable" valor={entry.diario ?? '—'} />
-              <Chip etiqueta="Responsable" valor={entry.responsable || 'Sistema'} />
+              <Chip etiqueta="Origen" valor={entry.origen} />
             </div>
 
             <div className="space-y-3">
@@ -126,25 +112,25 @@ export function EntryDetailDialog({
             </div>
 
             <div className="rounded-lg ring-1 ring-foreground/10">
-              <Table>
+              <Table className="table-fixed">
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Cuenta contable</TableHead>
-                    <TableHead>Descripción</TableHead>
-                    <TableHead align="right">Debe</TableHead>
-                    <TableHead align="right">Haber</TableHead>
+                    <TableHead className="w-[58%]">Cuenta contable</TableHead>
+                    <TableHead align="right" className="w-[21%]">Debe</TableHead>
+                    <TableHead align="right" className="w-[21%]">Haber</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {entry.lineas.map((linea, index) => (
                     <TableRow key={`${entry.id}-${index}`}>
-                      <TableCell className="whitespace-nowrap">
-                        <span className="flex flex-col gap-0.5">
+                      <TableCell>
+                        <span className="flex min-w-0 flex-col gap-0.5">
                           <span className="font-mono text-xs font-semibold">{linea.code}</span>
-                          <span className="text-[11px] leading-snug text-muted-foreground">{linea.name}</span>
+                          <span className="truncate text-[11px] leading-snug text-muted-foreground" title={linea.name}>
+                            {linea.name}
+                          </span>
                         </span>
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{linea.name}</TableCell>
                       <TableCell align="right" className="whitespace-nowrap tabular-nums">
                         {linea.debit ? money(linea.debit) : '—'}
                       </TableCell>
@@ -176,7 +162,7 @@ export function EntryDetailDialog({
 
 function Chip({ etiqueta, valor }: { etiqueta: string; valor: string }) {
   return (
-    <div className="rounded-lg bg-muted/40 p-3">
+    <div className="min-w-0 rounded-lg bg-muted/40 p-2.5">
       <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{etiqueta}</p>
       <p className="mt-1 truncate text-sm" title={valor}>{valor}</p>
     </div>
