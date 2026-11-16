@@ -1,5 +1,4 @@
 import { useActionPermissions } from '@/modules/auth/hooks/useActionPermissions';
-import { useAuth } from '@/hooks/useAuth';
 import { useInvoiceWritePermission } from '../hooks/useInvoiceWritePermission';
 import { InvoiceLastUpdated } from '../components/InvoiceLastUpdated';
 import { ETIQUETA_TIPO } from '../lib/invoiceResumenes';
@@ -83,9 +82,8 @@ const VARIANTE_POR_GRAVEDAD = {
 export default function InvoiceMonitorPage() {
   const actions = useActionPermissions();
   const moduleWrite = useInvoiceWritePermission();
-  const { isAdmin } = useAuth();
   const canResolve = moduleWrite && actions.can('INVOICE_RESOLVE_DLQ');
-  const canBridge = moduleWrite && isAdmin && actions.can('INVOICE_REPROCESS_BRIDGE');
+  const canBridge = moduleWrite && actions.can('INVOICE_REPROCESS_BRIDGE');
   const [alertas, setAlertas] = useState<AlertasOperativas | null>(null);
   const [enVuelo, setEnVuelo] = useState<readonly Invoice[]>([]);
   const [avisoPuente, setAvisoPuente] = useState<string | null>(null);

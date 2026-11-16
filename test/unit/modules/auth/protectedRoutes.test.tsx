@@ -13,6 +13,7 @@ const wrap = (ui: React.ReactNode) => <QueryClientProvider client={queryClient}>
 
 afterEach(() => {
   cleanup();
+  queryClient.clear();
   useAuthStore.getState().logout();
 });
 
@@ -35,7 +36,7 @@ describe('Navigation Guards: ProtectedRoute & RoleProtectedRoute', () => {
     expect(screen.queryByText('Contenido Privado')).not.toBeInTheDocument();
   });
 
-  it('RoleProtectedRoute bloquea con 403 Forbidden a OPERADOR_ADUANAS en rutas contables', () => {
+  it('RoleProtectedRoute bloquea con 403 Forbidden a OPERADOR_ADUANAS en rutas contables', async () => {
     useAuthStore.getState().setSession('token-valido', {
       id: 'user-1',
       email: 'aduanas@mype.pe',
@@ -49,7 +50,7 @@ describe('Navigation Guards: ProtectedRoute & RoleProtectedRoute', () => {
           <Route
             path="/accounting"
             element={
-              <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR']}>
+              <RoleProtectedRoute>
                 <div>Libros Contables PLE</div>
               </RoleProtectedRoute>
             }
@@ -58,13 +59,13 @@ describe('Navigation Guards: ProtectedRoute & RoleProtectedRoute', () => {
       </MemoryRouter>)
     );
 
-    expect(screen.getByText('Módulo Restringido')).toBeInTheDocument();
+    expect(await screen.findByText('Módulo Restringido')).toBeInTheDocument();
     expect(screen.getByText(/Código 403/i)).toBeInTheDocument();
     expect(screen.getByText(/OPERADOR_ADUANAS/i)).toBeInTheDocument();
     expect(screen.queryByText('Libros Contables PLE')).not.toBeInTheDocument();
   });
 
-  it('RoleProtectedRoute permite acceso a ADMIN en cualquier ruta protegida', () => {
+  it('RoleProtectedRoute permite acceso a ADMIN en cualquier ruta protegida', async () => {
     useAuthStore.getState().setSession('token-valido', {
       id: 'admin-1',
       email: 'admin@mype.pe',
@@ -78,7 +79,7 @@ describe('Navigation Guards: ProtectedRoute & RoleProtectedRoute', () => {
           <Route
             path="/accounting"
             element={
-              <RoleProtectedRoute allowedRoles={['CONTADOR']}>
+              <RoleProtectedRoute>
                 <div>Libros Contables PLE</div>
               </RoleProtectedRoute>
             }
@@ -87,7 +88,7 @@ describe('Navigation Guards: ProtectedRoute & RoleProtectedRoute', () => {
       </MemoryRouter>)
     );
 
-    expect(screen.getByText('Libros Contables PLE')).toBeInTheDocument();
+    expect(await screen.findByText('Libros Contables PLE')).toBeInTheDocument();
     expect(screen.queryByText('Módulo Restringido')).not.toBeInTheDocument();
   });
 });

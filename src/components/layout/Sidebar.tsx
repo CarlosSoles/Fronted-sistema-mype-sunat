@@ -1,10 +1,8 @@
+import { useServerPermissions } from '@/modules/auth/hooks/useServerPermissions';
 import { Fragment, useState, useEffect, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useUiStore } from '@/stores/uiStore';
 import { useAuth } from '@/hooks/useAuth';
-import { modulePermissionsApi } from '@/modules/auth/services/modulePermissionsApi';
-import { type Role } from '@/modules/auth/types/auth.types';
 import { cn } from '@/lib/utils';
 import {
   Activity,
@@ -50,7 +48,7 @@ export interface SubNavItem {
    * ruta rechaza: el caso de Configuración de Facturación, que solo admite
    * ADMIN pero aparecería a un operador y lo llevaría a "sin acceso".
    */
-  allowedRoles?: Role[];
+
   /** Agrupador visual dentro del módulo (ej. Registros / Reportes). */
   group?: string;
 }
@@ -61,7 +59,7 @@ export interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   badge?: string;
   developer: string;
-  allowedRoles: Role[];
+
   subItems?: SubNavItem[];
 }
 
@@ -71,16 +69,16 @@ export const NAV_ITEMS: NavItem[] = [
     path: '/sales',
     icon: ShoppingCart,
     developer: 'Ventas',
-    allowedRoles: ['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
+
     subItems: [
-      { title: 'Punto de venta', path: '/sales/pos', icon: ShoppingCart, allowedRoles: ['ADMIN', 'OPERADOR_FACTURACION'] },
-      { title: 'Cotizaciones', path: '/sales/cotizaciones', icon: FileText, allowedRoles: ['ADMIN', 'OPERADOR_FACTURACION'] },
-      { title: 'Pedidos', path: '/sales/pedidos', icon: FileText, allowedRoles: ['ADMIN', 'OPERADOR_FACTURACION'] },
-      { title: 'Cierre de caja', path: '/sales/caja', icon: Banknote, allowedRoles: ['ADMIN', 'OPERADOR_FACTURACION'] },
+      { title: 'Punto de venta', path: '/sales/pos', icon: ShoppingCart},
+      { title: 'Cotizaciones', path: '/sales/cotizaciones', icon: FileText},
+      { title: 'Pedidos', path: '/sales/pedidos', icon: FileText},
+      { title: 'Cierre de caja', path: '/sales/caja', icon: Banknote},
       { title: 'Historial de ventas', path: '/sales/historial', icon: History },
-      { title: 'Devoluciones de venta', path: '/sales/devoluciones', icon: RotateCcw, allowedRoles: ['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR'] },
-      { title: 'Reporte de ventas y margen', path: '/sales/reportes', icon: LayoutDashboard, allowedRoles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'] },
-      { title: 'Cuentas por cobrar y cobros', path: '/sales/cobranzas', icon: WalletCards, allowedRoles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'] },
+      { title: 'Devoluciones de venta', path: '/sales/devoluciones', icon: RotateCcw},
+      { title: 'Reporte de ventas y margen', path: '/sales/reportes', icon: LayoutDashboard},
+      { title: 'Cuentas por cobrar y cobros', path: '/sales/cobranzas', icon: WalletCards},
     ],
   },
   {
@@ -88,7 +86,7 @@ export const NAV_ITEMS: NavItem[] = [
     path: '/invoices',
     icon: FileText,
     developer: 'Jhordy Salirrosas',
-    allowedRoles: ['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT'],
+
     subItems: [
       { title: 'Resumen de facturación', path: '/invoices/dashboard', icon: LayoutDashboard },
       { title: 'Detracciones', path: '/invoices/detracciones', icon: WalletCards },
@@ -112,7 +110,7 @@ export const NAV_ITEMS: NavItem[] = [
         title: 'Configuración',
         path: '/invoices/configuracion',
         icon: Settings,
-        allowedRoles: ['ADMIN'],
+
       },
     ],
   },
@@ -121,7 +119,7 @@ export const NAV_ITEMS: NavItem[] = [
     path: '/usuarios',
     icon: Settings,
     developer: 'Administración',
-    allowedRoles: ['ADMIN'],
+
     subItems: [
       { title: 'Usuarios y almacenes', path: '/usuarios/almacenes', icon: Settings },
       { title: 'Permisos por módulo', path: '/usuarios/permisos', icon: Settings },
@@ -132,7 +130,7 @@ export const NAV_ITEMS: NavItem[] = [
     path: '/customs',
     icon: Ship,
     developer: 'Carlos Ahumada',
-    allowedRoles: ['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
+
     subItems: [
       { title: 'Panel general', path: '/customs/dashboard', icon: LayoutDashboard },
       { title: '1. Pedidos al exterior', path: '/customs/orders', icon: FilePlus },
@@ -141,7 +139,7 @@ export const NAV_ITEMS: NavItem[] = [
       { title: '4. Recojo y almacén (Kardex)', path: '/customs/landed-cost', icon: Calculator },
       { title: 'Contabilidad y Asientos Aduaneros (PCGE / NIC 2)', path: '/customs/accounting', icon: BookOpen },
       { title: 'Proveedores del exterior', path: '/customs/suppliers', icon: Building2 },
-      { title: 'Configuración aduanera', path: '/customs/config', icon: Settings, allowedRoles: ['ADMIN'] },
+      { title: 'Configuración aduanera', path: '/customs/config', icon: Settings},
     ],
   },
   {
@@ -149,13 +147,13 @@ export const NAV_ITEMS: NavItem[] = [
     path: '/purchases',
     icon: ShoppingBag,
     developer: 'Carlos Ahumada',
-    allowedRoles: ['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
+
     subItems: [
       { title: 'Resumen de compras', path: '/purchases/dashboard', icon: LayoutDashboard },
       { title: 'Registro de compras', path: '/purchases', icon: Receipt },
       { title: 'Cuentas por pagar', path: '/purchases/payables', icon: WalletCards },
       { title: 'Proveedores', path: '/invoices/clientes', icon: Building2 },
-      { title: 'Gastos', path: '/purchases/expenses', icon: Receipt, allowedRoles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'] },
+      { title: 'Gastos', path: '/purchases/expenses', icon: Receipt},
     ],
   },
   {
@@ -163,16 +161,16 @@ export const NAV_ITEMS: NavItem[] = [
     path: '/inventory',
     icon: Boxes,
     developer: 'Carlos Ahumada',
-    allowedRoles: ['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
+
     subItems: [
       { title: 'Resumen de inventario', path: '/inventory/dashboard', icon: LayoutDashboard, group: 'Inventario' },
       { title: 'Existencias y Catálogo', path: '/inventory/stocks', icon: Boxes, group: 'Inventario' },
       { title: 'Movimientos', path: '/inventory/movements', icon: GitCompareArrows, group: 'Inventario' },
-      { title: 'Transferencias', path: '/inventory/transfers', icon: ArrowLeftRight, allowedRoles: ['ADMIN'], group: 'Inventario' },
-      { title: 'Ajustes y toma física', path: '/inventory/adjustments', icon: ClipboardCheck, allowedRoles: ['ADMIN'], group: 'Inventario' },
-      { title: 'Saldo inicial', path: '/inventory/opening', icon: FileUp, allowedRoles: ['ADMIN'], group: 'Inventario' },
+      { title: 'Transferencias', path: '/inventory/transfers', icon: ArrowLeftRight,  group: 'Inventario' },
+      { title: 'Ajustes y toma física', path: '/inventory/adjustments', icon: ClipboardCheck,  group: 'Inventario' },
+      { title: 'Saldo inicial', path: '/inventory/opening', icon: FileUp,  group: 'Inventario' },
       { title: 'Kardex valorizado', path: '/kardex/general', icon: BookOpen, group: 'Kardex' },
-      { title: 'Configuración y Costeo', path: '/inventory/config', icon: Settings, allowedRoles: ['ADMIN', 'CONTADOR', 'ACCOUNTANT'], group: 'Kardex' },
+      { title: 'Configuración y Costeo', path: '/inventory/config', icon: Settings,  group: 'Kardex' },
     ],
   },
   {
@@ -180,7 +178,7 @@ export const NAV_ITEMS: NavItem[] = [
     path: '/sire',
     icon: CheckSquare,
     developer: 'Diego Toledo',
-    allowedRoles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
+
     subItems: [
       { title: 'Configuración SUNAT', path: '/sire/configuracion', icon: Settings },
       { title: 'Importar Propuesta', path: '/sire/importar', icon: FileUp },
@@ -195,7 +193,7 @@ export const NAV_ITEMS: NavItem[] = [
     path: '/accounting',
     icon: BookOpen,
     developer: 'Michael Velásquez',
-    allowedRoles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'],
+
     subItems: [
       { title: 'Resumen contable', path: '/accounting/dashboard', icon: LayoutDashboard, group: 'Registros' },
       { title: 'Libro Diario (PCGE)', path: '/accounting', icon: FileText, group: 'Registros' },
@@ -216,7 +214,7 @@ export const Sidebar = () => {
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const currentRole = user?.role;
+
 
   const asideRef = useRef<HTMLElement>(null);
   const [menuQuery, setMenuQuery] = useState('');
@@ -267,28 +265,9 @@ export const Sidebar = () => {
     });
   };
 
-  /**
-   * Subítems que el rol actual puede abrir.
-   *
-   * ADMIN ve todos. Un subítem sin `allowedRoles` hereda el del padre, que ya
-   * pasó el filtro de módulo; uno con roles se comprueba aparte para no ofrecer
-   * entradas que la ruta rechazaría con "sin acceso".
-   */
-  const subItemsVisibles = (item: NavItem): SubNavItem[] => {
-    const subs = item.subItems ?? [];
-    if (!currentRole || currentRole === 'ADMIN') return subs;
-    return subs.filter((sub) => !sub.allowedRoles || sub.allowedRoles.includes(currentRole));
-  };
-
-  const { data: permisosModulo = [] } = useQuery({ queryKey: ['module-permissions-me'], queryFn: modulePermissionsApi.mine });
-  const moduloDeRuta: Record<string, string> = { '/invoices': 'M1', '/customs': 'M2', '/sire': 'M3', '/accounting': 'M4', '/inventory': 'M6', '/sales': 'M7', '/purchases': 'M8', '/usuarios': 'M9' };
-  const modulosVisibles = new Set(permisosModulo.filter((p) => p.canView).map((p) => p.moduleCode));
-  const visibleNavItems = NAV_ITEMS.filter((item) => {
-    if (!currentRole || currentRole === 'ADMIN') return true;
-    if (!item.allowedRoles.includes(currentRole)) return false;
-    const modulo = moduloDeRuta[item.path];
-    return !modulo || modulosVisibles.size === 0 || modulosVisibles.has(modulo);
-  });
+  const permissions=useServerPermissions();
+  const subItemsVisibles=(item:NavItem):SubNavItem[] => (item.subItems??[]).filter(sub=>permissions.canNavigate(sub.path));
+  const visibleNavItems=NAV_ITEMS.filter(item=>permissions.canNavigate(item.path));
   const terminoMenu = menuQuery.trim().toLowerCase();
   const filteredNavItems = visibleNavItems.flatMap((item) => {
     if (!terminoMenu) return [item];
@@ -359,7 +338,7 @@ export const Sidebar = () => {
 
                   {!isSidebarCollapsed && (
                     <div className="flex items-center gap-1.5 shrink-0">
-                      {currentRole === 'AUDITOR' ? (
+                      {!permissions.canWrite(permissions.snapshot?.menus.find(m=>m.path.startsWith(item.path))?.moduleCode??'') ? (
                         <span className="text-[9px] uppercase font-bold px-1 py-0.5 rounded bg-muted text-muted-foreground">
                           Lectura
                         </span>
@@ -398,7 +377,7 @@ export const Sidebar = () => {
                   {!isSidebarCollapsed && (
                     <div className="flex-1 flex items-center justify-between truncate">
                       <span className="truncate">{item.title}</span>
-                      {currentRole === 'AUDITOR' ? (
+                      {!permissions.canWrite(permissions.snapshot?.menus.find(m=>m.path.startsWith(item.path))?.moduleCode??'') ? (
                         <span className="text-[9px] uppercase font-bold px-1 py-0.5 rounded bg-muted text-muted-foreground">
                           Lectura
                         </span>
@@ -449,7 +428,7 @@ export const Sidebar = () => {
         <div className="p-3 border-t text-[11px] text-muted-foreground bg-muted/30">
           <p className="font-semibold text-foreground/80">SYNC-SUNAT v1.0.0</p>
           <p className="text-[10px] text-primary font-medium truncate">
-            Rol: {currentRole || 'ADMIN'}
+            Rol: {user?.roleName || user?.role || 'Sin rol'}
           </p>
         </div>
       )}

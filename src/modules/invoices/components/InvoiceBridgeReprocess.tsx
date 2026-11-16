@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Button, PageText } from '@/components/ui';
-import { useAuth } from '@/hooks/useAuth';
 import { useActionPermissions } from '@/modules/auth/hooks/useActionPermissions';
 import { useInvoiceWritePermission } from '../hooks/useInvoiceWritePermission';
 import { extractApiErrorMessage } from '@/lib/apiErrors';
@@ -17,7 +16,7 @@ export function InvoiceBridgeReprocess({
   id: string;
   estado: string;
 }) {
-  const { isAdmin } = useAuth();
+
  const actions = useActionPermissions();
  const moduleWrite = useInvoiceWritePermission();
  const allowed = moduleWrite && actions.can('INVOICE_REPROCESS_BRIDGE');
@@ -26,7 +25,7 @@ export function InvoiceBridgeReprocess({
     null,
   );
   const [error, setError] = useState<string | null>(null);
-  if (!isAdmin || !['ACEPTADO', 'OBSERVADO'].includes(estado))
+  if (!(actions.canShow?.('INVOICE_REPROCESS_BRIDGE')??actions.can('INVOICE_REPROCESS_BRIDGE')) || !['ACEPTADO', 'OBSERVADO'].includes(estado))
     return null;
   async function reprocesar() {
     if (!allowed || procesando) return;

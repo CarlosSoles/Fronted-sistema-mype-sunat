@@ -76,7 +76,7 @@ export const UserNavDropdown = () => {
           </span>
           <div className="pt-0.5">
             <Badge variant="outline" className={cn('text-[9px] px-1.5 py-0 uppercase border', getRoleStyle(role))}>
-              {role || 'OPERADOR'}
+              {user?.roleName || role || 'Sin rol'}
             </Badge>
           </div>
         </div>

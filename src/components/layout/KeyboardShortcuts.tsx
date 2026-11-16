@@ -1,29 +1,27 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui';
-import { useAuth } from '@/hooks/useAuth';
+import { useServerPermissions } from '@/modules/auth/hooks/useServerPermissions';
 
 const ATAJOS = [
-  { tecla: 'g v', accion: 'Ventas', path: '/sales', roles: ['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'] },
-  { tecla: 'g p', accion: 'Punto de venta', path: '/sales/pos', roles: ['ADMIN', 'OPERADOR_FACTURACION'] },
-  { tecla: 'g h', accion: 'Historial de ventas', path: '/sales/historial', roles: ['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'] },
-  { tecla: 'g b', accion: 'CxC y cobros', path: '/sales/cobranzas', roles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'] },
-  { tecla: 'g c', accion: 'Compras', path: '/purchases', roles: ['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'] },
-  { tecla: 'g g', accion: 'Gastos', path: '/purchases/expenses', roles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'] },
-  { tecla: 'g f', accion: 'Facturación', path: '/invoices', roles: ['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'] },
-  { tecla: 'g i', accion: 'Inventario', path: '/inventory', roles: ['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'] },
-  { tecla: 'g a', accion: 'Contabilidad', path: '/accounting', roles: ['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT'] },
-  { tecla: '?', accion: 'Ver estos atajos', path: '', roles: [] },
+  { tecla: 'g v', accion: 'Ventas', path: '/sales'},
+  { tecla: 'g p', accion: 'Punto de venta', path: '/sales/pos'},
+  { tecla: 'g h', accion: 'Historial de ventas', path: '/sales/historial'},
+  { tecla: 'g b', accion: 'CxC y cobros', path: '/sales/cobranzas'},
+  { tecla: 'g c', accion: 'Compras', path: '/purchases'},
+  { tecla: 'g g', accion: 'Gastos', path: '/purchases/expenses'},
+  { tecla: 'g f', accion: 'Facturación', path: '/invoices'},
+  { tecla: 'g i', accion: 'Inventario', path: '/inventory'},
+  { tecla: 'g a', accion: 'Contabilidad', path: '/accounting'},
+  { tecla: '?', accion: 'Ver estos atajos', path: ''},
 ] as const;
 
 export function KeyboardShortcuts() {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const role = user?.role;
+  const permissions=useServerPermissions();
   const [ayuda, setAyuda] = useState(false);
   const [prefijo, setPrefijo] = useState(false);
   const timer = useRef<number | null>(null);
-  const puede = (roles: readonly string[]) => !role || role === 'ADMIN' || roles.includes(role);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -46,7 +44,7 @@ export function KeyboardShortcuts() {
       }
       if (!prefijo) return;
       const atajo = ATAJOS.find((a) => a.tecla === `g ${event.key.toLowerCase()}`);
-      if (atajo && puede(atajo.roles)) {
+      if (atajo && (!atajo.path || permissions.canNavigate(atajo.path))) {
         event.preventDefault();
         navigate(atajo.path);
       }
@@ -55,7 +53,7 @@ export function KeyboardShortcuts() {
     };
     window.addEventListener('keydown', onKey, true);
     return () => { window.removeEventListener('keydown', onKey, true); if (timer.current) window.clearTimeout(timer.current); };
-  }, [prefijo, role, navigate]);
+  }, [prefijo, permissions.canNavigate, navigate]);
 
   return (
     <>
@@ -65,7 +63,7 @@ export function KeyboardShortcuts() {
           <DialogHeader><DialogTitle>Atajos de teclado</DialogTitle><DialogDescription>Navega sin usar el mouse. Los atajos no funcionan mientras escribes.</DialogDescription></DialogHeader>
           <div className="space-y-1 text-xs">
             <div className="flex justify-between rounded bg-muted/50 px-2 py-1.5"><span>Buscar módulo o acción</span><kbd className="rounded border px-1.5">Ctrl/⌘ K</kbd></div>
-            {ATAJOS.filter((a) => puede(a.roles)).map((a) => <div key={a.tecla} className="flex justify-between rounded px-2 py-1.5"><span>{a.accion}</span><kbd className="rounded border px-1.5">{a.tecla}</kbd></div>)}
+            {ATAJOS.filter((a) => (!a.path || permissions.canNavigate(a.path))).map((a) => <div key={a.tecla} className="flex justify-between rounded px-2 py-1.5"><span>{a.accion}</span><kbd className="rounded border px-1.5">{a.tecla}</kbd></div>)}
             <div className="flex justify-between rounded px-2 py-1.5"><span>Cerrar</span><kbd className="rounded border px-1.5">Esc</kbd></div>
           </div>
         </DialogContent>

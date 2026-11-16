@@ -1,11 +1,11 @@
+import { useActionPermissions } from '@/modules/auth/hooks/useActionPermissions';
 import { useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui';
-import { useAuthStore } from '@/stores/authStore';
 import { apiClient } from '@/lib/axios';
 import { errorSerie } from '../lib/invoiceConfigurationValidation';
 import { invoiceConfigError } from '../lib/invoiceConfigError';
 export function InvoiceSeriesForm({ onSaved }: { onSaved?: () => Promise<unknown> }) {
- const admin = useAuthStore(s => s.user?.role === 'ADMIN');
+ const admin = useActionPermissions().can('INVOICE_CONFIG_EDIT');
  const [tipo, setTipo] = useState('01'), [serie, setSerie] = useState(''), [inicial, setInicial] = useState('0');
  const [error, setError] = useState(''), [saving, setSaving] = useState(false), [success, setSuccess] = useState('');
  if (!admin) return null;

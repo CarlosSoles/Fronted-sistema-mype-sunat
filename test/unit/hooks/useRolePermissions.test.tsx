@@ -1,96 +1,14 @@
-import { describe, it, expect, afterEach } from 'vitest';
-import { renderHook } from '@testing-library/react';
+import { afterEach,expect,it } from 'vitest';
+import { cleanup,renderHook,waitFor } from '@testing-library/react';
+import { QueryClient,QueryClientProvider } from '@tanstack/react-query';
+import type { ReactNode } from 'react';
 import { useRolePermissions } from '@/hooks/useRolePermissions';
 import { useAuthStore } from '@/stores/authStore';
-
-afterEach(() => {
-  useAuthStore.getState().logout();
-});
-
-describe('useRolePermissions Hook', () => {
-  it('otorga permisos totales al rol ADMIN', () => {
-    useAuthStore.getState().setSession('tok', {
-      id: 'admin-1',
-      email: 'admin@mype.pe',
-      role: 'ADMIN',
-      fullName: 'Admin User',
-    });
-
-    const { result } = renderHook(() => useRolePermissions());
-
-    expect(result.current.isAdmin).toBe(true);
-    expect(result.current.canEmitInvoices).toBe(true);
-    expect(result.current.canRegisterDua).toBe(true);
-    expect(result.current.canCreateAccountingEntry).toBe(true);
-    expect(result.current.canExportPle).toBe(true);
-    expect(result.current.canReconcileSire).toBe(true);
-    expect(result.current.isReadOnly).toBe(false);
-  });
-
-  it('permite registro DUA exclusivamente a OPERADOR_ADUANAS y restringe facturación', () => {
-    useAuthStore.getState().setSession('tok', {
-      id: 'aduanas-1',
-      email: 'aduanas@mype.pe',
-      role: 'OPERADOR_ADUANAS',
-      fullName: 'Operador Aduanas',
-    });
-
-    const { result } = renderHook(() => useRolePermissions());
-
-    expect(result.current.isAduanas).toBe(true);
-    expect(result.current.canRegisterDua).toBe(true);
-    expect(result.current.canEmitInvoices).toBe(false);
-    expect(result.current.canCreateAccountingEntry).toBe(false);
-  });
-
-  it('permite emisión de comprobantes a OPERADOR_FACTURACION y restringe aduanas/contabilidad', () => {
-    useAuthStore.getState().setSession('tok', {
-      id: 'fact-1',
-      email: 'facturador@mype.pe',
-      role: 'OPERADOR_FACTURACION',
-      fullName: 'Facturador',
-    });
-
-    const { result } = renderHook(() => useRolePermissions());
-
-    expect(result.current.isFacturador).toBe(true);
-    expect(result.current.canEmitInvoices).toBe(true);
-    expect(result.current.canRegisterDua).toBe(false);
-    expect(result.current.canCreateAccountingEntry).toBe(false);
-  });
-
-  it('restringe registro DUA y emisión a CONTADOR, permitiendo asientos y PLE', () => {
-    useAuthStore.getState().setSession('tok', {
-      id: 'cont-1',
-      email: 'contador@mype.pe',
-      role: 'CONTADOR',
-      fullName: 'Contador',
-    });
-
-    const { result } = renderHook(() => useRolePermissions());
-
-    expect(result.current.isContador).toBe(true);
-    expect(result.current.canCreateAccountingEntry).toBe(true);
-    expect(result.current.canExportPle).toBe(true);
-    expect(result.current.canReconcileSire).toBe(true);
-    expect(result.current.canRegisterDua).toBe(false);
-    expect(result.current.canEmitInvoices).toBe(false);
-  });
-
-  it('marca modo solo lectura estricto para AUDITOR', () => {
-    useAuthStore.getState().setSession('tok', {
-      id: 'aud-1',
-      email: 'auditor@mype.pe',
-      role: 'AUDITOR',
-      fullName: 'Auditor',
-    });
-
-    const { result } = renderHook(() => useRolePermissions());
-
-    expect(result.current.isAuditor).toBe(true);
-    expect(result.current.isReadOnly).toBe(true);
-    expect(result.current.canEmitInvoices).toBe(false);
-    expect(result.current.canRegisterDua).toBe(false);
-    expect(result.current.canCreateAccountingEntry).toBe(false);
-  });
+const clients:QueryClient[]=[];
+afterEach(()=>{cleanup();clients.splice(0).forEach(q=>q.clear());useAuthStore.getState().logout();});
+it.each([
+ ['ADMIN',true,true,true],['OPERADOR_ADUANAS',false,true,false],['OPERADOR_FACTURACION',true,false,false],['CONTADOR',false,false,true],['AUDITOR',false,false,false],['OPERATOR',true,false,false],['ACCOUNTANT',false,false,true],
+] as const)('%s conserva emisión, DUA y contabilidad desde la matriz del servidor',async(role,emit,dua,entry)=>{
+ useAuthStore.getState().setSession('token',{id:'test',email:'test@example.invalid',role});const q=new QueryClient({defaultOptions:{queries:{retry:false,gcTime:0}}});clients.push(q);const h=renderHook(()=>useRolePermissions(),{wrapper:({children}:{children:ReactNode})=><QueryClientProvider client={q}>{children}</QueryClientProvider>});
+ await waitFor(()=>expect(h.result.current.canEmitInvoices).toBe(emit));await waitFor(()=>expect(h.result.current.canRegisterDua).toBe(dua));await waitFor(()=>expect(h.result.current.canCreateAccountingEntry).toBe(entry));if(role==='AUDITOR'){expect(h.result.current.isReadOnly).toBe(true);expect(h.result.current.canExportPle).toBe(false);}if(entry){expect(h.result.current.canExportPle).toBe(true);expect(h.result.current.canReconcileSire).toBe(true);}
 });
