@@ -240,7 +240,7 @@ const numeroFormateado = (entry: Entry): string => {  // El correlativo se numer
     : entry.fechaContable.slice(0, 7);
   const [anio, mes] = periodo.split('-');
   const correlativo = (entry.numeroAsiento.match(/(\d+)$/)?.[1] ?? '').padStart(4, '0');
-  return `AS/${anio}/${mes}/${correlativo}`;
+  return `MISC/${anio}/${mes}/${correlativo}`;
 };
 
 export default function AccountingEntriesPage() {
