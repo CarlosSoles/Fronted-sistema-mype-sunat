@@ -201,10 +201,15 @@ export default function ManualEntryModal({ open, onClose, onSaved, proximoNumero
               </Select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground" htmlFor="asiento-responsable">
-                Responsable (opcional)
+              <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground" htmlFor="asiento-origen">
+                Origen (opcional)
               </label>
-              <Input id="asiento-responsable" value={responsible} onChange={(e) => setResponsible(e.target.value)} />
+              <Input
+                id="asiento-origen"
+                placeholder="Ej. Caja / Ventas"
+                value={responsible}
+                onChange={(e) => setResponsible(e.target.value)}
+              />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
               <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground" htmlFor="asiento-concepto">
