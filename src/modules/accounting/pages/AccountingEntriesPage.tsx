@@ -11,6 +11,7 @@ import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/axios';
 import { cachedGet } from '@/lib/offlineCache';
 import { EntryDetailDialog, type EntryDetail } from '../components/EntryDetailDialog';
+import { etiquetaOrigen } from '../lib/origenLabels';
 import {
   Badge,
   Button,
@@ -46,6 +47,8 @@ interface AccountingLine {
 interface Entry {
   id: string;
   numeroAsiento: string;
+  /** Período contable del asiento; numera el correlativo. */
+  period?: string;
   fechaContable: string;
   glosa: string;
   totalDebe: number;
@@ -55,6 +58,8 @@ interface Entry {
   journalCode?: string;
   sourceReferenceId?: string;
   createdAt?: string;
+  observation?: string;
+  responsible?: string;
   lines: AccountingLine[];
 }
 
@@ -87,12 +92,15 @@ interface AsientoBackend {
   totalHaber?: number | string;
   sourceModule?: string;
   source_module?: string;
+  period?: string;
   journalCode?: string;
   journal_code?: string;
   sourceReferenceId?: string;
   source_reference_id?: string;
   createdAt?: string;
   created_at?: string;
+  observation?: string;
+  responsible?: string;
   lines?: LineaAsientoBackend[];
   accounting_lines?: LineaAsientoBackend[];
 }
@@ -149,22 +157,14 @@ const mapearAsiento = (
     totalHaber,
     estaCuadrado: Math.abs(totalDebe - totalHaber) <= 0.01,
     sourceModule: item.sourceModule ?? item.source_module ?? 'MANUAL',
+    period: item.period,
     journalCode: item.journalCode ?? item.journal_code,
     sourceReferenceId: item.sourceReferenceId ?? item.source_reference_id,
     createdAt: item.createdAt ?? item.created_at,
+    observation: item.observation,
+    responsible: item.responsible,
     lines,
   };
-};
-
-const etiquetaOrigen = (source: string): string => {
-  const etiquetas: Record<string, string> = {
-    INVOICES: 'Facturación',
-    M1_INVOICES: 'Facturación',
-    CUSTOMS: 'Importaciones',
-    M1_CUSTOMS: 'Importaciones',
-    MANUAL: 'Manual',
-  };
-  return etiquetas[source] ?? source;
 };
 
 type Diario = 'TODOS' | 'VEN' | 'COM' | 'CAJ' | 'OPV';
@@ -217,8 +217,12 @@ const periodoDeRango = (desde: string, hasta: string): string => {
  * para que año, mes y correlativo se lean de un vistazo.
  */
 const numeroFormateado = (entry: Entry): string => {
-  const fecha = entry.fechaContable.slice(0, 10);
-  const [anio, mes] = fecha.split('-');
+  // El correlativo se numera por período contable, no por la fecha: si se usa
+  // la fecha y no coinciden, el número mostrado no existe en la base.
+  const periodo = entry.period && /^\d{4}-\d{2}$/.test(entry.period)
+    ? entry.period
+    : entry.fechaContable.slice(0, 7);
+  const [anio, mes] = periodo.split('-');
   const correlativo = (entry.numeroAsiento.match(/(\d+)$/)?.[1] ?? '').padStart(4, '0');
   return `AS/${anio}/${mes}/${correlativo}`;
 };
@@ -267,11 +271,16 @@ export default function AccountingEntriesPage() {
 
   const filtrados = useMemo(() => {
     const texto = busqueda.trim().toLowerCase();
+    // El rango es inclusivo en ambos extremos y se compara como fecha
+    // calendario (YYYY-MM-DD), sin pasar por zonas horarias.
+    const rangoInvalido = Boolean(desde && hasta && desde > hasta);
     return entries.filter((entry) => {
       if (diario !== 'TODOS' && diarioDe(entry) !== diario) return false;
-      const fecha = entry.fechaContable.slice(0, 10);
-      if (desde && fecha < desde) return false;
-      if (hasta && fecha > hasta) return false;
+      if (!rangoInvalido) {
+        const fecha = entry.fechaContable.slice(0, 10);
+        if (desde && fecha < desde) return false;
+        if (hasta && fecha > hasta) return false;
+      }
       if (texto) {
         const numero = numeroFormateado(entry).toLowerCase();
         if (!numero.includes(texto) && !entry.glosa.toLowerCase().includes(texto)) return false;
@@ -279,6 +288,8 @@ export default function AccountingEntriesPage() {
       return true;
     });
   }, [entries, diario, desde, hasta, busqueda]);
+
+  const rangoInvalido = Boolean(desde && hasta && desde > hasta);
 
   // El diario solo se muestra como columna cuando la pestaña es "Todos"; en las
   // demás ya se sabe qué diario se está mirando.
@@ -304,7 +315,7 @@ export default function AccountingEntriesPage() {
             className="h-9 w-64"
           />
           {canCreateAccountingEntry ? (
-            <Button variant="outline" size="sm" onClick={() => setIsModalOpen(true)}>
+            <Button size="sm" onClick={() => setIsModalOpen(true)} className="bg-foreground text-background hover:bg-foreground/90">
               <PlusCircle aria-hidden="true" />
               Nuevo asiento
             </Button>
@@ -360,6 +371,11 @@ export default function AccountingEntriesPage() {
             <span className="text-xs tabular-nums text-muted-foreground">{filtrados.length} asiento(s)</span>
           </div>
         </div>
+        {rangoInvalido ? (
+          <p className="mt-2 text-xs text-destructive">
+            La fecha «Desde» no puede ser mayor que «Hasta»; el rango no se está aplicando.
+          </p>
+        ) : null}
       </Card>
 
       <Card flush>
@@ -372,7 +388,7 @@ export default function AccountingEntriesPage() {
               {verColumnaDiario ? (
                 <TableHead className="text-[11px] font-semibold uppercase tracking-wider">Diario</TableHead>
               ) : null}
-              <TableHead className="text-[11px] font-semibold uppercase tracking-wider">Responsable</TableHead>
+              <TableHead className="text-[11px] font-semibold uppercase tracking-wider">Origen</TableHead>
               <TableHead align="right" className="text-[11px] font-semibold uppercase tracking-wider">Total</TableHead>
               <TableHead align="center" className="text-[11px] font-semibold uppercase tracking-wider">Estado</TableHead>
             </TableRow>
@@ -415,7 +431,7 @@ export default function AccountingEntriesPage() {
                   <TableCell align="right" className="whitespace-nowrap font-medium tabular-nums">
                     {formatCurrency(entry.totalDebe, 'PEN')}
                   </TableCell>
-                  <TableCell align="center">
+                  <TableCell align="center" className="whitespace-nowrap pr-4">
                     <Badge
                       variant="outline"
                       className={
@@ -461,6 +477,8 @@ export default function AccountingEntriesPage() {
                 diario: DIARIOS.find((d) => d.key === diarioDe(detalle))?.label ?? null,
                 referencia: detalle.sourceReferenceId,
                 createdAt: detalle.createdAt,
+                responsable: detalle.responsible ?? null,
+                observacion: detalle.observation ?? null,
                 lineas: detalle.lines.map((linea) => ({
                   code: linea.accountCode,
                   name: linea.accountName,
