@@ -51,6 +51,7 @@ export interface PurchaseRecord {
   igvAmount: number;
   totalAmount: number;
   paidAmount: number;
+  creditAmount?: number;
   pendingAmount: number;
   status: 'PENDIENTE' | 'PAGO_PARCIAL' | 'PAGADA' | 'ANULADA';
   receptionStatus?: 'PENDIENTE' | 'PARCIAL' | 'RECIBIDA';

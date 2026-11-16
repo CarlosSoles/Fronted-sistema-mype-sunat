@@ -83,6 +83,8 @@ export const purchasesApi = {
     return data;
   },
 
+  listCreditNotes: async (id: string): Promise<Array<{ id: string; noteNumber: string; amount: number; reason: string; issueDate: string }>> => (await apiClient.get(`/purchases/${id}/credit-notes`)).data,
+  createCreditNote: async (id: string, payload: { amount: number; reason: string; issueDate?: string; notes?: string }): Promise<{ note: { noteNumber: string }; purchase: PurchaseRecord }> => (await apiClient.post(`/purchases/${id}/credit-notes`, payload)).data,
   cancelPurchase: async (id: string): Promise<PurchaseRecord> => {
     const { data } = await apiClient.post<PurchaseRecord>(`/purchases/${id}/cancel`);
     return data;
