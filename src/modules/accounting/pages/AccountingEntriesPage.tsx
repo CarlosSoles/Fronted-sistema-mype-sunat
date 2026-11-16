@@ -291,6 +291,22 @@ export default function AccountingEntriesPage() {
 
   const rangoInvalido = Boolean(desde && hasta && desde > hasta);
 
+  // Siguiente correlativo por período, para mostrar la referencia completa en
+  // el alta manual sin inventar el número.
+  const proximoNumero = useMemo(() => {
+    const ultimo = new Map<string, number>();
+    for (const entry of entries) {
+      const periodo = entry.period ?? entry.fechaContable.slice(0, 7);
+      const correlativo = Number(entry.numeroAsiento.match(/(\d+)$/)?.[1] ?? 0);
+      ultimo.set(periodo, Math.max(ultimo.get(periodo) ?? 0, correlativo));
+    }
+    return (fecha: string): string => {
+      const periodo = fecha.slice(0, 7);
+      const siguiente = (ultimo.get(periodo) ?? 0) + 1;
+      return `MISC/${periodo.replace('-', '/')}/${String(siguiente).padStart(4, '0')}`;
+    };
+  }, [entries]);
+
   // El diario solo se muestra como columna cuando la pestaña es "Todos"; en las
   // demás ya se sabe qué diario se está mirando.
   const verColumnaDiario = diario === 'TODOS';
@@ -476,8 +492,6 @@ export default function AccountingEntriesPage() {
                 origen: etiquetaOrigen(detalle.sourceModule),
                 diario: DIARIOS.find((d) => d.key === diarioDe(detalle))?.label ?? null,
                 referencia: detalle.sourceReferenceId,
-                createdAt: detalle.createdAt,
-                responsable: detalle.responsible ?? null,
                 observacion: detalle.observation ?? null,
                 lineas: detalle.lines.map((linea) => ({
                   code: linea.accountCode,
@@ -495,6 +509,7 @@ export default function AccountingEntriesPage() {
       <ManualEntryModal
         open={isModalOpen}
         period={period}
+        proximoNumero={proximoNumero}
         onClose={() => setIsModalOpen(false)}
         onSaved={() => void refetch()}
       />
