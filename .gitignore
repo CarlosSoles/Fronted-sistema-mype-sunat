@@ -8,7 +8,9 @@ node_modules/
 .pnp.js
 
 # Carpeta personal / Documentación
-docs/
+# La guía de componentes es documentación compartida y debe versionarse.
+docs/*
+!docs/guia-de-componentes.md
 
 # Variables de Entorno y Secretos (Seguridad)
 .env
