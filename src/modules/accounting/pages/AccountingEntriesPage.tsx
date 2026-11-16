@@ -6,7 +6,7 @@
  * por rango de fechas y diario, y el detalle de cada asiento se abre desde su
  * icono para no cargar la tabla.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/axios';
 import { cachedGet } from '@/lib/offlineCache';
@@ -29,8 +29,6 @@ import {
 import { formatCurrency, formatDateToPeru } from '@/lib/formatters';
 import {
   BookOpen,
-  ChevronLeft,
-  ChevronRight,
   PlusCircle,
   SquareArrowOutUpRight,
 } from 'lucide-react';
@@ -56,6 +54,7 @@ interface Entry {
   sourceModule: string;
   journalCode?: string;
   sourceReferenceId?: string;
+  createdAt?: string;
   lines: AccountingLine[];
 }
 
@@ -92,6 +91,8 @@ interface AsientoBackend {
   journal_code?: string;
   sourceReferenceId?: string;
   source_reference_id?: string;
+  createdAt?: string;
+  created_at?: string;
   lines?: LineaAsientoBackend[];
   accounting_lines?: LineaAsientoBackend[];
 }
@@ -150,6 +151,7 @@ const mapearAsiento = (
     sourceModule: item.sourceModule ?? item.source_module ?? 'MANUAL',
     journalCode: item.journalCode ?? item.journal_code,
     sourceReferenceId: item.sourceReferenceId ?? item.source_reference_id,
+    createdAt: item.createdAt ?? item.created_at,
     lines,
   };
 };
@@ -185,8 +187,6 @@ const DIARIOS: Array<{ key: Diario; label: string }> = [
   { key: 'VEN', label: 'Ventas' },
   { key: 'OPV', label: 'Operaciones varias' },
 ];
-
-const ASIENTOS_POR_PAGINA = 10;
 
 const dosDigitos = (valor: number) => String(valor).padStart(2, '0');
 
@@ -234,7 +234,6 @@ export default function AccountingEntriesPage() {
   const [desde, setDesde] = useState(() => primerDiaDelMes());
   const [hasta, setHasta] = useState(() => ultimoDiaDelMes());
   const [busqueda, setBusqueda] = useState('');
-  const [pagina, setPagina] = useState(1);
 
   // El periodo que se pide al backend se deduce del rango elegido: el diario ya
   // no tiene selector de periodo, ese se maneja en Períodos contables.
@@ -281,17 +280,10 @@ export default function AccountingEntriesPage() {
     });
   }, [entries, diario, desde, hasta, busqueda]);
 
-  const totalPaginas = Math.max(1, Math.ceil(filtrados.length / ASIENTOS_POR_PAGINA));
-  const paginaActual = Math.min(pagina, totalPaginas);
-  const visibles = filtrados.slice(
-    (paginaActual - 1) * ASIENTOS_POR_PAGINA,
-    paginaActual * ASIENTOS_POR_PAGINA,
-  );
-  const desdeFila = filtrados.length === 0 ? 0 : (paginaActual - 1) * ASIENTOS_POR_PAGINA + 1;
-  const hastaFila = Math.min(paginaActual * ASIENTOS_POR_PAGINA, filtrados.length);
-
-  // Al cambiar un filtro se vuelve a la primera página.
-  useEffect(() => { setPagina(1); }, [diario, desde, hasta, busqueda]);
+  // El diario solo se muestra como columna cuando la pestaña es "Todos"; en las
+  // demás ya se sabe qué diario se está mirando.
+  const verColumnaDiario = diario === 'TODOS';
+  const columnas = verColumnaDiario ? 7 : 6;
 
   const loadError = queryError
     ? 'No se pudieron cargar los asientos del período. Revisa la sesión y la conexión con el backend.'
@@ -303,12 +295,21 @@ export default function AccountingEntriesPage() {
         title="Libro Diario (PCGE)"
         description="Registro y consulta de asientos del período"
       >
-        {canCreateAccountingEntry ? (
-          <Button variant="outline" size="sm" onClick={() => setIsModalOpen(true)}>
-            <PlusCircle aria-hidden="true" />
-            Nuevo asiento
-          </Button>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            aria-label="Buscar asiento"
+            placeholder="Buscar número o concepto…"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            className="h-9 w-64"
+          />
+          {canCreateAccountingEntry ? (
+            <Button variant="outline" size="sm" onClick={() => setIsModalOpen(true)}>
+              <PlusCircle aria-hidden="true" />
+              Nuevo asiento
+            </Button>
+          ) : null}
+        </div>
       </PageHeader>
 
       {loadError ? (
@@ -318,7 +319,7 @@ export default function AccountingEntriesPage() {
       ) : null}
 
       <Card className="p-3">
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-1" role="tablist">
             {DIARIOS.map((d) => (
               <Button
@@ -338,29 +339,25 @@ export default function AccountingEntriesPage() {
             ))}
           </div>
 
-          <div className="flex flex-wrap items-end gap-2 border-t pt-3">
-            <div className="space-y-1">
-              <label htmlFor="diario-desde" className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                Desde
-              </label>
-              <Input id="diario-desde" type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className="h-9 w-40" />
-            </div>
-            <div className="space-y-1">
-              <label htmlFor="diario-hasta" className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                Hasta
-              </label>
-              <Input id="diario-hasta" type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className="h-9 w-40" />
-            </div>
+          <div className="flex flex-wrap items-center gap-2">
             <Input
-              aria-label="Buscar asiento"
-              placeholder="Buscar número o concepto…"
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              className="h-9 w-64"
+              id="diario-desde"
+              aria-label="Desde"
+              type="date"
+              value={desde}
+              onChange={(e) => setDesde(e.target.value)}
+              className="h-9 w-36"
             />
-            <div className="ml-auto text-xs text-muted-foreground">
-              {filtrados.length} asiento(s)
-            </div>
+            <span className="text-xs text-muted-foreground">a</span>
+            <Input
+              id="diario-hasta"
+              aria-label="Hasta"
+              type="date"
+              value={hasta}
+              onChange={(e) => setHasta(e.target.value)}
+              className="h-9 w-36"
+            />
+            <span className="text-xs tabular-nums text-muted-foreground">{filtrados.length} asiento(s)</span>
           </div>
         </div>
       </Card>
@@ -372,7 +369,9 @@ export default function AccountingEntriesPage() {
               <TableHead className="text-[11px] font-semibold uppercase tracking-wider">Fecha contable</TableHead>
               <TableHead className="text-[11px] font-semibold uppercase tracking-wider">N° Asiento</TableHead>
               <TableHead className="text-[11px] font-semibold uppercase tracking-wider">Concepto</TableHead>
-              <TableHead className="text-[11px] font-semibold uppercase tracking-wider">Diario</TableHead>
+              {verColumnaDiario ? (
+                <TableHead className="text-[11px] font-semibold uppercase tracking-wider">Diario</TableHead>
+              ) : null}
               <TableHead className="text-[11px] font-semibold uppercase tracking-wider">Responsable</TableHead>
               <TableHead align="right" className="text-[11px] font-semibold uppercase tracking-wider">Total</TableHead>
               <TableHead align="center" className="text-[11px] font-semibold uppercase tracking-wider">Estado</TableHead>
@@ -381,17 +380,13 @@ export default function AccountingEntriesPage() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} align="center">
+                <TableCell colSpan={columnas} align="center">
                   <PageText variant="muted">Cargando asientos...</PageText>
                 </TableCell>
               </TableRow>
             ) : filtrados.length > 0 ? (
-              visibles.map((entry) => (
-                <TableRow
-                  key={entry.id}
-                  className="cursor-pointer transition-colors hover:bg-muted/50"
-                  onClick={() => setDetalle(entry)}
-                >
+              filtrados.map((entry) => (
+                <TableRow key={entry.id} className="transition-colors hover:bg-muted/50">
                   <TableCell className="whitespace-nowrap tabular-nums">{formatDateToPeru(entry.fechaContable)}</TableCell>
                   <TableCell className="whitespace-nowrap">
                     <span className="flex items-center gap-1.5">
@@ -399,7 +394,7 @@ export default function AccountingEntriesPage() {
                       <button
                         type="button"
                         aria-label={`Ver detalle del asiento ${numeroFormateado(entry)}`}
-                        onClick={(evento) => { evento.stopPropagation(); setDetalle(entry); }}
+                        onClick={() => setDetalle(entry)}
                         className="rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                       >
                         <SquareArrowOutUpRight className="h-3.5 w-3.5" />
@@ -409,9 +404,11 @@ export default function AccountingEntriesPage() {
                   <TableCell>
                     <span className="block max-w-[440px] truncate" title={entry.glosa}>{entry.glosa}</span>
                   </TableCell>
-                  <TableCell className="whitespace-nowrap text-muted-foreground">
-                    {DIARIOS.find((d) => d.key === diarioDe(entry))?.label ?? '—'}
-                  </TableCell>
+                  {verColumnaDiario ? (
+                    <TableCell className="whitespace-nowrap text-muted-foreground">
+                      {DIARIOS.find((d) => d.key === diarioDe(entry))?.label ?? '—'}
+                    </TableCell>
+                  ) : null}
                   <TableCell className="whitespace-nowrap text-muted-foreground">
                     {etiquetaOrigen(entry.sourceModule)}
                   </TableCell>
@@ -450,35 +447,6 @@ export default function AccountingEntriesPage() {
             )}
           </TableBody>
         </Table>
-
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3 text-sm">
-          <span className="text-xs text-muted-foreground tabular-nums">
-            {desdeFila}–{hastaFila} de {filtrados.length}
-          </span>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPagina((p) => Math.max(1, p - 1))}
-              disabled={paginaActual <= 1}
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Anterior
-            </Button>
-            <span className="text-xs tabular-nums text-muted-foreground">
-              Página {paginaActual} de {totalPaginas}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
-              disabled={paginaActual >= totalPaginas}
-            >
-              Siguiente
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
       </Card>
 
       <EntryDetailDialog
@@ -492,6 +460,7 @@ export default function AccountingEntriesPage() {
                 origen: etiquetaOrigen(detalle.sourceModule),
                 diario: DIARIOS.find((d) => d.key === diarioDe(detalle))?.label ?? null,
                 referencia: detalle.sourceReferenceId,
+                createdAt: detalle.createdAt,
                 lineas: detalle.lines.map((linea) => ({
                   code: linea.accountCode,
                   name: linea.accountName,

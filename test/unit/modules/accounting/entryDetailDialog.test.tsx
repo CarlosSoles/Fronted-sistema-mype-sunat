@@ -10,6 +10,7 @@ const ASIENTO: EntryDetail = {
   origen: 'Facturación',
   diario: 'Ventas',
   referencia: 'F001-000003',
+  createdAt: '2026-10-17T17:35:26.000Z',
   lineas: [
     { code: '691', name: 'Costo de ventas de mercaderías', debit: 0.95, credit: 0 },
     { code: '201', name: 'Mercaderías', debit: 0, credit: 0.95 },
@@ -28,6 +29,14 @@ describe('EntryDetailDialog', () => {
     expect(screen.getByText('Costo de ventas de mercaderías')).toBeTruthy();
     expect(screen.getByText('Líneas del asiento (2)')).toBeTruthy();
     expect(screen.getByText('Asiento cuadrado')).toBeTruthy();
+    // El detalle distingue la fecha contable del momento del registro.
+    expect(screen.getByText('Creado')).toBeTruthy();
+    expect(screen.getByText('Referencia')).toBeTruthy();
+  });
+
+  it('muestra un guion cuando el asiento no trae fecha de registro', () => {
+    render(<EntryDetailDialog entry={{ ...ASIENTO, createdAt: null }} open onOpenChange={vi.fn()} />);
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
   });
 
   it('avisa cuando el asiento no está cuadrado', () => {

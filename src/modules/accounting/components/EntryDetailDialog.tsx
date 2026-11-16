@@ -24,10 +24,19 @@ export interface EntryDetail {
   origen: string;
   diario?: string | null;
   referencia?: string | null;
+  createdAt?: string | null;
   lineas: Array<{ code: string; name: string; debit: number; credit: number }>;
 }
 
 const money = (value: number) => formatCurrency(Number(value) || 0, 'PEN');
+
+/** Fecha y hora legibles del momento en que se registró el asiento. */
+const fechaHora = (valor?: string | null): string => {
+  if (!valor) return '—';
+  const fecha = new Date(valor);
+  if (Number.isNaN(fecha.getTime())) return '—';
+  return `${fecha.toLocaleDateString('es-PE')} ${fecha.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}`;
+};
 
 /**
  * Detalle de un asiento en una ventana centrada.
@@ -80,10 +89,12 @@ export function EntryDetailDialog({
               </DialogDescription>
             </DialogHeader>
 
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               <Chip etiqueta="Fecha contable" valor={formatDateToPeru(entry.fecha)} />
+              <Chip etiqueta="Creado" valor={fechaHora(entry.createdAt)} />
               <Chip etiqueta="Diario" valor={entry.diario ?? '—'} />
               <Chip etiqueta="Origen" valor={entry.origen} />
+              <Chip etiqueta="Referencia" valor={entry.referencia ?? '—'} />
               <Chip etiqueta="Total" valor={money(totalDebe)} />
             </div>
 
