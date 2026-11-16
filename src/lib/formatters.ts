@@ -32,6 +32,13 @@ export const formatDateToPeru = (isoDateString: string | Date | null | undefined
   if (!isoDateString) return '-';
 
   if (typeof isoDateString === 'string') {
+    // Fecha calendario, con o sin hora. La contable es un día, no un instante:
+    // "2026-11-01T00:00:00.000Z" mostraba 31/10 al pasar por la zona de Lima.
+    const conHora = /^(\d{4})-(\d{2})-(\d{2})[T ]/.exec(isoDateString.trim());
+    if (conHora) {
+      const [, anio, mes, dia] = conHora;
+      return `${dia}/${mes}/${anio}`;
+    }
     const soloFecha = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDateString.trim());
     if (soloFecha) {
       const [, anio, mes, dia] = soloFecha;
