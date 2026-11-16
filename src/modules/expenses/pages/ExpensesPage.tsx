@@ -21,7 +21,7 @@ export default function ExpensesPage() {
   /** Diálogo de pago: importe y subcuenta de tesorería (tarea 3). */
   const [pago, setPago] = useState<{ id: string; amount: string; treasuryAccountId: string } | null>(null);
 
-  const cuentas = useQuery({ queryKey: ['accounting-accounts'], queryFn: accountingApi.getAccounts });
+  const cuentas = useQuery({ queryKey: ['accounting-accounts'], queryFn: () => accountingApi.getAccounts() });
   const tesoreria = useQuery({ queryKey: ['treasury-accounts'], queryFn: accountingApi.getTreasuryAccounts });
 
   const base = Number(form.baseAmount) || 0;

@@ -27,7 +27,7 @@ export default function CollectionsPage() {
   const [form, setForm] = useState({ customerName: '', customerDoc: '', invoiceNumber: '', amount: '', date: new Date().toISOString().slice(0, 10), method: 'TRANSFERENCIA', bank: '', treasuryAccountId: '' });
   /** Reparto del cobro entre varias cuentas por cobrar (tarea 2). */
   const [dist, setDist] = useState<DistributionRow[]>([]);
-  const cuentas = useQuery({ queryKey: ['accounting-accounts'], queryFn: accountingApi.getAccounts });
+  const cuentas = useQuery({ queryKey: ['accounting-accounts'], queryFn: () => accountingApi.getAccounts() });
   const tesoreria = useQuery({ queryKey: ['treasury-accounts'], queryFn: accountingApi.getTreasuryAccounts });
   const filasDist = toDistributionPayload(dist);
   const repartido = filasDist.reduce((s, d) => s + (d.amount ?? 0), 0);

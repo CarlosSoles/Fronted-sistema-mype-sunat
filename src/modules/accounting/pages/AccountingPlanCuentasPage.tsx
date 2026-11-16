@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, ChevronRight, Plus, Search } from 'lucide-react';
+import { ChevronDown, ChevronRight, Pencil, Plus, Power, Search } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -32,7 +32,7 @@ import type { AccountingAccount } from '../types/accounting.types';
 /**
  * Plan de cuentas que usa el módulo de facturación.
  *
- * POR QUÉ ESTAS Y NO OTRAS
+ * POR QU0 ESTAS Y NO OTRAS
  *
  * Las cuatro filas anteriores (`121101`, `401111`, `601101`, `701111`) no eran
  * del PCGE: tenían un dígito de más y no coincidían con ninguna cuenta del
@@ -77,17 +77,43 @@ export default function AccountingPlanCuentasPage() {
   const [abrirTesoreria, setAbrirTesoreria] = useState(false);
   const [nueva, setNueva] = useState({ code: '', name: '', parentCode: '' });
   const [errorAlta, setErrorAlta] = useState<string | null>(null);
+  const [editando, setEditando] = useState<{ code: string; name: string } | null>(null);
   const queryClient = useQueryClient();
+
+  const refrescar = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['accounting-accounts'] }),
+      queryClient.invalidateQueries({ queryKey: ['accounting-accounts', 'all'] }),
+    ]);
+  };
+
+  /** Activa o desactiva una cuenta sin borrarla (los asientos la referencian). */
+  const alternar = useMutation({
+    mutationFn: ({ code, isActive }: { code: string; isActive: boolean }) =>
+      accountingApi.updateAccount(code, { isActive }),
+    onSuccess: refrescar,
+    onError: (e: any) => setErrorAlta(e?.response?.data?.message ?? 'No se pudo cambiar el estado de la cuenta.'),
+  });
+
+  const renombrar = useMutation({
+    mutationFn: ({ code, name }: { code: string; name: string }) =>
+      accountingApi.updateAccount(code, { name: name.trim() }),
+    onSuccess: async () => { setEditando(null); setErrorAlta(null); await refrescar(); },
+    onError: (e: any) => setErrorAlta(e?.response?.data?.message ?? 'No se pudo renombrar la cuenta.'),
+  });
+
   const crear = useMutation({
     mutationFn: () => accountingApi.createAccount({ code: nueva.code.trim(), name: nueva.name.trim(), parentCode: nueva.parentCode.trim() || undefined }),
-    onSuccess: async () => { setAbrirAlta(false); setNueva({ code: '', name: '', parentCode: '' }); setErrorAlta(null); await queryClient.invalidateQueries({ queryKey: ['accounting-accounts'] }); },
+    onSuccess: async () => { setAbrirAlta(false); setNueva({ code: '', name: '', parentCode: '' }); setErrorAlta(null); await refrescar(); },
     onError: (e: any) => setErrorAlta(e?.response?.data?.message ?? 'No se pudo crear la cuenta.'),
   });
   const [expanded, setExpanded] = useState<Set<string>>(new Set(['1', '2', '3', '4', '5', '6', '7', '8', '9']));
 
   const { data: accounts = [], isLoading, error } = useQuery({
-    queryKey: ['accounting-accounts'],
-    queryFn: () => accountingApi.getAccounts(),
+    queryKey: ['accounting-accounts', 'all'],
+    // El plan muestra también las inactivas para poder reactivarlas; los
+    // selectores de asiento siguen pidiendo solo las activas.
+    queryFn: () => accountingApi.getAccounts({ includeInactive: true }),
   });
 
   const padresPosibles = useMemo(() => accounts.filter((a) => a.code.length < nueva.code.length && nueva.code.startsWith(a.code)).sort((a, b) => b.code.length - a.code.length), [accounts, nueva.code]);
@@ -144,11 +170,41 @@ export default function AccountingPlanCuentasPage() {
         <TableCell align="center">
           <Badge variant={node.nature === 'Deudora' ? 'secondary' : 'outline'}>{node.nature}</Badge>
         </TableCell>
-        <TableCell align="center">{node.children.length || '—'}</TableCell>
+        <TableCell align="center">{node.children.length || ''}</TableCell>
         <TableCell align="center">
-          <Badge variant={node.isActive ? 'outline' : 'secondary'}>
+          <Badge
+            variant="outline"
+            className={
+              node.isActive
+                ? 'border-emerald-600/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400'
+                : 'text-muted-foreground'
+            }
+          >
             {node.isActive ? 'Activa' : 'Inactiva'}
           </Badge>
+        </TableCell>
+        <TableCell align="center">
+          <span className="flex items-center justify-center gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-label={`Editar ${node.code}`}
+              onClick={() => setEditando({ code: node.code, name: node.name })}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-label={node.isActive ? `Desactivar ${node.code}` : `Activar ${node.code}`}
+              disabled={alternar.isPending}
+              onClick={() => alternar.mutate({ code: node.code, isActive: !node.isActive })}
+            >
+              <Power className={`h-4 w-4 ${node.isActive ? '' : 'text-muted-foreground'}`} />
+            </Button>
+          </span>
         </TableCell>
       </TableRow>,
     ];
@@ -231,12 +287,13 @@ export default function AccountingPlanCuentasPage() {
                 <TableHead align="center">Naturaleza</TableHead>
                 <TableHead align="center">Subcuentas</TableHead>
                 <TableHead align="center">Estado</TableHead>
+                <TableHead align="center">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6}>Cargando catálogo PCGE…</TableCell>
+                  <TableCell colSpan={6}>Cargando catálogo PCGE⬦</TableCell>
                 </TableRow>
               ) : filtered ? (
                 filtered.length === 0 ? (
@@ -254,7 +311,7 @@ export default function AccountingPlanCuentasPage() {
                           {account.nature}
                         </Badge>
                       </TableCell>
-                      <TableCell align="center" className="text-muted-foreground/60">—</TableCell>
+                      <TableCell align="center" className="text-muted-foreground/60"></TableCell>
                       <TableCell align="center">
                         <Badge
                           variant="outline"
@@ -277,6 +334,35 @@ export default function AccountingPlanCuentasPage() {
           </Table>
         </Card>
       )}
+      <Dialog open={Boolean(editando)} onOpenChange={(abierto) => { if (!abierto) setEditando(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar cuenta {editando?.code}</DialogTitle>
+            <DialogDescription>
+              Cambia la denominación de la cuenta. El código no se modifica porque los asientos ya
+              registrados lo referencian.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5 py-2">
+            <label className="text-xs font-medium" htmlFor="cuenta-nombre">Denominación</label>
+            <Input
+              id="cuenta-nombre"
+              value={editando?.name ?? ''}
+              onChange={(evento) => setEditando((prev) => (prev ? { ...prev, name: evento.target.value } : prev))}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditando(null)}>Cancelar</Button>
+            <Button
+              onClick={() => { if (editando) renombrar.mutate(editando); }}
+              disabled={renombrar.isPending || !editando?.name.trim()}
+            >
+              {renombrar.isPending ? 'Guardando…' : 'Guardar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={abrirAlta} onOpenChange={setAbrirAlta}>
         <DialogContent>
           <DialogHeader><DialogTitle>Nueva subcuenta PCGE</DialogTitle><DialogDescription>Agrega una divisionaria al catálogo. El código padre debe existir.</DialogDescription></DialogHeader>
@@ -293,7 +379,7 @@ export default function AccountingPlanCuentasPage() {
             </div>
             {errorAlta ? <p className="text-xs text-destructive">{errorAlta}</p> : null}
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setAbrirAlta(false)}>Cancelar</Button><Button onClick={() => crear.mutate()} disabled={crear.isPending || !nueva.code || !nueva.name || !padreExiste}>{crear.isPending ? 'Creando…' : 'Crear cuenta'}</Button></DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => setAbrirAlta(false)}>Cancelar</Button><Button onClick={() => crear.mutate()} disabled={crear.isPending || !nueva.code || !nueva.name || !padreExiste}>{crear.isPending ? 'Creando⬦' : 'Crear cuenta'}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </Page>
@@ -372,7 +458,7 @@ function TreasuryAccountsCard({
             </label>
           </div>
           <Button size="sm" onClick={() => crear.mutate()} disabled={crear.isPending || !form.code || !form.name}>
-            {crear.isPending ? 'Agregando…' : 'Agregar cuenta'}
+            {crear.isPending ? 'Agregando⬦' : 'Agregar cuenta'}
           </Button>
           {error ? <p className="text-xs text-destructive">{error}</p> : null}
 
