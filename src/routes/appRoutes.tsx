@@ -55,6 +55,7 @@ const UserWarehousesPage = React.lazy(() => import('@/modules/auth/pages/UserWar
 const RolePermissionsPage = React.lazy(() => import('@/modules/auth/pages/RolePermissionsPage'));
 const SalesPosPage = React.lazy(() => import('@/modules/sales/pages/SalesPosPage'));
 const SalesHistoryPage = React.lazy(() => import('@/modules/sales/pages/SalesHistoryPage'));
+const SalesReturnsPage = React.lazy(() => import('@/modules/sales/pages/SalesReturnsPage'));
 const SalesQuotesPage = React.lazy(() => import('@/modules/sales/pages/SalesQuotesPage'));
 const SalesOrdersPage = React.lazy(() => import('@/modules/sales/pages/SalesQuotesPage'));
 const CashClosurePage = React.lazy(() => import('@/modules/sales/pages/CashClosurePage'));
@@ -219,6 +220,7 @@ export const AppRoutes = () => {
             <Route path="/sales" element={<RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_FACTURACION']}><SalesPosPage /></RoleProtectedRoute>} />
             <Route path="/sales/pos" element={<RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_FACTURACION']}><SalesPosPage /></RoleProtectedRoute>} />
             <Route path="/sales/historial" element={<RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}><SalesHistoryPage /></RoleProtectedRoute>} />
+            <Route path="/sales/devoluciones" element={<RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR']}><SalesReturnsPage /></RoleProtectedRoute>} />
             <Route path="/sales/cotizaciones" element={<RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_FACTURACION']}><SalesQuotesPage /></RoleProtectedRoute>} />
             <Route path="/sales/pedidos" element={<RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_FACTURACION']}><SalesOrdersPage /></RoleProtectedRoute>} />
             <Route path="/sales/caja" element={<RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_FACTURACION']}><CashClosurePage /></RoleProtectedRoute>} />
