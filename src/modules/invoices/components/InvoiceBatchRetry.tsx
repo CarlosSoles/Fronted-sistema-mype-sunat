@@ -1,7 +1,8 @@
+import { useInvoiceWritePermission } from '../hooks/useInvoiceWritePermission';
 import { useRef, useState } from 'react';
 import { Alert, AlertDescription, AlertTitle, Button } from '@/components/ui';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useRolePermissions } from '@/hooks/useRolePermissions';
+import { useAuth } from '@/hooks/useAuth';
 import { extractApiErrorMessage } from '@/lib/apiErrors';
 import { invoiceBatchRetryApi, type ReintentoMasivo } from '../services/invoiceBatchRetryApi';
 
@@ -20,21 +21,22 @@ function Resumen({ datos }: {datos:ReintentoMasivo}) {
 }
 
 export function InvoiceBatchRetry({ onComplete }: {onComplete:()=>void}) {
-  const { isAdmin }=useRolePermissions();
+  const { isAdmin }=useAuth();
+  const moduleWrite=useInvoiceWritePermission();
   const [abierto,setAbierto]=useState(false),[ocupado,setOcupado]=useState(false);
   const [previa,setPrevia]=useState<ReintentoMasivo|null>(null);
   const [resultado,setResultado]=useState<ReintentoMasivo|null>(null);
   const [error,setError]=useState<string|null>(null);
   const enCurso=useRef(false);
   const abrir=async()=>{
-    if(enCurso.current)return;
+    if(!isAdmin || !moduleWrite || enCurso.current)return;
     enCurso.current=true;setOcupado(true);setAbierto(true);setPrevia(null);setError(null);
     try{setPrevia(await invoiceBatchRetryApi.previa());}
     catch(e){setError(extractApiErrorMessage(e,'No se pudo obtener la vista previa.'));}
     finally{enCurso.current=false;setOcupado(false);}
   };
   const ejecutar=async()=>{
-    if(enCurso.current)return;
+    if(!isAdmin || !moduleWrite || enCurso.current)return;
     enCurso.current=true;setOcupado(true);setError(null);
     try{
       setResultado(await invoiceBatchRetryApi.ejecutar());setAbierto(false);onComplete();
@@ -43,7 +45,7 @@ export function InvoiceBatchRetry({ onComplete }: {onComplete:()=>void}) {
   };
   if(!isAdmin)return null;
   return <section aria-label="Reenvío masivo del Monitor" className="space-y-3">
-    <Button type="button" variant="outline" disabled={ocupado} onClick={()=>void abrir()}>Reenviar encolados</Button>
+    <Button type="button" variant="outline" disabled={!moduleWrite || ocupado} onClick={()=>void abrir()}>Reenviar encolados</Button>
     <Dialog open={abierto} onOpenChange={setAbierto}>
       <DialogContent>
         <DialogHeader><DialogTitle>Confirmar reenvío masivo</DialogTitle>
@@ -53,7 +55,7 @@ export function InvoiceBatchRetry({ onComplete }: {onComplete:()=>void}) {
         {previa && <Resumen datos={previa} />}
         {error && <p role="alert">{error}</p>}
         <div className="flex gap-2"><Button type="button" variant="outline" disabled={ocupado} onClick={()=>setAbierto(false)}>Cancelar</Button>
-          <Button type="button" disabled={ocupado || !previa || previa.elegibles===0} onClick={()=>void ejecutar()}>Confirmar reenvío</Button></div>
+          <Button type="button" disabled={!moduleWrite || ocupado || !previa || previa.elegibles===0} onClick={()=>void ejecutar()}>Confirmar reenvío</Button></div>
       </DialogContent>
     </Dialog>
     {resultado && <Alert><AlertTitle>Resultado del reenvío masivo</AlertTitle><AlertDescription>

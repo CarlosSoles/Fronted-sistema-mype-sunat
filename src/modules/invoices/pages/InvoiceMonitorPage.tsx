@@ -1,3 +1,6 @@
+import { useActionPermissions } from '@/modules/auth/hooks/useActionPermissions';
+import { useAuth } from '@/hooks/useAuth';
+import { useInvoiceWritePermission } from '../hooks/useInvoiceWritePermission';
 import { InvoiceLastUpdated } from '../components/InvoiceLastUpdated';
 import { ETIQUETA_TIPO } from '../lib/invoiceResumenes';
 import { InvoiceSendAgeAlert } from '../components/InvoiceSendAgeAlert';
@@ -78,6 +81,11 @@ const VARIANTE_POR_GRAVEDAD = {
 } as const;
 
 export default function InvoiceMonitorPage() {
+  const actions = useActionPermissions();
+  const moduleWrite = useInvoiceWritePermission();
+  const { isAdmin } = useAuth();
+  const canResolve = moduleWrite && actions.can('INVOICE_RESOLVE_DLQ');
+  const canBridge = moduleWrite && isAdmin && actions.can('INVOICE_REPROCESS_BRIDGE');
   const [alertas, setAlertas] = useState<AlertasOperativas | null>(null);
   const [enVuelo, setEnVuelo] = useState<readonly Invoice[]>([]);
   const [avisoPuente, setAvisoPuente] = useState<string | null>(null);
@@ -139,6 +147,7 @@ export default function InvoiceMonitorPage() {
   }, [cargar]);
 
   const reprocesar = async (id: string) => {
+    if (!canBridge) return;
     setReintentando(id); setAvisoPuente(null);
     try { const r = await invoicesApi.reprocesarPuente(id); setAvisoPuente(r.completo ? 'Puente completado.' : `Puente pendiente: ${r.errores.join(' ')}`); await cargar(); }
     catch (e) { setAvisoPuente(extractApiErrorMessage(e, 'No se pudo reprocesar el puente.')); }
@@ -146,6 +155,7 @@ export default function InvoiceMonitorPage() {
   };
 
   const resolverDlq = async (id: string) => {
+    if (!canResolve) return;
     setReintentando(id); setAvisoPuente(null);
     try {
       const resultado = await invoicesApi.resolverDlq(id);
@@ -326,12 +336,12 @@ export default function InvoiceMonitorPage() {
                   </TableCell>
                   <TableCell align="center">
                     {inv.enDlq === true && inv.estadoBackend === 'ACEPTADO' && inv.cdrCodigo === '0' && (
-                      <InvoiceWriteButton className="h-auto min-h-7 max-w-full whitespace-normal" variant="outline" size="sm" disabled={reintentando === inv.id} onClick={() => void resolverDlq(inv.id)}>
+                      <InvoiceWriteButton className="h-auto min-h-7 max-w-full whitespace-normal" variant="outline" size="sm" action="INVOICE_RESOLVE_DLQ" disabled={!canResolve || reintentando === inv.id} onClick={() => void resolverDlq(inv.id)}>
                         Resolver DLQ
                       </InvoiceWriteButton>
                     )}
                     {/* El servidor concilia antes de autorizar cualquier reenvío. */}
-                    {estadoDeMonitor(inv) === 'PUENTE_PENDIENTE' && <InvoiceWriteButton className="h-auto min-h-8 max-w-full whitespace-normal" disabled={reintentando === inv.id} onClick={() => void reprocesar(inv.id)}>Reprocesar puente</InvoiceWriteButton>}
+                    {estadoDeMonitor(inv) === 'PUENTE_PENDIENTE' && <InvoiceWriteButton className="h-auto min-h-8 max-w-full whitespace-normal" action="INVOICE_REPROCESS_BRIDGE" disabled={!canBridge || reintentando === inv.id} onClick={() => void reprocesar(inv.id)}>Reprocesar puente</InvoiceWriteButton>}
                     {['ERROR_RED', 'DLQ', 'INCERTIDUMBRE_TRANSPORTE', 'PREPARACION_LOCAL'].includes(estadoDeMonitor(inv)) && !['ACEPTADO', 'OBSERVADO', 'ANULADO'].includes(inv.estadoBackend ?? '') && (
                       <InvoiceWriteButton
                         className="h-auto min-h-7 max-w-full whitespace-normal"

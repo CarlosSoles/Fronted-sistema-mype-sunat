@@ -1,3 +1,4 @@
+import { useInvoiceDatePermission } from '../hooks/useInvoiceDatePermission';
 import { enfocarBusquedaProducto, colocarProductoEnFilaVacia } from '../lib/invoiceEmptyRow';
 import { igvReferencialGratuito } from '../lib/invoiceIgvReferencial';
 import { useInvoiceWritePermission } from '../hooks/useInvoiceWritePermission';
@@ -126,6 +127,7 @@ import type { ResultadoEmisionBackend } from '../types/invoiceEmision.types';
 
 export default function InvoiceEmissionPage() {
   const puedeOperar = useInvoiceWritePermission();
+  const { canEditDate, explanation: dateExplanation } = useInvoiceDatePermission();
   const [searchParams] = useSearchParams();
   const tipoQuery = searchParams.get('tipo');
   const [tipo, setTipo] = useState<'01' | '03'>(
@@ -565,8 +567,11 @@ export default function InvoiceEmissionPage() {
                     min={minimoDeFechaEmision(undefined, tipo)}
                     max={topeDeFechaEmision()}
                     value={fechaEmision}
-                    onChange={(e) => cambiarFecha(e.target.value)}
+                    readOnly={!canEditDate}
+                    aria-describedby={!canEditDate ? 'fecha-emision-permiso' : undefined}
+                    onChange={(e) => { if (canEditDate) cambiarFecha(e.target.value); }}
                   />
+                  {dateExplanation && <PageText id="fecha-emision-permiso" variant="caption">{dateExplanation}</PageText>}
                   {problemaFecha && (
                     <PageText variant="error">{problemaFecha}</PageText>
                   )}

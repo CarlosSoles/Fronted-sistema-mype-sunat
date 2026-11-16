@@ -1,8 +1,14 @@
 import type { ComponentProps } from 'react';
 import { Button } from '@/components/ui';
+import { useActionPermissions } from '@/modules/auth/hooks/useActionPermissions';
+import type { ActionCode } from '@/modules/auth/services/actionPermissionsApi';
 import { INVOICE_WRITE_DENIED, useInvoiceWritePermission } from '../hooks/useInvoiceWritePermission';
-/** Conserva la condición operativa propia del botón y añade el permiso de facturación. */
-export function InvoiceWriteButton(props: ComponentProps<typeof Button>) {
+/** Añade permisos del servidor a las condiciones operativas existentes. */
+export function InvoiceWriteButton({ action, ...props }: ComponentProps<typeof Button> & { action?: ActionCode }) {
   const permitido = useInvoiceWritePermission();
-  return <Button {...props} disabled={!permitido || props.disabled} title={permitido ? props.title : INVOICE_WRITE_DENIED} />;
+  const actions = useActionPermissions();
+  const accionPermitida = !action || actions.can(action);
+  const disabled = !permitido || !accionPermitida || props.disabled;
+  return <Button {...props} disabled={disabled} title={!permitido ? INVOICE_WRITE_DENIED : !accionPermitida ? 'No tiene permiso para esta acción.' : props.title}
+    onClick={event => { if (!disabled) props.onClick?.(event); }} />;
 }
