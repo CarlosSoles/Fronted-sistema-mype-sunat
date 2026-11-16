@@ -1,3 +1,4 @@
+import { useCommercialDefaults, permittedDefault } from '../hooks/useCommercialDefaults';
 import { useInvoiceDatePermission } from '../hooks/useInvoiceDatePermission';
 import { enfocarBusquedaProducto, colocarProductoEnFilaVacia } from '../lib/invoiceEmptyRow';
 import { igvReferencialGratuito } from '../lib/invoiceIgvReferencial';
@@ -171,7 +172,11 @@ export default function InvoiceEmissionPage() {
   // 'Contado'; el selector vivía solo en el modal de la bandeja. Las funciones
   // que reparten las cuotas ya existían y estaban probadas en
   // `invoiceEmitDraft`, así que aquí solo se guarda el estado.
+  const { data: commercialDefaults, isError: defaultsError } = useCommercialDefaults();
   const [formaPago, setFormaPago] = useState<'Contado' | 'Credito'>('Contado');
+  useEffect(() => {
+    if (commercialDefaults) { setFormaPago(permittedDefault(commercialDefaults, clienteSeleccionado?.tieneCredito === true, tipo)); setMedioPago(commercialDefaults.medio_pago); setCuotas([]); }
+  }, [commercialDefaults, clienteSeleccionado?.id, clienteSeleccionado?.tieneCredito, tipo]);
   const [medioPago, setMedioPago] = useState<import('../types/invoiceEmision.types').MedioPagoVenta>('EFECTIVO');
   const [cuotas, setCuotas] = useState<readonly CuotaBorrador[]>([]);
   const intento = useRef(crearIntentoEmision());
@@ -506,9 +511,10 @@ export default function InvoiceEmissionPage() {
         description="Facturas y boletas con detalle de varias líneas, stock validado y liquidación real"
       />
 
-      <form ref={formRef} onKeyDown={teclado.handler} onSubmit={emitir} className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-3">{teclado.ayuda}</div>
-        <div className="space-y-6 lg:col-span-2">
+      {defaultsError && <p role="alert">No se pudo leer el pago predeterminado. Verifique la forma y el medio antes de emitir.</p>}
+      <form ref={formRef} onKeyDown={teclado.handler} onSubmit={emitir} className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]">
+        <div className="xl:col-span-2">{teclado.ayuda}</div>
+        <div className="min-w-0 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
@@ -662,6 +668,7 @@ export default function InvoiceEmissionPage() {
                 razón social.
               */}
               <CustomerLookupField
+                unico={tipo === '03'}
                 documento={clienteDoc}
                 razonSocial={clienteRazonSocial}
                 labelDocumento={
@@ -672,7 +679,7 @@ export default function InvoiceEmissionPage() {
                 placeholderDocumento={tipo === '01' ? '20100070970' : '70123456'}
                 errorDocumento={clienteDoc.length > 0 && !documentoValidoParaTipo(tipo, clienteDoc) ? mensajeErrorDocumento(tipo) : undefined}
                 onDocumentoChange={(valor) => {
-                  rucAutofill.consultar(valor);
+                  if (tipo !== '03') rucAutofill.consultar(valor);
                   setClienteDireccion('');
                   const identidad = editarIdentidadCliente({ documento: clienteDoc, razonSocial: clienteRazonSocial, confirmado: Boolean(clienteSeleccionado) }, 'documento', valor);
                   setClienteSeleccionado(null);
@@ -688,7 +695,7 @@ export default function InvoiceEmissionPage() {
                   if (clienteSeleccionado) setClienteDireccion('');
                   const identidad = editarIdentidadCliente({ documento: clienteDoc, razonSocial: clienteRazonSocial, confirmado: Boolean(clienteSeleccionado) }, 'nombre', valor);
                   setClienteSeleccionado(null);
-                  setClienteDoc(identidad.documento);
+                  setClienteDoc(tipo === '03' ? '' : identidad.documento);
                   setClienteRazonSocial(identidad.razonSocial);
                   setFormaPago('Contado');
                   setCuotas([]);
@@ -703,7 +710,7 @@ export default function InvoiceEmissionPage() {
                   setClienteRazonSocial(cliente.razonSocial);
                   // El tipo sugerido sigue al documento del cliente; el usuario
                   // puede cambiarlo después si necesita una boleta con RUC.
-                  if (cliente.tipoDocumento === '6') setTipo('01');
+                  if (cliente.tipoDocumento === '6' && tipo !== '03') setTipo('01');
                   else if (cliente.tipoDocumento === '1') { setTipo('03'); setFormaPago('Contado'); setCuotas([]); }
                   if (cliente.tieneCredito !== true) {
                     setFormaPago('Contado');
@@ -724,6 +731,8 @@ export default function InvoiceEmissionPage() {
             </CardContent>
           </Card>
 
+        </div>
+        <div className="min-w-0 space-y-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">
@@ -764,7 +773,7 @@ export default function InvoiceEmissionPage() {
           </div>
         </div>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6 xl:col-start-2">
           <Card className="bg-muted/30">
             <CardHeader>
               <CardTitle className="text-base">Liquidación</CardTitle>
