@@ -13,6 +13,8 @@ export interface AccountingEntry {
   totalDebe: number;
   totalHaber: number;
   estaCuadrado: boolean;
+  /** Momento del registro; puede diferir de la fecha contable. */
+  createdAt?: string;
   movimientos: AccountingMovement[];
 }
 
