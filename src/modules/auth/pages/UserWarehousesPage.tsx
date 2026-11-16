@@ -2,10 +2,25 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Card, Page, PageHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
 import { extractApiErrorMessage } from '@/lib/apiErrors';
-import { warehousesApi } from '../services/warehousesApi';
+import { useAuth } from '@/hooks/useAuth';
+import { ROLES_PERMISOS } from '../services/modulePermissionsApi';
+import { warehousesApi, type CreateUserInput } from '../services/warehousesApi';
 
 export default function UserWarehousesPage() {
   const queryClient = useQueryClient();
+  const { isAdmin } = useAuth();
+  const emptyUser: CreateUserInput = { name: '', email: '', password: '', role: 'OPERADOR_FACTURACION' };
+  const [nuevo, setNuevo] = useState<CreateUserInput>(emptyUser);
+  const [createMessage, setCreateMessage] = useState('');
+  const crear = useMutation({
+    // La contraseña no se guarda en variables de la caché de mutaciones.
+    mutationFn: () => warehousesApi.createUser(nuevo),
+    onSuccess: async () => { setNuevo(emptyUser); setCreateMessage('Usuario creado.'); await queryClient.invalidateQueries({ queryKey: ['auth', 'users'] }); },
+    onError: (e: unknown) => {
+      const status = (e as { response?: { status?: number } })?.response?.status;
+      setCreateMessage(status === 409 ? 'El correo electrónico ya está registrado.' : status === 403 ? 'No tiene permiso para crear usuarios.' : extractApiErrorMessage(e, 'No se pudo crear el usuario.'));
+    },
+  });
   const almacenes = useQuery({ queryKey: ['auth', 'warehouses'], queryFn: warehousesApi.list });
   const usuarios = useQuery({ queryKey: ['auth', 'users'], queryFn: warehousesApi.listUsers });
   const [seleccion, setSeleccion] = useState<Record<string, string[]>>({});
@@ -36,6 +51,18 @@ export default function UserWarehousesPage() {
     <Page>
       <PageHeader title="Usuarios y almacenes" description="Define qué almacenes puede usar cada usuario. El administrador conserva acceso a todos." />
       {mensaje ? <p role="status" className="mb-3 text-xs text-muted-foreground">{mensaje}</p> : null}
+      {isAdmin ? <Card className="mb-4 p-4">
+        <h2 className="mb-3 text-sm font-semibold">Crear usuario</h2>
+        <form className="grid gap-3 sm:grid-cols-2" onSubmit={event => { event.preventDefault(); if (isAdmin && !crear.isPending) { setCreateMessage(''); crear.mutate(); } }}>
+          <label className="text-xs">Nombre<input className="mt-1 block w-full rounded border bg-background p-2" name="name" autoComplete="name" required minLength={3} maxLength={150} value={nuevo.name} onChange={event => setNuevo({ ...nuevo, name: event.target.value })} /></label>
+          <label className="text-xs">Correo electrónico<input className="mt-1 block w-full rounded border bg-background p-2" type="email" name="email" autoComplete="email" required value={nuevo.email} onChange={event => setNuevo({ ...nuevo, email: event.target.value })} /></label>
+          <label className="text-xs">Contraseña<input className="mt-1 block w-full rounded border bg-background p-2" type="password" name="password" autoComplete="new-password" required minLength={8} value={nuevo.password} onChange={event => setNuevo({ ...nuevo, password: event.target.value })} /></label>
+          <label className="text-xs">Rol del nuevo usuario<select className="mt-1 block w-full rounded border bg-background p-2" value={nuevo.role} onChange={event => setNuevo({ ...nuevo, role: event.target.value as CreateUserInput['role'] })}>{ROLES_PERMISOS.map(role => <option key={role} value={role}>{role}</option>)}</select></label>
+          <Button type="submit" disabled={crear.isPending}>{crear.isPending ? 'Creando usuario…' : 'Crear usuario'}</Button>
+        </form>
+        {createMessage ? <p className="mt-3 text-xs" role={crear.isError ? 'alert' : 'status'}>{createMessage}</p> : null}
+      </Card> : null}
+      {usuarios.isError ? <p role="alert">No se pudieron consultar los usuarios.</p> : null}
       <Card flush>
         <Table>
           <TableHeader><TableRow><TableHead>Usuario</TableHead><TableHead>Rol / estado</TableHead><TableHead>Almacenes permitidos</TableHead><TableHead align="right">Acción</TableHead></TableRow></TableHeader>
