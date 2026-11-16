@@ -70,7 +70,7 @@ export const purchasesApi = {
     }
   },
 
-  receivePurchase: async (id: string, payload: { items?: { itemId: string; quantity: number }[]; receivedAt?: string }): Promise<PurchaseRecord> => {
+  receivePurchase: async (id: string, payload: { items?: { itemId: string; quantity: number; rejectedQuantity?: number; reason?: string; notes?: string }[]; receivedAt?: string }): Promise<PurchaseRecord> => {
     const { data } = await apiClient.post<PurchaseRecord>(`/purchases/${id}/receive`, payload);
     return data;
   },

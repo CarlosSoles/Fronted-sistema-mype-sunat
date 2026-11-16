@@ -54,6 +54,7 @@ export interface PurchaseRecord {
   pendingAmount: number;
   status: 'PENDIENTE' | 'PAGO_PARCIAL' | 'PAGADA' | 'ANULADA';
   receptionStatus?: 'PENDIENTE' | 'PARCIAL' | 'RECIBIDA';
+  hasDifferences?: boolean;
   notes?: string | null;
   responsible?: string | null;
   itemsCount: number;
