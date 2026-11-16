@@ -55,6 +55,8 @@ export default function PurchasesPage() {
   const [paymentHistory, setPaymentHistory] = useState<PurchasePaymentRecord[] | null>(null);
   const [receiveTarget, setReceiveTarget] = useState<PurchaseRecord | null>(null);
   const [receiveQty, setReceiveQty] = useState<Record<string, string>>({});
+  const [rejectQty, setRejectQty] = useState<Record<string, string>>({});
+  const [rejectReason, setRejectReason] = useState<Record<string, string>>({});
   const abrirRecepcion = (p: PurchaseRecord) => {
     setReceiveTarget(p);
     setReceiveQty(Object.fromEntries(p.items.map((i) => [i.id, String(Math.max(0, i.quantity - (i.receivedQuantity ?? 0)))])));
@@ -66,8 +68,8 @@ export default function PurchasesPage() {
   });
 
   const recepcion = useMutation({
-    mutationFn: () => purchasesApi.receivePurchase(receiveTarget!.id, { items: receiveTarget!.items.map((i) => ({ itemId: i.id, quantity: Number(receiveQty[i.id] ?? 0) })).filter((i) => i.quantity > 0) }),
-    onSuccess: () => { setReceiveTarget(null); void refetch(); void queryClient.invalidateQueries({ queryKey: ['purchase-payables'] }); void queryClient.invalidateQueries({ queryKey: ['inventory-stocks'] }); void queryClient.invalidateQueries({ queryKey: ['inventory-movements'] }); void queryClient.invalidateQueries({ queryKey: ['accounting-entries'] }); },
+    mutationFn: () => purchasesApi.receivePurchase(receiveTarget!.id, { items: receiveTarget!.items.map((i) => ({ itemId: i.id, quantity: Number(receiveQty[i.id] ?? 0), rejectedQuantity: Number(rejectQty[i.id] ?? 0), ...(Number(rejectQty[i.id] ?? 0) > 0 ? { reason: rejectReason[i.id] ?? 'NO_CONFORME' } : {}) })).filter((i) => i.quantity > 0 || (i.rejectedQuantity ?? 0) > 0) }),
+    onSuccess: () => { setReceiveTarget(null); setReceiveQty({}); setRejectQty({}); setRejectReason({}); void refetch(); void queryClient.invalidateQueries({ queryKey: ['purchase-payables'] }); void queryClient.invalidateQueries({ queryKey: ['inventory-stocks'] }); void queryClient.invalidateQueries({ queryKey: ['inventory-movements'] }); void queryClient.invalidateQueries({ queryKey: ['accounting-entries'] }); },
   });
 
   // Estados para formulario de pago
@@ -286,9 +288,7 @@ export default function PurchasesPage() {
                     {formatMoney(saldo, p.currencyCode)}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={p.receptionStatus === 'RECIBIDA' ? 'default' : p.receptionStatus === 'PARCIAL' ? 'secondary' : 'outline'} className="text-[10px]">
-                      {p.receptionStatus ?? 'RECIBIDA'}
-                    </Badge>
+                    <div className="space-y-1"><Badge variant={p.receptionStatus === 'RECIBIDA' ? 'default' : p.receptionStatus === 'PARCIAL' ? 'secondary' : 'outline'} className="text-[10px]">{p.receptionStatus ?? 'RECIBIDA'}</Badge>{p.hasDifferences ? <Badge variant="outline" className="block w-fit text-[9px] text-amber-600">CON DIFERENCIAS</Badge> : null}</div>
                   </TableCell>
                   <TableCell>
                     <Badge
@@ -387,16 +387,19 @@ export default function PurchasesPage() {
             <DialogDescription className="text-xs">{receiveTarget?.purchaseNumber} · {receiveTarget?.supplierName}. Puede recepcionar total o parcialmente.</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
+            <p className="text-[11px] text-muted-foreground">Recibida = ingresa al stock. Rechazada = queda registrada como diferencia y no ingresa.</p>
             {receiveTarget?.items.map((i) => (
-              <div key={i.id} className="grid grid-cols-[1fr_100px] items-center gap-2">
+              <div key={i.id} className="grid grid-cols-[1fr_90px_90px_120px] items-end gap-2 rounded border p-2">
                 <div><p className="font-medium">{i.sku}</p><p className="text-[10px] text-muted-foreground">{i.description} · Pedido {i.quantity} · Recibido {i.receivedQuantity ?? 0}</p></div>
-                <Input type="number" min="0" max={i.quantity - (i.receivedQuantity ?? 0)} step="0.0001" value={receiveQty[i.id] ?? ''} onChange={(e) => setReceiveQty({ ...receiveQty, [i.id]: e.target.value })} />
+                <label className="text-[10px]">Recibida<Input aria-label={`Recibida ${i.sku}`} type="number" min="0" max={i.quantity - (i.receivedQuantity ?? 0)} step="0.0001" value={receiveQty[i.id] ?? ''} onChange={(e) => setReceiveQty({ ...receiveQty, [i.id]: e.target.value })} /></label>
+                <label className="text-[10px]">Rechazada<Input aria-label={`Rechazada ${i.sku}`} type="number" min="0" max={i.quantity - (i.receivedQuantity ?? 0)} step="0.0001" value={rejectQty[i.id] ?? ''} onChange={(e) => setRejectQty({ ...rejectQty, [i.id]: e.target.value })} /></label>
+                <label className="text-[10px]">Motivo<select aria-label={`Motivo ${i.sku}`} className="h-9 w-full rounded-md border bg-background px-1 text-[11px]" value={rejectReason[i.id] ?? 'NO_CONFORME'} onChange={(e) => setRejectReason({ ...rejectReason, [i.id]: e.target.value })} disabled={!(Number(rejectQty[i.id] ?? 0) > 0)}><option value="FALTANTE">Faltante</option><option value="DANADO">Dañado</option><option value="NO_CONFORME">No conforme</option><option value="OTRO">Otro</option></select></label>
               </div>
             ))}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setReceiveTarget(null)}>Cancelar</Button>
-            <Button onClick={() => recepcion.mutate()} disabled={recepcion.isPending || Object.values(receiveQty).every((v) => !(Number(v) > 0))}>{recepcion.isPending ? 'Registrando…' : 'Registrar recepción'}</Button>
+            <Button onClick={() => recepcion.mutate()} disabled={recepcion.isPending || [...Object.values(receiveQty), ...Object.values(rejectQty)].every((v) => !(Number(v) > 0))}>{recepcion.isPending ? 'Registrando…' : 'Registrar recepción'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
