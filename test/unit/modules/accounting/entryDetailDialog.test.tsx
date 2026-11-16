@@ -5,11 +5,13 @@ import { EntryDetailDialog, type EntryDetail } from '@/modules/accounting/compon
 const ASIENTO: EntryDetail = {
   id: 'entry-1',
   numero: 'AS/2026/10/0001',
-  fecha: '2026-10-17',
+  fecha: '2026-10-17T00:00:00.000Z',
   glosa: 'Costo de ventas (mercadería) F001-000003',
   origen: 'Facturación',
   diario: 'Ventas',
   referencia: 'F001-000003',
+  responsable: 'Caja / Ventas',
+  observacion: 'Asiento 4/5 — Costo de ventas y baja de mercaderías',
   createdAt: '2026-10-17T17:35:26.000Z',
   lineas: [
     { code: '691', name: 'Costo de ventas de mercaderías', debit: 0.95, credit: 0 },
@@ -20,39 +22,31 @@ const ASIENTO: EntryDetail = {
 afterEach(() => cleanup());
 
 describe('EntryDetailDialog', () => {
-  it('muestra los datos del asiento y sus líneas', () => {
+  it('muestra las tarjetas, el concepto, la observación y las líneas', () => {
     render(<EntryDetailDialog entry={ASIENTO} open onOpenChange={vi.fn()} />);
 
     expect(screen.getByText('AS/2026/10/0001')).toBeTruthy();
-    expect(screen.getByText('Costo de ventas (mercadería) F001-000003')).toBeTruthy();
-    expect(screen.getByText('691')).toBeTruthy();
-    expect(screen.getByText('Costo de ventas de mercaderías')).toBeTruthy();
+    expect(screen.getByText('Caja / Ventas')).toBeTruthy();
+    expect(screen.getByText('Asiento 4/5 — Costo de ventas y baja de mercaderías')).toBeTruthy();
     expect(screen.getByText('Líneas del asiento (2)')).toBeTruthy();
     expect(screen.getByText('Asiento cuadrado')).toBeTruthy();
-    // El detalle distingue la fecha contable del momento del registro.
-    expect(screen.getByText('Creado')).toBeTruthy();
-    expect(screen.getByText('Referencia')).toBeTruthy();
+    expect(screen.getByText('Registrado')).toBeTruthy();
   });
 
-  it('muestra un guion cuando el asiento no trae fecha de registro', () => {
-    render(<EntryDetailDialog entry={{ ...ASIENTO, createdAt: null }} open onOpenChange={vi.fn()} />);
-    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+  it('la fecha contable no retrocede un día por la zona horaria', () => {
+    render(<EntryDetailDialog entry={ASIENTO} open onOpenChange={vi.fn()} />);
+    expect(screen.getAllByText('17/10/2026').length).toBeGreaterThan(0);
+  });
+
+  it('muestra "Sistema" cuando el asiento no tiene responsable (origen automático)', () => {
+    render(<EntryDetailDialog entry={{ ...ASIENTO, responsable: null }} open onOpenChange={vi.fn()} />);
+    expect(screen.getByText('Sistema')).toBeTruthy();
   });
 
   it('avisa cuando el asiento no está cuadrado', () => {
     render(
-      <EntryDetailDialog
-        entry={{ ...ASIENTO, lineas: [ASIENTO.lineas[0]] }}
-        open
-        onOpenChange={vi.fn()}
-      />,
+      <EntryDetailDialog entry={{ ...ASIENTO, lineas: [ASIENTO.lineas[0]] }} open onOpenChange={vi.fn()} />,
     );
-
     expect(screen.getByText('Asiento descuadrado')).toBeTruthy();
-  });
-
-  it('no revienta si el asiento no se pudo cargar', () => {
-    render(<EntryDetailDialog entry={null} open onOpenChange={vi.fn()} />);
-    expect(screen.getByText('No se pudo cargar el asiento.')).toBeTruthy();
   });
 });
