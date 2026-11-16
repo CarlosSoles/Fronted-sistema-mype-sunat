@@ -80,6 +80,7 @@ const ExpensesPage = React.lazy(() => import('@/modules/expenses/pages/ExpensesP
 const CollectionsPage = React.lazy(() => import('@/modules/collections/pages/CollectionsPage'));
 const AccountingTaxBooksPage = React.lazy(() => import('@/modules/accounting/pages/AccountingTaxBooksPage'));
 const AccountingPlanCuentasPage = React.lazy(() => import('@/modules/accounting/pages/AccountingPlanCuentasPage'));
+const AccountingGuidePage = React.lazy(() => import('@/modules/accounting/pages/AccountingGuidePage'));
 const AccountingPlePage = React.lazy(() => import('@/modules/accounting/pages/AccountingPlePage'));
 const AccountingPeriodsPage = React.lazy(() => import('@/modules/accounting/pages/AccountingPeriodsPage'));
 const AccountingLedgerPage = React.lazy(() => import('@/modules/accounting/pages/AccountingLedgerPage'));
@@ -693,6 +694,14 @@ export const AppRoutes = () => {
               element={
                 <RoleProtectedRoute >
                   <AccountingRulesPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/accounting/guia"
+              element={
+                <RoleProtectedRoute >
+                  <AccountingGuidePage />
                 </RoleProtectedRoute>
               }
             />
