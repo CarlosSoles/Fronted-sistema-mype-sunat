@@ -32,7 +32,7 @@ export default function SalesQuotesPage() {
       ? 'Ingrese el documento del cliente.'
       : documentoTerceroValido(tipoDoc, documento.trim())
         ? ''
-        : tipoDoc === '6' ? 'RUC inválido: 11 dígitos y módulo 11.' : 'DNI inválido: 8 dígitos.';
+        : tipoDoc === '6' ? 'RUC inválido: debe iniciar con 10, 15, 16, 17 o 20, tener 11 dígitos y módulo 11.' : 'DNI inválido: 8 dígitos.';
   const crear = useMutation({
     mutationFn: () => salesQuotesApi.create({ kind, customerName: cliente, customerDocType: tipoDoc, customerDocNumber: documento || undefined, validUntil: validez || undefined, notes: notas || undefined, items: items.map((i) => ({ description: i.description, quantity: Number(i.quantity), unitPrice: Number(i.unitPrice) })) }),
     onSuccess: async () => { setAbierto(false); setCliente(''); setDocumento(''); setTipoDoc('6'); setValidez(''); setNotas(''); setItems([vacio()]); setError(''); await queryClient.invalidateQueries({ queryKey: ['sales-quotes'] }); },

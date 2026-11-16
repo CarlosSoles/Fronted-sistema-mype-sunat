@@ -3,6 +3,7 @@ export function documentoTerceroValido(tipo: string, numero: string): boolean {
   if (tipo === '1') return /^\d{8}$/.test(numero);
   if (tipo !== '6') return tipo === '0' || tipo === '4';
   if (!/^\d{11}$/.test(numero)) return false;
+  if (!/^(10|15|16|17|20)/.test(numero)) return false;
   const suma = [5,4,3,2,7,6,5,4,3,2].reduce((s, peso, i) => s + Number(numero[i]) * peso, 0);
   const diferencia = 11 - suma % 11;
   return Number(numero[10]) === (diferencia === 10 ? 0 : diferencia === 11 ? 1 : diferencia);
