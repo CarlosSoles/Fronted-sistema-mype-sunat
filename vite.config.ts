@@ -39,6 +39,7 @@ export default defineConfig({
     },
   },
   test: {
+    setupFiles: ["./test/setupPermissions.ts"],
     environment: "jsdom",
     include: ["test/**/*.test.{ts,tsx}", "test/**/*.spec.{ts,tsx}"],
   },
