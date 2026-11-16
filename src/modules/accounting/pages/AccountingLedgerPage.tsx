@@ -19,7 +19,7 @@ import {
   TableRow,
 } from '@/components/ui';
 import { Toolbar } from '../components/AccountingUI';
-import { EntryDetailSheet, type EntryDetail } from '../components/EntryDetailSheet';
+import { EntryDetailDialog, type EntryDetail } from '../components/EntryDetailDialog';
 import { accountingApi } from '../services/accountingApi';
 import { PeriodInput } from '@/components/common/PeriodInput';
 import type { LedgerMovement } from '../types/accounting.types';
@@ -222,7 +222,7 @@ export default function AccountingLedgerPage() {
         </p>
       ) : null}
 
-      <EntryDetailSheet
+      <EntryDetailDialog
         entry={asiento}
         open={Boolean(detalle)}
         cargando={cargandoAsientos}
