@@ -154,20 +154,25 @@ export interface SireConfiguracionStatus {
 /**
  * Datos globales de la empresa editables desde la configuración SIRE.
  *
- * Se guardan con `PUT /empresa/configuracion`. El RUC identifica a la empresa
- * de la sesión y el backend lo conserva; `series` viaja como arreglo ya
- * normalizado (sin espacios ni duplicados).
+ * Se guardan con `PUT /empresa/configuracion`. La empresa se identifica por la
+ * sesión autenticada y solo se envían los campos informados para no borrar
+ * datos ya configurados en el backend.
  */
 export interface EmpresaConfiguracionPayload {
   ruc?: string;
   razonSocial?: string;
-  series: string[];
+  direccion?: string;
+  estado?: string;
+  condicion?: string;
 }
 
-/** Razón social obtenida al validar el RUC de la empresa contra Decolecta. */
+/** Datos de la empresa obtenidos al validar el RUC contra Decolecta. */
 export interface EmpresaRucValidacion {
   ruc: string;
   razonSocial: string;
+  direccion?: string;
+  estado?: string;
+  condicion?: string;
 }
 
 /**

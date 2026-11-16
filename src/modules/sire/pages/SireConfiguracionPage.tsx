@@ -18,14 +18,13 @@ import {
 import { Building2, CheckCircle2, LoaderCircle, Save, Search } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useSireConfiguracion } from '../hooks/useSireConfiguracion';
-import { normalizeSeries } from '../services/empresaApi';
 import { getRucFeedback } from '../validators/sireSchema';
 
 /**
  * Pantalla de datos globales de la empresa para SIRE.
  *
- * Solo administra el RUC, la razón social y las series. Las credenciales
- * SIRE/SUNAT se configuran en la pantalla de credenciales.
+ * Solo administra el RUC, el nombre, la dirección, el estado y la condición.
+ * Las credenciales SIRE/SUNAT se configuran en la pantalla de credenciales.
  */
 export default function SireConfiguracionPage() {
   const {
@@ -40,77 +39,76 @@ export default function SireConfiguracionPage() {
   } = useSireConfiguracion();
 
   const activeCompany = useAuthStore((state) => state.activeCompany);
-  const sessionRuc = activeCompany?.ruc ?? '';
 
-  const [companyNameInput, setCompanyNameInput] = useState<string | null>(null);
-  const [rucInput, setRucInput] = useState<string | null>(null);
+  const [ruc, setRuc] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [direccion, setDireccion] = useState('');
+  const [estado, setEstado] = useState('');
+  const [condicion, setCondicion] = useState('');
   const [rucValidated, setRucValidated] = useState(false);
-  const [seriesText, setSeriesText] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  const companyName = companyNameInput ?? activeCompany?.razonSocial ?? '';
-  const rucValue = rucInput ?? sessionRuc;
-
-  const updateCompanyName = (value: string) => {
-    setCompanyNameInput(value);
-    setValidationError(null);
-    resetMessages();
-  };
-
-  const updateSeries = (value: string) => {
-    setSeriesText(value);
-    setValidationError(null);
-    resetMessages();
-  };
-
   const updateRuc = (value: string) => {
-    setRucInput(value);
+    setRuc(value.replace(/\D/g, '').slice(0, 11));
     setRucValidated(false);
     setValidationError(null);
     resetMessages();
   };
 
+  const updateField =
+    (setter: (value: string) => void) =>
+    (value: string) => {
+      setter(value);
+      setValidationError(null);
+      resetMessages();
+    };
+
   const handleValidateRuc = async () => {
-    const feedback = getRucFeedback(rucValue);
+    const feedback = getRucFeedback(ruc);
     if (feedback) {
       setValidationError(feedback);
       return;
     }
 
     setValidationError(null);
-    const result = await validateRuc(rucValue);
+    setRucValidated(false);
+    resetMessages();
+    const result = await validateRuc(ruc);
     if (!result) return;
 
-    setRucInput(result.ruc);
+    setRuc(result.ruc);
+    setCompanyName(result.razonSocial);
+    setDireccion(result.direccion ?? '');
+    setEstado(result.estado ?? '');
+    setCondicion(result.condicion ?? '');
     setRucValidated(true);
-    setCompanyNameInput(result.razonSocial);
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const feedback = rucValue.trim() ? getRucFeedback(rucValue) : null;
+    const rucValue = ruc.trim();
+    const feedback = rucValue ? getRucFeedback(rucValue) : null;
     if (feedback) {
       setValidationError(feedback);
       return;
     }
 
     setValidationError(null);
-    const ruc = rucValue.trim();
     const razonSocial = companyName.trim();
-    const series = normalizeSeries(seriesText.split(','));
-
     const saved = await saveCompany({
-      ruc: ruc || undefined,
+      ruc: rucValue || undefined,
       razonSocial: razonSocial || undefined,
-      series,
+      direccion: direccion.trim() || undefined,
+      estado: estado.trim() || undefined,
+      condicion: condicion.trim() || undefined,
     });
     if (!saved) return;
 
     if (activeCompany) {
       useAuthStore.getState().setActiveCompany({
         ...activeCompany,
-        ruc: ruc || activeCompany.ruc,
+        ruc: rucValue || activeCompany.ruc,
         razonSocial: razonSocial || activeCompany.razonSocial,
       });
     }
@@ -120,7 +118,7 @@ export default function SireConfiguracionPage() {
     <Page>
       <PageHeader
         title="Configuración SUNAT"
-        description="Administra el RUC, la razón social y las series de la empresa. Estos datos se usan como variables globales en las operaciones SIRE."
+        description="Administra el RUC, el nombre, la dirección, el estado y la condición de la empresa. Valida el RUC contra Decolecta para autocompletar los datos."
       />
 
       {companySuccessMessage && (
@@ -147,7 +145,7 @@ export default function SireConfiguracionPage() {
           </CardTitle>
           <CardDescription>
             Actualiza la información global de la empresa activa. El RUC se puede validar contra
-            Decolecta para autocompletar la razón social.
+            Decolecta para autocompletar el nombre, la dirección, el estado y la condición.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -164,11 +162,9 @@ export default function SireConfiguracionPage() {
                       maxLength={11}
                       placeholder="RUC de la empresa"
                       className="pr-10"
-                      value={rucValue}
+                      value={ruc}
                       disabled={isSavingCompany || isValidatingRuc}
-                      onChange={(event) =>
-                        updateRuc(event.target.value.replace(/\D/g, '').slice(0, 11))
-                      }
+                      onChange={(event) => updateRuc(event.target.value)}
                     />
                     {isValidatingRuc && (
                       <LoaderCircle
@@ -195,7 +191,7 @@ export default function SireConfiguracionPage() {
                 {rucValidated && (
                   <PageText variant="caption" className="flex items-center gap-1 text-green-600">
                     <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-                    RUC validado con Decolecta. Nombre autocompletado.
+                    RUC validado con Decolecta. Datos autocompletados.
                   </PageText>
                 )}
                 {validationError && <PageText variant="error">{validationError}</PageText>}
@@ -211,30 +207,58 @@ export default function SireConfiguracionPage() {
                   placeholder="Razón social de la empresa"
                   value={companyName}
                   disabled={isSavingCompany}
-                  onChange={(event) => updateCompanyName(event.target.value)}
+                  onChange={(event) => updateField(setCompanyName)(event.target.value)}
                 />
               </PageField>
 
               <div className="md:col-span-2">
-                <PageField label="Series" htmlFor="sire-company-series">
+                <PageField label="Dirección" htmlFor="sire-company-address">
                   <Input
-                    id="sire-company-series"
-                    aria-label="Series"
+                    id="sire-company-address"
+                    aria-label="Dirección"
                     autoComplete="off"
-                    placeholder="F001, B001"
-                    value={seriesText}
+                    maxLength={300}
+                    placeholder="Dirección fiscal de la empresa"
+                    value={direccion}
                     disabled={isSavingCompany}
-                    onChange={(event) => updateSeries(event.target.value)}
+                    onChange={(event) => updateField(setDireccion)(event.target.value)}
                   />
                 </PageField>
-                <PageText variant="caption" className="mt-1 text-muted-foreground">
-                  Escribe las series separadas por comas. Ejemplo: F001, B001.
-                </PageText>
               </div>
+
+              <PageField label="Estado" htmlFor="sire-company-status">
+                <Input
+                  id="sire-company-status"
+                  aria-label="Estado"
+                  autoComplete="off"
+                  maxLength={100}
+                  placeholder="Estado del contribuyente"
+                  value={estado}
+                  disabled={isSavingCompany}
+                  onChange={(event) => updateField(setEstado)(event.target.value)}
+                />
+              </PageField>
+
+              <PageField label="Condición" htmlFor="sire-company-condition">
+                <Input
+                  id="sire-company-condition"
+                  aria-label="Condición"
+                  autoComplete="off"
+                  maxLength={100}
+                  placeholder="Condición de domicilio"
+                  value={condicion}
+                  disabled={isSavingCompany}
+                  onChange={(event) => updateField(setCondicion)(event.target.value)}
+                />
+              </PageField>
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <Button type="submit" disabled={isSavingCompany} className="gap-2">
+              <Button
+                type="submit"
+                disabled={isSavingCompany || isValidatingRuc}
+                className="gap-2"
+              >
                 {isSavingCompany ? (
                   <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
                 ) : (
