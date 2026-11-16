@@ -54,6 +54,9 @@ export default function PurchasesPage() {
   const [paymentPurchase, setPaymentPurchase] = useState<PurchaseRecord | null>(null);
   const [paymentHistory, setPaymentHistory] = useState<PurchasePaymentRecord[] | null>(null);
   const [receiveTarget, setReceiveTarget] = useState<PurchaseRecord | null>(null);
+  const [creditTarget, setCreditTarget] = useState<PurchaseRecord | null>(null);
+  const [creditAmount, setCreditAmount] = useState('');
+  const [creditReason, setCreditReason] = useState('FALTANTE');
   const [receiveQty, setReceiveQty] = useState<Record<string, string>>({});
   const [rejectQty, setRejectQty] = useState<Record<string, string>>({});
   const [rejectReason, setRejectReason] = useState<Record<string, string>>({});
@@ -65,6 +68,12 @@ export default function PurchasesPage() {
     mutationFn: (id: string) => purchasesApi.cancelPurchase(id),
     onSuccess: () => { void refetch(); void queryClient.invalidateQueries({ queryKey: ['purchase-payables'] }); void queryClient.invalidateQueries({ queryKey: ['accounting-entries'] }); },
     onError: (e: any) => setErrorMessage(e?.response?.data?.message ?? 'No se pudo anular la compra.'),
+  });
+
+  const notaCredito = useMutation({
+    mutationFn: () => purchasesApi.createCreditNote(creditTarget!.id, { amount: Number(creditAmount), reason: creditReason }),
+    onSuccess: async () => { setCreditTarget(null); setCreditAmount(''); void refetch(); void queryClient.invalidateQueries({ queryKey: ['accounting-entries'] }); },
+    onError: (e: any) => setErrorMessage(e?.response?.data?.message ?? 'No se pudo registrar la nota de crédito.'),
   });
 
   const recepcion = useMutation({
@@ -334,6 +343,9 @@ export default function PurchasesPage() {
                           Recibir
                         </Button>
                       )}
+                      {p.status !== 'ANULADA' && (p.pendingAmount ?? 0) > 0 ? (
+                        <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-amber-600" onClick={() => { setCreditTarget(p); setCreditAmount(String(p.pendingAmount ?? 0)); }}><Receipt className="h-3.5 w-3.5" />Nota crédito</Button>
+                      ) : null}
                       {p.status !== 'ANULADA' && (p.paidAmount ?? 0) === 0 && p.receptionStatus === 'PENDIENTE' ? (
                         <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-destructive" onClick={() => { if (window.confirm(`¿Anular la compra ${p.purchaseNumber}? Se revertirá el asiento de compra.`)) anular.mutate(p.id); }}><XCircle className="h-3.5 w-3.5" />Anular</Button>
                       ) : null}
@@ -401,6 +413,17 @@ export default function PurchasesPage() {
             <Button variant="outline" onClick={() => setReceiveTarget(null)}>Cancelar</Button>
             <Button onClick={() => recepcion.mutate()} disabled={recepcion.isPending || [...Object.values(receiveQty), ...Object.values(rejectQty)].every((v) => !(Number(v) > 0))}>{recepcion.isPending ? 'Registrando…' : 'Registrar recepción'}</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Nota de crédito proveedor */}
+      <Dialog open={creditTarget !== null} onOpenChange={(open) => { if (!open) setCreditTarget(null); }}>
+        <DialogContent className="text-xs">
+          <DialogHeader><DialogTitle className="text-base">Nota de crédito de proveedor</DialogTitle><DialogDescription>{creditTarget?.purchaseNumber} · {creditTarget?.supplierName}. Reduce la cuenta por pagar.</DialogDescription></DialogHeader>
+          <label className="text-xs">Importe<Input type="number" min="0.01" max={creditTarget?.pendingAmount ?? 0} step="0.01" value={creditAmount} onChange={(e) => setCreditAmount(e.target.value)} /></label>
+          <label className="mt-2 block text-xs">Motivo<select className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-xs" value={creditReason} onChange={(e) => setCreditReason(e.target.value)}><option value="FALTANTE">Faltante</option><option value="DANADO">Dañado</option><option value="DEVOLUCION">Devolución</option><option value="DESCUENTO">Descuento posterior</option><option value="OTRO">Otro</option></select></label>
+          <p className="mt-2 text-[11px] text-muted-foreground">Saldo disponible: S/ {Number(creditTarget?.pendingAmount ?? 0).toFixed(2)}</p>
+          <DialogFooter><Button variant="outline" onClick={() => setCreditTarget(null)}>Cancelar</Button><Button disabled={notaCredito.isPending || !(Number(creditAmount) > 0)} onClick={() => notaCredito.mutate()}>{notaCredito.isPending ? 'Registrando…' : 'Registrar nota'}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
