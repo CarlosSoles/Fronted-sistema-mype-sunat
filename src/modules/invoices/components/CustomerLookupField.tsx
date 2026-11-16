@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useRolePermissions } from '@/hooks/useRolePermissions';
+import { useInvoiceWritePermission } from '../hooks/useInvoiceWritePermission';
 import { masterDataApi, type BusinessPartnerRecord } from '@/modules/customs/services/masterDataApi';
 import { PartnerFormDialog } from '@/modules/customs/components/PartnerFormDialog';
 import { PageText } from '@/components/ui';
@@ -37,7 +37,7 @@ interface CustomerLookupFieldProps {
 /** Busca clientes activos del maestro desde cualquiera de los dos campos. */
 export const CustomerLookupField = ({ documento, razonSocial, onElegir, onDocumentoChange, onRazonSocialChange, labelDocumento, placeholderDocumento, errorDocumento, disabled = false }: CustomerLookupFieldProps) => {
   const queryClient = useQueryClient();
-  const { canEmitInvoices } = useRolePermissions();
+  const canEmitInvoices = useInvoiceWritePermission();
   const [registering, setRegistering] = useState(false);
   const elegir = (cliente: ClienteBuscado) => {
     onElegir(cliente);

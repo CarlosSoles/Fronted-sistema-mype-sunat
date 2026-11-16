@@ -1,3 +1,4 @@
+import { useInvoiceDatePermission } from '../hooks/useInvoiceDatePermission';
 import { editarIdentidadCliente } from '../lib/invoiceCustomerIdentity';
 import { limitesNota } from '../lib/invoiceNoteQuantities';
 import { InvoiceNextNumber } from './InvoiceNextNumber';
@@ -85,6 +86,7 @@ export const InvoiceEmitCampos = ({
   productos, catalogoEstado,
   onItemDesdeProducto,
 }: InvoiceEmitCamposProps) => {
+  const { canEditDate, explanation: dateExplanation } = useInvoiceDatePermission();
   const esNota = esTipoNota(b.tipo);
   const motivos = b.tipo === '08' ? MOTIVOS_ND : MOTIVOS_NC;
   // Se busca por NÚMERO FISCAL, no por `id`: `id` es el UUID de la base y el
@@ -210,13 +212,14 @@ export const InvoiceEmitCampos = ({
         id="fecha-emision"
         label="Fecha de emisión"
         value={b.fecha}
+        readOnly={!canEditDate}
         onChange={(v) => actualizar(cambiarFechaEmision(b, v))}
         min={minimoDeFechaEmision(undefined, b.tipo)}
         max={topeDeFechaEmision()}
         ayuda={
-          b.formaPago === 'Credito' && b.cuotas.length > 0
+          dateExplanation ?? (b.formaPago === 'Credito' && b.cuotas.length > 0
               ? 'Al cambiarla, los vencimientos conservan su plazo respecto de la nueva fecha.'
-              : undefined
+              : undefined)
         }
       />
 
