@@ -273,11 +273,7 @@ export const InvoiceList = () => {
           ultimaActualizacion={refresco.ultimaActualizacion}
           onEmitir={(tipo) => {
             void recargarConfiguracion();
-            if (tipo === 'Nota') {
-              setModalEmision(tipo);
-              return;
-            }
-            navigate(`/invoices/emision?tipo=${tipo === 'Factura' ? '01' : '03'}`);
+            setModalEmision(tipo);
           }}
         />
 
@@ -327,6 +323,7 @@ export const InvoiceList = () => {
       {modalEmision && (
         <InvoiceEmitModal
           key={modalEmision}
+          tipoExplicito
           tipoInicial={TIPO_POR_OPCION[modalEmision]}
           fecha={fechaHoy}
           existentes={comprobantes}

@@ -1,6 +1,8 @@
+import { useCommercialDefaults, permittedDefault } from '@/modules/invoices/hooks/useCommercialDefaults';
+import { masterDataApi } from '@/modules/customs/services/masterDataApi';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/authStore';
 import { CreditCard, Plus, Search, ShoppingCart, Trash2 } from 'lucide-react';
 import { Badge, Button, Card, Input, Page, PageHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
@@ -38,6 +40,18 @@ export default function SalesPosPage() {
   const [ticketAbierto, setTicketAbierto] = useState(false);
   const empresa = useAuthStore((s) => s.activeCompany);
   const [formaPago, setFormaPago] = useState<'Contado' | 'Credito'>('Contado');
+  const actor = useAuthStore(state => state.user?.id);
+  const { data: paymentDefaults, isError: defaultsError } = useCommercialDefaults();
+  const { data: customerPermissions } = useQuery({
+    queryKey: ['pos-customer-permissions', empresa?.tenantId, actor, tipoDoc, documento],
+    enabled: tipoDoc !== '0' && !errorDocumento && Boolean(documento.trim()), retry: false,
+    queryFn: async () => (await masterDataApi.getPartners({ role: 'CLIENTE', q: documento.trim() })).find(partner => partner.is_active && partner.roles.includes('CLIENTE') && partner.doc_type === tipoDoc && partner.doc_number === documento.trim()) ?? null,
+  });
+  const creditAllowed = tipo === '01' && customerPermissions?.has_credit === true;
+  useEffect(() => {
+    if (paymentDefaults) { setFormaPago(permittedDefault(paymentDefaults, creditAllowed, tipo)); setMedioPago(paymentDefaults.medio_pago); }
+  }, [paymentDefaults, creditAllowed, tipo]);
+
   const [searchParams] = useSearchParams();
   const quoteId = searchParams.get('quote');
   const [vencimiento, setVencimiento] = useState(enDias(30));
@@ -150,7 +164,8 @@ export default function SalesPosPage() {
       setVenta({ numero: resultado.numero, total: Number(resultado.monto_total), cobroPendiente: resultado.cobroPendiente, credito: resultado.credito, fecha: new Date().toISOString(), cliente: cliente.trim(), documento: documento.trim(), tipo, serie, medioPago, formaPago, items: carrito.map((l) => ({ descripcion: l.producto.descripcion, cantidad: l.cantidad, precio: Number(l.producto.precioUnitario ?? 0), total: l.cantidad * Number(l.producto.precioUnitario ?? 0) })) });
       if (quoteId) void salesQuotesApi.status(quoteId, 'CONVERTIDA');
       setCarrito([]);
-      setFormaPago('Contado');
+      setFormaPago(permittedDefault(paymentDefaults, creditAllowed, tipo));
+      setMedioPago(paymentDefaults?.medio_pago ?? 'EFECTIVO');
       setError('');
     },
     onError: (e: unknown) => setError(extractApiErrorMessage(e, 'No se pudo registrar la venta.')),
@@ -159,7 +174,8 @@ export default function SalesPosPage() {
   return (
     <Page>
       <PageHeader title="Punto de venta" description="Venta rápida con emisión de comprobante y registro de cobro." />
-      {venta ? <div className="mb-4 rounded-md border border-emerald-600/40 bg-emerald-50 p-3 text-sm text-emerald-800">Venta registrada: <strong>{venta.numero}</strong> · {money(venta.total)}{venta.credito ? <p className="mt-1 text-xs text-sky-700">Venta al crédito: el saldo quedó en Cuentas por cobrar.</p> : null}{venta.cobroPendiente ? <p className="mt-1 text-xs text-amber-700">Cobro pendiente: {venta.cobroPendiente} Regístralo en Cobros.</p> : null}<Button size="sm" variant="outline" className="mt-2" onClick={() => setTicketAbierto(true)}>Ver ticket</Button></div> : null}
+      {defaultsError && <p role="alert">No se pudo leer el pago predeterminado. Verifique la condición y el medio antes de emitir.</p>}
+      {venta ? <div className="mb-4 rounded-md border border-emerald-600/40 bg-emerald-50 p-3 text-sm text-emerald-800">Venta registrada: <strong>{venta.numero}</strong> · {money(venta.total)}{venta.credito ? <p className="mt-1 text-xs text-sky-700">Venta al crédito: el saldo quedó en Cuentas por cobrar.</p> : null}{venta.cobroPendiente ? <p className="mt-1 text-xs text-amber-700">Cobro pendiente: {venta.cobroPendiente} Revise el estado del comprobante y del puente en el monitor.</p> : null}<Button size="sm" variant="outline" className="mt-2" onClick={() => setTicketAbierto(true)}>Ver ticket</Button></div> : null}
       {error ? <div className="mb-4 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive">{error}</div> : null}
       <div className="grid gap-4 lg:grid-cols-[1fr_420px]">
         <Card className="p-4">
@@ -234,8 +250,8 @@ export default function SalesPosPage() {
             {carrito.length === 0 ? <p className="py-6 text-center text-xs text-muted-foreground">Agregue productos para vender.</p> : null}
           </div>
           <div className="mb-3 grid grid-cols-2 gap-2">
-            <label className="text-xs">Condición<select aria-label="Condición de pago" className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-xs" value={formaPago} onChange={(e) => setFormaPago(e.target.value as 'Contado' | 'Credito')}><option value="Contado">Contado</option><option value="Credito">Crédito</option></select></label>
-            {formaPago === 'Credito' ? <label className="text-xs">Vencimiento<Input aria-label="Vencimiento" type="date" min={hoy} value={vencimiento} onChange={(e) => setVencimiento(e.target.value)} /></label> : <label className="text-xs">Medio de pago<select aria-label="Medio de pago" className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-xs" value={medioPago} onChange={(e) => setMedioPago(e.target.value)}><option value="EFECTIVO">Efectivo</option><option value="TRANSFERENCIA">Transferencia</option><option value="TARJETA">Tarjeta</option><option value="YAPE">Yape / Plin</option></select></label>}
+            <label className="text-xs">Condición<select aria-label="Condición de pago" className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-xs" value={formaPago} onChange={(e) => setFormaPago(e.target.value as 'Contado' | 'Credito')}><option value="Contado">Contado</option><option value="Credito" disabled={!creditAllowed}>Crédito</option></select></label>
+            {formaPago === 'Credito' ? <label className="text-xs">Vencimiento<Input aria-label="Vencimiento" type="date" min={hoy} value={vencimiento} onChange={(e) => setVencimiento(e.target.value)} /></label> : <label className="text-xs">Medio de pago<select aria-label="Medio de pago" className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-xs" value={medioPago} onChange={(e) => setMedioPago(e.target.value)}><option value="EFECTIVO">Efectivo</option><option value="TRANSFERENCIA">Transferencia</option><option value="TARJETA">Tarjeta</option><option value="YAPE">Yape</option><option value="PLIN">Plin</option><option value="DEPOSITO">Depósito</option><option value="CHEQUE">Cheque</option></select></label>}
           </div>
           <div className="mb-3 flex items-center justify-between border-t pt-3 text-sm"><span>Total</span><strong className="font-mono text-lg">{money(total)}</strong></div>
           <Button fullWidth disabled={cobrar.isPending || !carrito.length || !cliente.trim() || !serie || Boolean(errorDocumento)} onClick={() => cobrar.mutate()}><CreditCard className="mr-2 h-4 w-4" />{cobrar.isPending ? 'Registrando…' : formaPago === 'Credito' ? 'Emitir al crédito' : 'Cobrar y emitir'}</Button>

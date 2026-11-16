@@ -1,3 +1,4 @@
+import { useCommercialDefaults, permittedDefault } from '../hooks/useCommercialDefaults';
 import { erroresCamposLinea } from '../lib/invoiceLineFields';
 import { enfocarBusquedaProducto, colocarProductoEnFilaVacia } from '../lib/invoiceEmptyRow';
 import { InvoiceWriteButton } from './InvoiceWriteButton';
@@ -81,6 +82,7 @@ import { CreditInstallmentsEditor } from './CreditInstallmentsEditor';
 import { problemasDeNota } from '../lib/invoiceNotaOrigen';
 
 interface InvoiceEmitModalProps {
+  tipoExplicito?: boolean;
   tipoInicial: TipoEmisible;
   configuracionCargando?: boolean;
   configuracionError?: boolean;
@@ -209,6 +211,7 @@ const motivosPendientes = (
 /** Modal de emisión con grilla de ítems, cuotas y resumen en tiempo real. */
 export const InvoiceEmitModal = ({
   tipoInicial,
+  tipoExplicito = false,
   seriesConfiguradas = [],
   configuracionCargando = false,
   configuracionError = false,
@@ -227,7 +230,7 @@ export const InvoiceEmitModal = ({
   const puedeOperar = useInvoiceWritePermission();
   const [b, setB] = useState<BorradorEmision>(() => {
     const tipoEfectivo: TipoEmisible =
-      tipoInicial === '07' || tipoInicial === '08'
+      tipoExplicito || tipoInicial === '07' || tipoInicial === '08'
         ? tipoInicial
         : tipoComprobantePorPerfil(perfilComercial) ?? tipoInicial;
     const inicial = borradorInicial(tipoEfectivo, fecha);
@@ -240,6 +243,13 @@ export const InvoiceEmitModal = ({
       correlativo: 0,
     };
   });
+  const { data: commercialDefaults } = useCommercialDefaults();
+  useEffect(() => {
+    if (commercialDefaults && !esTipoNota(b.tipo)) setB(previous => ({ ...previous,
+      formaPago: permittedDefault(commercialDefaults, previous.clienteTieneCredito === true, previous.tipo),
+      medioPago: commercialDefaults.medio_pago, cuotas: [],
+    }));
+  }, [commercialDefaults, b.clienteId, b.clienteTieneCredito, b.tipo]);
   const almacen = b.almacen ?? 'ALM-01';
   const productos = useMemo(() => catalogoAlmacen?.almacen === almacen ? catalogoAlmacen.productos : almacen === 'ALM-01' ? productosIniciales : [], [almacen, productosIniciales, catalogoAlmacen]);
   useEffect(() => {
@@ -307,11 +317,11 @@ export const InvoiceEmitModal = ({
   const seriesDelTipo = seriesConfiguradas.filter(s => s.document_type === b.tipo && s.is_active).map(s => s.series);
   const pendientes = [...pendientesBase];
   if (!seriesDelTipo.includes(b.serie)) pendientes.push('Configure una serie activa para este tipo de comprobante.');
-  if (b.tipo === '07' && afectado) {
+  if (esTipoNota(b.tipo) && afectado) {
     if (!saldoNota.data || saldoNota.isFetching || saldoNota.isError) pendientes.push(saldoNota.isError ? extractApiErrorMessage(saldoNota.error, 'No se pudo consultar el saldo de la nota; inténtelo de nuevo.') : 'Consultando saldo del comprobante…');
     else {
       if (Math.round(flujo.importeTotal * 100) > Math.round(saldoNota.data.disponible * 100)) pendientes.push(`La nota supera el saldo disponible informado por el servidor (S/ ${saldoNota.data.disponible.toFixed(2)}).`);
-      pendientes.push(...limitesNota(b.items, saldoNota.data.cantidades_pendientes, b.motivoCodigo, saldoNota.data.motivos_totales).errores);
+      if (b.tipo === '07') pendientes.push(...limitesNota(b.items, saldoNota.data.cantidades_pendientes, b.motivoCodigo, saldoNota.data.motivos_totales).errores);
     }
   }
   const puedeEmitir = pendientes.length === 0;
@@ -408,9 +418,9 @@ export const InvoiceEmitModal = ({
     const payload = borradorAPayloadEmision(b);
     const clave = intento.current.clavePara(payload);
     try {
-      if (b.tipo === '07' && afectado) {
+      if (esTipoNota(b.tipo) && afectado) {
         const actual = await invoicesApi.getSaldoNota(afectado.id);
-        const errorCantidad = limitesNota(b.items, actual.cantidades_pendientes, b.motivoCodigo, actual.motivos_totales).errores[0];
+        const errorCantidad = b.tipo === '07' ? limitesNota(b.items, actual.cantidades_pendientes, b.motivoCodigo, actual.motivos_totales).errores[0] : undefined;
         if (errorCantidad) throw new Error(errorCantidad);
         if (Math.round(flujo.importeTotal * 100) > Math.round(actual.disponible * 100)) throw new Error('La nota supera el saldo actualizado del comprobante.');
       }
@@ -441,7 +451,7 @@ export const InvoiceEmitModal = ({
   const teclado = useInvoiceKeyboard(nuevoItem, () => { void confirmar(); }, enviando || !puedeOperar);
   return (
     <Dialog open onOpenChange={(abierto) => !abierto && onCerrar()}>
-      <DialogContent ref={formularioRef} showCloseButton={false} onKeyDown={teclado.handler} onEscapeKeyDown={e => e.preventDefault()} className="max-h-[88vh] overflow-y-auto sm:max-w-4xl">
+      <DialogContent ref={formularioRef} showCloseButton={false} onKeyDown={teclado.handler} onEscapeKeyDown={e => e.preventDefault()} className="max-h-[88vh] overflow-y-auto sm:max-w-[min(96vw,1440px)]">
         <DialogHeader className="pr-8">
           <DialogTitle>Emitir Comprobante Electrónico</DialogTitle>
           {teclado.ayuda}

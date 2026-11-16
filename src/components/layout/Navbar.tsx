@@ -1,3 +1,4 @@
+import { ConfigurationMenuLink } from './ConfigurationMenuLink';
 import { useAuth } from '@/hooks/useAuth';
 import { OfflineBadge } from './OfflineBadge';
 import { OutboxBadge } from './OutboxBadge';
@@ -50,6 +51,7 @@ export const Navbar = () => {
 
         {/* Lado derecho: Tema Claro/Oscuro, Usuario y Salir */}
         <div className="flex items-center gap-2">
+          <ConfigurationMenuLink />
           {/* Selector de tema */}
           <Button
             variant="ghost"

@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { applyDebitAmount } from '../lib/invoiceDebitAmount';
 import { useInvoiceDatePermission } from '../hooks/useInvoiceDatePermission';
 import { editarIdentidadCliente } from '../lib/invoiceCustomerIdentity';
 import { limitesNota } from '../lib/invoiceNoteQuantities';
@@ -87,6 +89,8 @@ export const InvoiceEmitCampos = ({
   onItemDesdeProducto,
 }: InvoiceEmitCamposProps) => {
   const { canEditDate, explanation: dateExplanation } = useInvoiceDatePermission();
+  const [debitAmount, setDebitAmount] = useState('');
+  const [debitError, setDebitError] = useState('');
   const esNota = esTipoNota(b.tipo);
   const motivos = b.tipo === '08' ? MOTIVOS_ND : MOTIVOS_NC;
   // Se busca por NÚMERO FISCAL, no por `id`: `id` es el UUID de la base y el
@@ -96,7 +100,8 @@ export const InvoiceEmitCampos = ({
   const afectado = buscarAfectado(elegibles, b.documentoAfectado);
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
+    <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]">
+    <section aria-label="Cabecera del comprobante" className="grid min-w-0 content-start gap-3 sm:grid-cols-2">
       <CampoSelect
         id="tipo-cpe"
         label="Tipo de comprobante"
@@ -154,7 +159,7 @@ export const InvoiceEmitCampos = ({
               </p>
               {saldoNota && (
                 <p className="text-xs">
-                  Total S/ {saldoNota.total.toFixed(2)} · Acreditado según servidor S/{' '}
+                  Total S/ {saldoNota.total.toFixed(2)} · Aplicado en notas según servidor S/{' '}
                   {saldoNota.devuelto.toFixed(2)} · Disponible según servidor S/{' '}
                   {saldoNota.disponible.toFixed(2)}. Las notas antiguas sin vínculo por ID pueden no estar incluidas.
                 </p>
@@ -224,6 +229,7 @@ export const InvoiceEmitCampos = ({
       />
 
       <CustomerLookupField
+        unico={b.tipo === '03'}
         disabled={esNota && Boolean(afectado)}
         documento={b.clienteDoc}
         razonSocial={b.clienteRazonSocial}
@@ -257,7 +263,7 @@ export const InvoiceEmitCampos = ({
           const identidad = editarIdentidadCliente({ documento: b.clienteDoc, razonSocial: b.clienteRazonSocial, confirmado: Boolean(b.clienteId) }, 'nombre', texto);
           actualizar({
             clienteRazonSocial: identidad.razonSocial,
-            clienteDoc: identidad.documento,
+            clienteDoc: b.tipo === '03' ? '' : identidad.documento,
             clienteId: undefined,
             clienteTipoDocumento: undefined,
             clienteDireccion: undefined,
@@ -292,6 +298,16 @@ export const InvoiceEmitCampos = ({
       />
 
 
+    </section>
+    <section aria-label="Detalle de líneas" className="min-w-0 space-y-3">
+      {b.tipo === '08' && saldoNota && <section className="space-y-2 rounded-md border p-3">
+        <label htmlFor="importe-nd">Importe de la nota de débito</label>
+        <input id="importe-nd" type="number" min="0.01" step="0.01" max={saldoNota.disponible} value={debitAmount} onChange={e => setDebitAmount(e.target.value)} className="ml-2 w-32 rounded border p-2" />
+        <button type="button" className="ml-2 text-primary underline" onClick={() => { try { const next=applyDebitAmount(b, Number(debitAmount), saldoNota.disponible); actualizar({items:next.items,descuentoGlobal:next.descuentoGlobal}); setDebitError(''); } catch(error) {setDebitError(error instanceof Error ? error.message : 'Revise el importe.');} }}>Aplicar importe parcial</button>
+        <button type="button" className="ml-2 text-primary underline" onClick={() => { try {const next=applyDebitAmount(b,saldoNota.disponible,saldoNota.disponible); actualizar({items:next.items,descuentoGlobal:next.descuentoGlobal});setDebitAmount(saldoNota.disponible.toFixed(2));setDebitError('');} catch(error) {setDebitError(error instanceof Error ? error.message : 'Revise el importe.');} }}>Aplicar saldo total</button>
+        <p className="text-xs">Saldo del afectado: S/ {saldoNota.disponible.toFixed(2)} · Restante tras esta nota: S/ {Math.max(0,saldoNota.disponible-total).toFixed(2)}. El servidor valida nuevamente al emitir.</p>
+        {debitError && <p role="alert">{debitError}</p>}
+      </section>}
       <InvoiceItemsGrid mostrarErrores={mostrarErrores} tipo={b.tipo} esNota={esNota} catalogoEstado={catalogoEstado}
         cantidadesMaximas={b.tipo === '07' ? limitesNota(b.items, saldoNota?.cantidades_pendientes, b.motivoCodigo, saldoNota?.motivos_totales).maximos : undefined}
         items={b.items}
@@ -316,7 +332,7 @@ export const InvoiceEmitCampos = ({
         total={total}
       />
 
-
+    </section>
     </div>
   );
 };
