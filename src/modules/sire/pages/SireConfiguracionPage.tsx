@@ -15,8 +15,19 @@ import {
   PageHeader,
   PageText,
 } from '@/components/ui';
-import { CheckCircle2, Eye, EyeOff, LoaderCircle, Pencil, Save, ShieldCheck } from 'lucide-react';
+import {
+  Building2,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  LoaderCircle,
+  Pencil,
+  Save,
+  ShieldCheck,
+} from 'lucide-react';
+import { useAuthStore } from '@/stores/authStore';
 import { useSireConfiguracion } from '../hooks/useSireConfiguracion';
+import { normalizeSeries } from '../services/empresaApi';
 import {
   getClientIdFeedback,
   getClientSecretFeedback,
@@ -49,21 +60,44 @@ export default function SireConfiguracionPage() {
   const {
     isLoading,
     isSaving,
+    isSavingCompany,
     configured,
     error,
     saveError,
+    companyError,
     successMessage,
+    companySuccessMessage,
     save,
+    saveCompany,
     resetMessages,
   } = useSireConfiguracion();
+
+  const activeCompany = useAuthStore((state) => state.activeCompany);
+  const companyRuc = activeCompany?.ruc ?? '';
 
   const [isEditing, setIsEditing] = useState(false);
   const [showSolPassword, setShowSolPassword] = useState(false);
   const [values, setValues] = useState<FormValues>(EMPTY_FORM);
+  const [companyNameInput, setCompanyNameInput] = useState<string | null>(null);
+  const [seriesText, setSeriesText] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
+
+  const companyName = companyNameInput ?? activeCompany?.razonSocial ?? '';
 
   const updateValue = (field: keyof FormValues, value: string) => {
     setValues((current) => ({ ...current, [field]: value }));
+    setValidationError(null);
+    resetMessages();
+  };
+
+  const updateCompanyName = (value: string) => {
+    setCompanyNameInput(value);
+    setValidationError(null);
+    resetMessages();
+  };
+
+  const updateSeries = (value: string) => {
+    setSeriesText(value);
     setValidationError(null);
     resetMessages();
   };
@@ -90,11 +124,24 @@ export default function SireConfiguracionPage() {
       solPassword: values.solPassword,
     });
 
-    if (saved) {
-      setValues(EMPTY_FORM);
-      setShowSolPassword(false);
-      setIsEditing(false);
+    if (!saved) return;
+
+    const razonSocial = companyName.trim();
+    const series = normalizeSeries(seriesText.split(','));
+    if (companyRuc || razonSocial || series.length > 0) {
+      const companySaved = await saveCompany({
+        ruc: companyRuc || undefined,
+        razonSocial: razonSocial || undefined,
+        series,
+      });
+      if (companySaved && activeCompany && razonSocial) {
+        useAuthStore.getState().setActiveCompany({ ...activeCompany, razonSocial });
+      }
     }
+
+    setValues(EMPTY_FORM);
+    setShowSolPassword(false);
+    setIsEditing(false);
   };
 
   const showForm = isEditing || !configured;
@@ -127,6 +174,15 @@ export default function SireConfiguracionPage() {
           <AlertTitle className="flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 text-green-600" aria-hidden="true" />
             {successMessage}
+          </AlertTitle>
+        </Alert>
+      )}
+
+      {companySuccessMessage && (
+        <Alert>
+          <AlertTitle className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-green-600" aria-hidden="true" />
+            {companySuccessMessage}
           </AlertTitle>
         </Alert>
       )}
@@ -238,6 +294,64 @@ export default function SireConfiguracionPage() {
                 </PageField>
               </div>
 
+              <div className="space-y-4 border-t pt-4">
+                <div className="space-y-1">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <Building2 className="h-4 w-4 text-primary" aria-hidden="true" />
+                    Datos de la Empresa
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Estos datos se guardan junto con las credenciales y se usan como variables
+                    globales de la empresa.
+                  </p>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <PageField label="RUC de la Empresa" htmlFor="sire-company-ruc">
+                    <Input
+                      id="sire-company-ruc"
+                      aria-label="RUC de la Empresa"
+                      autoComplete="off"
+                      maxLength={11}
+                      placeholder="RUC de la empresa activa"
+                      className="bg-muted"
+                      readOnly
+                      value={companyRuc}
+                    />
+                  </PageField>
+
+                  <PageField label="Nombre de la Empresa" htmlFor="sire-company-name">
+                    <Input
+                      id="sire-company-name"
+                      aria-label="Nombre de la Empresa"
+                      autoComplete="off"
+                      maxLength={200}
+                      placeholder="Razón social de la empresa"
+                      value={companyName}
+                      disabled={isSaving || isSavingCompany}
+                      onChange={(event) => updateCompanyName(event.target.value)}
+                    />
+                  </PageField>
+
+                  <div className="md:col-span-2">
+                    <PageField label="Series" htmlFor="sire-company-series">
+                      <Input
+                        id="sire-company-series"
+                        aria-label="Series"
+                        autoComplete="off"
+                        placeholder="F001, B001"
+                        value={seriesText}
+                        disabled={isSaving || isSavingCompany}
+                        onChange={(event) => updateSeries(event.target.value)}
+                      />
+                    </PageField>
+                    <PageText variant="caption" className="mt-1 text-muted-foreground">
+                      Escribe las series separadas por comas. Ejemplo: F001, B001.
+                    </PageText>
+                  </div>
+                </div>
+              </div>
+
               {validationError && <PageText variant="error">{validationError}</PageText>}
               {saveError && (
                 <Alert variant="destructive">
@@ -245,24 +359,32 @@ export default function SireConfiguracionPage() {
                   <AlertDescription>{saveError}</AlertDescription>
                 </Alert>
               )}
+              {companyError && (
+                <Alert variant="destructive">
+                  <AlertTitle>No se pudieron guardar los datos de la empresa</AlertTitle>
+                  <AlertDescription>{companyError}</AlertDescription>
+                </Alert>
+              )}
 
               <div className="flex flex-wrap gap-2">
-                <Button type="submit" disabled={isSaving} className="gap-2">
-                  {isSaving ? (
+                <Button type="submit" disabled={isSaving || isSavingCompany} className="gap-2">
+                  {isSaving || isSavingCompany ? (
                     <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
                   ) : (
                     <Save className="h-4 w-4" aria-hidden="true" />
                   )}
-                  {isSaving ? 'Guardando…' : 'Guardar Credenciales'}
+                  {isSaving || isSavingCompany ? 'Guardando…' : 'Guardar Credenciales'}
                 </Button>
                 {configured && (
                   <Button
                     type="button"
                     variant="outline"
-                    disabled={isSaving}
+                    disabled={isSaving || isSavingCompany}
                     onClick={() => {
                       setIsEditing(false);
                       setValues(EMPTY_FORM);
+                      setSeriesText('');
+                      setCompanyNameInput(null);
                       setValidationError(null);
                       resetMessages();
                     }}

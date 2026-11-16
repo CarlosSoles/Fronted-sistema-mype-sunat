@@ -1,22 +1,35 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { empresaApi } from '../services/empresaApi';
 import { sireApi } from '../services/sireApi';
-import type { SireConfiguracionPayload, SireConfiguracionStatus } from '../types/sire.types';
+import type {
+  EmpresaConfiguracionPayload,
+  SireConfiguracionPayload,
+  SireConfiguracionStatus,
+} from '../types/sire.types';
 
 export interface UseSireConfiguracion {
   /** Está consultando el estado de la configuración (`GET .../status`). */
   isLoading: boolean;
   /** Está guardando las credenciales (`POST .../configuracion`). */
   isSaving: boolean;
+  /** Está guardando los datos globales de la empresa (`PUT /empresa/configuracion`). */
+  isSavingCompany: boolean;
   /** La empresa ya tiene las cuatro credenciales guardadas. */
   configured: boolean;
   /** Error al consultar el estado de la configuración. */
   error: string | null;
   /** Error al guardar las credenciales. */
   saveError: string | null;
+  /** Error al guardar los datos globales de la empresa. */
+  companyError: string | null;
   /** Confirmación de un guardado correcto. */
   successMessage: string | null;
+  /** Confirmación del guardado de los datos de la empresa. */
+  companySuccessMessage: string | null;
   /** Guarda las credenciales enviadas y devuelve si quedaron completas. */
   save: (payload: SireConfiguracionPayload) => Promise<boolean>;
+  /** Guarda los datos globales de la empresa. */
+  saveCompany: (payload: EmpresaConfiguracionPayload) => Promise<boolean>;
   /** Vuelve a consultar el estado de la configuración. */
   reload: () => Promise<void>;
   /** Limpia los mensajes de resultado (sin tocar el estado consultado). */
@@ -33,10 +46,13 @@ export interface UseSireConfiguracion {
 export const useSireConfiguracion = (): UseSireConfiguracion => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingCompany, setIsSavingCompany] = useState(false);
   const [configured, setConfigured] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [companyError, setCompanyError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [companySuccessMessage, setCompanySuccessMessage] = useState<string | null>(null);
 
   const runRef = useRef(0);
 
@@ -120,19 +136,45 @@ export const useSireConfiguracion = (): UseSireConfiguracion => {
     }
   }, []);
 
+  const saveCompany = useCallback(async (payload: EmpresaConfiguracionPayload) => {
+    setIsSavingCompany(true);
+    setCompanyError(null);
+    setCompanySuccessMessage(null);
+    try {
+      await empresaApi.saveConfiguracion(payload);
+      setCompanySuccessMessage('Datos de la empresa guardados exitosamente.');
+      return true;
+    } catch (cause) {
+      setCompanyError(
+        cause instanceof Error
+          ? cause.message
+          : 'No se pudieron guardar los datos de la empresa.',
+      );
+      return false;
+    } finally {
+      setIsSavingCompany(false);
+    }
+  }, []);
+
   const resetMessages = useCallback(() => {
     setSaveError(null);
     setSuccessMessage(null);
+    setCompanyError(null);
+    setCompanySuccessMessage(null);
   }, []);
 
   return {
     isLoading,
     isSaving,
+    isSavingCompany,
     configured,
     error,
     saveError,
+    companyError,
     successMessage,
+    companySuccessMessage,
     save,
+    saveCompany,
     reload,
     resetMessages,
   };

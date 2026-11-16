@@ -1,19 +1,22 @@
 import { useAuthStore } from '@/stores/authStore';
 import { getRucFeedback } from '../validators/sireSchema';
-import type {
-  ImportSireProposalResponse,
-  CloseSirePeriodResponse,
-  ReconcileRequest,
-  ReconcileResponse,
-  ReconcileScenario,
-  SireConfiguracionPayload,
-  SireConfiguracionStatus,
-  SireHistoryResponse,
-  SirePeriodosAcceptedResponse,
-  SirePeriodosRequest,
-  SirePeriodosStatus,
-  SireBookType,
-  SireProposalResponse,
+import {
+  SIRE_MAPEO_TIPOS,
+  type ImportSireProposalResponse,
+  type CloseSirePeriodResponse,
+  type ReconcileRequest,
+  type ReconcileResponse,
+  type ReconcileScenario,
+  type SireConfiguracionPayload,
+  type SireConfiguracionStatus,
+  type SireHistoryResponse,
+  type SireMapeoContable,
+  type SireMapeoTipoOperacion,
+  type SirePeriodosAcceptedResponse,
+  type SirePeriodosRequest,
+  type SirePeriodosStatus,
+  type SireBookType,
+  type SireProposalResponse,
 } from '../types/sire.types';
 import {
   assertAllowedProposalFile,
@@ -293,6 +296,64 @@ export const sireApi = {
     }
     return mapReconciliation(response);
   },
+
+  /** Carga los mapeos contables guardados para la empresa de la sesión. */
+  async getMapeoContable(): Promise<SireMapeoContable[]> {
+    const response = await requestSireApi<unknown>('/sire/mapeo-contable', { method: 'GET' });
+    return extractMapeoItems(response)
+      .map(mapMapeoContable)
+      .filter((item): item is SireMapeoContable => item !== null);
+  },
+
+  /**
+   * Reemplaza el mapeo contable de la empresa.
+   *
+   * El backend recibe un arreglo con las cuatro operaciones y guarda la última
+   * versión enviada.
+   */
+  async saveMapeoContable(mapeos: SireMapeoContable[]): Promise<void> {
+    const normalized = mapeos.map((item) => ({
+      tipoOperacion: item.tipoOperacion,
+      cuentaContable: item.cuentaContable.trim(),
+    }));
+    if (normalized.some((item) => !item.cuentaContable)) {
+      throw new SireApiError('Completa la cuenta contable de todas las operaciones.', 400);
+    }
+    await requestSireApi<unknown>('/sire/mapeo-contable', {
+      method: 'POST',
+      body: JSON.stringify(normalized),
+    });
+  },
+};
+
+const extractMapeoItems = (value: unknown): unknown[] => {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'object' && value !== null) {
+    const record = value as Record<string, unknown>;
+    for (const key of ['mapeos', 'mappings', 'items', 'data']) {
+      if (Array.isArray(record[key])) return record[key];
+    }
+  }
+  return [];
+};
+
+const toMapeoTipoOperacion = (value: unknown): SireMapeoTipoOperacion | null => {
+  if (typeof value !== 'string') return null;
+  const tipo = value.trim().toUpperCase();
+  return (SIRE_MAPEO_TIPOS as readonly string[]).includes(tipo)
+    ? (tipo as SireMapeoTipoOperacion)
+    : null;
+};
+
+const mapMapeoContable = (value: unknown): SireMapeoContable | null => {
+  if (typeof value !== 'object' || value === null) return null;
+  const item = value as Record<string, unknown>;
+  const tipo = toMapeoTipoOperacion(
+    item.tipoOperacion ?? item.tipo_operacion ?? item.tipo ?? item.operationType ?? item.type,
+  );
+  const cuenta = item.cuentaContable ?? item.cuenta_contable ?? item.cuenta ?? item.accountCode ?? item.account;
+  if (!tipo || typeof cuenta !== 'string') return null;
+  return { tipoOperacion: tipo, cuentaContable: cuenta.trim() };
 };
 
 const isSireHistoryItem = (value: unknown): value is SireHistoryResponse['items'][number] => {

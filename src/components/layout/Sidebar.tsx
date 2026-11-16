@@ -24,6 +24,7 @@ import {
   FolderGit2,
   GitCompareArrows,
   LayoutDashboard,
+  ListChecks,
   FileUp,
   ClipboardCheck,
   History,
@@ -181,6 +182,7 @@ export const NAV_ITEMS: NavItem[] = [
 
     subItems: [
       { title: 'Configuración SUNAT', path: '/sire/configuracion', icon: Settings },
+      { title: 'Mapeo Contable', path: '/sire/mapeo-contable', icon: ListChecks },
       { title: 'Importar Propuesta', path: '/sire/importar', icon: FileUp },
       { title: 'Consulta de periodos', path: '/sire/periodos', icon: Search },
       { title: 'Conciliación y Cruce', path: '/sire/conciliacion', icon: GitCompareArrows },

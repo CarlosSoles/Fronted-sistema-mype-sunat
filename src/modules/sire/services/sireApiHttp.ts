@@ -88,6 +88,9 @@ const authenticatedHeaders = (token: string, json = false): HeadersInit => ({
 });
 
 const readResponse = async <T>(response: Response): Promise<T> => {
+  if (response.status === 204 || response.status === 205) {
+    return undefined as T;
+  }
   let body: unknown;
   try {
     body = await response.json();

@@ -64,6 +64,7 @@ const InventoryOpeningPage = React.lazy(() => import('@/modules/inventory/pages/
 const InventoryMovementsPage = React.lazy(() => import('@/modules/inventory/pages/InventoryMovementsPage'));
 const ProductKardexPage = React.lazy(() => import('@/modules/inventory/pages/ProductKardexPage'));
 const SireConfiguracionPage = React.lazy(() => import('@/modules/sire/pages/SireConfiguracionPage'));
+const SireMapeoContablePage = React.lazy(() => import('@/modules/sire/pages/SireMapeoContablePage'));
 const SireReconciliationPage = React.lazy(() => import('@/modules/sire/pages/SireReconciliationPage'));
 const SireImportPage = React.lazy(() => import('@/modules/sire/pages/SireImportPage'));
 const SirePeriodosPage = React.lazy(() => import('@/modules/sire/pages/SirePeriodosPage'));
@@ -538,6 +539,14 @@ export const AppRoutes = () => {
               }
             />
             <Route path="/sire/config" element={<Navigate to="/sire/configuracion" replace />} />
+            <Route
+              path="/sire/mapeo-contable"
+              element={
+                <RoleProtectedRoute >
+                  <SireMapeoContablePage />
+                </RoleProtectedRoute>
+              }
+            />
 <Route
               path="/sire/importar"
               element={

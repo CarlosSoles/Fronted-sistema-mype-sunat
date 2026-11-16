@@ -152,6 +152,30 @@ export interface SireConfiguracionStatus {
 }
 
 /**
+ * Datos globales de la empresa editables desde la configuración SIRE.
+ *
+ * Se guardan con `PUT /empresa/configuracion`. El RUC identifica a la empresa
+ * de la sesión y el backend lo conserva; `series` viaja como arreglo ya
+ * normalizado (sin espacios ni duplicados).
+ */
+export interface EmpresaConfiguracionPayload {
+  ruc?: string;
+  razonSocial?: string;
+  series: string[];
+}
+
+/** Tipos de operación que se asignan a una cuenta contable. */
+export const SIRE_MAPEO_TIPOS = ['VENTAS', 'COMPRAS', 'IGV', 'BASE'] as const;
+
+export type SireMapeoTipoOperacion = (typeof SIRE_MAPEO_TIPOS)[number];
+
+/** Par tipo de operación → cuenta contable del mapeo SIRE. */
+export interface SireMapeoContable {
+  tipoOperacion: SireMapeoTipoOperacion;
+  cuentaContable: string;
+}
+
+/**
  * Respuesta 202 del POST /sire/periodos.
  * `PENDING` cuando el trabajo quedó encolado; `FAILED` cuando la cola no
  * pudo publicarlo (el backend responde 202 con el mensaje accionable).
