@@ -1,3 +1,10 @@
+// Este flujo aísla los permisos; invoiceServerPermissions prueba los hooks reales y la API.
+vi.mock('@/modules/invoices/hooks/useInvoiceWritePermission', async () => {
+ const { useRolePermissions } = await import('@/hooks/useRolePermissions');
+ return { INVOICE_WRITE_DENIED: 'Su rol no permite emitir ni operar envíos de facturación.', useInvoiceWritePermission: () => useRolePermissions().canEmitInvoices };
+});
+vi.mock('@/modules/auth/hooks/useActionPermissions', () => ({ useActionPermissions: () => ({ can: () => true, ready: true, isLoading: false, isError: false }) }));
+vi.mock('@/modules/invoices/hooks/useInvoiceDatePermission', () => ({ useInvoiceDatePermission: () => ({ canEditDate: true, explanation: undefined }) }));
 import { beforeEach as billingBeforeEach } from 'vitest';
 import { useAuthStore as billingAuth } from '@/stores/authStore';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
