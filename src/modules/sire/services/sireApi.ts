@@ -7,6 +7,7 @@ import {
   type ReconcileRequest,
   type ReconcileResponse,
   type ReconcileScenario,
+  type SireAsientoPreview,
   type SireConfiguracionPayload,
   type SireConfiguracionStatus,
   type SireHistoryResponse,
@@ -297,6 +298,24 @@ export const sireApi = {
     return mapReconciliation(response);
   },
 
+  /**
+   * Previsualiza los asientos contables que el backend generaría para un periodo.
+   *
+   * Es una consulta de solo lectura: no contabiliza ni crea asientos. El
+   * backend puede devolver la lista en la raíz o dentro de `asientos`, `items`
+   * o `data`; la pantalla tolera ambas formas.
+   */
+  async getAsientosPreview(period: string): Promise<SireAsientoPreview[]> {
+    assertValidPeriod(period);
+    const query = new URLSearchParams({ periodo: period });
+    const response = await requestSireApi<unknown>(`/sire/asientos-preview?${query}`, {
+      method: 'GET',
+    });
+    return extractAsientoItems(response)
+      .map(mapAsientoPreview)
+      .filter((item): item is SireAsientoPreview => item !== null);
+  },
+
   /** Carga los mapeos contables guardados para la empresa de la sesión. */
   async getMapeoContable(): Promise<SireMapeoContable[]> {
     const response = await requestSireApi<unknown>('/sire/mapeo-contable', { method: 'GET' });
@@ -324,6 +343,51 @@ export const sireApi = {
       body: JSON.stringify(normalized),
     });
   },
+};
+
+const extractAsientoItems = (value: unknown): unknown[] => {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== 'object' || value === null) return [];
+  const record = value as Record<string, unknown>;
+  for (const key of ['asientos', 'preview', 'previews', 'items', 'detalles', 'data']) {
+    const candidate = record[key];
+    if (Array.isArray(candidate)) return candidate;
+    if (typeof candidate === 'object' && candidate !== null) {
+      const nested = extractAsientoItems(candidate);
+      if (nested.length > 0) return nested;
+    }
+  }
+  return [];
+};
+
+const toAsientoAmount = (value: unknown): number => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const amount = Number(value.replace(/\s/g, '').replace(/,/g, ''));
+    if (Number.isFinite(amount)) return amount;
+  }
+  return 0;
+};
+
+const mapAsientoPreview = (value: unknown): SireAsientoPreview | null => {
+  if (typeof value !== 'object' || value === null) return null;
+  const item = value as Record<string, unknown>;
+  const cuenta =
+    item.cuentaContable ??
+    item.cuenta_contable ??
+    item.cuenta ??
+    item.accountCode ??
+    item.account ??
+    item.codigoCuenta ??
+    item.codigo_cuenta;
+  if (typeof cuenta !== 'string' || !cuenta.trim()) return null;
+  const descripcion = item.descripcion ?? item.description ?? item.glosa ?? item.detalle;
+  return {
+    cuentaContable: cuenta.trim(),
+    debe: toAsientoAmount(item.debe ?? item.debit ?? item.debeSoles ?? item.debe_soles),
+    haber: toAsientoAmount(item.haber ?? item.credit ?? item.haberSoles ?? item.haber_soles),
+    descripcion: typeof descripcion === 'string' ? descripcion.trim() : '',
+  };
 };
 
 const extractMapeoItems = (value: unknown): unknown[] => {

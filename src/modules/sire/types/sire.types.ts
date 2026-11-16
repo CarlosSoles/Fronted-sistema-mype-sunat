@@ -164,6 +164,23 @@ export interface EmpresaConfiguracionPayload {
   series: string[];
 }
 
+/** Razón social obtenida al validar el RUC de la empresa contra Decolecta. */
+export interface EmpresaRucValidacion {
+  ruc: string;
+  razonSocial: string;
+}
+
+/**
+ * Línea de asiento contable que el backend propone para un periodo SIRE.
+ * Se muestra solo como previsualización: no crea asientos ni afecta contabilidad.
+ */
+export interface SireAsientoPreview {
+  cuentaContable: string;
+  debe: number;
+  haber: number;
+  descripcion: string;
+}
+
 /** Tipos de operación que se asignan a una cuenta contable. */
 export const SIRE_MAPEO_TIPOS = ['VENTAS', 'COMPRAS', 'IGV', 'BASE'] as const;
 

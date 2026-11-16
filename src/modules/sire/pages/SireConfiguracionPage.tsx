@@ -23,6 +23,7 @@ import {
   LoaderCircle,
   Pencil,
   Save,
+  Search,
   ShieldCheck,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
@@ -61,28 +62,34 @@ export default function SireConfiguracionPage() {
     isLoading,
     isSaving,
     isSavingCompany,
+    isValidatingRuc,
     configured,
     error,
     saveError,
     companyError,
+    rucError,
     successMessage,
     companySuccessMessage,
     save,
     saveCompany,
+    validateRuc,
     resetMessages,
   } = useSireConfiguracion();
 
   const activeCompany = useAuthStore((state) => state.activeCompany);
-  const companyRuc = activeCompany?.ruc ?? '';
+  const sessionRuc = activeCompany?.ruc ?? '';
 
   const [isEditing, setIsEditing] = useState(false);
   const [showSolPassword, setShowSolPassword] = useState(false);
   const [values, setValues] = useState<FormValues>(EMPTY_FORM);
   const [companyNameInput, setCompanyNameInput] = useState<string | null>(null);
+  const [rucInput, setRucInput] = useState<string | null>(null);
+  const [rucValidated, setRucValidated] = useState(false);
   const [seriesText, setSeriesText] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const companyName = companyNameInput ?? activeCompany?.razonSocial ?? '';
+  const rucValue = rucInput ?? sessionRuc;
 
   const updateValue = (field: keyof FormValues, value: string) => {
     setValues((current) => ({ ...current, [field]: value }));
@@ -100,6 +107,22 @@ export default function SireConfiguracionPage() {
     setSeriesText(value);
     setValidationError(null);
     resetMessages();
+  };
+
+  const updateRuc = (value: string) => {
+    setRucInput(value);
+    setRucValidated(false);
+    setValidationError(null);
+    resetMessages();
+  };
+
+  const handleValidateRuc = async () => {
+    setValidationError(null);
+    const result = await validateRuc(rucValue);
+    if (!result) return;
+    setRucInput(result.ruc);
+    setRucValidated(true);
+    setCompanyNameInput(result.razonSocial);
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -128,9 +151,9 @@ export default function SireConfiguracionPage() {
 
     const razonSocial = companyName.trim();
     const series = normalizeSeries(seriesText.split(','));
-    if (companyRuc || razonSocial || series.length > 0) {
+    if (rucValue || razonSocial || series.length > 0) {
       const companySaved = await saveCompany({
-        ruc: companyRuc || undefined,
+        ruc: rucValue.trim() || undefined,
         razonSocial: razonSocial || undefined,
         series,
       });
@@ -308,16 +331,52 @@ export default function SireConfiguracionPage() {
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <PageField label="RUC de la Empresa" htmlFor="sire-company-ruc">
-                    <Input
-                      id="sire-company-ruc"
-                      aria-label="RUC de la Empresa"
-                      autoComplete="off"
-                      maxLength={11}
-                      placeholder="RUC de la empresa activa"
-                      className="bg-muted"
-                      readOnly
-                      value={companyRuc}
-                    />
+                    <div className="flex items-start gap-2">
+                      <div className="relative flex-1">
+                        <Input
+                          id="sire-company-ruc"
+                          aria-label="RUC de la Empresa"
+                          autoComplete="off"
+                          inputMode="numeric"
+                          maxLength={11}
+                          placeholder="RUC de la empresa activa"
+                          className={rucValidated ? 'bg-muted pr-10' : 'pr-10'}
+                          readOnly={rucValidated}
+                          value={rucValue}
+                          disabled={isSaving || isSavingCompany || isValidatingRuc}
+                          onChange={(event) =>
+                            updateRuc(event.target.value.replace(/\D/g, '').slice(0, 11))
+                          }
+                        />
+                        {isValidatingRuc && (
+                          <LoaderCircle
+                            className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-primary"
+                            aria-hidden="true"
+                          />
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="shrink-0 gap-2"
+                        disabled={isValidatingRuc || isSaving || isSavingCompany || rucValidated}
+                        onClick={() => void handleValidateRuc()}
+                      >
+                        {isValidatingRuc ? (
+                          <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                        ) : (
+                          <Search className="h-4 w-4" aria-hidden="true" />
+                        )}
+                        {isValidatingRuc ? 'Validando…' : 'Validar'}
+                      </Button>
+                    </div>
+                    {rucValidated && (
+                      <PageText variant="caption" className="flex items-center gap-1 text-green-600">
+                        <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                        RUC validado con Decolecta. Nombre autocompletado.
+                      </PageText>
+                    )}
+                    {rucError && <PageText variant="error">{rucError}</PageText>}
                   </PageField>
 
                   <PageField label="Nombre de la Empresa" htmlFor="sire-company-name">
@@ -385,6 +444,8 @@ export default function SireConfiguracionPage() {
                       setValues(EMPTY_FORM);
                       setSeriesText('');
                       setCompanyNameInput(null);
+                      setRucInput(null);
+                      setRucValidated(false);
                       setValidationError(null);
                       resetMessages();
                     }}

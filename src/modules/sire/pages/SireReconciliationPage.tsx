@@ -9,6 +9,7 @@ import { SireVouchersTable } from '../components/SireVouchersTable';
 import { SireProposalPanel } from '../components/SireProposalPanel';
 import { SireRceKardexReconciliation } from '../components/SireRceKardexReconciliation';
 import { SireHealthDashboard } from '../components/SireHealthDashboard';
+import { SireAsientosPreview } from '../components/SireAsientosPreview';
 import { useSireReconciliation } from '../hooks/useSireReconciliation';
 import { useSireReconciliationStore } from '../stores/sireReconciliationStore';
 import type { ComprobanteDraft, SireBookType } from '../types/sire.types';
@@ -106,7 +107,12 @@ export default function SireReconciliationPage() {
         description="Cruce y conciliación de propuestas RCE y RVIE de SUNAT contra las compras, ventas y existencias físicas del ERP."
       />
       <SireHealthDashboard />
-      <p className="text-xs text-muted-foreground">RUC de sesión: <span>{companyRuc}</span></p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-muted-foreground">
+          RUC de sesión: <span>{companyRuc}</span>
+        </p>
+        <SireAsientosPreview period={period} />
+      </div>
 
       {/* Selector de Libro y Modo de Conciliación */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between mb-6 pb-4 border-b border-border/50">

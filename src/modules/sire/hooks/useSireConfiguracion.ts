@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { empresaApi } from '../services/empresaApi';
 import { sireApi } from '../services/sireApi';
+import { SireApiError } from '../services/sireApiHttp';
 import type {
   EmpresaConfiguracionPayload,
+  EmpresaRucValidacion,
   SireConfiguracionPayload,
   SireConfiguracionStatus,
 } from '../types/sire.types';
@@ -14,6 +16,8 @@ export interface UseSireConfiguracion {
   isSaving: boolean;
   /** Está guardando los datos globales de la empresa (`PUT /empresa/configuracion`). */
   isSavingCompany: boolean;
+  /** Está validando el RUC contra Decolecta (`GET /empresa/validar-ruc/:ruc`). */
+  isValidatingRuc: boolean;
   /** La empresa ya tiene las cuatro credenciales guardadas. */
   configured: boolean;
   /** Error al consultar el estado de la configuración. */
@@ -22,6 +26,8 @@ export interface UseSireConfiguracion {
   saveError: string | null;
   /** Error al guardar los datos globales de la empresa. */
   companyError: string | null;
+  /** Error al validar el RUC de la empresa. */
+  rucError: string | null;
   /** Confirmación de un guardado correcto. */
   successMessage: string | null;
   /** Confirmación del guardado de los datos de la empresa. */
@@ -30,6 +36,8 @@ export interface UseSireConfiguracion {
   save: (payload: SireConfiguracionPayload) => Promise<boolean>;
   /** Guarda los datos globales de la empresa. */
   saveCompany: (payload: EmpresaConfiguracionPayload) => Promise<boolean>;
+  /** Valida el RUC y devuelve la razón social, o `null` si falla. */
+  validateRuc: (ruc: string) => Promise<EmpresaRucValidacion | null>;
   /** Vuelve a consultar el estado de la configuración. */
   reload: () => Promise<void>;
   /** Limpia los mensajes de resultado (sin tocar el estado consultado). */
@@ -47,10 +55,12 @@ export const useSireConfiguracion = (): UseSireConfiguracion => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingCompany, setIsSavingCompany] = useState(false);
+  const [isValidatingRuc, setIsValidatingRuc] = useState(false);
   const [configured, setConfigured] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [companyError, setCompanyError] = useState<string | null>(null);
+  const [rucError, setRucError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [companySuccessMessage, setCompanySuccessMessage] = useState<string | null>(null);
 
@@ -156,25 +166,48 @@ export const useSireConfiguracion = (): UseSireConfiguracion => {
     }
   }, []);
 
+  const validateRuc = useCallback(async (ruc: string): Promise<EmpresaRucValidacion | null> => {
+    setIsValidatingRuc(true);
+    setRucError(null);
+    try {
+      return await empresaApi.validateRuc(ruc);
+    } catch (cause) {
+      const status = cause instanceof SireApiError ? cause.status : null;
+      const message = cause instanceof Error ? cause.message : '';
+      setRucError(
+        status !== null && [400, 404, 422].includes(status)
+          ? 'RUC no válido o no encontrado.'
+          : message || 'RUC no válido o no encontrado.',
+      );
+      return null;
+    } finally {
+      setIsValidatingRuc(false);
+    }
+  }, []);
+
   const resetMessages = useCallback(() => {
     setSaveError(null);
     setSuccessMessage(null);
     setCompanyError(null);
     setCompanySuccessMessage(null);
+    setRucError(null);
   }, []);
 
   return {
     isLoading,
     isSaving,
     isSavingCompany,
+    isValidatingRuc,
     configured,
     error,
     saveError,
     companyError,
+    rucError,
     successMessage,
     companySuccessMessage,
     save,
     saveCompany,
+    validateRuc,
     reload,
     resetMessages,
   };
