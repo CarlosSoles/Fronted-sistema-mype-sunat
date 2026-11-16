@@ -9,8 +9,8 @@ export const InvoiceSettingsTab = ({ ruc, configuracion, series = [], onGuardar,
   onSerieCreada?: () => Promise<unknown>;
   onGuardar: (input: ConfiguracionInput) => Promise<void>;
 }) => <Page>
-  {configuracion && <InvoiceIssuerConfigForm key={ruc} ruc={ruc} config={configuracion} guardar={onGuardar} />}
-      <InvoiceSeriesForm onSaved={onSerieCreada} />
+  <section id="empresa">{configuracion && <InvoiceIssuerConfigForm key={ruc} ruc={ruc} config={configuracion} guardar={onGuardar} />}</section>
+      <section id="series"><InvoiceSeriesForm onSaved={onSerieCreada} /></section>
       <Card flush>
         <PageText variant="label">Series disponibles</PageText>
         <Table>

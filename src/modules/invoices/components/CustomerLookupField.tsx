@@ -1,3 +1,4 @@
+import { useRucAutofill } from '../hooks/useRucAutofill';
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useInvoiceWritePermission } from '../hooks/useInvoiceWritePermission';
@@ -23,6 +24,7 @@ export const partnerToCustomer = (p: BusinessPartnerRecord): ClienteBuscado => {
 
 type Campo = 'documento' | 'nombre';
 interface CustomerLookupFieldProps {
+  unico?: boolean;
   documento: string;
   razonSocial: string;
   onElegir: (cliente: ClienteBuscado) => void;
@@ -35,11 +37,16 @@ interface CustomerLookupFieldProps {
 }
 
 /** Busca clientes activos del maestro desde cualquiera de los dos campos. */
-export const CustomerLookupField = ({ documento, razonSocial, onElegir, onDocumentoChange, onRazonSocialChange, labelDocumento, placeholderDocumento, errorDocumento, disabled = false }: CustomerLookupFieldProps) => {
+export const CustomerLookupField = ({ unico = false, documento, razonSocial, onElegir, onDocumentoChange, onRazonSocialChange, labelDocumento, placeholderDocumento, errorDocumento, disabled = false }: CustomerLookupFieldProps) => {
   const queryClient = useQueryClient();
   const canEmitInvoices = useInvoiceWritePermission();
   const [registering, setRegistering] = useState(false);
+  const [identityText, setIdentityText] = useState<string | null>(null);
+  const autofill = useRucAutofill(datos => {
+    onElegir({ numeroDocumento: datos.ruc, tipoDocumento: datos.ruc.length === 8 ? '1' : '6', razonSocial: datos.razonSocial, direccion: datos.direccionFiscal ?? undefined, tieneCredito: false, admiteDescuento: false });
+  });
   const elegir = (cliente: ClienteBuscado) => {
+    autofill.cancelar(); setIdentityText(null);
     onElegir(cliente);
     setConsulta(null);
     void queryClient.invalidateQueries({ queryKey: ['master-data', 'partner-tax-status'] });
@@ -98,6 +105,19 @@ export const CustomerLookupField = ({ documento, razonSocial, onElegir, onDocume
     opciones[(actual + (e.key === 'ArrowDown' ? 1 : opciones.length - 1) + opciones.length) % opciones.length]?.focus();
   };
   return <div onKeyDown={navegar} ref={contenedor} className="contents">
+    {unico ? <div className="relative space-y-1 sm:col-span-2">
+      <label htmlFor="doc-cliente" className="text-xs font-medium">{labelDocumento} · DNI, RUC o razón social</label>
+      <input id="doc-cliente" aria-label={labelDocumento} autoComplete="off" disabled={disabled} className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={identityText ?? (documento || razonSocial)} placeholder="DNI, RUC o razón social" aria-invalid={Boolean(errorDocumento)}
+        onFocus={() => setConsulta({campo: /^\d+$/.test(identityText ?? documento) ? 'documento' : 'nombre', texto: identityText ?? (documento || razonSocial)})}
+        onChange={e => { const value=e.target.value; setIdentityText(value); const numeric=/^\d*$/.test(value); autofill.cancelar();
+          if(numeric) { onDocumentoChange?.(value); autofill.consultar(value); } else onRazonSocialChange?.(value);
+          setRespuesta(null); setConsulta({campo:numeric?'documento':'nombre',texto:value}); }} />
+      {lista(consulta?.campo ?? 'documento')}
+      {errorDocumento && <PageText variant="error">{errorDocumento}</PageText>}
+      {documento && razonSocial && <p className="text-xs">{documento.length === 8 ? 'DNI' : 'RUC'} {documento} · {razonSocial}</p>}
+      {autofill.aviso && <p role="status" className="text-xs">{autofill.aviso}</p>}
+      <p className="text-xs text-muted-foreground">Busque en el maestro o consulte DNI/RUC. Para completar datos manualmente, registre el cliente sin salir del formulario.</p>
+    </div> : <>
     <div className="relative space-y-1">
       <label htmlFor="doc-cliente" className="text-xs font-medium">{labelDocumento}<span aria-hidden="true"> *</span></label>
       <input aria-label={labelDocumento} aria-required={!disabled} aria-invalid={!disabled && Boolean(errorDocumento || !documento.trim())} aria-describedby="doc-cliente-error" disabled={disabled} id="doc-cliente" className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={documento} placeholder={placeholderDocumento} autoComplete="off"
@@ -116,6 +136,7 @@ export const CustomerLookupField = ({ documento, razonSocial, onElegir, onDocume
       {!disabled && !razonSocial.trim() && <PageText id="razon-cliente-error" variant="error">Indique la razón social o nombre del cliente.</PageText>}
       {lista('nombre')}
     </div>
+    </>}
     {!disabled && canEmitInvoices && <button type="button" className="text-xs text-primary underline" onClick={() => { setConsulta(null); setRegistering(true); }}>Registrar cliente nuevo</button>}
     {registering && canEmitInvoices && <PartnerFormDialog enableRucLookup initialRole="CLIENTE" requiredRole="CLIENTE" initialDocument={documento} initialName={razonSocial} onClose={() => setRegistering(false)} onSaved={(partner) => elegir(partnerToCustomer(partner))} />}
   </div>;
