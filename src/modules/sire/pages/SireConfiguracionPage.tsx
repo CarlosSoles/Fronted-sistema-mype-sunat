@@ -136,7 +136,8 @@ export default function SireConfiguracionPage() {
           <Alert>
             <AlertTitle className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-green-600" aria-hidden="true" />
-              Credenciales ya configuradas
+              <span>Credenciales ya configuradas</span>
+              <span className="text-xs font-normal text-muted-foreground">(Ya configurado)</span>
             </AlertTitle>
             <AlertDescription>
               La empresa ya tiene guardadas sus credenciales de SUNAT y su clave SOL. No hace falta
