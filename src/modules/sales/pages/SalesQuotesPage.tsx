@@ -5,6 +5,7 @@ import { Plus, Trash2, FileText } from 'lucide-react';
 import { Badge, Button, Card, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Input, Page, PageHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
 import { extractApiErrorMessage } from '@/lib/apiErrors';
 import { salesQuotesApi, type QuoteStatus, type SalesQuote } from '../services/salesQuotesApi';
+import { documentoTerceroValido } from '@/modules/customs/libPartnerValidation';
 
 const money = (n: number) => `S/ ${n.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const estadoColor: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = { ACEPTADA: 'default', CONVERTIDA: 'default', ENVIADA: 'secondary', RECHAZADA: 'destructive' };
@@ -19,14 +20,22 @@ export default function SalesQuotesPage() {
   const [abierto, setAbierto] = useState(false);
   const [error, setError] = useState('');
   const [cliente, setCliente] = useState('');
+  const [tipoDoc, setTipoDoc] = useState('6');
   const [documento, setDocumento] = useState('');
   const [validez, setValidez] = useState('');
   const [notas, setNotas] = useState('');
   const [items, setItems] = useState([vacio()]);
   const total = useMemo(() => items.reduce((sum, i) => sum + (Number(i.quantity) || 0) * (Number(i.unitPrice) || 0), 0), [items]);
+  const errorDocumento = tipoDoc === '0'
+    ? ''
+    : !documento.trim()
+      ? 'Ingrese el documento del cliente.'
+      : documentoTerceroValido(tipoDoc, documento.trim())
+        ? ''
+        : tipoDoc === '6' ? 'RUC inválido: 11 dígitos y módulo 11.' : 'DNI inválido: 8 dígitos.';
   const crear = useMutation({
-    mutationFn: () => salesQuotesApi.create({ kind, customerName: cliente, customerDocNumber: documento || undefined, validUntil: validez || undefined, notes: notas || undefined, items: items.map((i) => ({ description: i.description, quantity: Number(i.quantity), unitPrice: Number(i.unitPrice) })) }),
-    onSuccess: async () => { setAbierto(false); setCliente(''); setDocumento(''); setValidez(''); setNotas(''); setItems([vacio()]); setError(''); await queryClient.invalidateQueries({ queryKey: ['sales-quotes'] }); },
+    mutationFn: () => salesQuotesApi.create({ kind, customerName: cliente, customerDocType: tipoDoc, customerDocNumber: documento || undefined, validUntil: validez || undefined, notes: notas || undefined, items: items.map((i) => ({ description: i.description, quantity: Number(i.quantity), unitPrice: Number(i.unitPrice) })) }),
+    onSuccess: async () => { setAbierto(false); setCliente(''); setDocumento(''); setTipoDoc('6'); setValidez(''); setNotas(''); setItems([vacio()]); setError(''); await queryClient.invalidateQueries({ queryKey: ['sales-quotes'] }); },
     onError: (e: unknown) => setError(extractApiErrorMessage(e, 'No se pudo crear la cotización.')),
   });
   const cambiarEstado = useMutation({ mutationFn: ({ id, status }: { id: string; status: QuoteStatus }) => salesQuotesApi.status(id, status), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['sales-quotes'] }), onError: (e: unknown) => setError(extractApiErrorMessage(e, 'No se pudo actualizar la cotización.')) });
@@ -65,9 +74,10 @@ export default function SalesQuotesPage() {
         <DialogContent className="max-w-3xl">
           <DialogHeader><DialogTitle className="flex items-center gap-2"><FileText className="h-4 w-4" />{`Nuevo ${etiqueta}`}</DialogTitle><DialogDescription>{kind === 'PEDIDO' ? 'Pedido confirmado; no mueve inventario ni genera asiento hasta emitir.' : 'No mueve inventario ni genera asiento; es una propuesta.'}</DialogDescription></DialogHeader>
           <div className="space-y-3 text-xs">
-            <div className="grid gap-2 sm:grid-cols-3">
+            <div className="grid gap-2 sm:grid-cols-4">
               <label>Cliente<Input value={cliente} onChange={(e) => setCliente(e.target.value)} /></label>
-              <label>Documento<Input value={documento} onChange={(e) => setDocumento(e.target.value.replace(/\D/g, '').slice(0, 11))} /></label>
+              <label>Tipo documento<select className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-xs" value={tipoDoc} onChange={(e) => { setTipoDoc(e.target.value); setDocumento(''); }}><option value="6">RUC</option><option value="1">DNI</option><option value="0">Sin documento</option></select></label>
+              <label>Documento<Input inputMode="numeric" maxLength={tipoDoc === '6' ? 11 : tipoDoc === '1' ? 8 : 20} placeholder={tipoDoc === '6' ? '11 dígitos' : tipoDoc === '1' ? '8 dígitos' : 'Sin documento'} value={documento} onChange={(e) => setDocumento(tipoDoc === '0' ? '' : e.target.value.replace(/\D/g, '').slice(0, tipoDoc === '6' ? 11 : 8))} />{errorDocumento ? <span className="text-[10px] text-destructive">{errorDocumento}</span> : null}</label>
               <label>Válida hasta<Input type="date" value={validez} onChange={(e) => setValidez(e.target.value)} /></label>
             </div>
             <label className="block">Observaciones<Input value={notas} onChange={(e) => setNotas(e.target.value)} /></label>
@@ -84,7 +94,7 @@ export default function SalesQuotesPage() {
             </div>
             <div className="flex justify-between border-t pt-2 text-sm"><span>Total</span><strong>{money(total)}</strong></div>
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setAbierto(false)}>Cancelar</Button><Button onClick={() => crear.mutate()} disabled={crear.isPending || !cliente.trim() || items.some((i) => !i.description.trim() || !(Number(i.quantity) > 0))}>{crear.isPending ? 'Guardando…' : `Guardar ${etiqueta}`}</Button></DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => setAbierto(false)}>Cancelar</Button><Button onClick={() => crear.mutate()} disabled={crear.isPending || !cliente.trim() || Boolean(errorDocumento) || items.some((i) => !i.description.trim() || !(Number(i.quantity) > 0))}>{crear.isPending ? 'Guardando…' : `Guardar ${etiqueta}`}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </Page>
