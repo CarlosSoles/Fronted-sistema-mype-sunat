@@ -160,9 +160,24 @@ export const accountingApi = {
     return response.data;
   },
 
-  getAccounts: async (): Promise<AccountingAccount[]> => {
-    return cachedGet('accounting-accounts', async () => {
-      const response = await apiClient.get<AccountingAccount[]>('/accounting/accounts');
+  /** Cambia el nombre y/o el estado de una cuenta del catálogo. */
+  updateAccount: async (
+    code: string,
+    cambios: { name?: string; isActive?: boolean },
+  ): Promise<AccountingAccount> => {
+    const response = await apiClient.patch<AccountingAccount>(
+      `/accounting/accounts/${encodeURIComponent(code)}`,
+      cambios,
+    );
+    return response.data;
+  },
+
+  getAccounts: async (opciones?: { includeInactive?: boolean }): Promise<AccountingAccount[]> => {
+    const key = opciones?.includeInactive ? 'accounting-accounts-all' : 'accounting-accounts';
+    return cachedGet(key, async () => {
+      const response = await apiClient.get<AccountingAccount[]>('/accounting/accounts', {
+        params: opciones?.includeInactive ? { includeInactive: 'true' } : undefined,
+      });
       return response.data;
     });
   },

@@ -203,6 +203,7 @@ export const NAV_ITEMS: NavItem[] = [
       { title: 'Libro Diario (PCGE)', path: '/accounting', icon: FileText, group: 'Registros' },
       { title: 'Plan de Cuentas (PCGE)', path: '/accounting/plan-cuentas', icon: BookOpen, group: 'Registros' },
       { title: 'Períodos Contables', path: '/accounting/periods', icon: CalendarDays, group: 'Registros' },
+      { title: 'Guía contable', path: '/accounting/guia', icon: BookOpen, group: 'Registros' },
       { title: 'Reglas de contabilización', path: '/accounting/rules', icon: Settings, group: 'Registros' },
       { title: 'Libro Mayor', path: '/accounting/ledger', icon: BookOpen, group: 'Reportes' },
       { title: 'Balance de Comprobación', path: '/accounting/trial-balance', icon: ClipboardCheck, group: 'Reportes' },
