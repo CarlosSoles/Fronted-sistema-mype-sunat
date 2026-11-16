@@ -1,13 +1,12 @@
 import { notifyInvoiceQueued } from '../lib/invoiceQueueEvents';
 import { useState } from 'react';
 import { Button } from '@/components/ui';
-import { useAuth } from '@/hooks/useAuth';
 import { useActionPermissions } from '@/modules/auth/hooks/useActionPermissions';
 import { useInvoiceWritePermission } from '../hooks/useInvoiceWritePermission';
 import { apiClient } from '@/lib/axios';
 import { extractApiErrorMessage } from '@/lib/apiErrors';
 export function InvoiceForcedResend({ id, incierto }: { id: string; incierto: boolean }) {
- const { isAdmin: admin } = useAuth();
+
  const actions = useActionPermissions();
  const moduleWrite = useInvoiceWritePermission();
  const allowed = moduleWrite && actions.can('INVOICE_FORCE_RESEND');
@@ -15,7 +14,7 @@ export function InvoiceForcedResend({ id, incierto }: { id: string; incierto: bo
  const [renovar, setRenovar] = useState<string>();
  const [anterior, setAnterior] = useState<string>();
  const [motivo, setMotivo] = useState(''), [confirmado, setConfirmado] = useState(false), [busy, setBusy] = useState(false), [mensaje, setMensaje] = useState(''), [error, setError] = useState('');
- if (!admin || !incierto) return null;
+ if (!(actions.canShow?.('INVOICE_FORCE_RESEND')??actions.can('INVOICE_FORCE_RESEND')) || !incierto) return null;
  const enviar = async () => { if (!allowed || busy || !motivo.trim() || !confirmado) return; setBusy(true); setError('');
   try { const r = await apiClient.post<{ mensaje: string; resultadoCola: string; autorizacionId?: string; requiereNuevaDecision?: boolean }>(`/invoices/${encodeURIComponent(id)}/forzar-reenvio`, { motivo: motivo.trim(), confirmado: true, decisionId, ...(renovar ? { renovarAutorizacionId: renovar } : {}) }); if (['ENCOLADO', 'YA_EN_COLA'].includes(r.data.resultadoCola)) notifyInvoiceQueued(id); if (r.data.requiereNuevaDecision) setAnterior(r.data.autorizacionId); setMensaje(`${r.data.mensaje} Cola: ${r.data.resultadoCola}`); }
   catch(e) { setError(extractApiErrorMessage(e, 'No se pudo registrar la decisión.')); } finally { setBusy(false); }

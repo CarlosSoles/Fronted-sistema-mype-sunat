@@ -1,8 +1,8 @@
+import { useActionPermissions } from '@/modules/auth/hooks/useActionPermissions';
 import { useInvoiceWritePermission } from '../hooks/useInvoiceWritePermission';
 import { useRef, useState } from 'react';
 import { Alert, AlertDescription, AlertTitle, Button } from '@/components/ui';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useAuth } from '@/hooks/useAuth';
 import { extractApiErrorMessage } from '@/lib/apiErrors';
 import { invoiceBatchRetryApi, type ReintentoMasivo } from '../services/invoiceBatchRetryApi';
 
@@ -21,7 +21,8 @@ function Resumen({ datos }: {datos:ReintentoMasivo}) {
 }
 
 export function InvoiceBatchRetry({ onComplete }: {onComplete:()=>void}) {
-  const { isAdmin }=useAuth();
+  const actions=useActionPermissions();
+  const canBatch=actions.can('INVOICE_BATCH_RETRY');
   const moduleWrite=useInvoiceWritePermission();
   const [abierto,setAbierto]=useState(false),[ocupado,setOcupado]=useState(false);
   const [previa,setPrevia]=useState<ReintentoMasivo|null>(null);
@@ -29,21 +30,21 @@ export function InvoiceBatchRetry({ onComplete }: {onComplete:()=>void}) {
   const [error,setError]=useState<string|null>(null);
   const enCurso=useRef(false);
   const abrir=async()=>{
-    if(!isAdmin || !moduleWrite || enCurso.current)return;
+    if(!canBatch || !moduleWrite || enCurso.current)return;
     enCurso.current=true;setOcupado(true);setAbierto(true);setPrevia(null);setError(null);
     try{setPrevia(await invoiceBatchRetryApi.previa());}
     catch(e){setError(extractApiErrorMessage(e,'No se pudo obtener la vista previa.'));}
     finally{enCurso.current=false;setOcupado(false);}
   };
   const ejecutar=async()=>{
-    if(!isAdmin || !moduleWrite || enCurso.current)return;
+    if(!canBatch || !moduleWrite || enCurso.current)return;
     enCurso.current=true;setOcupado(true);setError(null);
     try{
       setResultado(await invoiceBatchRetryApi.ejecutar());setAbierto(false);onComplete();
     }catch(e){setError(extractApiErrorMessage(e,'No se pudo confirmar el reenvío. Actualice el Monitor antes de repetir.'));}
     finally{enCurso.current=false;setOcupado(false);}
   };
-  if(!isAdmin)return null;
+  if(!(actions.canShow?.('INVOICE_BATCH_RETRY')??canBatch))return null;
   return <section aria-label="Reenvío masivo del Monitor" className="space-y-3">
     <Button type="button" variant="outline" disabled={!moduleWrite || ocupado} onClick={()=>void abrir()}>Reenviar encolados</Button>
     <Dialog open={abierto} onOpenChange={setAbierto}>
