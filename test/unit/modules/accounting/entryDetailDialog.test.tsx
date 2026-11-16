@@ -1,13 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
-import { EntryDetailSheet, type EntryDetail } from '@/modules/accounting/components/EntryDetailSheet';
+import { EntryDetailDialog, type EntryDetail } from '@/modules/accounting/components/EntryDetailDialog';
 
 const ASIENTO: EntryDetail = {
   id: 'entry-1',
-  numero: 'MISC/2026/10/0001',
+  numero: 'AS/2026/10/0001',
   fecha: '2026-10-17',
   glosa: 'Costo de ventas (mercadería) F001-000003',
   origen: 'Facturación',
+  diario: 'Ventas',
   referencia: 'F001-000003',
   lineas: [
     { code: '691', name: 'Costo de ventas de mercaderías', debit: 0.95, credit: 0 },
@@ -17,11 +18,11 @@ const ASIENTO: EntryDetail = {
 
 afterEach(() => cleanup());
 
-describe('EntryDetailSheet', () => {
+describe('EntryDetailDialog', () => {
   it('muestra los datos del asiento y sus líneas', () => {
-    render(<EntryDetailSheet entry={ASIENTO} open onOpenChange={vi.fn()} />);
+    render(<EntryDetailDialog entry={ASIENTO} open onOpenChange={vi.fn()} />);
 
-    expect(screen.getByText('MISC/2026/10/0001')).toBeTruthy();
+    expect(screen.getByText('AS/2026/10/0001')).toBeTruthy();
     expect(screen.getByText('Costo de ventas (mercadería) F001-000003')).toBeTruthy();
     expect(screen.getByText('691')).toBeTruthy();
     expect(screen.getByText('Costo de ventas de mercaderías')).toBeTruthy();
@@ -31,7 +32,7 @@ describe('EntryDetailSheet', () => {
 
   it('avisa cuando el asiento no está cuadrado', () => {
     render(
-      <EntryDetailSheet
+      <EntryDetailDialog
         entry={{ ...ASIENTO, lineas: [ASIENTO.lineas[0]] }}
         open
         onOpenChange={vi.fn()}
@@ -42,7 +43,7 @@ describe('EntryDetailSheet', () => {
   });
 
   it('no revienta si el asiento no se pudo cargar', () => {
-    render(<EntryDetailSheet entry={null} open onOpenChange={vi.fn()} />);
+    render(<EntryDetailDialog entry={null} open onOpenChange={vi.fn()} />);
     expect(screen.getByText('No se pudo cargar el asiento.')).toBeTruthy();
   });
 });
