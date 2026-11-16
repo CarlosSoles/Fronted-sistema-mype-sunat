@@ -216,8 +216,14 @@ const periodoDeRango = (desde: string, hasta: string): string => {
  * El backend numera 001-202611-001; aquí se presenta en el formato de la lista
  * para que año, mes y correlativo se lean de un vistazo.
  */
-const numeroFormateado = (entry: Entry): string => {
-  // El correlativo se numera por período contable, no por la fecha: si se usa
+/**
+ * Origen visible: si el contador escribió un área en el alta manual ("Caja /
+ * Ventas"), manda ese texto; si no, el módulo que generó el asiento.
+ */
+const etiquetaOrigenDe = (entry: Entry): string =>
+  entry.responsible?.trim() || etiquetaOrigen(entry.sourceModule);
+
+const numeroFormateado = (entry: Entry): string => {  // El correlativo se numera por período contable, no por la fecha: si se usa
   // la fecha y no coinciden, el número mostrado no existe en la base.
   const periodo = entry.period && /^\d{4}-\d{2}$/.test(entry.period)
     ? entry.period
@@ -442,7 +448,7 @@ export default function AccountingEntriesPage() {
                     </TableCell>
                   ) : null}
                   <TableCell className="whitespace-nowrap text-muted-foreground">
-                    {etiquetaOrigen(entry.sourceModule)}
+                    {etiquetaOrigenDe(entry)}
                   </TableCell>
                   <TableCell align="right" className="whitespace-nowrap font-medium tabular-nums">
                     {formatCurrency(entry.totalDebe, 'PEN')}
@@ -489,7 +495,7 @@ export default function AccountingEntriesPage() {
                 numero: numeroFormateado(detalle),
                 fecha: detalle.fechaContable,
                 glosa: detalle.glosa,
-                origen: etiquetaOrigen(detalle.sourceModule),
+                origen: etiquetaOrigenDe(detalle),
                 diario: DIARIOS.find((d) => d.key === diarioDe(detalle))?.label ?? null,
                 referencia: detalle.sourceReferenceId,
                 observacion: detalle.observation ?? null,
