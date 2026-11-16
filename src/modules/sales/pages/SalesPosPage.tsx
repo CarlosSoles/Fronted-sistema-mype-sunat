@@ -211,6 +211,10 @@ export default function SalesPosPage() {
                     void apiClient.get<{ razonSocial?: string }>(`/sunat/ruc/${doc}`)
                       .then(({ data }) => { if (data.razonSocial) setCliente(data.razonSocial); else return desdeMaestro(); })
                       .catch(() => desdeMaestro());
+                  } else if (tipoDoc === '1') {
+                    void apiClient.get<{ nombreCompleto?: string }>(`/sunat/dni/${doc}`)
+                      .then(({ data }) => { if (data.nombreCompleto) setCliente(data.nombreCompleto); else return desdeMaestro(); })
+                      .catch(() => desdeMaestro());
                   } else {
                     void desdeMaestro();
                   }

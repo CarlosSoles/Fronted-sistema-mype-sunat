@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { rucValido } from '../lib/invoiceEmitValidation';
-import { consultarRuc, type DatosRuc } from '../services/rucApi';
+import { consultarDni, consultarRuc, type DatosRuc } from '../services/rucApi';
 
 /** Consulta solo tras editar el documento; una edición manual invalida respuestas pendientes. */
 export function useRucAutofill(onDatos: (datos: DatosRuc) => void) {
@@ -14,20 +14,26 @@ export function useRucAutofill(onDatos: (datos: DatosRuc) => void) {
     window.clearTimeout(timer.current);
     setAviso('');
   };
-  const consultar = (ruc: string) => {
+  const consultar = (documento: string) => {
     cancelar();
-    if (!rucValido(ruc)) return;
+    const esDni = /^\d{8}$/.test(documento);
+    if (!esDni && !rucValido(documento)) return;
     const solicitud = secuencia.current;
     timer.current = window.setTimeout(() => {
-      setAviso('Consultando RUC… Puede continuar completando los datos.');
-      void consultarRuc(ruc).then((datos) => {
+      setAviso(`Consultando ${esDni ? 'DNI' : 'RUC'}… Puede continuar completando los datos.`);
+      const solicitudDatos = esDni
+        ? consultarDni(documento).then((dni): DatosRuc => ({ ruc: dni.dni, razonSocial: dni.nombreCompleto, direccionFiscal: null, ubigeo: null, estadoContribuyente: 'HABIDO', condicionDomicilio: 'DNI' }))
+        : consultarRuc(documento);
+      void solicitudDatos.then((datos) => {
         if (solicitud !== secuencia.current) return;
         onDatos(datos);
-        setAviso(datos.direccionFiscal
-          ? 'Datos del RUC completados. Puede editar la razón social y la dirección.'
-          : 'Razón social completada. El proveedor no informó dirección; complétela manualmente.');
+        setAviso(esDni
+          ? 'Nombre del DNI completado. Puede editarlo si es necesario.'
+          : datos.direccionFiscal
+            ? 'Datos del RUC completados. Puede editar la razón social y la dirección.'
+            : 'Razón social completada. El proveedor no informó dirección; complétela manualmente.');
       }).catch(() => {
-        if (solicitud === secuencia.current) setAviso('No se pudo consultar el RUC. Puede completar la razón social y la dirección manualmente.');
+        if (solicitud === secuencia.current) setAviso(`No se pudo consultar el ${esDni ? 'DNI' : 'RUC'}. Puede completar los datos manualmente.`);
       });
     }, 300);
   };
