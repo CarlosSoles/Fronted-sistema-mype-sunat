@@ -38,9 +38,10 @@ describe('Balance de Comprobación', () => {
     montar();
 
     expect(await screen.findByText('Caja')).toBeTruthy();
-    expect(screen.getByText('Saldo inicial')).toBeTruthy();
-    expect(screen.getByText('Saldo final')).toBeTruthy();
-    expect(screen.getByText('TOTALES')).toBeTruthy();
+    // Encabezados en dos niveles: Balance inicial / período / Balance final.
+    expect(screen.getByText('Balance inicial')).toBeTruthy();
+    expect(screen.getByText('Balance final')).toBeTruthy();
+    expect(screen.getByText('TOTAL')).toBeTruthy();
     expect(screen.getByText('Descargar CSV')).toBeTruthy();
   });
 
