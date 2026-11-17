@@ -4,6 +4,7 @@ import { Download, FileDown } from 'lucide-react';
 import {
   Button,
   Card,
+  Input,
   Page,
   PageHeader,
   Table,
@@ -14,7 +15,6 @@ import {
   TableRow,
 } from '@/components/ui';
 import { accountingApi } from '../services/accountingApi';
-import { RangoFechas } from '../components/AccountingUI';
 import type { BalanceSheetLine } from '../types/accounting.types';
 import { descargarCsv, descargarPdf, importe } from '../lib/exportReport';
 
@@ -45,15 +45,13 @@ const sumar = (lineas: BalanceSheetLine[]) => lineas.reduce((suma, linea) => sum
 
 export default function AccountingBalanceSheetPage() {
   const [period, setPeriod] = useState(periodoActual);
-  const [desde, setDesde] = useState(() => `${periodoActual()}-01`);
-  const [hasta, setHasta] = useState(() => ultimoDiaDe(periodoActual()));
+  const [fechaCorte, setFechaCorte] = useState(() => ultimoDiaDe(periodoActual()));
 
-  /** "Mes actual": vuelve al mes en curso con su rango completo de días. */
+  /** "Mes actual": vuelve al mes en curso con su último día como corte. */
   const irAlMesActual = () => {
     const actual = periodoActual();
     setPeriod(actual);
-    setDesde(`${actual}-01`);
-    setHasta(ultimoDiaDe(actual));
+    setFechaCorte(ultimoDiaDe(actual));
   };
   const { data, isLoading, error } = useQuery({
     queryKey: ['accounting-balance-sheet', period],
@@ -110,18 +108,18 @@ export default function AccountingBalanceSheetPage() {
       />
 
       <Card className="mb-4 print:hidden">
-        <div className="flex flex-wrap items-end gap-3 p-3">
-          <RangoFechas
-            idPrefijo="general"
-            desde={desde}
-            hasta={hasta}
-            onDesde={(valor) => {
-              setDesde(valor);
-              if (valor) setPeriod(valor.slice(0, 7));
-            }}
-            onHasta={(valor) => {
-              setHasta(valor);
-              if (valor) setPeriod(valor.slice(0, 7));
+        <div className="flex flex-wrap items-center gap-3 p-3">
+          <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground" htmlFor="general-corte">
+            Fecha de corte
+          </label>
+          <Input
+            id="general-corte"
+            type="date"
+            className="h-9 w-36"
+            value={fechaCorte}
+            onChange={(evento) => {
+              setFechaCorte(evento.target.value);
+              if (evento.target.value) setPeriod(evento.target.value.slice(0, 7));
             }}
           />
           <div className="ml-auto flex gap-2">

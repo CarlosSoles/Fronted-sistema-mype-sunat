@@ -35,13 +35,15 @@ const money = (value: number) => `S/ ${value.toFixed(2)}`;
 /**
  * Solo se muestra la referencia si es un documento legible.
  *
- * Algunos asientos guardan un identificador interno (UUID) en vez de un número
- * de comprobante; mostrarlo no aporta nada al contador.
+ * Muchos asientos guardan un identificador interno en vez de un número de
+ * comprobante (`PAGO-GASTO-5fac8124-ed44-4e98-…`). Al ser tan largas, esas
+ * cadenas ensanchaban la columna y empujaban la tabla. Se descartan si
+ * contienen un UUID o si exceden el largo de un comprobante real.
  */
 const referenciaVisible = (referencia?: string | null): boolean => {
   if (!referencia) return false;
-  const esUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(referencia);
-  return !esUuid;
+  if (/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(referencia)) return false;
+  return referencia.length <= 32;
 };
 
 
