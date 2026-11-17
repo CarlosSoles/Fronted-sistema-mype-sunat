@@ -383,24 +383,28 @@ export default function AccountingEntriesPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Input
-              id="diario-desde"
-              aria-label="Desde"
-              type="date"
-              value={desde}
-              onChange={(e) => setDesde(e.target.value)}
-              className="h-9 w-36"
-            />
-            <span className="text-xs text-muted-foreground">a</span>
-            <Input
-              id="diario-hasta"
-              aria-label="Hasta"
-              type="date"
-              value={hasta}
-              onChange={(e) => setHasta(e.target.value)}
-              className="h-9 w-36"
-            />
-            <span className="text-xs tabular-nums text-muted-foreground">{filtrados.length} asiento(s)</span>
+            <div className="space-y-1">
+              <label className="block text-[10px] font-medium uppercase tracking-wider text-muted-foreground" htmlFor="diario-desde">Desde</label>
+              <Input
+                id="diario-desde"
+                aria-label="Desde"
+                type="date"
+                value={desde}
+                onChange={(e) => setDesde(e.target.value)}
+                className="h-9 w-36"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-[10px] font-medium uppercase tracking-wider text-muted-foreground" htmlFor="diario-hasta">Hasta</label>
+              <Input
+                id="diario-hasta"
+                aria-label="Hasta"
+                type="date"
+                value={hasta}
+                onChange={(e) => setHasta(e.target.value)}
+                className="h-9 w-36"
+              />
+            </div>
           </div>
         </div>
         {rangoInvalido ? (

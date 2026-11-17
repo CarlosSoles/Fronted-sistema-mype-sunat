@@ -45,7 +45,7 @@ describe('Balance de Comprobación', () => {
     expect(screen.getByText('Descargar CSV')).toBeTruthy();
   });
 
-  it('marca el descuadre cuando debe y haber no coinciden', async () => {
+  it('muestra la diferencia final cuando debe y haber no coinciden', async () => {
     vi.spyOn(accountingApi, 'getTrialBalance').mockResolvedValue({
       period: '2026-11',
       rows: [{ accountCode: '101', accountName: 'Caja', openingBalance: 0, debit: 50, credit: 0, balance: 50 }],
@@ -57,6 +57,7 @@ describe('Balance de Comprobación', () => {
 
     montar();
 
-    expect(await screen.findByText(/Descuadre de/)).toBeTruthy();
+    // La diferencia se informa en la tarjeta inferior, no en una barra aparte.
+    expect(await screen.findByText('Diferencia final')).toBeTruthy();
   });
 });

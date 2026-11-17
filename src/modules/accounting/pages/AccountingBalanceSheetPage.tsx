@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { CheckCircle2, Download, FileDown, TriangleAlert } from 'lucide-react';
+import { Download, FileDown } from 'lucide-react';
 import {
-  Badge,
   Button,
   Card,
+  Input,
   Page,
   PageHeader,
   Table,
@@ -15,13 +15,19 @@ import {
   TableRow,
 } from '@/components/ui';
 import { accountingApi } from '../services/accountingApi';
-import { PeriodInput } from '@/components/common/PeriodInput';
 import type { BalanceSheetLine } from '../types/accounting.types';
 import { descargarCsv, descargarPdf, importe } from '../lib/exportReport';
 
 const periodoActual = () => {
   const hoy = new Date();
   return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
+};
+
+/** "2026-11" -> "2026-11-30", último día del mes. */
+const ultimoDiaDe = (periodo: string): string => {
+  const [anio, mes] = periodo.split('-').map(Number);
+  if (!anio || !mes) return `${periodo}-01`;
+  return `${periodo}-${String(new Date(anio, mes, 0).getDate()).padStart(2, '0')}`;
 };
 
 const money = (valor: number) => `S/ ${importe(valor)}`;
@@ -39,6 +45,16 @@ const sumar = (lineas: BalanceSheetLine[]) => lineas.reduce((suma, linea) => sum
 
 export default function AccountingBalanceSheetPage() {
   const [period, setPeriod] = useState(periodoActual);
+  const [desde, setDesde] = useState(() => `${periodoActual()}-01`);
+  const [hasta, setHasta] = useState(() => ultimoDiaDe(periodoActual()));
+
+  /** "Mes actual": vuelve al mes en curso con su rango completo de días. */
+  const irAlMesActual = () => {
+    const actual = periodoActual();
+    setPeriod(actual);
+    setDesde(`${actual}-01`);
+    setHasta(ultimoDiaDe(actual));
+  };
   const { data, isLoading, error } = useQuery({
     queryKey: ['accounting-balance-sheet', period],
     queryFn: () => accountingApi.getBalanceSheet(period),
@@ -50,9 +66,6 @@ export default function AccountingBalanceSheetPage() {
 
   const activoCorriente = activo.filter((linea) => grupoDe(linea.accountCode) === 'corriente');
   const activoNoCorriente = activo.filter((linea) => grupoDe(linea.accountCode) === 'no corriente');
-
-  const descuadre = data ? Math.abs(data.totalActivo - data.totalPasivoPatrimonio) : 0;
-  const cuadra = Boolean(data) && descuadre < 0.01;
 
   const exportar = () => {
     const filas: (string | number)[][] = [
@@ -98,12 +111,34 @@ export default function AccountingBalanceSheetPage() {
 
       <Card className="mb-4 print:hidden">
         <div className="flex flex-wrap items-end gap-3 p-4">
-          <div className="max-w-xs space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Fecha de corte</label>
-            <PeriodInput value={period} onChange={setPeriod} />
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground" htmlFor="general-desde">Desde</label>
+            <Input
+              id="general-desde"
+              type="date"
+              className="w-40"
+              value={desde}
+              onChange={(evento) => {
+                setDesde(evento.target.value);
+                if (evento.target.value) setPeriod(evento.target.value.slice(0, 7));
+              }}
+            />
           </div>
-          <Button variant="outline" onClick={() => setPeriod(periodoActual())}>Mes actual</Button>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground" htmlFor="general-hasta">Hasta</label>
+            <Input
+              id="general-hasta"
+              type="date"
+              className="w-40"
+              value={hasta}
+              onChange={(evento) => {
+                setHasta(evento.target.value);
+                if (evento.target.value) setPeriod(evento.target.value.slice(0, 7));
+              }}
+            />
+          </div>
           <div className="ml-auto flex gap-2">
+            <Button variant="outline" onClick={irAlMesActual}>Mes actual</Button>
             <Button variant="outline" onClick={exportar} disabled={!data}>
               <Download className="mr-1.5 h-4 w-4" /> Descargar CSV
             </Button>
@@ -118,19 +153,6 @@ export default function AccountingBalanceSheetPage() {
         <Card className="mb-4 p-4 text-sm text-destructive">
           No se pudo cargar el balance general. Verifica el período.
         </Card>
-      ) : null}
-
-      {!cuadra && data ? (
-        <Card className="mb-4 flex items-start gap-2 border-amber-500/40 bg-amber-500/5 p-3 text-sm">
-          <TriangleAlert className="mt-0.5 h-4 w-4 text-amber-600" />
-          <span>
-            Descuadre de <strong>{money(descuadre)}</strong>. Revisa asientos incompletos o cuentas mal clasificadas.
-          </span>
-        </Card>
-      ) : data ? (
-        <Badge variant="outline" className="mb-4 border-emerald-600/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400">
-          <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Activo = Pasivo + Patrimonio
-        </Badge>
       ) : null}
 
       <div className="grid gap-4 lg:grid-cols-2">
