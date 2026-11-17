@@ -155,76 +155,71 @@ export default function AccountingBalanceSheetPage() {
         </Card>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card flush>
-          <div className="flex items-center justify-between border-b p-4">
-            <h3 className="font-semibold">Activo</h3>
-            <span className="font-semibold tabular-nums">{money(data?.totalActivo ?? 0)}</span>
-          </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Cuenta</TableHead>
-                <TableHead>Denominación</TableHead>
-                <TableHead align="right">Importe</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow><TableCell colSpan={3}>Cargando…</TableCell></TableRow>
-              ) : activo.length === 0 ? (
-                <TableRow><TableCell colSpan={3}>Sin cuentas de activo.</TableCell></TableRow>
-              ) : (
-                <>
-                  {seccion('Activo corriente', activoCorriente, sumar(activoCorriente))}
-                  {activoNoCorriente.length > 0
-                    ? seccion('Activo no corriente', activoNoCorriente, sumar(activoNoCorriente))
-                    : null}
-                  <TableRow className="border-t-2 border-foreground/20 bg-muted/50 font-semibold">
-                    <TableCell colSpan={2}>TOTAL ACTIVO</TableCell>
-                    <TableCell align="right" className="tabular-nums">{importe(data?.totalActivo ?? 0)}</TableCell>
-                  </TableRow>
-                </>
-              )}
-            </TableBody>
-          </Table>
-        </Card>
+      <Card flush>
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-slate-800 hover:bg-slate-800">
+              <TableHead className="w-[12%] text-[10px] uppercase tracking-wider text-white">Cuenta</TableHead>
+              <TableHead className="text-[10px] uppercase tracking-wider text-white">Descripción</TableHead>
+              <TableHead align="right" className="w-[18%] text-[10px] uppercase tracking-wider text-white">Importe (S/)</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow><TableCell colSpan={3}>Cargando…</TableCell></TableRow>
+            ) : !data ? (
+              <TableRow><TableCell colSpan={3}>Sin datos.</TableCell></TableRow>
+            ) : (
+              <>
+                <TableRow className="bg-muted/70 font-semibold">
+                  <TableCell colSpan={2}>ACTIVO</TableCell>
+                  <TableCell align="right" className="tabular-nums">{importe(data.totalActivo)}</TableCell>
+                </TableRow>
+                {seccion('Activo corriente', activoCorriente, sumar(activoCorriente))}
+                {activoNoCorriente.length > 0
+                  ? seccion('Activo no corriente', activoNoCorriente, sumar(activoNoCorriente))
+                  : null}
+                <TableRow className="border-t-2 border-foreground/20 bg-muted/50 font-semibold">
+                  <TableCell colSpan={2}>TOTAL ACTIVO</TableCell>
+                  <TableCell align="right" className="tabular-nums">{importe(data.totalActivo)}</TableCell>
+                </TableRow>
 
-        <Card flush>
-          <div className="flex items-center justify-between border-b p-4">
-            <h3 className="font-semibold">Pasivo y Patrimonio</h3>
-            <span className="font-semibold tabular-nums">{money(data?.totalPasivoPatrimonio ?? 0)}</span>
-          </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Cuenta</TableHead>
-                <TableHead>Denominación</TableHead>
-                <TableHead align="right">Importe</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {!data ? (
-                <TableRow><TableCell colSpan={3}>Sin datos.</TableCell></TableRow>
-              ) : (
-                <>
-                  {seccion('Pasivo', pasivo, sumar(pasivo))}
-                  {seccion('Patrimonio', patrimonio, sumar(patrimonio))}
-                  <TableRow>
-                    <TableCell className="font-mono text-xs text-muted-foreground">—</TableCell>
-                    <TableCell>Resultado del ejercicio</TableCell>
-                    <TableCell align="right" className="tabular-nums">{importe(data.resultadoEjercicio)}</TableCell>
-                  </TableRow>
-                  <TableRow className="border-t-2 border-foreground/20 bg-muted/50 font-semibold">
-                    <TableCell colSpan={2}>TOTAL PASIVO + PATRIMONIO</TableCell>
-                    <TableCell align="right" className="tabular-nums">{importe(data.totalPasivoPatrimonio)}</TableCell>
-                  </TableRow>
-                </>
-              )}
-            </TableBody>
-          </Table>
-        </Card>
-      </div>
+                <TableRow className="bg-muted/70 font-semibold">
+                  <TableCell colSpan={2}>PASIVO</TableCell>
+                  <TableCell align="right" className="tabular-nums">{importe(sumar(pasivo))}</TableCell>
+                </TableRow>
+                {seccion('Pasivo corriente', pasivo, sumar(pasivo))}
+                <TableRow className="border-t-2 border-foreground/20 bg-muted/50 font-semibold">
+                  <TableCell colSpan={2}>TOTAL PASIVO</TableCell>
+                  <TableCell align="right" className="tabular-nums">{importe(sumar(pasivo))}</TableCell>
+                </TableRow>
+
+                <TableRow className="bg-muted/70 font-semibold">
+                  <TableCell colSpan={2}>PATRIMONIO</TableCell>
+                  <TableCell align="right" className="tabular-nums">{importe(data.totalPatrimonio)}</TableCell>
+                </TableRow>
+                {seccion('Patrimonio neto', patrimonio, sumar(patrimonio))}
+                <TableRow>
+                  <TableCell className="font-mono text-xs text-muted-foreground">—</TableCell>
+                  <TableCell>Resultado del ejercicio</TableCell>
+                  <TableCell align="right" className="tabular-nums">{importe(data.resultadoEjercicio)}</TableCell>
+                </TableRow>
+                <TableRow className="border-t-2 border-foreground/20 bg-muted/50 font-semibold">
+                  <TableCell colSpan={2}>TOTAL PATRIMONIO</TableCell>
+                  <TableCell align="right" className="tabular-nums">{importe(data.totalPatrimonio)}</TableCell>
+                </TableRow>
+
+                <TableRow className="bg-slate-800 font-semibold text-white hover:bg-slate-800">
+                  <TableCell colSpan={2} className="text-white">TOTAL PASIVO Y PATRIMONIO</TableCell>
+                  <TableCell align="right" className="tabular-nums text-white">
+                    {importe(data.totalPasivoPatrimonio)}
+                  </TableCell>
+                </TableRow>
+              </>
+            )}
+          </TableBody>
+        </Table>
+      </Card>
 
       <div className="mt-4 grid gap-3 text-sm sm:grid-cols-4">
         <Card className="p-3">
