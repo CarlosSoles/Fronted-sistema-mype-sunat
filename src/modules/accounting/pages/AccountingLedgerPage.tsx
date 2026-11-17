@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { BookOpen, Eye } from 'lucide-react';
 import {
+  Input,
   Badge,
   Card,
   Page,
@@ -48,6 +49,14 @@ const etiquetaOrigen = (source: string): string => {
 export default function AccountingLedgerPage() {
   const [period, setPeriod] = useState(periodoActual);
   const [accountCode, setAccountCode] = useState('');
+  // Rango visible del mayor. El período sigue siendo el que se pide al backend;
+  // estas fechas solo recortan lo que ya llegó.
+  const [desde, setDesde] = useState(() => `${periodoActual()}-01`);
+  const [hasta, setHasta] = useState(() => {
+    const hoy = new Date();
+    const fin = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
+    return `${fin.getFullYear()}-${String(fin.getMonth() + 1).padStart(2, '0')}-${String(fin.getDate()).padStart(2, '0')}`;
+  });
 
   const { data: accounts = [] } = useQuery({
     queryKey: ['accounting-accounts'],
@@ -60,7 +69,18 @@ export default function AccountingLedgerPage() {
     enabled: Boolean(accountCode),
   });
 
-  const movements = useMemo(() => data?.movements ?? [], [data]);
+  const movements = useMemo(() => {
+    const rangoInvalido = Boolean(desde && hasta && desde > hasta);
+    const todos = data?.movements ?? [];
+    if (rangoInvalido) return todos;
+    return todos.filter((movimiento) => {
+      // Fecha calendario: se compara el texto, sin pasar por zonas horarias.
+      const fecha = movimiento.entryDate.slice(0, 10);
+      if (desde && fecha < desde) return false;
+      if (hasta && fecha > hasta) return false;
+      return true;
+    });
+  }, [data, desde, hasta]);
 
   const [detalle, setDetalle] = useState<LedgerMovement | null>(null);
 
@@ -96,7 +116,7 @@ export default function AccountingLedgerPage() {
     <Page>
       <PageHeader
         title="Libro Mayor"
-        description="Movimientos de una cuenta del PCGE con saldo acumulado por período"
+        description="Movimientos de la cuenta seleccionada, del más antiguo al más reciente"
       />
 
       <Toolbar>
@@ -104,11 +124,31 @@ export default function AccountingLedgerPage() {
           <label className="text-xs font-medium text-muted-foreground">Período</label>
           <PeriodInput value={period} onChange={setPeriod} />
         </div>
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground" htmlFor="mayor-desde">Desde</label>
+          <Input
+            id="mayor-desde"
+            type="date"
+            className="w-40"
+            value={desde}
+            onChange={(evento) => setDesde(evento.target.value)}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground" htmlFor="mayor-hasta">Hasta</label>
+          <Input
+            id="mayor-hasta"
+            type="date"
+            className="w-40"
+            value={hasta}
+            onChange={(evento) => setHasta(evento.target.value)}
+          />
+        </div>
         <div className="min-w-72 space-y-1.5">
           <label className="text-xs font-medium text-muted-foreground">Cuenta contable</label>
           <Select value={accountCode || undefined} onValueChange={setAccountCode}>
             <SelectTrigger>
-              <SelectValue placeholder="Seleccionar cuenta PCGE" />
+              <SelectValue placeholder="Seleccionar cuenta contable" />
             </SelectTrigger>
             <SelectContent>
               {accounts.map((account) => (
@@ -160,8 +200,8 @@ export default function AccountingLedgerPage() {
             <TableRow>
               <TableHead>Fecha</TableHead>
               <TableHead>Asiento</TableHead>
-              <TableHead>Glosa</TableHead>
-              <TableHead>Origen</TableHead>
+              <TableHead>Descripción</TableHead>
+              <TableHead>Módulo / Referencia</TableHead>
               <TableHead align="right">Debe</TableHead>
               <TableHead align="right">Haber</TableHead>
               <TableHead align="right">Saldo</TableHead>
@@ -197,9 +237,27 @@ export default function AccountingLedgerPage() {
                       <span className="font-mono text-xs text-muted-foreground">{movement.entryNumber}</span>
                     </span>
                   </TableCell>
-                  <TableCell>{movement.glosa}</TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="text-muted-foreground">{etiquetaOrigen(movement.sourceModule)}</Badge>
+                    <div className="space-y-0.5">
+                      <p className="text-xs font-medium">
+                        <span className="font-mono text-muted-foreground">{movement.accountCode}</span>
+                        {' · '}
+                        {movement.accountName}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{movement.glosa}</p>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-0.5">
+                      <Badge variant="outline" className="w-fit text-muted-foreground">
+                        {etiquetaOrigen(movement.sourceModule)}
+                      </Badge>
+                      {movement.sourceReferenceId ? (
+                        <span className="font-mono text-[11px] text-muted-foreground">
+                          {movement.sourceReferenceId}
+                        </span>
+                      ) : null}
+                    </div>
                   </TableCell>
                   <TableCell align="right" className="whitespace-nowrap tabular-nums">
                     {movement.debit ? money(movement.debit) : '—'}

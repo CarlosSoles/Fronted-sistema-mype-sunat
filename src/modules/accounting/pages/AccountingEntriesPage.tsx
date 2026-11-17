@@ -335,7 +335,7 @@ export default function AccountingEntriesPage() {
   return (
     <Page>
       <PageHeader
-        title="Libro Diario (PCGE)"
+        title="Libro Diario"
         description="Registro y consulta de asientos del período"
       >
         <div className="flex flex-wrap items-center gap-2">

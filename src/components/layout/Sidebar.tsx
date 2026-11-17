@@ -53,6 +53,13 @@ export interface SubNavItem {
 
   /** Agrupador visual dentro del módulo (ej. Registros / Reportes). */
   group?: string;
+  /**
+   * El submódulo es nuevo y el servidor todavía no lo conoce en su catálogo de
+   * menús. Se muestra si el usuario puede ver el módulo, sin esperar a que el
+   * backend lo publique: de lo contrario, cada pantalla nueva obligaría a
+   * redesplegar el servidor antes de poder entrar.
+   */
+  adelanto?: { moduleCode: string };
 }
 
 export interface NavItem {
@@ -200,10 +207,10 @@ export const NAV_ITEMS: NavItem[] = [
 
     subItems: [
       { title: 'Resumen contable', path: '/accounting/dashboard', icon: LayoutDashboard, group: 'Registros' },
-      { title: 'Libro Diario (PCGE)', path: '/accounting', icon: FileText, group: 'Registros' },
-      { title: 'Plan Contable (PCGE)', path: '/accounting/plan-cuentas', icon: BookOpen, group: 'Registros' },
+      { title: 'Libro Diario', path: '/accounting', icon: FileText, group: 'Registros' },
+      { title: 'Cuentas Contables', path: '/accounting/plan-cuentas', icon: BookOpen, group: 'Registros' },
       { title: 'Períodos Contables', path: '/accounting/periods', icon: CalendarDays, group: 'Registros' },
-      { title: 'Guía contable', path: '/accounting/guia', icon: BookOpen, group: 'Registros' },
+      { title: 'Guía contable', path: '/accounting/guia', icon: BookOpen, group: 'Registros', adelanto: { moduleCode: 'M4' } },
       { title: 'Reglas de contabilización', path: '/accounting/rules', icon: Settings, group: 'Registros' },
       { title: 'Libro Mayor', path: '/accounting/ledger', icon: BookOpen, group: 'Reportes' },
       { title: 'Balance de Comprobación', path: '/accounting/trial-balance', icon: ClipboardCheck, group: 'Reportes' },
@@ -271,7 +278,19 @@ export const Sidebar = () => {
   };
 
   const permissions=useServerPermissions();
-  const subItemsVisibles=(item:NavItem):SubNavItem[] => (item.subItems??[]).filter(sub=>permissions.canNavigate(sub.path));
+  /**
+   * Un subítem se muestra si el servidor lo autoriza o si es un adelanto del
+   * frontend y el usuario puede ver su módulo. Así una pantalla nueva no queda
+   * invisible hasta que el backend se redespliegue.
+   */
+  const puedeVerSubItem=(sub:SubNavItem):boolean=>{
+    if(permissions.canNavigate(sub.path))return true;
+    if(!sub.adelanto)return false;
+    const menus=permissions.snapshot?.menus??[];
+    const loConoceElServidor=menus.some(menu=>menu.path===sub.path);
+    return !loConoceElServidor&&permissions.canView(sub.adelanto.moduleCode);
+  };
+  const subItemsVisibles=(item:NavItem):SubNavItem[] => (item.subItems??[]).filter(puedeVerSubItem);
   const visibleNavItems=NAV_ITEMS.filter(item=>permissions.canNavigate(item.path));
   const terminoMenu = menuQuery.trim().toLowerCase();
   const filteredNavItems = visibleNavItems.flatMap((item) => {
