@@ -1,7 +1,7 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarDays, FileText, ListChecks, Lock, Plus, Unlock } from 'lucide-react';
+import { CalendarDays, FileText, ListChecks, Lock, MoreHorizontal, Plus, Unlock } from 'lucide-react';
 import { AnnualCloseWizard } from '../components/AnnualCloseWizard';
 import {
   Badge,
@@ -58,6 +58,8 @@ export default function AccountingPeriodsPage() {
   const [motivo, setMotivo] = useState('');
   /** Año abierto en el asistente de cierre guiado. */
   const [wizardAnio, setWizardAnio] = useState<number | null>(null);
+  /** Menú «⋯» con las acciones del año. */
+  const [accionesAbiertas, setAccionesAbiertas] = useState(false);
 
   // Los avisos se borran solos: antes el verde y el rojo se quedaban pegados.
   useEffect(() => {
@@ -225,33 +227,65 @@ export default function AccountingPeriodsPage() {
    */
   const anioSeleccionado = anioFiltro === 'todos' ? null : Number(anioFiltro);
 
-  const accionesDelAnio = (year: number) => (
-    <>
-      {/* El cierre guiado es la acción recomendada: lleva de la mano por los
-          cuatro pasos en lugar de dejar botones sueltos que se pueden pulsar
-          en cualquier orden. */}
-      <Button variant="default" size="sm" onClick={() => setWizardAnio(year)}>
-        <ListChecks className="mr-1 h-3.5 w-3.5" /> Cierre guiado
-      </Button>
-      <Button variant="ghost" size="sm" onClick={() => openYear.mutate(year)} disabled={openYear.isPending}>
-        <Unlock className="mr-1 h-3.5 w-3.5" /> Abrir año
-      </Button>
-      <Button variant="ghost" size="sm" onClick={() => closeYear.mutate(year)} disabled={closeYear.isPending}>
-        <Lock className="mr-1 h-3.5 w-3.5" /> Cerrar año
-      </Button>
-      <Button variant="ghost" size="sm" onClick={() => closingEntry.mutate(year)} disabled={closingEntry.isPending}>
-        <FileText className="mr-1 h-3.5 w-3.5" /> Asiento de cierre
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => { if (window.confirm(`¿Generar el asiento de cierre y bloquear el año ${year}?`)) closeAnnual.mutate(year); }}
-        disabled={closeAnnual.isPending}
-      >
-        <Lock className="mr-1 h-3.5 w-3.5" /> Cerrar año completo
-      </Button>
-    </>
-  );
+  const delAnio = (year: number) => periods.filter((periodo) => periodo.year === year);
+  const abiertosDelAnio = (year: number) => delAnio(year).filter((p) => p.status === 'ABIERTO').length;
+  const cerradosDelAnio = (year: number) => delAnio(year).filter((p) => p.status === 'CERRADO').length;
+
+  /**
+   * Acciones del año para el menú «⋯».
+   *
+   * Se deshabilitan cuando no aplican y el tooltip explica el motivo, para que
+   * no parezca que el sistema falla.
+   */
+  const panelDeAcciones = (year: number) => {
+    const abiertos = abiertosDelAnio(year);
+    return (
+      <div className="space-y-2">
+        <Button
+          variant="outline"
+          className="w-full justify-start"
+          onClick={() => { setAccionesAbiertas(false); openYear.mutate(year); }}
+          disabled={openYear.isPending}
+        >
+          <Unlock className="mr-2 h-4 w-4" /> Abrir año
+        </Button>
+        <Button
+          variant="outline"
+          className="w-full justify-start"
+          onClick={() => { setAccionesAbiertas(false); closeYear.mutate(year); }}
+          disabled={closeYear.isPending || abiertos === 0}
+          title={abiertos === 0 ? 'Todos los meses ya están cerrados' : 'Cierra los meses abiertos del año'}
+        >
+          <Lock className="mr-2 h-4 w-4" /> Cerrar año
+        </Button>
+        <Button
+          variant="outline"
+          className="w-full justify-start"
+          onClick={() => { setAccionesAbiertas(false); closingEntry.mutate(year); }}
+          disabled={closingEntry.isPending || abiertos > 0}
+          title={
+            abiertos > 0
+              ? `Hay ${abiertos} mes(es) abiertos: ciérralos antes del asiento de cierre`
+              : 'Genera el asiento de cierre del ejercicio'
+          }
+        >
+          <FileText className="mr-2 h-4 w-4" /> Asiento de cierre
+        </Button>
+        <Button
+          variant="outline"
+          className="w-full justify-start"
+          onClick={() => {
+            setAccionesAbiertas(false);
+            if (window.confirm(`¿Generar el asiento de cierre y bloquear el año ${year}?`)) closeAnnual.mutate(year);
+          }}
+          disabled={closeAnnual.isPending}
+          title="Genera el asiento de cierre y bloquea el año completo"
+        >
+          <Lock className="mr-2 h-4 w-4" /> Cerrar año completo
+        </Button>
+      </div>
+    );
+  };
 
   return (
     <Page>
@@ -261,7 +295,7 @@ export default function AccountingPeriodsPage() {
       />
 
       <Card className="mb-4">
-        <div className="flex flex-wrap items-center gap-3 p-3">
+        <div className="flex flex-wrap items-center gap-2 p-3">
           <Select value={anioFiltro} onValueChange={setAnioFiltro}>
             <SelectTrigger className="h-8 w-52" aria-label="Año fiscal">
               <SelectValue />
@@ -274,7 +308,7 @@ export default function AccountingPeriodsPage() {
             </SelectContent>
           </Select>
           <Select value={filtroEstado} onValueChange={(valor) => setFiltroEstado(valor as 'TODOS' | 'ABIERTOS' | 'CERRADOS')}>
-            <SelectTrigger className="w-44" aria-label="Filtrar por estado">
+            <SelectTrigger className="h-8 w-44" aria-label="Filtrar por estado">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -283,14 +317,35 @@ export default function AccountingPeriodsPage() {
               <SelectItem value="CERRADOS">Solo cerrados</SelectItem>
             </SelectContent>
           </Select>
+
+          {/* Contadores del año elegido, como texto discreto. */}
           {anioSeleccionado !== null ? (
-            <div className="ml-auto flex flex-wrap items-center gap-1.5">
-              {accionesDelAnio(anioSeleccionado)}
-            </div>
+            <span className="text-xs tabular-nums text-muted-foreground">
+              {abiertosDelAnio(anioSeleccionado)} abiertos · {cerradosDelAnio(anioSeleccionado)} cerrados
+            </span>
           ) : null}
-          <Button className={anioSeleccionado !== null ? '' : 'ml-auto'} onClick={() => { setError(null); setOk(null); setAbrirNuevo(true); }}>
-            <Plus className="mr-1 h-4 w-4" /> Nuevo período
-          </Button>
+
+          <div className="ml-auto flex items-center gap-1.5">
+            {anioSeleccionado !== null ? (
+              <Button size="sm" onClick={() => setWizardAnio(anioSeleccionado)}>
+                <ListChecks className="mr-1 h-4 w-4" /> Cierre guiado
+              </Button>
+            ) : null}
+            {anioSeleccionado !== null ? (
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="Más acciones del año"
+                title="Más acciones del año"
+                onClick={() => setAccionesAbiertas(true)}
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            ) : null}
+            <Button onClick={() => { setError(null); setOk(null); setAbrirNuevo(true); }}>
+              <Plus className="mr-1 h-4 w-4" /> Nuevo período
+            </Button>
+          </div>
         </div>
       </Card>
 
@@ -301,38 +356,48 @@ export default function AccountingPeriodsPage() {
         </Card>
       ) : null}
 
-      <Card flush>
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/40 hover:bg-muted/40">
-              <TableHead className="w-[14%]">Período</TableHead>
-              <TableHead className="w-[12%]">Año / mes</TableHead>
-              <TableHead className="w-[14%]">Estado</TableHead>
-              <TableHead className="w-[16%]">Abierto</TableHead>
-              <TableHead className="w-[16%]">Cerrado</TableHead>
-              <TableHead align="right">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow><TableCell colSpan={6}>Cargando períodos…</TableCell></TableRow>
-            ) : grupos.length === 0 ? (
-              <TableRow><TableCell colSpan={6}>No hay períodos. Crea el primero con «Nuevo período».</TableCell></TableRow>
-            ) : (
-              grupos.map((grupo) => (
-                <Fragment key={grupo.year}>
-                  <TableRow className="bg-muted/60">
-                    <TableCell colSpan={6}>
-                      <div className="flex flex-wrap items-center gap-3">
-                        <span className="font-semibold">Año fiscal {grupo.year}</span>
-                        <Badge variant="outline">{grupo.abiertos} abierto(s)</Badge>
-                        <Badge variant="secondary">{grupo.cerrados} cerrado(s)</Badge>
-                        <div className="ml-auto flex flex-wrap gap-1.5">
-                          {anioSeleccionado === null ? accionesDelAnio(grupo.year) : null}
-                        </div>
-                      </div>
-                    </TableCell>
+      <div className="space-y-4">
+        {isLoading ? (
+          <Card className="p-4 text-sm text-muted-foreground">Cargando períodos…</Card>
+        ) : grupos.length === 0 ? (
+          <Card className="p-4 text-sm text-muted-foreground">
+            No hay períodos. Crea el primero con «Nuevo período».
+          </Card>
+        ) : (
+          grupos.map((grupo) => (
+            <Card key={grupo.year} flush>
+              {/* Encabezado del año fuera de las columnas: la tabla muestra
+                  solo los meses. */}
+              <div className="flex flex-wrap items-center gap-2 border-b bg-muted/40 px-4 py-2">
+                <span className="text-sm font-semibold">Año fiscal {grupo.year}</span>
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {grupo.abiertos} abierto(s) · {grupo.cerrados} cerrado(s)
+                </span>
+                {anioSeleccionado === null ? (
+                  <div className="ml-auto flex items-center gap-1.5">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setWizardAnio(grupo.year)}
+                    >
+                      <ListChecks className="mr-1 h-3.5 w-3.5" /> Cierre guiado
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
+
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/20 hover:bg-muted/20">
+                    <TableHead className="w-[14%]">Período</TableHead>
+                    <TableHead className="w-[12%]">Año / mes</TableHead>
+                    <TableHead className="w-[14%]">Estado</TableHead>
+                    <TableHead className="w-[16%]">Abierto</TableHead>
+                    <TableHead className="w-[16%]">Cerrado</TableHead>
+                    <TableHead align="right">Acciones</TableHead>
                   </TableRow>
+                </TableHeader>
+                <TableBody>
                   {grupo.periodos.map((period) => (
                     <TableRow key={period.period}>
                       <TableCell className="font-mono font-bold">{period.period}</TableCell>
@@ -361,7 +426,6 @@ export default function AccountingPeriodsPage() {
                           >
                             <FileText className="mr-1 h-3.5 w-3.5" /> Ver asientos
                           </Button>
-                          {/* El botón alterna en la misma posición: Cerrar o Reabrir. */}
                           {period.status === 'ABIERTO' ? (
                             <Button
                               variant="outline"
@@ -385,12 +449,12 @@ export default function AccountingPeriodsPage() {
                       </TableCell>
                     </TableRow>
                   ))}
-                </Fragment>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </Card>
+                </TableBody>
+              </Table>
+            </Card>
+          ))
+        )}
+      </div>
 
       <p className="mt-3 text-xs text-muted-foreground">
         Abrir un período permite registrar asientos en ese mes. Cerrarlo los bloquea. Reabrir vuelve a
@@ -475,6 +539,22 @@ export default function AccountingPeriodsPage() {
             >
               {reopenPeriod.isPending ? 'Reabriendo…' : 'Reabrir período'}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Menú «⋯»: acciones del año que no caben en la barra. */}
+      <Dialog open={accionesAbiertas} onOpenChange={setAccionesAbiertas}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Acciones del año {anioSeleccionado}</DialogTitle>
+            <DialogDescription>
+              Abrir o cerrar el ejercicio completo. Cada acción indica cuándo no aplica.
+            </DialogDescription>
+          </DialogHeader>
+          {anioSeleccionado !== null ? panelDeAcciones(anioSeleccionado) : null}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAccionesAbiertas(false)}>Cerrar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
