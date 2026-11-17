@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, ChevronRight, Pencil, Plus, Power, Search } from 'lucide-react';
 import {
@@ -111,6 +111,14 @@ export default function AccountingPlanCuentasPage() {
   const [nueva, setNueva] = useState({ code: '', name: '', parentCode: '' });
   const [errorAlta, setErrorAlta] = useState<string | null>(null);
   const [editando, setEditando] = useState<{ code: string; name: string; element: string } | null>(null);
+  /** Aviso temporal: se borra solo y al iniciar otra acción. */
+  const [aviso, setAviso] = useState<{ tipo: 'ok' | 'aviso'; texto: string } | null>(null);
+
+  useEffect(() => {
+    if (!aviso) return;
+    const temporizador = setTimeout(() => setAviso(null), 5000);
+    return () => clearTimeout(temporizador);
+  }, [aviso]);
   const queryClient = useQueryClient();
 
   const refrescar = async () => {
@@ -124,7 +132,22 @@ export default function AccountingPlanCuentasPage() {
   const alternar = useMutation({
     mutationFn: ({ code, isActive }: { code: string; isActive: boolean }) =>
       accountingApi.updateAccount(code, { isActive }),
-    onSuccess: refrescar,
+    onSuccess: async (resultado, variables) => {
+      const cuantas = resultado.descendientesAfectados;
+      const accion = variables.isActive ? 'activada' : 'inactivada';
+      setAviso({
+        tipo: 'ok',
+        texto: cuantas > 0
+          ? `Cuenta ${variables.code} ${accion} junto con ${cuantas} subcuenta(s).`
+          : `Cuenta ${variables.code} ${accion}.`,
+      });
+      // Las advertencias (reglas, tesorería) se muestran como aviso aparte.
+      if (resultado.advertencias.length > 0) {
+        setAviso({ tipo: 'aviso', texto: resultado.advertencias.join(' ') });
+      }
+      setErrorAlta(null);
+      await refrescar();
+    },
     onError: (e: any) => setErrorAlta(mensajeDeErrorCuenta(e, 'No se pudo cambiar el estado de la cuenta.')),
   });
 
@@ -177,9 +200,16 @@ export default function AccountingPlanCuentasPage() {
     });
   };
 
+  /** Subcuentas de una cuenta, para avisar cuántas se verán afectadas. */
+  const descendientesDe = (code: string): number =>
+    accounts.filter((cuenta) => cuenta.code !== code && cuenta.code.startsWith(code)).length;
+
   const renderRow = (node: TreeNode, depth: number): React.ReactNode[] => {
     const isOpen = expanded.has(node.code);
     const hasChildren = node.children.length > 0;
+    // Una subcuenta no se reactiva mientras su padre siga inactivo.
+    const padre = node.parentCode ? accounts.find((cuenta) => cuenta.code === node.parentCode) : undefined;
+    const padreInactivo = !node.isActive && padre !== undefined && !padre.isActive;
     const rows: React.ReactNode[] = [
       <TableRow key={node.code}>
         <TableCell>
@@ -234,10 +264,28 @@ export default function AccountingPlanCuentasPage() {
               size="sm"
               aria-label={node.isActive ? `Desactivar ${node.code}` : `Activar ${node.code}`}
               aria-pressed={!node.isActive}
+              title={
+                padreInactivo
+                  ? 'Active primero la cuenta padre'
+                  : node.isActive
+                    ? 'Inactivar cuenta'
+                    : 'Reactivar cuenta'
+              }
               // Solo se bloquea el botón de la fila que se está guardando; si se
               // deshabilitaran todos, parecería que se pulsaron en todas.
-              disabled={alternar.isPending && alternar.variables?.code === node.code}
-              onClick={() => alternar.mutate({ code: node.code, isActive: !node.isActive })}
+              // Una subcuenta con el padre inactivo no se puede reactivar.
+              disabled={(alternar.isPending && alternar.variables?.code === node.code) || padreInactivo}
+              onClick={() => {
+                if (node.isActive) {
+                  const subcuentas = descendientesDe(node.code);
+                  const mensaje = subcuentas > 0
+                    ? `Esta cuenta tiene ${subcuentas} subcuenta(s) activa(s) y se inactivarán también. ¿Continuar?`
+                    : `¿Inactivar la cuenta ${node.code} · ${node.name}?`;
+                  if (!window.confirm(mensaje)) return;
+                }
+                setAviso(null);
+                alternar.mutate({ code: node.code, isActive: !node.isActive });
+              }}
             >
               <Power className={`h-4 w-4 ${node.isActive ? '' : 'text-muted-foreground'}`} />
             </Button>
@@ -262,6 +310,18 @@ export default function AccountingPlanCuentasPage() {
       </PageHeader>
 
       <TreasuryAccountsCard abierto={abrirTesoreria} onCerrar={() => setAbrirTesoreria(false)} cuentas={accounts} />
+
+      {aviso ? (
+        <Card
+          className={
+            aviso.tipo === 'ok'
+              ? 'border-emerald-600/30 bg-emerald-500/5 p-3 text-sm text-emerald-700 dark:text-emerald-400'
+              : 'border-amber-500/40 bg-amber-500/5 p-3 text-sm text-amber-700 dark:text-amber-400'
+          }
+        >
+          {aviso.texto}
+        </Card>
+      ) : null}
 
       {errorAlta ? (
         <Card className="border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{errorAlta}</Card>

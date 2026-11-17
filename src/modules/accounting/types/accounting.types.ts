@@ -28,6 +28,15 @@ export interface AccountingAccount {
   isActive: boolean;
 }
 
+/** Respuesta al editar una cuenta: incluye la cascada y los avisos. */
+export interface UpdateAccountResponse {
+  account: AccountingAccount;
+  /** Subcuentas activadas o desactivadas junto con la cuenta. */
+  descendientesAfectados: number;
+  /** Avisos que no impiden la operación (reglas, tesorería). */
+  advertencias: string[];
+}
+
 export interface AccountingPeriod {
   companyId: string;
   period: string; // YYYY-MM

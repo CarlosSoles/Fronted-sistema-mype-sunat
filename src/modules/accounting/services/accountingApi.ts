@@ -2,6 +2,7 @@ import { apiClient } from '@/lib/axios';
 import { cachedGet } from '@/lib/offlineCache';
 import {
   type AccountingAccount,
+  type UpdateAccountResponse,
   type AccountingEntry,
   type AccountingPeriod,
   type CreateAccountingEntryInput,
@@ -164,8 +165,8 @@ export const accountingApi = {
   updateAccount: async (
     code: string,
     cambios: { name?: string; element?: string; isActive?: boolean },
-  ): Promise<AccountingAccount> => {
-    const response = await apiClient.patch<AccountingAccount>(
+  ): Promise<UpdateAccountResponse> => {
+    const response = await apiClient.patch<UpdateAccountResponse>(
       `/accounting/accounts/${encodeURIComponent(code)}`,
       cambios,
     );
