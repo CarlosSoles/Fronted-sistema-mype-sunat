@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { BookOpen, ChevronLeft, ChevronRight, Download, Printer, SquareArrowOutUpRight, TriangleAlert } from 'lucide-react';
 import {
@@ -51,6 +51,7 @@ const money = (valor: number): string => formatCurrency(Number(valor) || 0, 'PEN
 export default function AccountingLedgerPage() {
   const [period] = useState(periodoActual);
   // La guía contable enlaza aquí con ?cuenta=, así el código abre su mayor.
+  const navegar = useNavigate();
   const [parametros] = useSearchParams();
   const [accountCode, setAccountCode] = useState(() => parametros.get('cuenta') ?? '');
   const [soloConMovimientos, setSoloConMovimientos] = useState(false);
@@ -413,7 +414,15 @@ export default function AccountingLedgerPage() {
         El saldo se acumula con cada movimiento del rango seleccionado y arranca con el saldo inicial del período.
       </p>
 
-      <EntryDetailDialog entry={asiento} open={Boolean(detalle)} onOpenChange={(abierto) => { if (!abierto) setDetalle(null); }} cargando={cargandoAsientos} />
+      <EntryDetailDialog
+        entry={asiento}
+        open={Boolean(detalle)}
+        onOpenChange={(abierto) => { if (!abierto) setDetalle(null); }}
+        cargando={cargandoAsientos}
+        cuentaResaltada={accountCode}
+        onVerCuenta={(code) => setAccountCode(code)}
+        onVerEnDiario={() => { if (detalle) navegar(`/accounting/entries?period=${period}`); }}
+      />
 
       {/* Exportar: permite acotar a un rango de cuentas sin ocupar la barra. */}
       <Dialog open={exportando} onOpenChange={setExportando}>

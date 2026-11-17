@@ -8,7 +8,7 @@
  */
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { apiClient } from '@/lib/axios';
 import { cachedGet } from '@/lib/offlineCache';
 import { EntryDetailDialog, type EntryDetail } from '../components/EntryDetailDialog';
@@ -62,6 +62,7 @@ interface Entry {
   createdAt?: string;
   observation?: string;
   responsible?: string;
+  status?: 'BORRADOR' | 'ASENTADO' | 'ANULADO';
   lines: AccountingLine[];
 }
 
@@ -103,6 +104,7 @@ interface AsientoBackend {
   created_at?: string;
   observation?: string;
   responsible?: string;
+  status?: 'BORRADOR' | 'ASENTADO' | 'ANULADO';
   lines?: LineaAsientoBackend[];
   accounting_lines?: LineaAsientoBackend[];
 }
@@ -165,6 +167,7 @@ const mapearAsiento = (
     createdAt: item.createdAt ?? item.created_at,
     observation: item.observation,
     responsible: item.responsible,
+    status: item.status,
     lines,
   };
 };
@@ -256,6 +259,7 @@ export default function AccountingEntriesPage() {
   const [busqueda, setBusqueda] = useState('');
 
   // Desde Períodos contables, "Ver asientos" llega con ?period=YYYY-MM.
+  const navegar = useNavigate();
   const [parametros] = useSearchParams();
   const periodoDeUrl = parametros.get('period');
   const [desde, setDesde] = useState(() =>
@@ -438,7 +442,26 @@ export default function AccountingEntriesPage() {
               </TableRow>
             ) : filtrados.length > 0 ? (
               filtrados.map((entry) => (
-                <TableRow key={entry.id} className="transition-colors hover:bg-muted/50">
+                <TableRow
+                  key={entry.id}
+                  className="cursor-pointer transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none"
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`Abrir el detalle del asiento ${numeroFormateado(entry)}`}
+                  onClick={(evento) => {
+                    // No abrir mientras el usuario selecciona texto de la fila.
+                    if (window.getSelection()?.toString()) return;
+                    // Los controles internos tienen su propia acción.
+                    if ((evento.target as HTMLElement).closest('button, a, input')) return;
+                    setDetalle(entry);
+                  }}
+                  onKeyDown={(evento) => {
+                    if (evento.key === 'Enter') {
+                      evento.preventDefault();
+                      setDetalle(entry);
+                    }
+                  }}
+                >
                   <TableCell className="whitespace-nowrap tabular-nums">{formatDateToPeru(entry.fechaContable)}</TableCell>
                   <TableCell>
                     <span className="flex items-center gap-1 truncate">
@@ -513,6 +536,9 @@ export default function AccountingEntriesPage() {
                 diario: DIARIOS.find((d) => d.key === diarioDe(detalle))?.label ?? null,
                 referencia: detalle.sourceReferenceId,
                 observacion: detalle.observation ?? null,
+                creado: detalle.createdAt ?? null,
+                responsable: detalle.responsible ?? null,
+                anulado: detalle.status === 'ANULADO',
                 lineas: detalle.lines.map((linea) => ({
                   code: linea.accountCode,
                   name: linea.accountName,
@@ -524,6 +550,7 @@ export default function AccountingEntriesPage() {
         }
         open={Boolean(detalle)}
         onOpenChange={(open) => { if (!open) setDetalle(null); }}
+        onVerCuenta={(code) => navegar(`/accounting/mayor?cuenta=${encodeURIComponent(code)}`)}
       />
 
       <ManualEntryModal

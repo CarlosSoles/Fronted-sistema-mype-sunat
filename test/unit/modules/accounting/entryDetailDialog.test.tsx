@@ -1,55 +1,87 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { EntryDetailDialog, type EntryDetail } from '@/modules/accounting/components/EntryDetailDialog';
 
 const ASIENTO: EntryDetail = {
   id: 'entry-1',
-  numero: 'AS/2026/10/0001',
-  fecha: '2026-10-17T00:00:00.000Z',
-  glosa: 'Costo de ventas (mercadería) F001-000003',
-  origen: 'Facturación',
-  diario: 'Ventas',
-  referencia: 'F001-000003',
-  observacion: 'Asiento 4/5 — Costo de ventas y baja de mercaderías',
+  numero: 'AS/2026/11/0077',
+  fecha: '2026-11-12T00:00:00.000Z',
+  glosa: 'Pago gasto E2E',
+  origen: 'Gastos',
+  diario: 'GAS',
+  referencia: 'PAGO-GASTO-123',
+  observacion: null,
+  creado: '2026-11-12T11:41:00.000Z',
+  responsable: 'Administrador',
+  anulado: false,
   lineas: [
-    { code: '691', name: 'Costo de ventas de mercaderías', debit: 0.95, credit: 0 },
-    { code: '201', name: 'Mercaderías', debit: 0, credit: 0.95 },
+    { code: '42121', name: 'Cuentas por pagar', debit: 118, credit: 0 },
+    { code: '1041', name: 'Caja o banco', debit: 0, credit: 118 },
   ],
 };
 
 afterEach(() => cleanup());
 
 describe('EntryDetailDialog', () => {
-  it('muestra las tarjetas del asiento, el concepto y las líneas', () => {
+  it('muestra las líneas reales y los totales del asiento', () => {
     render(<EntryDetailDialog entry={ASIENTO} open onOpenChange={vi.fn()} />);
 
-    // El diálogo se monta en un portal, así que el nodo aparece dos veces en el DOM.
-    expect(screen.getAllByText('AS/2026/10/0001').length).toBeGreaterThan(0);
-    // El comprobante ya no se muestra: la referencia principal es el número de asiento.
-    expect(screen.queryByText('F001-000003')).toBeNull();
-    expect(screen.getByText('Facturación')).toBeTruthy();
-    expect(screen.getByText('Asiento 4/5 — Costo de ventas y baja de mercaderías')).toBeTruthy();
-    expect(screen.getByText('Líneas del asiento (2)')).toBeTruthy();
-    expect(screen.getByText('Asiento cuadrado')).toBeTruthy();
+    expect(screen.getAllByText('AS/2026/11/0077').length).toBeGreaterThan(0);
+    expect(screen.getByText('Cuentas por pagar')).toBeTruthy();
+    expect(screen.getByText('Caja o banco')).toBeTruthy();
+    expect(screen.getAllByText(/S\/ 118[.,]00/).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText('Cuadra')).toBeTruthy();
     expect(screen.getByText('Registrado')).toBeTruthy();
   });
 
-  it('no muestra el campo Creado: solo la fecha contable', () => {
+  it('muestra las tarjetas solo cuando hay dato', () => {
     render(<EntryDetailDialog entry={ASIENTO} open onOpenChange={vi.fn()} />);
-    expect(screen.queryByText('Creado')).toBeNull();
-    expect(screen.getAllByText('17/10/2026').length).toBeGreaterThan(0);
+
+    expect(screen.getByText('Referencia')).toBeTruthy();
+    expect(screen.getByText('Fecha contable')).toBeTruthy();
+    expect(screen.getByText('Origen')).toBeTruthy();
+    expect(screen.getByText('Diario contable')).toBeTruthy();
+    expect(screen.getByText('Creado')).toBeTruthy();
+    expect(screen.getByText('Responsable')).toBeTruthy();
+
+    // Sin observación no hay bloque ni guiones vacíos.
+    expect(screen.queryByText('Observación')).toBeNull();
+    expect(screen.queryByText('—')).toBeNull();
   });
 
-  it('avisa cuando el asiento no está cuadrado', () => {
+  it('avisa cuando el asiento no cuadra', () => {
+    render(<EntryDetailDialog entry={{ ...ASIENTO, lineas: [ASIENTO.lineas[0]] }} open onOpenChange={vi.fn()} />);
+    expect(screen.getByText('No cuadra')).toBeTruthy();
+  });
+
+  it('no dice "Cuadra" cuando el asiento no tiene líneas', () => {
+    render(<EntryDetailDialog entry={{ ...ASIENTO, lineas: [] }} open onOpenChange={vi.fn()} />);
+
+    expect(screen.getByText(/no tiene líneas registradas/)).toBeTruthy();
+    expect(screen.getByText('Sin líneas')).toBeTruthy();
+    expect(screen.queryByText('Cuadra')).toBeNull();
+  });
+
+  it('marca los asientos anulados', () => {
+    render(<EntryDetailDialog entry={{ ...ASIENTO, anulado: true }} open onOpenChange={vi.fn()} />);
+    expect(screen.getByText('Anulado')).toBeTruthy();
+  });
+
+  it('resalta la línea de la cuenta consultada y permite abrir su mayor', async () => {
+    const verCuenta = vi.fn();
     render(
-      <EntryDetailDialog entry={{ ...ASIENTO, lineas: [ASIENTO.lineas[0]] }} open onOpenChange={vi.fn()} />,
+      <EntryDetailDialog
+        entry={ASIENTO}
+        open
+        onOpenChange={vi.fn()}
+        cuentaResaltada="1041"
+        onVerCuenta={verCuenta}
+      />,
     );
-    expect(screen.getByText('Asiento descuadrado')).toBeTruthy();
-  });
 
-  it('sin observación muestra un guion', () => {
-    render(<EntryDetailDialog entry={{ ...ASIENTO, observacion: null }} open onOpenChange={vi.fn()} />);
-    // Hay varios guiones (debe/haber en cero); basta con que aparezca alguno.
-    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+    // El código de cuenta es un enlace al mayor.
+    await userEvent.setup().click(screen.getByTitle('Ver el libro mayor de 1041'));
+    expect(verCuenta).toHaveBeenCalledWith('1041');
   });
 });
