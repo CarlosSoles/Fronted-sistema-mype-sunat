@@ -47,6 +47,7 @@ const mesActual = hoy.getMonth() + 1;
 export default function AccountingPeriodsPage() {
   const queryClient = useQueryClient();
   const [anioFiltro, setAnioFiltro] = useState<string>('todos');
+  const [filtroEstado, setFiltroEstado] = useState<'TODOS' | 'ABIERTOS' | 'CERRADOS'>('TODOS');
   const navigate = useNavigate();
   const [abrirNuevo, setAbrirNuevo] = useState(false);
   const [nuevo, setNuevo] = useState({ year: anioActual, month: mesActual });
@@ -184,10 +185,12 @@ export default function AccountingPeriodsPage() {
     [periods],
   );
 
-  const visibles = useMemo(
-    () => (anioFiltro === 'todos' ? periods : periods.filter((periodo) => String(periodo.year) === anioFiltro)),
-    [periods, anioFiltro],
-  );
+  const visibles = useMemo(() => {
+    const delAnio = anioFiltro === 'todos' ? periods : periods.filter((periodo) => String(periodo.year) === anioFiltro);
+    if (filtroEstado === 'ABIERTOS') return delAnio.filter((periodo) => periodo.status === 'ABIERTO');
+    if (filtroEstado === 'CERRADOS') return delAnio.filter((periodo) => periodo.status === 'CERRADO');
+    return delAnio;
+  }, [periods, anioFiltro, filtroEstado]);
 
   /** Lista de períodos agrupada por año fiscal, del año más reciente al más antiguo. */
   const grupos = useMemo(() => {
@@ -268,6 +271,16 @@ export default function AccountingPeriodsPage() {
               {anios.map((anio) => (
                 <SelectItem key={anio} value={String(anio)}>Año fiscal {anio}</SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+          <Select value={filtroEstado} onValueChange={(valor) => setFiltroEstado(valor as 'TODOS' | 'ABIERTOS' | 'CERRADOS')}>
+            <SelectTrigger className="w-44" aria-label="Filtrar por estado">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="TODOS">Todos los estados</SelectItem>
+              <SelectItem value="ABIERTOS">Solo abiertos</SelectItem>
+              <SelectItem value="CERRADOS">Solo cerrados</SelectItem>
             </SelectContent>
           </Select>
           {anioSeleccionado !== null ? (
