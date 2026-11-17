@@ -133,22 +133,31 @@ export default function AccountingPlanCuentasPage() {
     mutationFn: ({ code, isActive }: { code: string; isActive: boolean }) =>
       accountingApi.updateAccount(code, { isActive }),
     onSuccess: async (resultado, variables) => {
-      const cuantas = resultado.descendientesAfectados;
+      // El servidor puede no devolver la cascada (versión anterior): se lee de
+      // forma defensiva para no convertir un éxito en un error de pantalla.
+      const cuantas = resultado?.descendientesAfectados ?? 0;
+      const advertencias = resultado?.advertencias ?? [];
       const accion = variables.isActive ? 'activada' : 'inactivada';
+      const subcuentas = descendientesDe(variables.code);
+
       setAviso({
         tipo: 'ok',
         texto: cuantas > 0
           ? `Cuenta ${variables.code} ${accion} junto con ${cuantas} subcuenta(s).`
-          : `Cuenta ${variables.code} ${accion}.`,
+          : subcuentas > 0 && !variables.isActive
+            ? `Cuenta ${variables.code} ${accion}. Sus subcuentas se actualizarán cuando el servidor tenga la versión nueva.`
+            : `Cuenta ${variables.code} ${accion}.`,
       });
-      // Las advertencias (reglas, tesorería) se muestran como aviso aparte.
-      if (resultado.advertencias.length > 0) {
-        setAviso({ tipo: 'aviso', texto: resultado.advertencias.join(' ') });
+      // Las advertencias (reglas, tesorería) se muestran aparte, en ámbar.
+      if (advertencias.length > 0) {
+        setAviso({ tipo: 'aviso', texto: advertencias.join(' ') });
       }
       setErrorAlta(null);
-      await refrescar();
     },
     onError: (e: any) => setErrorAlta(mensajeDeErrorCuenta(e, 'No se pudo cambiar el estado de la cuenta.')),
+    // La lista se refresca siempre, tanto si la operación fue bien como si no:
+    // antes un error dejaba la tabla mostrando el estado anterior.
+    onSettled: async () => { await refrescar(); },
   });
 
   const renombrar = useMutation({
@@ -437,7 +446,17 @@ export default function AccountingPlanCuentasPage() {
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setExpanded(new Set(accounts.filter((cuenta) => descendientesDe(cuenta.code) > 0).map((cuenta) => cuenta.code)))}
+              onClick={() =>
+                // Expandir todo el catálogo son casi 1700 filas y la tabla se
+                // vuelve lenta e ilegible, así que se abre hasta subcuenta.
+                setExpanded(
+                  new Set(
+                    accounts
+                      .filter((cuenta) => cuenta.code.length <= 3 && descendientesDe(cuenta.code) > 0)
+                      .map((cuenta) => cuenta.code),
+                  ),
+                )
+              }
             >
               Expandir todo
             </Button>
