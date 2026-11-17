@@ -1,6 +1,6 @@
 import { Fragment, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarDays, FileText, Lock, Plus, Trash2, Unlock } from 'lucide-react';
+import { CalendarDays, FileText, Lock, Plus, Unlock } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -96,20 +96,6 @@ export default function AccountingPeriodsPage() {
       await invalidate();
     },
     onError: (e: any) => setError(mensajeDeError(e, 'No se pudo cerrar el período.')),
-  });
-
-  /**
-   * Eliminar un período: solo si no tiene asientos. El backend es quien valida,
-   * así que su mensaje se muestra tal cual cuando el mes tiene movimientos.
-   */
-  const deletePeriod = useMutation({
-    mutationFn: (period: string) => accountingApi.deletePeriod(period),
-    onSuccess: async (resultado) => {
-      setError(null);
-      setOk(`Período ${resultado.period} eliminado.`);
-      await invalidate();
-    },
-    onError: (e: any) => setError(mensajeDeError(e, 'No se pudo eliminar el período.')),
   });
 
   const openYear = useMutation({
@@ -274,31 +260,15 @@ export default function AccountingPeriodsPage() {
                       <TableCell>{fecha(period.openedAt)}</TableCell>
                       <TableCell>{fecha(period.closedAt)}</TableCell>
                       <TableCell align="right">
-                        <span className="flex items-center justify-end gap-1">
-                          {period.status === 'ABIERTO' ? (
-                            <Button variant="outline" size="sm" onClick={() => closePeriod.mutate(period.period)} disabled={closePeriod.isPending}>
-                              <Lock className="mr-1 h-3.5 w-3.5" /> Cerrar
-                            </Button>
-                          ) : (
-                            <Button variant="outline" size="sm" onClick={() => openPeriod.mutate({ y: period.year, m: period.month })} disabled={openPeriod.isPending}>
-                              <CalendarDays className="mr-1 h-3.5 w-3.5" /> Reabrir
-                            </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            aria-label={`Eliminar ${period.period}`}
-                            title="Solo se puede eliminar si no tiene asientos"
-                            disabled={deletePeriod.isPending}
-                            onClick={() => {
-                              if (window.confirm(`¿Eliminar el período ${period.period}? Solo es posible si no tiene asientos.`)) {
-                                deletePeriod.mutate(period.period);
-                              }
-                            }}
-                          >
-                            <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                        {period.status === 'ABIERTO' ? (
+                          <Button variant="outline" size="sm" onClick={() => closePeriod.mutate(period.period)} disabled={closePeriod.isPending}>
+                            <Lock className="mr-1 h-3.5 w-3.5" /> Cerrar
                           </Button>
-                        </span>
+                        ) : (
+                          <Button variant="outline" size="sm" onClick={() => openPeriod.mutate({ y: period.year, m: period.month })} disabled={openPeriod.isPending}>
+                            <CalendarDays className="mr-1 h-3.5 w-3.5" /> Reabrir
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
