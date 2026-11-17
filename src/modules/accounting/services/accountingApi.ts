@@ -228,10 +228,15 @@ export const accountingApi = {
     return response.data;
   },
 
-  getLedger: async (period: string, accountCode: string): Promise<LedgerResponse> => {
-    return cachedGet(`accounting-ledger:${period}:${accountCode}`, async () => {
+  getLedger: async (
+    period: string,
+    accountCode: string,
+    opciones: { soloDirectos?: boolean } = {},
+  ): Promise<LedgerResponse> => {
+    const soloDirectos = opciones.soloDirectos === true;
+    return cachedGet(`accounting-ledger:${period}:${accountCode}:${soloDirectos}`, async () => {
       const response = await apiClient.get<LedgerResponse>('/accounting/ledger', {
-        params: { period, accountCode },
+        params: { period, accountCode, ...(soloDirectos ? { soloDirectos: 'true' } : {}) },
       });
       return response.data;
     });

@@ -6,6 +6,7 @@ import {
   Card,
   Page,
   PageHeader,
+  Switch,
   Table,
   TableBody,
   TableCell,
@@ -45,6 +46,8 @@ const referenciaVisible = (referencia?: string | null): boolean => {
 export default function AccountingLedgerPage() {
   const [period] = useState(periodoActual);
   const [accountCode, setAccountCode] = useState('');
+  /** Por defecto una cuenta de mayor muestra el consolidado de sus subcuentas. */
+  const [soloDirectos, setSoloDirectos] = useState(false);
   // Rango visible del mayor. El período sigue siendo el que se pide al backend;
   // estas fechas solo recortan lo que ya llegó.
   const [desde, setDesde] = useState(() => `${periodoActual()}-01`);
@@ -62,8 +65,8 @@ export default function AccountingLedgerPage() {
   });
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['accounting-ledger', period, accountCode],
-    queryFn: () => accountingApi.getLedger(period, accountCode),
+    queryKey: ['accounting-ledger', period, accountCode, soloDirectos],
+    queryFn: () => accountingApi.getLedger(period, accountCode, { soloDirectos }),
     enabled: Boolean(accountCode),
   });
 
@@ -147,6 +150,14 @@ export default function AccountingLedgerPage() {
             placeholder="Buscar cuenta por código o nombre"
           />
         </div>
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Switch
+            checked={soloDirectos}
+            onCheckedChange={setSoloDirectos}
+            aria-label="Ver solo los movimientos propios de la cuenta"
+          />
+          Solo movimientos directos
+        </label>
       </Toolbar>
 
       {error ? (
