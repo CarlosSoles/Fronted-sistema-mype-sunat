@@ -4,13 +4,9 @@ import { BookOpen, SquareArrowOutUpRight } from 'lucide-react';
 import {
   Badge,
   Card,
+  Input,
   Page,
   PageHeader,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Table,
   TableBody,
   TableCell,
@@ -32,25 +28,12 @@ const periodoActual = () => {
 
 const money = (value: number) => `S/ ${value.toFixed(2)}`;
 
-/**
- * Solo se muestra la referencia si es un documento legible.
- *
- * Muchos asientos guardan un identificador interno en vez de un número de
- * comprobante (`PAGO-GASTO-5fac8124-ed44-4e98-…`). Al ser tan largas, esas
- * cadenas ensanchaban la columna y empujaban la tabla. Se descartan si
- * contienen un UUID o si exceden el largo de un comprobante real.
- */
-const referenciaVisible = (referencia?: string | null): boolean => {
-  if (!referencia) return false;
-  if (/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(referencia)) return false;
-  return referencia.length <= 32;
-};
-
 
 
 export default function AccountingLedgerPage() {
   const [period] = useState(periodoActual);
   const [accountCode, setAccountCode] = useState('');
+  const [textoCuenta, setTextoCuenta] = useState('');
   // Rango visible del mayor. El período sigue siendo el que se pide al backend;
   // estas fechas solo recortan lo que ya llegó.
   const [desde, setDesde] = useState(() => `${periodoActual()}-01`);
@@ -96,31 +79,26 @@ export default function AccountingLedgerPage() {
 
   const asiento = useMemo(() => {
     if (!detalle) return null;
-    const encontrado = asientos.find((item) => item.id === detalle.entryId);
 
-    // Si el asiento aún no llegó (o no está en el período cargado) se muestra
-    // el encabezado con los datos del propio movimiento; así el detalle nunca
-    // aparece vacío ni con "Líneas del asiento (0)".
-    if (!encontrado) {
-      return {
-        id: detalle.entryId,
-        numero: formatearNumeroAsiento(detalle.entryNumber, period),
-        fecha: detalle.entryDate,
-        glosa: detalle.glosa,
-        origen: etiquetaOrigen(detalle.sourceModule),
-        referencia: detalle.sourceReferenceId ?? '',
-        lineas: [],
-      } satisfies EntryDetail;
-    }
+    // El mayor y la lista de asientos pueden no compartir el mismo id, así que
+    // se busca por id y, si no aparece, por número de asiento.
+    const porNumero = (item: (typeof asientos)[number]) => {
+      const correlativo = Number(item.numeroAsiento?.match(/(\d+)$/)?.[1]);
+      return correlativo === detalle.entryNumber;
+    };
+    const encontrado = asientos.find((item) => item.id === detalle.entryId) ?? asientos.find(porNumero);
 
+    // Respaldo: el encabezado siempre sale del propio movimiento del mayor, de
+    // modo que el detalle nunca queda en blanco mientras llegan las líneas.
+    const numero = formatearNumeroAsiento(detalle.entryNumber, period);
     return {
-      id: encontrado.id,
-      numero: encontrado.numeroAsiento,
-      fecha: encontrado.fechaContable,
-      glosa: encontrado.glosa,
+      id: encontrado?.id ?? detalle.entryId,
+      numero: encontrado?.numeroAsiento || numero,
+      fecha: encontrado?.fechaContable || detalle.entryDate,
+      glosa: encontrado?.glosa || detalle.glosa,
       origen: etiquetaOrigen(detalle.sourceModule),
-      referencia: detalle.entryId,
-      lineas: (encontrado.movimientos ?? []).map((movimiento) => ({
+      referencia: detalle.sourceReferenceId ?? '',
+      lineas: (encontrado?.movimientos ?? []).map((movimiento) => ({
         code: movimiento.cuentaContable,
         name: movimiento.denominacion,
         debit: Number(movimiento.debe) || 0,
@@ -148,18 +126,30 @@ export default function AccountingLedgerPage() {
         }
       >
         <div className="min-w-72">
-          <Select value={accountCode || undefined} onValueChange={setAccountCode}>
-            <SelectTrigger aria-label="Cuenta contable">
-              <SelectValue placeholder="Seleccionar cuenta contable" />
-            </SelectTrigger>
-            <SelectContent>
-              {accounts.map((account) => (
-                <SelectItem key={account.code} value={account.code}>
-                  {account.code} · {account.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {/*
+            Búsqueda por escritura: el datalist deja filtrar por código o nombre
+            mientras se escribe, sin abrir una lista de 1700 cuentas.
+          */}
+          <Input
+            list="mayor-cuentas"
+            aria-label="Cuenta contable"
+            placeholder="Buscar cuenta por código o nombre"
+            value={textoCuenta}
+            onChange={(evento) => {
+              const valor = evento.target.value;
+              setTextoCuenta(valor);
+              const codigo = valor.split(' · ')[0].trim();
+              if (accounts.some((cuenta) => cuenta.code === codigo)) setAccountCode(codigo);
+            }}
+            className="h-9"
+          />
+          <datalist id="mayor-cuentas">
+            {accounts.map((account) => (
+              <option key={account.code} value={account.code}>
+                {account.code} · {account.name}
+              </option>
+            ))}
+          </datalist>
         </div>
       </Toolbar>
 
@@ -225,16 +215,9 @@ export default function AccountingLedgerPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="flex flex-col gap-0.5">
-                      <Badge variant="outline" className="w-fit text-muted-foreground">
-                        {etiquetaOrigen(movement.sourceModule)}
-                      </Badge>
-                      {referenciaVisible(movement.sourceReferenceId) ? (
-                        <span className="font-mono text-[11px] text-muted-foreground">
-                          {movement.sourceReferenceId}
-                        </span>
-                      ) : null}
-                    </div>
+                    <Badge variant="outline" className="w-fit text-muted-foreground">
+                      {etiquetaOrigen(movement.sourceModule)}
+                    </Badge>
                   </TableCell>
                   <TableCell align="right" className="whitespace-nowrap tabular-nums">
                     {movement.debit ? money(movement.debit) : '—'}
