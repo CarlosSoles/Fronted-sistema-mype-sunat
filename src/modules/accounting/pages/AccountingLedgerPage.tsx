@@ -28,6 +28,18 @@ const periodoActual = () => {
 
 const money = (value: number) => `S/ ${value.toFixed(2)}`;
 
+/**
+ * Referencia del documento que originó el asiento.
+ *
+ * Se muestra solo si es legible: algunos asientos guardan un identificador
+ * interno (`PAGO-GASTO-5fac8124-ed44-…`) que no aporta nada y ensancha la fila.
+ */
+const referenciaVisible = (referencia?: string | null): boolean => {
+  if (!referencia) return false;
+  if (/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(referencia)) return false;
+  return referencia.length <= 32;
+};
+
 
 
 export default function AccountingLedgerPage() {
@@ -197,9 +209,16 @@ export default function AccountingLedgerPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="w-fit text-muted-foreground">
-                      {etiquetaOrigen(movement.sourceModule)}
-                    </Badge>
+                    <div className="flex flex-col gap-0.5">
+                      <Badge variant="outline" className="w-fit text-muted-foreground">
+                        {etiquetaOrigen(movement.sourceModule)}
+                      </Badge>
+                      {referenciaVisible(movement.sourceReferenceId) ? (
+                        <span className="truncate font-mono text-[11px] text-muted-foreground">
+                          {movement.sourceReferenceId}
+                        </span>
+                      ) : null}
+                    </div>
                   </TableCell>
                   <TableCell align="right" className="whitespace-nowrap tabular-nums">
                     {movement.debit ? money(movement.debit) : '—'}
