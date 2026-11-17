@@ -54,7 +54,7 @@ export default function AccountingTrialBalancePage() {
   };
 
   return (
-    <Page>
+    <Page className="reporte-imprimible">
       <PageHeader
         title="Balance de Comprobación"
         description="Saldos iniciales, movimiento del período y saldos finales por cuenta"

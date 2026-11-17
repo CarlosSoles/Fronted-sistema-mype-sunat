@@ -19,6 +19,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Switch,
   Table,
   TableBody,
   TableCell,
@@ -417,18 +418,15 @@ export default function AccountingPlanCuentasPage() {
                 <p className="text-sm font-medium">Cuenta activa</p>
                 <p className="text-xs text-muted-foreground">Disponible para registrar asientos.</p>
               </div>
-              <Button
-                type="button"
-                variant={cuentaEditadaActiva ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => {
+              <Switch
+                checked={cuentaEditadaActiva}
+                aria-label="Cuenta activa"
+                disabled={alternar.isPending}
+                onCheckedChange={() => {
                   const actual = accounts.find((cuenta) => cuenta.code === editando?.code);
                   if (actual) alternar.mutate({ code: actual.code, isActive: !actual.isActive });
                 }}
-                disabled={alternar.isPending}
-              >
-                {cuentaEditadaActiva ? 'Activa' : 'Inactiva'}
-              </Button>
+              />
             </div>
             {errorAlta ? <p className="text-xs text-destructive">{errorAlta}</p> : null}
           </div>

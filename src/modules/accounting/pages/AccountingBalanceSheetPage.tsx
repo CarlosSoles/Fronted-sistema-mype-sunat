@@ -90,7 +90,7 @@ export default function AccountingBalanceSheetPage() {
   );
 
   return (
-    <Page>
+    <Page className="reporte-imprimible">
       <PageHeader
         title="Balance General"
         description="Estado de Situación Financiera conforme al PCGE (activo, pasivo y patrimonio)"

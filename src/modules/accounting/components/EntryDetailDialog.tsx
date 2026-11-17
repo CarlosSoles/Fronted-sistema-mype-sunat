@@ -87,12 +87,6 @@ export function EntryDetailDialog({
               <Chip etiqueta="Origen" valor={entry.origen} />
             </div>
 
-            {entry.referencia ? (
-              <p className="text-xs text-muted-foreground">
-                Documento de origen: <span className="font-medium text-foreground">{entry.referencia}</span>
-              </p>
-            ) : null}
-
             <div className="space-y-3">
               <div>
                 <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Concepto</p>

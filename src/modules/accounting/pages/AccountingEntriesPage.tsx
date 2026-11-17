@@ -410,19 +410,21 @@ export default function AccountingEntriesPage() {
         ) : null}
       </Card>
 
-      <Card flush>
-        <Table>
+      <Card flush className="overflow-hidden">
+        {/* table-fixed + truncado: la tabla se ajusta al ancho disponible y el
+            detalle largo se corta con puntos suspensivos en vez de desbordar. */}
+        <Table className="table-fixed">
           <TableHeader>
             <TableRow className="bg-muted/40 hover:bg-muted/40">
-              <TableHead className="text-[11px] font-semibold uppercase tracking-wider">Fecha contable</TableHead>
-              <TableHead className="text-[11px] font-semibold uppercase tracking-wider">N° Asiento</TableHead>
+              <TableHead className="w-[9%] text-[11px] font-semibold uppercase tracking-wider">Fecha contable</TableHead>
+              <TableHead className="w-[15%] text-[11px] font-semibold uppercase tracking-wider">N° Asiento</TableHead>
               <TableHead className="text-[11px] font-semibold uppercase tracking-wider">Concepto</TableHead>
               {verColumnaDiario ? (
-                <TableHead className="text-[11px] font-semibold uppercase tracking-wider">Diario</TableHead>
+                <TableHead className="w-[11%] text-[11px] font-semibold uppercase tracking-wider">Diario</TableHead>
               ) : null}
-              <TableHead className="text-[11px] font-semibold uppercase tracking-wider">Origen</TableHead>
-              <TableHead align="right" className="text-[11px] font-semibold uppercase tracking-wider">Total</TableHead>
-              <TableHead align="center" className="text-[11px] font-semibold uppercase tracking-wider">Estado</TableHead>
+              <TableHead className="w-[14%] text-[11px] font-semibold uppercase tracking-wider">Origen</TableHead>
+              <TableHead align="right" className="w-[10%] text-[11px] font-semibold uppercase tracking-wider">Total</TableHead>
+              <TableHead align="center" className="w-[9%] text-[11px] font-semibold uppercase tracking-wider">Estado</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -436,28 +438,28 @@ export default function AccountingEntriesPage() {
               filtrados.map((entry) => (
                 <TableRow key={entry.id} className="transition-colors hover:bg-muted/50">
                   <TableCell className="whitespace-nowrap tabular-nums">{formatDateToPeru(entry.fechaContable)}</TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    <span className="flex items-center gap-1.5">
-                      <span className="font-mono text-xs font-medium">{numeroFormateado(entry)}</span>
+                  <TableCell>
+                    <span className="flex items-center gap-1 truncate">
+                      <span className="truncate font-mono text-xs font-medium">{numeroFormateado(entry)}</span>
                       <button
                         type="button"
                         aria-label={`Ver detalle del asiento ${numeroFormateado(entry)}`}
                         onClick={() => setDetalle(entry)}
-                        className="rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                        className="shrink-0 rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                       >
                         <SquareArrowOutUpRight className="h-3.5 w-3.5" />
                       </button>
                     </span>
                   </TableCell>
                   <TableCell>
-                    <span className="block max-w-[440px] truncate" title={entry.glosa}>{entry.glosa}</span>
+                    <span className="block truncate" title={entry.glosa}>{entry.glosa}</span>
                   </TableCell>
                   {verColumnaDiario ? (
-                    <TableCell className="whitespace-nowrap text-muted-foreground">
+                    <TableCell className="truncate text-muted-foreground">
                       {DIARIOS.find((d) => d.key === diarioDe(entry))?.label ?? '—'}
                     </TableCell>
                   ) : null}
-                  <TableCell className="whitespace-nowrap text-muted-foreground">
+                  <TableCell className="truncate text-muted-foreground" title={etiquetaOrigenDe(entry)}>
                     {etiquetaOrigenDe(entry)}
                   </TableCell>
                   <TableCell align="right" className="whitespace-nowrap font-medium tabular-nums">
