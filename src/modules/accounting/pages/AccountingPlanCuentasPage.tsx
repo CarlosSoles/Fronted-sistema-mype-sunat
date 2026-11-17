@@ -468,6 +468,7 @@ export default function AccountingPlanCuentasPage() {
                 <Select
                   value={nueva.code.charAt(0) || undefined}
                   onValueChange={(valor) => setNueva({ ...nueva, code: valor })}
+                  disabled={Boolean(nueva.code)}
                 >
                   <SelectTrigger id="nueva-tipo">
                     <SelectValue placeholder="Seleccionar tipo" />

@@ -33,6 +33,18 @@ const periodoActual = () => {
 
 const money = (value: number) => `S/ ${value.toFixed(2)}`;
 
+/**
+ * Solo se muestra la referencia si es un documento legible.
+ *
+ * Algunos asientos guardan un identificador interno (UUID) en vez de un número
+ * de comprobante; mostrarlo no aporta nada al contador.
+ */
+const referenciaVisible = (referencia?: string | null): boolean => {
+  if (!referencia) return false;
+  const esUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(referencia);
+  return !esUuid;
+};
+
 
 
 export default function AccountingLedgerPage() {
@@ -84,7 +96,22 @@ export default function AccountingLedgerPage() {
   const asiento = useMemo(() => {
     if (!detalle) return null;
     const encontrado = asientos.find((item) => item.id === detalle.entryId);
-    if (!encontrado) return null;
+
+    // Si el asiento aún no llegó (o no está en el período cargado) se muestra
+    // el encabezado con los datos del propio movimiento; así el detalle nunca
+    // aparece vacío ni con "Líneas del asiento (0)".
+    if (!encontrado) {
+      return {
+        id: detalle.entryId,
+        numero: formatearNumeroAsiento(detalle.entryNumber, period),
+        fecha: detalle.entryDate,
+        glosa: detalle.glosa,
+        origen: etiquetaOrigen(detalle.sourceModule),
+        referencia: detalle.sourceReferenceId ?? '',
+        lineas: [],
+      } satisfies EntryDetail;
+    }
+
     return {
       id: encontrado.id,
       numero: encontrado.numeroAsiento,
@@ -99,7 +126,7 @@ export default function AccountingLedgerPage() {
         credit: Number(movimiento.haber) || 0,
       })),
     } satisfies EntryDetail;
-  }, [detalle, asientos]);
+  }, [detalle, asientos, period]);
 
   return (
     <Page>
@@ -108,7 +135,32 @@ export default function AccountingLedgerPage() {
         description="Movimientos de la cuenta seleccionada, del más antiguo al más reciente"
       />
 
-      <Toolbar>
+      <Toolbar
+        status={
+          <div className="flex items-end gap-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground" htmlFor="mayor-desde">Desde</label>
+              <Input
+                id="mayor-desde"
+                type="date"
+                className="w-40"
+                value={desde}
+                onChange={(evento) => setDesde(evento.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground" htmlFor="mayor-hasta">Hasta</label>
+              <Input
+                id="mayor-hasta"
+                type="date"
+                className="w-40"
+                value={hasta}
+                onChange={(evento) => setHasta(evento.target.value)}
+              />
+            </div>
+          </div>
+        }
+      >
         <div className="min-w-72 space-y-1.5">
           <label className="text-xs font-medium text-muted-foreground">Cuenta contable</label>
           <Select value={accountCode || undefined} onValueChange={setAccountCode}>
@@ -123,28 +175,6 @@ export default function AccountingLedgerPage() {
               ))}
             </SelectContent>
           </Select>
-        </div>
-        <div className="ml-auto flex items-end gap-2">
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground" htmlFor="mayor-desde">Desde</label>
-            <Input
-              id="mayor-desde"
-              type="date"
-              className="w-40"
-              value={desde}
-              onChange={(evento) => setDesde(evento.target.value)}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground" htmlFor="mayor-hasta">Hasta</label>
-            <Input
-              id="mayor-hasta"
-              type="date"
-              className="w-40"
-              value={hasta}
-              onChange={(evento) => setHasta(evento.target.value)}
-            />
-          </div>
         </div>
       </Toolbar>
 
@@ -220,7 +250,7 @@ export default function AccountingLedgerPage() {
                       <Badge variant="outline" className="w-fit text-muted-foreground">
                         {etiquetaOrigen(movement.sourceModule)}
                       </Badge>
-                      {movement.sourceReferenceId ? (
+                      {referenciaVisible(movement.sourceReferenceId) ? (
                         <span className="font-mono text-[11px] text-muted-foreground">
                           {movement.sourceReferenceId}
                         </span>

@@ -70,14 +70,6 @@ export default function AccountingTrialBalancePage() {
   const [period, setPeriod] = useState(periodoActual);
   const [desde, setDesde] = useState(() => `${periodoActual()}-01`);
   const [hasta, setHasta] = useState(() => ultimoDiaDe(periodoActual()));
-
-  /** "Mes actual": vuelve al mes en curso con su rango de días completo. */
-  const irAlMesActual = () => {
-    const actual = periodoActual();
-    setPeriod(actual);
-    setDesde(`${actual}-01`);
-    setHasta(ultimoDiaDe(actual));
-  };
   const { data, isLoading, error } = useQuery({
     queryKey: ['accounting-trial-balance', period],
     queryFn: () => accountingApi.getTrialBalance(period),
@@ -195,7 +187,6 @@ export default function AccountingTrialBalancePage() {
             />
           </div>
           <div className="ml-auto flex gap-2">
-            <Button variant="outline" onClick={irAlMesActual}>Mes actual</Button>
             <Button variant="outline" onClick={exportar} disabled={filas.length === 0}>
               <Download className="mr-1.5 h-4 w-4" /> Descargar CSV
             </Button>
