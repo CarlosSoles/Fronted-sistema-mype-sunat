@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { BookOpen, ChevronLeft, ChevronRight, Download, Printer, SquareArrowOutUpRight, TriangleAlert } from 'lucide-react';
@@ -106,6 +106,33 @@ export default function AccountingLedgerPage() {
   const paginaActual = Math.min(pagina, totalPaginas);
   const visibles = movements.slice((paginaActual - 1) * POR_PAGINA, paginaActual * POR_PAGINA);
 
+  /**
+   * Vista agrupada por subcuenta.
+   *
+   * Solo tiene sentido cuando se consulta una cuenta de mayor con varias hijas:
+   * se ordenan los movimientos por cuenta y se calcula el subtotal de cada una
+   * sobre el rango visible.
+   */
+  const [agrupar, setAgrupar] = useState(false);
+  const porSubcuenta = useMemo(() => {
+    const grupos = new Map<string, { nombre: string; movimientos: LedgerMovement[]; debe: number; haber: number }>();
+    for (const movimiento of movements) {
+      const grupo = grupos.get(movimiento.accountCode) ?? {
+        nombre: movimiento.accountName,
+        movimientos: [],
+        debe: 0,
+        haber: 0,
+      };
+      grupo.movimientos.push(movimiento);
+      grupo.debe += movimiento.debit;
+      grupo.haber += movimiento.credit;
+      grupos.set(movimiento.accountCode, grupo);
+    }
+    return [...grupos.entries()].sort(([a], [b]) => a.localeCompare(b));
+  }, [movements]);
+
+  const puedeAgrupar = (data?.subcuentas?.length ?? 0) > 1;
+
   const [detalle, setDetalle] = useState<LedgerMovement | null>(null);
 
   // El detalle necesita las líneas del asiento, que el mayor no devuelve.
@@ -209,7 +236,21 @@ export default function AccountingLedgerPage() {
 
       <Toolbar
         status={
-          <RangoFechas idPrefijo="mayor" desde={desde} hasta={hasta} onDesde={setDesde} onHasta={setHasta} />
+          <div className="flex flex-wrap items-center gap-3">
+            {puedeAgrupar ? (
+              <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={agrupar}
+                  onChange={(evento) => setAgrupar(evento.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-input"
+                  aria-label="Agrupar por subcuenta"
+                />
+                Agrupar por subcuenta
+              </label>
+            ) : null}
+            <RangoFechas idPrefijo="mayor" desde={desde} hasta={hasta} onDesde={setDesde} onHasta={setHasta} />
+          </div>
         }
       >
         <div className="w-full sm:w-80">
@@ -322,7 +363,41 @@ export default function AccountingLedgerPage() {
                   </TableCell>
                 </TableRow>
 
-                {visibles.map((movement, indice) => (
+                {agrupar && puedeAgrupar
+                  ? porSubcuenta.map(([codigo, grupo]) => (
+                      <Fragment key={`grupo-${codigo}`}>
+                        <TableRow className="bg-muted/30">
+                          <TableCell colSpan={5} className="text-xs font-medium">
+                            <span className="font-mono">{codigo}</span> · {grupo.nombre}
+                          </TableCell>
+                          <TableCell align="right" className="tabular-nums text-xs">{money(grupo.debe)}</TableCell>
+                          <TableCell align="right" className="tabular-nums text-xs">{money(grupo.haber)}</TableCell>
+                          <TableCell align="right" className="tabular-nums text-xs">{money(grupo.debe - grupo.haber)}</TableCell>
+                        </TableRow>
+                        {grupo.movimientos.map((movement, indice) => (
+                          <TableRow
+                            key={`${movement.entryId}-${codigo}-${indice}`}
+                            className="cursor-pointer transition-colors hover:bg-muted/40"
+                            onClick={() => setDetalle(movement)}
+                          >
+                            <TableCell className="whitespace-nowrap pl-8 tabular-nums">{formatDateToPeru(movement.entryDate)}</TableCell>
+                            <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
+                              {formatearNumeroAsiento(movement.entryNumber, period)}
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap font-mono text-xs">{movement.accountCode}</TableCell>
+                            <TableCell className="text-xs">{movement.glosa}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{etiquetaOrigen(movement.sourceModule)}</TableCell>
+                            <TableCell align="right" className="tabular-nums">{movement.debit ? money(movement.debit) : ''}</TableCell>
+                            <TableCell align="right" className="tabular-nums">{movement.credit ? money(movement.credit) : ''}</TableCell>
+                            <TableCell align="right" className="tabular-nums">{money(movement.saldo)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </Fragment>
+                    ))
+                  : null}
+
+                {!agrupar || !puedeAgrupar
+                  ? visibles.map((movement, indice) => (
                   <TableRow
                     key={`${movement.entryId}-${movement.accountCode}-${indice}`}
                     className="cursor-pointer transition-colors hover:bg-muted/40"
@@ -375,7 +450,8 @@ export default function AccountingLedgerPage() {
                       <span className="text-[10px] text-muted-foreground">{indicador(movement.saldo)}</span>
                     </TableCell>
                   </TableRow>
-                ))}
+                  ))
+                  : null}
 
                 {/* Totales al pie del reporte. */}
                 <TableRow className="bg-muted/40 font-medium">
