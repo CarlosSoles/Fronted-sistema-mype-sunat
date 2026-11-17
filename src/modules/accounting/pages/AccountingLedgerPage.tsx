@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { BookOpen, SquareArrowOutUpRight } from 'lucide-react';
+import { BookOpen, Download, Printer, SquareArrowOutUpRight } from 'lucide-react';
 import {
   Badge,
+  Button,
   Card,
   Input,
   Page,
@@ -20,6 +21,7 @@ import { EntryDetailDialog, type EntryDetail } from '../components/EntryDetailDi
 import { accountingApi } from '../services/accountingApi';
 import { AccountCombobox } from '../components/AccountCombobox';
 import { formatearNumeroAsiento } from '../lib/numeroAsiento';
+import { descargarCsv, descargarPdf, monto } from '../lib/exportReport';
 import { etiquetaOrigen } from '../lib/origenLabels';
 import type { LedgerMovement } from '../types/accounting.types';
 
@@ -152,7 +154,49 @@ export default function AccountingLedgerPage() {
       <PageHeader
         title="Libro Mayor"
         description="Movimientos de la cuenta seleccionada, del más antiguo al más reciente"
-      />
+      >
+        <div className="flex gap-2 print:hidden">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const filas: (string | number)[][] = [
+                  ['Fecha', 'Asiento', 'Descripción', 'Módulo', 'Referencia', 'Debe', 'Haber', 'Saldo'],
+                ];
+                if (data) filas.push(['', '', `Saldo inicial`, '', '', '', '', monto(data.openingBalance)]);
+                for (const movimiento of movements) {
+                  filas.push([
+                    movimiento.entryDate,
+                    formatearNumeroAsiento(movimiento.entryNumber, period),
+                    movimiento.glosa,
+                    etiquetaOrigen(movimiento.sourceModule),
+                    movimiento.sourceReferenceId ?? '',
+                    movimiento.debit.toFixed(2),
+                    movimiento.credit.toFixed(2),
+                    movimiento.saldo.toFixed(2),
+                  ]);
+                }
+                filas.push([
+                  '',
+                  '',
+                  'Totales',
+                  '',
+                  '',
+                  (data?.totalDebit ?? 0).toFixed(2),
+                  (data?.totalCredit ?? 0).toFixed(2),
+                  (data?.closingBalance ?? 0).toFixed(2),
+                ]);
+                descargarCsv(`libro-mayor-${data?.accountCode ?? accountCode}-${period}`, filas);
+              }}
+              disabled={movements.length === 0}
+            >
+              <Download className="mr-1 h-4 w-4" /> Excel
+            </Button>
+            <Button variant="outline" size="sm" onClick={descargarPdf} disabled={movements.length === 0}>
+              <Printer className="mr-1 h-4 w-4" /> PDF
+            </Button>
+        </div>
+      </PageHeader>
 
       <Toolbar
         status={
