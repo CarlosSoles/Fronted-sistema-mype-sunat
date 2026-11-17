@@ -7,15 +7,23 @@ export interface AccountingMovement {
 
 export interface AccountingEntry {
   id: string;
-  numeroAsiento: string;
-  fechaContable: string;
+  period?: string;
+  entryNumber?: number;
+  numeroAsiento?: string;
+  fechaContable?: string;
+  entryDate?: string;
   glosa: string;
-  totalDebe: number;
-  totalHaber: number;
-  estaCuadrado: boolean;
-  /** Momento del registro; puede diferir de la fecha contable. */
+  observation?: string | null;
+  responsible?: string | null;
+  journalCode?: string | null;
+  sourceModule?: string;
   createdAt?: string;
-  movimientos: AccountingMovement[];
+  status?: 'BORRADOR' | 'ASENTADO' | 'ANULADO';
+  totalDebe?: number;
+  totalHaber?: number;
+  estaCuadrado?: boolean;
+  lines?: Array<{ accountCode: string; accountName: string; debitAmount: number; creditAmount: number }>;
+  movimientos?: AccountingMovement[];
 }
 
 export interface AccountingAccount {
@@ -86,6 +94,8 @@ export interface LedgerMovement {
   sourceReferenceId?: string | null;
   accountCode: string;
   accountName: string;
+  /** Estado del asiento: ANULADO se marca en el mayor. */
+  status?: 'BORRADOR' | 'ASENTADO' | 'ANULADO';
   debit: number;
   credit: number;
   saldo: number;

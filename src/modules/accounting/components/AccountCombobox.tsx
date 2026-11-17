@@ -10,6 +10,8 @@ interface AccountComboboxProps {
   onChange: (code: string) => void;
   placeholder?: string;
   idPrefijo: string;
+  /** Casilla opcional dentro del desplegable (por ejemplo, solo cuentas con movimientos). */
+  casilla?: { etiqueta: string; checked: boolean; onChange: (valor: boolean) => void };
 }
 
 const LIMITE = 50;
@@ -42,6 +44,7 @@ export function AccountCombobox({
   onChange,
   placeholder = 'Buscar cuenta por código o nombre',
   idPrefijo,
+  casilla,
 }: AccountComboboxProps) {
   const [abierto, setAbierto] = useState(false);
   const [texto, setTexto] = useState('');
@@ -152,6 +155,7 @@ export function AccountCombobox({
           className="h-8 w-full rounded-md border bg-background pl-9 pr-9 text-sm outline-none focus:ring-2 focus:ring-ring"
           placeholder={placeholder}
           value={texto}
+          title={seleccionada ? `${seleccionada.code} · ${seleccionada.name}` : undefined}
           onChange={(evento) => {
             setTexto(evento.target.value);
             setResaltado(0);
@@ -172,7 +176,7 @@ export function AccountCombobox({
         <div
           id={`${idPrefijo}-lista`}
           role="listbox"
-          className="absolute z-50 mt-1 max-h-72 w-full overflow-auto rounded-md border bg-popover p-1 shadow-lg"
+          className="absolute z-50 mt-1 max-h-80 w-[28rem] max-w-[90vw] overflow-auto rounded-md border bg-popover p-1 shadow-lg"
         >
           {filtradas.length === 0 ? (
             <p className="px-3 py-2 text-xs text-muted-foreground">Sin cuentas que coincidan.</p>
@@ -202,6 +206,7 @@ export function AccountCombobox({
                   >
                     <span className="flex w-full items-center gap-2">
                       <span className="shrink-0 font-mono text-xs text-muted-foreground">{cuenta.code}</span>
+                      <span className="shrink-0 rounded border px-1 text-[10px] text-muted-foreground">N{cuenta.level}</span>
                       <span className="truncate">{cuenta.name}</span>
                       {cuenta.isActive ? null : (
                         <span className="ml-auto shrink-0 rounded border px-1 text-[10px] text-muted-foreground">
@@ -219,6 +224,17 @@ export function AccountCombobox({
                 <p className="px-2 py-1.5 text-[11px] text-muted-foreground">
                   Mostrando {LIMITE} de {total}: siga escribiendo para filtrar.
                 </p>
+              ) : null}
+              {casilla ? (
+                <label className="mt-1 flex cursor-pointer items-center gap-2 border-t px-2 py-2 text-xs text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={casilla.checked}
+                    onChange={(evento) => casilla.onChange(evento.target.checked)}
+                    className="h-3.5 w-3.5 rounded border-input"
+                  />
+                  {casilla.etiqueta}
+                </label>
               ) : null}
             </>
           )}

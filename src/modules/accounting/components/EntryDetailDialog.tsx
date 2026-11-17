@@ -24,6 +24,9 @@ export interface EntryDetail {
   diario?: string | null;
   referencia?: string | null;
   observacion?: string | null;
+  creado?: string | null;
+  responsable?: string | null;
+  anulado?: boolean;
   lineas: Array<{ code: string; name: string; debit: number; credit: number }>;
 }
 
