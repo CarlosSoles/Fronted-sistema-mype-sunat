@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Link, MemoryRouter, Outlet, useLocation, useNavigate } from 'react-router-dom';
@@ -105,13 +105,17 @@ it.each([{ roles: ['PROVEEDOR'] }, { roles: ['PROVEEDOR', 'IMPORTADOR', 'AGENTE'
   mount('ADMIN');
   await screen.findByRole('heading', { name: 'Clientes y proveedores' }, { timeout: 5000 });
   fireEvent.click(screen.getByRole('button', { name: 'Nuevo tercero' }));
-  fireEvent.click(await screen.findByLabelText('CLIENTE', {}, { timeout: 5000 }));
-  for (const role of roles) fireEvent.click(await screen.findByLabelText(role, {}, { timeout: 5000 }));
-  // Al desmarcar CLIENTE el formulario se vuelve a pintar; en un runner lento
-  // el campo puede no existir todavía, así que se espera en vez de leer de golpe.
-  fireEvent.change(await screen.findByLabelText('Número', {}, { timeout: 5000 }), { target: { value: '20555555556' } });
-  fireEvent.change(await screen.findByLabelText('Razón social', {}, { timeout: 5000 }), { target: { value: 'Proveedor nuevo' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Guardar tercero' }));
+  // Se trabaja dentro del diálogo abierto: Radix marca el resto del documento
+  // como aria-hidden y Testing Library ignora esos nodos. Si quedara montado el
+  // diálogo de un caso anterior, se toma el último (el activo).
+  const dialogo = (await screen.findAllByRole('dialog', {}, { timeout: 5000 })).at(-1)!;
+  const enDialogo = within(dialogo);
+
+  fireEvent.click(await enDialogo.findByLabelText('CLIENTE', {}, { timeout: 5000 }));
+  for (const role of roles) fireEvent.click(await enDialogo.findByLabelText(role, {}, { timeout: 5000 }));
+  fireEvent.change(await enDialogo.findByLabelText('Número', {}, { timeout: 5000 }), { target: { value: '20555555556' } });
+  fireEvent.change(await enDialogo.findByLabelText('Razón social', {}, { timeout: 5000 }), { target: { value: 'Proveedor nuevo' } });
+  fireEvent.click(enDialogo.getByRole('button', { name: 'Guardar tercero' }));
   await waitFor(() => expect(masterDataApi.createPartner).toHaveBeenCalledWith(expect.objectContaining({ docNumber: '20555555556', roles })));
   expect(screen.queryByTitle('Eliminar tercero')).toBeNull();
 }, 15000);
