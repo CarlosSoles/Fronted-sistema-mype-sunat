@@ -110,7 +110,7 @@ export default function AccountingBalanceSheetPage() {
       />
 
       <Card className="mb-4 print:hidden">
-        <div className="flex flex-wrap items-end gap-3 p-4">
+        <div className="flex flex-wrap items-end gap-3 p-3">
           <RangoFechas
             idPrefijo="general"
             desde={desde}

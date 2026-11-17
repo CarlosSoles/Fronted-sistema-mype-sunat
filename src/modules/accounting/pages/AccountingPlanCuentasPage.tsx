@@ -268,7 +268,7 @@ export default function AccountingPlanCuentasPage() {
       ) : null}
 
       <Card className="mb-4">
-        <div className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center">
+        <div className="flex flex-col gap-3 p-3 lg:flex-row lg:items-center">
           <div className="relative w-full lg:max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input

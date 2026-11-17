@@ -121,7 +121,7 @@ export default function AccountingPlePage() {
         title="Libros Electrónicos (PLE / SIRE)"
         description="Generación de estructuras y tramas oficiales PLE 5.1 / SIRE para presentación tributaria ante SUNAT"
       />
-      <Card className="p-4">
+      <Card className="p-3">
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-1">
             <label

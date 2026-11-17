@@ -65,7 +65,7 @@ export default function AccountingIncomeStatementPage() {
       />
 
       <Card className="mb-4 print:hidden">
-        <div className="flex flex-wrap items-end gap-3 p-4">
+        <div className="flex flex-wrap items-end gap-3 p-3">
           <div className="max-w-xs space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Período</label>
             <PeriodInput value={period} onChange={setPeriod} />
