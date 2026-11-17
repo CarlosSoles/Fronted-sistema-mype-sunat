@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { BookOpen, Download, Printer, SquareArrowOutUpRight } from 'lucide-react';
 import {
@@ -48,7 +49,9 @@ const referenciaVisible = (referencia?: string | null): boolean => {
 
 export default function AccountingLedgerPage() {
   const [period] = useState(periodoActual);
-  const [accountCode, setAccountCode] = useState('');
+  // La guía contable enlaza aquí con ?cuenta=, así el código abre su mayor.
+  const [parametros] = useSearchParams();
+  const [accountCode, setAccountCode] = useState(() => parametros.get('cuenta') ?? '');
   /** Por defecto una cuenta de mayor muestra el consolidado de sus subcuentas. */
   const [soloDirectos, setSoloDirectos] = useState(false);
   // Rango visible del mayor. El período sigue siendo el que se pide al backend;

@@ -2,6 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 import AccountingPeriodsPage from '@/modules/accounting/pages/AccountingPeriodsPage';
 import { accountingApi } from '@/modules/accounting/services/accountingApi';
 
@@ -29,7 +30,7 @@ it('cierra el año completo y muestra que el asiento fue creado', async () => {
   vi.mocked(accountingApi.closeAnnual).mockResolvedValue({ closingEntryCreated: true, periods: [periodo('CERRADO')] } as never);
   vi.spyOn(window, 'confirm').mockReturnValue(true);
   const q = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
-  render(<QueryClientProvider client={q}><AccountingPeriodsPage /></QueryClientProvider>);
+  render(<QueryClientProvider client={q}><MemoryRouter><AccountingPeriodsPage /></MemoryRouter></QueryClientProvider>);
 
   const boton = await screen.findByRole('button', { name: /Cerrar año completo/ });
   await userEvent.setup().click(boton);
@@ -42,7 +43,7 @@ it('informa cuando el asiento de cierre ya existía', async () => {
   vi.mocked(accountingApi.closeAnnual).mockResolvedValue({ closingEntryCreated: false, periods: [periodo('CERRADO')] } as never);
   vi.spyOn(window, 'confirm').mockReturnValue(true);
   const q = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
-  render(<QueryClientProvider client={q}><AccountingPeriodsPage /></QueryClientProvider>);
+  render(<QueryClientProvider client={q}><MemoryRouter><AccountingPeriodsPage /></MemoryRouter></QueryClientProvider>);
 
   const boton = await screen.findByRole('button', { name: /Cerrar año completo/ });
   await userEvent.setup().click(boton);

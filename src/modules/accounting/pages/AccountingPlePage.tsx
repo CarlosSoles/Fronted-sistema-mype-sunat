@@ -10,7 +10,7 @@ export default function AccountingPlePage() {
   const companyId = activeCompany?.tenantId ?? user?.companyId ?? '';
   const companyRuc = activeCompany?.ruc ?? user?.companyRuc ?? '';
   const [isDownloadingDiario, setIsDownloadingDiario] = useState(false);
-  const [, setIsDownloadingMayor] = useState(false);
+  const [isDownloadingMayor, setIsDownloadingMayor] = useState(false);
   const [isDownloadingBalances, setIsDownloadingBalances] = useState(false);
   const [isDownloadingVentas, setIsDownloadingVentas] = useState(false);
   const [isDownloadingCompras, setIsDownloadingCompras] = useState(false);
@@ -138,9 +138,10 @@ export default function AccountingPlePage() {
         </div>
       </Card>
 
-      {/* Es un aviso informativo, no un error: el 6.1 aún no está implementado. */}
-      <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-sm text-amber-700 dark:text-amber-400">
-        El libro 060100 todavía no está implementado: hoy se exportan el 5.1 (Libro Diario) y el 3.1 (Inventarios y Balances).
+      {/* Aviso informativo del alcance real de la pantalla. */}
+      <div className="rounded-md border border-sky-500/40 bg-sky-500/5 p-3 text-sm text-sky-700 dark:text-sky-400">
+        Se exportan el 5.1 (Libro Diario), el 6.1 (Libro Mayor), el 3.1 (Inventarios y Balances), el 14.1
+        (Registro de Ventas) y el 8.1 (Registro de Compras), según la ficha del PLE.
       </div>
 
       {error && (
@@ -196,21 +197,20 @@ export default function AccountingPlePage() {
             <h3 className="font-semibold text-base">Libro Mayor 6.1 (PLE)</h3>
           </div>
           <p className="text-xs text-muted-foreground">
-            Centralización de saldos acumulados por código de cuenta contable del mes.
+            Movimientos del mes agrupados y ordenados por código de cuenta contable.
           </p>
           <Button
             variant="outline"
             size="sm"
             className="w-full"
             onClick={() => handleExportPle('060100')}
-            disabled
-            title="El libro 6.1 todavía no está implementado en el servidor"
+            disabled={isDownloadingMayor}
           >
             <Download className="w-4 h-4 mr-2" />
-            Libro Mayor 6.1 no disponible
+            {isDownloadingMayor ? 'Generando…' : 'Descargar Libro Mayor 6.1'}
           </Button>
           <p className="text-[11px] text-muted-foreground">
-            El servidor aún no genera la trama 6.1; hoy se exportan el 5.1 (Diario) y el 3.1 (Inventarios y Balances).
+            Misma información que el Diario 5.1, centralizada por cuenta; incluye los asientos del período.
           </p>
         </Card>
         {/* Libro de Inventarios y Balances 3.1 */}

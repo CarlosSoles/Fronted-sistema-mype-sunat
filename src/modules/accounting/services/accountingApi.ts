@@ -3,6 +3,7 @@ import { cachedGet } from '@/lib/offlineCache';
 import {
   type AccountingAccount,
   type UpdateAccountResponse,
+  type ClosingPreview,
   type AccountingEntry,
   type AccountingPeriod,
   type CreateAccountingEntryInput,
@@ -218,6 +219,12 @@ export const accountingApi = {
     return data;
   },
 
+  /** Vista previa del cierre: ingresos, gastos y resultado del ejercicio. */
+  getClosingPreview: async (year: number): Promise<ClosingPreview> => {
+    const response = await apiClient.get<ClosingPreview>(`/accounting/closing-preview/${year}`);
+    return response.data;
+  },
+
   closeFiscalYear: async (year: number): Promise<AccountingPeriod[]> => {
     const response = await apiClient.post<AccountingPeriod[]>(`/accounting/periods/year/${year}/close`);
     return response.data;
@@ -225,6 +232,21 @@ export const accountingApi = {
 
   closePeriod: async (period: string): Promise<AccountingPeriod> => {
     const response = await apiClient.post<AccountingPeriod>(`/accounting/periods/${period}/close`);
+    return response.data;
+  },
+
+  /**
+   * Reabre un período cerrado. El motivo es obligatorio y queda auditado en el
+   * backend; devuelve advertencias sobre períodos posteriores.
+   */
+  reopenPeriod: async (
+    period: string,
+    motivo: string,
+  ): Promise<{ period: AccountingPeriod; advertencias: string[] }> => {
+    const response = await apiClient.post<{ period: AccountingPeriod; advertencias: string[] }>(
+      `/accounting/periods/${period}/reopen`,
+      { motivo },
+    );
     return response.data;
   },
 
