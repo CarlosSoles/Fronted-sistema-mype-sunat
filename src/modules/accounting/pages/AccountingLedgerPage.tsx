@@ -4,6 +4,7 @@ import { BookOpen, SquareArrowOutUpRight } from 'lucide-react';
 import {
   Badge,
   Card,
+  Input,
   Page,
   PageHeader,
   Switch,
@@ -57,6 +58,11 @@ export default function AccountingLedgerPage() {
     return `${fin.getFullYear()}-${String(fin.getMonth() + 1).padStart(2, '0')}-${String(fin.getDate()).padStart(2, '0')}`;
   });
 
+  /** Rango de cuentas opcional: consolida todo lo que cae entre dos códigos. */
+  const [cuentaDesde, setCuentaDesde] = useState('');
+  const [cuentaHasta, setCuentaHasta] = useState('');
+  const [soloConMovimientos, setSoloConMovimientos] = useState(false);
+
   const { data: accounts = [] } = useQuery({
     // El mayor debe poder consultar cualquier cuenta, incluso una ya inactiva:
     // sus movimientos históricos siguen existiendo.
@@ -64,10 +70,28 @@ export default function AccountingLedgerPage() {
     queryFn: () => accountingApi.getAccounts({ includeInactive: true }),
   });
 
+  const { data: conMovimientos = [] } = useQuery({
+    queryKey: ['accounting-accounts', 'con-movimientos', period],
+    queryFn: () => accountingApi.getAccountsWithMovements(period),
+    enabled: soloConMovimientos,
+  });
+
+  const cuentasOfrecidas = useMemo(() => {
+    if (!soloConMovimientos) return accounts;
+    const codigos = new Set(conMovimientos);
+    return accounts.filter((cuenta) => codigos.has(cuenta.code));
+  }, [accounts, conMovimientos, soloConMovimientos]);
+
+  const hayRango = Boolean(cuentaDesde.trim() && cuentaHasta.trim());
+
   const { data, isLoading, error } = useQuery({
-    queryKey: ['accounting-ledger', period, accountCode, soloDirectos],
-    queryFn: () => accountingApi.getLedger(period, accountCode, { soloDirectos }),
-    enabled: Boolean(accountCode),
+    queryKey: ['accounting-ledger', period, accountCode, soloDirectos, cuentaDesde, cuentaHasta],
+    queryFn: () =>
+      accountingApi.getLedger(period, hayRango ? '' : accountCode, {
+        soloDirectos,
+        ...(hayRango ? { desde: cuentaDesde, hasta: cuentaHasta } : {}),
+      }),
+    enabled: hayRango || Boolean(accountCode),
   });
 
   const movements = useMemo(() => {
@@ -144,11 +168,33 @@ export default function AccountingLedgerPage() {
         <div className="min-w-72">
           <AccountCombobox
             idPrefijo="mayor"
-            accounts={accounts}
+            accounts={cuentasOfrecidas}
             value={accountCode}
             onChange={setAccountCode}
             placeholder="Buscar cuenta por código o nombre"
           />
+        </div>
+        <div className="flex items-end gap-2">
+          <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
+            Desde cuenta
+            <Input
+              value={cuentaDesde}
+              onChange={(evento) => setCuentaDesde(evento.target.value)}
+              placeholder="10"
+              className="h-9 w-24 font-mono"
+              aria-label="Código de cuenta inicial"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
+            Hasta cuenta
+            <Input
+              value={cuentaHasta}
+              onChange={(evento) => setCuentaHasta(evento.target.value)}
+              placeholder="19"
+              className="h-9 w-24 font-mono"
+              aria-label="Código de cuenta final"
+            />
+          </label>
         </div>
         <label className="flex items-center gap-2 text-xs text-muted-foreground">
           <Switch
@@ -157,6 +203,14 @@ export default function AccountingLedgerPage() {
             aria-label="Ver solo los movimientos propios de la cuenta"
           />
           Solo movimientos directos
+        </label>
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Switch
+            checked={soloConMovimientos}
+            onCheckedChange={setSoloConMovimientos}
+            aria-label="Ofrecer solo cuentas con movimientos en el período"
+          />
+          Solo cuentas con movimientos
         </label>
       </Toolbar>
 
@@ -180,9 +234,9 @@ export default function AccountingLedgerPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {!accountCode ? (
+            {!accountCode && !hayRango ? (
               <TableRow>
-                <TableCell colSpan={7}>Selecciona una cuenta para ver sus movimientos.</TableCell>
+                <TableCell colSpan={7}>Selecciona una cuenta o un rango de cuentas para ver sus movimientos.</TableCell>
               </TableRow>
             ) : isLoading ? (
               <TableRow>
@@ -190,7 +244,11 @@ export default function AccountingLedgerPage() {
               </TableRow>
             ) : movements.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7}>No hay movimientos para esa cuenta en el período.</TableCell>
+                <TableCell colSpan={7}>
+                  {hayRango
+                    ? `Las cuentas del ${cuentaDesde} al ${cuentaHasta} no tienen movimientos entre ${desde} y ${hasta}.`
+                    : `La cuenta ${data?.accountCode ?? accountCode} no tiene movimientos entre ${desde} y ${hasta}.`}
+                </TableCell>
               </TableRow>
             ) : (
               movements.map((movement) => (

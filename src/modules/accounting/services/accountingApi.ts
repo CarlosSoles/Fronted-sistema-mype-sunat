@@ -231,15 +231,31 @@ export const accountingApi = {
   getLedger: async (
     period: string,
     accountCode: string,
-    opciones: { soloDirectos?: boolean } = {},
+    opciones: { soloDirectos?: boolean; desde?: string; hasta?: string } = {},
   ): Promise<LedgerResponse> => {
     const soloDirectos = opciones.soloDirectos === true;
-    return cachedGet(`accounting-ledger:${period}:${accountCode}:${soloDirectos}`, async () => {
+    const desde = opciones.desde?.trim() ?? '';
+    const hasta = opciones.hasta?.trim() ?? '';
+    const clave = `accounting-ledger:${period}:${accountCode}:${soloDirectos}:${desde}:${hasta}`;
+    return cachedGet(clave, async () => {
       const response = await apiClient.get<LedgerResponse>('/accounting/ledger', {
-        params: { period, accountCode, ...(soloDirectos ? { soloDirectos: 'true' } : {}) },
+        params: {
+          period,
+          accountCode,
+          ...(soloDirectos ? { soloDirectos: 'true' } : {}),
+          ...(desde && hasta ? { desde, hasta } : {}),
+        },
       });
       return response.data;
     });
+  },
+
+  /** Códigos de cuenta con movimientos en el período. */
+  getAccountsWithMovements: async (period: string): Promise<string[]> => {
+    const response = await apiClient.get<string[]>('/accounting/accounts/with-movements', {
+      params: { period },
+    });
+    return response.data;
   },
 
   getIgvReconciliation: async (period: string) => {
