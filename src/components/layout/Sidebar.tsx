@@ -49,6 +49,7 @@ export interface SubNavItem {
    * ruta rechaza: el caso de Configuración de Facturación, que solo admite
    * ADMIN pero aparecería a un operador y lo llevaría a "sin acceso".
    */
+  allowedRoles?: string[];
 
   /** Agrupador visual dentro del módulo (ej. Registros / Reportes). */
   group?: string;
@@ -282,6 +283,7 @@ export const Sidebar = () => {
    * invisible hasta que el backend se redespliegue.
    */
   const puedeVerSubItem = (sub: SubNavItem): boolean => {
+    if (sub.allowedRoles && user?.role && !sub.allowedRoles.includes(user.role)) return false;
     if (permissions.canNavigate(sub.path)) return true;
     if (!sub.adelanto) return false;
     const menus = permissions.snapshot?.menus ?? [];
