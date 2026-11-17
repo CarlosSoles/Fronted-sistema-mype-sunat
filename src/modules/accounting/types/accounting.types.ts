@@ -88,6 +88,8 @@ export interface LedgerResponse {
 export interface TrialBalanceRow {
   accountCode: string;
   accountName: string;
+  /** Saldo que venía de períodos anteriores (deudor positivo). */
+  openingBalance?: number;
   debit: number;
   credit: number;
   balance: number;
@@ -98,6 +100,9 @@ export interface TrialBalanceResponse {
   rows: TrialBalanceRow[];
   totalDebit: number;
   totalCredit: number;
+  /** Saldo de arrastre de los períodos anteriores (opcional: backend antiguo). */
+  totalOpening?: number;
+  totalBalance?: number;
 }
 
 export interface IncomeStatementLine {
