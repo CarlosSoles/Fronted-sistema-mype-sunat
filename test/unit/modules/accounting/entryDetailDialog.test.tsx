@@ -23,7 +23,8 @@ describe('EntryDetailDialog', () => {
   it('muestra las tarjetas del asiento, el concepto y las líneas', () => {
     render(<EntryDetailDialog entry={ASIENTO} open onOpenChange={vi.fn()} />);
 
-    expect(screen.getByText('AS/2026/10/0001')).toBeTruthy();
+    // El diálogo se monta en un portal, así que el nodo aparece dos veces en el DOM.
+    expect(screen.getAllByText('AS/2026/10/0001').length).toBeGreaterThan(0);
     expect(screen.getByText('F001-000003')).toBeTruthy();
     expect(screen.getByText('Facturación')).toBeTruthy();
     expect(screen.getByText('Asiento 4/5 — Costo de ventas y baja de mercaderías')).toBeTruthy();

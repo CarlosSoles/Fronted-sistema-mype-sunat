@@ -79,11 +79,19 @@ export function EntryDetailDialog({
             </DialogHeader>
 
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <Chip etiqueta="Número / Referencia" valor={entry.referencia || entry.numero} />
+              {/* El número del asiento (AS/...) es la referencia principal; el
+                  documento de origen se muestra aparte si existe. */}
+              <Chip etiqueta="Número / Referencia" valor={entry.numero} />
               <Chip etiqueta="Fecha contable" valor={formatDateToPeru(entry.fecha)} />
               <Chip etiqueta="Diario contable" valor={entry.diario ?? '—'} />
               <Chip etiqueta="Origen" valor={entry.origen} />
             </div>
+
+            {entry.referencia ? (
+              <p className="text-xs text-muted-foreground">
+                Documento de origen: <span className="font-medium text-foreground">{entry.referencia}</span>
+              </p>
+            ) : null}
 
             <div className="space-y-3">
               <div>

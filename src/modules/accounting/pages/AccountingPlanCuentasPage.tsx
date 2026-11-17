@@ -233,7 +233,7 @@ export default function AccountingPlanCuentasPage() {
   return (
     <Page>
       <PageHeader
-        title="Plan Contable"
+        title="Cuentas Contables"
         description={`${accounts.length} cuentas · jerarquía por elemento, cuenta y subcuenta`}
       >
         <Button size="sm" variant="outline" onClick={() => setAbrirTesoreria(true)}>Cuentas de tesorería</Button>
