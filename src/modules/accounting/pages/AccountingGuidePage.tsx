@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, ChevronRight, Lock, Printer, Receipt, Search, ShoppingCart, Wallet } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronsDown, ChevronsUp, Lock, Printer, Receipt, RotateCcw, Search, ShoppingCart, Wallet } from 'lucide-react';
 import { Badge, Button, Card, Input, Page, PageHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
 import { useQuery } from '@tanstack/react-query';
 import { accountingApi } from '../services/accountingApi';
@@ -19,8 +19,7 @@ import type { AccountingRule } from '../services/accountingApi';
  * enlaza a Reglas de contabilización.
  */
 
-/** Tasa de IGV usada por el sistema; se indica una sola vez, no en cada texto. */
-export const TASA_IGV = 0.18;
+import { TASA_IGV, IMPORTE_EJEMPLO, COSTO_EJEMPLO, formatearFechaHora } from '../lib/parametros';
 
 type Calculo = 'BASE' | 'IGV' | 'TOTAL' | 'COSTO';
 
@@ -66,8 +65,8 @@ const PROCESOS: Proceso[] = [
         titulo: 'Costo de ventas',
         disparador: 'Salida del almacén valorizada por FIFO.',
         lineas: [
-          { lado: 'DEBE', cuenta: '69111', nombre: 'Costo de ventas de mercaderías', detalle: 'Costo del bien vendido' },
-          { lado: 'HABER', cuenta: '20111', nombre: 'Mercaderías', detalle: 'Salida del inventario por el mismo costo' },
+          { lado: 'DEBE', cuenta: '69111', nombre: 'Costo de ventas de mercaderías', detalle: 'Costo del bien vendido', calculo: 'COSTO' },
+          { lado: 'HABER', cuenta: '20111', nombre: 'Mercaderías', detalle: 'Salida del inventario por el mismo costo', calculo: 'COSTO' },
         ],
       },
       {
@@ -99,8 +98,8 @@ const PROCESOS: Proceso[] = [
         titulo: 'Ingreso al almacén',
         disparador: 'Cuando se recibe físicamente la mercadería.',
         lineas: [
-          { lado: 'DEBE', cuenta: '20111', nombre: 'Mercaderías', detalle: 'Ingreso del bien al inventario' },
-          { lado: 'HABER', cuenta: '6111', nombre: 'Variación de existencias', detalle: 'Cuenta de enlace del costo de compra' },
+          { lado: 'DEBE', cuenta: '20111', nombre: 'Mercaderías', detalle: 'Ingreso del bien al inventario', calculo: 'BASE' },
+          { lado: 'HABER', cuenta: '6111', nombre: 'Variación de existencias', detalle: 'Cuenta de enlace del costo de compra', calculo: 'BASE' },
         ],
       },
       {
@@ -157,8 +156,8 @@ const PROCESOS: Proceso[] = [
         titulo: 'Costos en tránsito a destino',
         disparador: 'Flete, seguro y gastos de agencia hasta el almacén.',
         lineas: [
-          { lado: 'DEBE', cuenta: '20111', nombre: 'Mercaderías', detalle: 'Costo total de la mercadería recibida' },
-          { lado: 'HABER', cuenta: '6111', nombre: 'Variación de existencias', detalle: 'Se cierra la cuenta de tránsito' },
+          { lado: 'DEBE', cuenta: '20111', nombre: 'Mercaderías', detalle: 'Costo total de la mercadería recibida', calculo: 'COSTO' },
+          { lado: 'HABER', cuenta: '6111', nombre: 'Variación de existencias', detalle: 'Se cierra la cuenta de tránsito', calculo: 'COSTO' },
         ],
       },
     ],
@@ -182,14 +181,22 @@ const PROCESOS: Proceso[] = [
   },
 ];
 
-/** Importe de una línea según el total del comprobante. */
-function importeDeLinea(linea: Linea, total: number): number {
+/**
+ * Importe de una línea del asiento.
+ *
+ * 	otal es el importe del comprobante con IGV y costo es el costo del bien,
+ * que NO se deriva del precio de venta: son dos campos independientes del
+ * simulador.
+ */
+function importeDeLinea(linea: Linea, total: number, costo: number): number {
   const base = total / (1 + TASA_IGV);
   switch (linea.calculo) {
     case 'BASE':
       return base;
     case 'IGV':
       return total - base;
+    case 'COSTO':
+      return costo;
     default:
       return total;
   }
@@ -198,10 +205,11 @@ function importeDeLinea(linea: Linea, total: number): number {
 export default function AccountingGuidePage() {
   const navegar = useNavigate();
   const [busqueda, setBusqueda] = useState('');
-  const [importe, setImporte] = useState('118.00');
+  const [importe, setImporte] = useState(String(IMPORTE_EJEMPLO.toFixed(2)));
+  // El costo del bien es independiente del precio de venta: el costo de ventas
+  // no se puede deducir del importe del comprobante.
+  const [costo, setCosto] = useState(String(COSTO_EJEMPLO.toFixed(2)));
   const [abiertos, setAbiertos] = useState<Set<string>>(new Set(PROCESOS.map((p) => p.codigo)));
-  const [activa, setActiva] = useState(PROCESOS[0].codigo);
-  const referencias = useRef<Record<string, HTMLElement | null>>({});
 
   const { data: reglas = [] } = useQuery({
     queryKey: ['accounting-rules'],
@@ -209,6 +217,7 @@ export default function AccountingGuidePage() {
   });
 
   const total = Number(importe.replace(',', '.')) || 0;
+  const costoEjemplo = Number(costo.replace(',', '.')) || 0;
 
   /** Procesos y asientos que coinciden con la búsqueda. */
   const procesosVisibles = useMemo(() => {
@@ -237,26 +246,6 @@ export default function AccountingGuidePage() {
     setAbiertos(new Set(procesosVisibles.map((proceso) => proceso.codigo)));
   }, [busqueda, procesosVisibles]);
 
-  // Resalta en el índice la sección que se está viendo.
-  useEffect(() => {
-    // jsdom y navegadores antiguos no traen IntersectionObserver.
-    if (typeof IntersectionObserver === 'undefined') return;
-    const observador = new IntersectionObserver(
-      (entradas) => {
-        const visible = entradas.find((entrada) => entrada.isIntersecting);
-        if (visible) {
-          const codigo = (visible.target as HTMLElement).dataset.codigo;
-          if (codigo) setActiva(codigo);
-        }
-      },
-      { rootMargin: '-20% 0px -70% 0px' },
-    );
-    for (const elemento of Object.values(referencias.current)) {
-      if (elemento) observador.observe(elemento);
-    }
-    return () => observador.disconnect();
-  }, [procesosVisibles]);
-
   const alternar = (codigo: string) => {
     setAbiertos((previo) => {
       const siguiente = new Set(previo);
@@ -269,54 +258,38 @@ export default function AccountingGuidePage() {
   const reglasDe = (codigo: string): AccountingRule[] =>
     reglas.filter((regla) => regla.process_code === codigo && regla.is_active !== false);
 
-  const irA = (codigo: string) => {
-    const elemento = referencias.current[codigo];
-    elemento?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
   return (
     <Page>
       <PageHeader
         title="Guía contable"
         description="Qué asiento genera cada operación y con qué cuentas del PCGE"
       >
-        <div className="flex gap-2 print:hidden">
-          <Button variant="outline" size="sm" onClick={() => setAbiertos(new Set(PROCESOS.map((p) => p.codigo)))}>
-            Expandir todo
+        <div className="flex gap-1.5 print:hidden">
+          <Button
+            variant="outline"
+            size="icon"
+            title="Expandir todas las operaciones"
+            aria-label="Expandir todas las operaciones"
+            onClick={() => setAbiertos(new Set(PROCESOS.map((p) => p.codigo)))}
+          >
+            <ChevronsDown className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setAbiertos(new Set())}>
-            Colapsar todo
+          <Button
+            variant="outline"
+            size="icon"
+            title="Colapsar todas las operaciones"
+            aria-label="Colapsar todas las operaciones"
+            onClick={() => setAbiertos(new Set())}
+          >
+            <ChevronsUp className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="sm" onClick={descargarPdf}>
-            <Printer className="mr-1 h-4 w-4" /> PDF
+          <Button variant="outline" size="icon" title="Imprimir o guardar en PDF" aria-label="Imprimir o guardar en PDF" onClick={descargarPdf}>
+            <Printer className="h-4 w-4" />
           </Button>
         </div>
       </PageHeader>
 
-      <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
-        {/* Índice fijo por módulo */}
-        <nav className="hidden lg:block print:hidden" aria-label="Índice de la guía">
-          <div className="sticky top-4 space-y-1">
-            <p className="px-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Módulos</p>
-            {PROCESOS.map((proceso) => (
-              <button
-                key={proceso.codigo}
-                type="button"
-                onClick={() => irA(proceso.codigo)}
-                className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors ${
-                  activa === proceso.codigo
-                    ? 'bg-muted font-medium text-foreground'
-                    : 'text-muted-foreground hover:bg-muted/60'
-                }`}
-              >
-                <proceso.icono className="h-3.5 w-3.5" />
-                {proceso.titulo}
-              </button>
-            ))}
-          </div>
-        </nav>
-
-        <div className="space-y-4">
+      <div className="space-y-4">
           <Card className="border-l-2 border-l-primary p-4 text-sm">
             <p className="font-medium">Cómo leer esta guía</p>
             <p className="mt-1 text-muted-foreground">
@@ -326,36 +299,62 @@ export default function AccountingGuidePage() {
             </p>
           </Card>
 
-          <div className="flex flex-wrap items-end gap-3 print:hidden">
-            <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
-              Buscar
-              <span className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Card className="space-y-3 p-3 print:hidden">
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
+                Buscar
+                <span className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={busqueda}
+                    onChange={(evento) => setBusqueda(evento.target.value)}
+                    placeholder="Código de cuenta, nombre u operación"
+                    className="h-8 w-full sm:w-80 pl-9"
+                    aria-label="Buscar en la guía"
+                  />
+                </span>
+              </label>
+              <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
+                Importe de ejemplo (total con IGV)
                 <Input
-                  value={busqueda}
-                  onChange={(evento) => setBusqueda(evento.target.value)}
-                  placeholder="Código de cuenta, nombre u operación"
-                  className="h-8 w-full sm:w-80 pl-9"
-                  aria-label="Buscar en la guía"
+                  value={importe}
+                  onChange={(evento) => setImporte(evento.target.value)}
+                  inputMode="decimal"
+                  className="h-8 w-36 text-right tabular-nums"
+                  aria-label="Importe de ejemplo del comprobante, total con IGV"
                 />
-              </span>
-            </label>
-            <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
-              Simular importe total
-              <Input
-                value={importe}
-                onChange={(evento) => setImporte(evento.target.value)}
-                inputMode="decimal"
-                className="h-8 w-32 text-right tabular-nums"
-                aria-label="Importe total del comprobante"
-              />
-            </label>
-            <p className="flex items-center gap-2 pb-2 text-xs text-muted-foreground">
-              <Badge className="border-emerald-600/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400">DEBE</Badge>
-              <Badge className="border-sky-600/30 bg-sky-500/5 text-sky-700 dark:text-sky-400">HABER</Badge>
-              sangría en el Haber
+              </label>
+              <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
+                Costo de ejemplo
+                <Input
+                  value={costo}
+                  onChange={(evento) => setCosto(evento.target.value)}
+                  inputMode="decimal"
+                  className="h-8 w-36 text-right tabular-nums"
+                  aria-label="Costo de ejemplo del bien vendido"
+                />
+              </label>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setImporte(IMPORTE_EJEMPLO.toFixed(2));
+                  setCosto(COSTO_EJEMPLO.toFixed(2));
+                }}
+              >
+                <RotateCcw className="mr-1 h-4 w-4" /> Restablecer a {IMPORTE_EJEMPLO.toFixed(2)}
+              </Button>
+              <p className="flex items-center gap-2 pb-1 text-xs text-muted-foreground">
+                <Badge className="border-emerald-600/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400">DEBE</Badge>
+                <Badge className="border-sky-600/30 bg-sky-500/5 text-sky-700 dark:text-sky-400">HABER</Badge>
+                sangría en el Haber
+              </p>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Solo simula cómo se distribuye el asiento. No registra nada. El costo del bien es independiente del
+              precio de venta, por eso se indica aparte y solo afecta a los asientos de costo.
             </p>
-          </div>
+          </Card>
 
           {procesosVisibles.length === 0 ? (
             <Card className="p-4 text-sm text-muted-foreground">No hay operaciones que coincidan con la búsqueda.</Card>
@@ -365,14 +364,7 @@ export default function AccountingGuidePage() {
             const abierto = abiertos.has(proceso.codigo);
             const propias = reglasDe(proceso.codigo);
             return (
-              <section
-                key={proceso.codigo}
-                data-codigo={proceso.codigo}
-                ref={(elemento) => {
-                  referencias.current[proceso.codigo] = elemento;
-                }}
-                className="scroll-mt-4 space-y-3"
-              >
+              <section key={proceso.codigo} className="space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
@@ -389,10 +381,38 @@ export default function AccountingGuidePage() {
                       <span className="block text-xs text-muted-foreground">{proceso.resumen}</span>
                     </span>
                   </button>
-                  <Badge variant="outline" className="ml-auto">
+                  {/*
+                    «Personalizada» significa que la empresa tiene reglas
+                    propias para este proceso; el tooltip explica la diferencia y
+                    muestra quién y cuándo la cambió, si el dato existe.
+                  */}
+                  <Badge
+                    variant="outline"
+                    className="ml-auto cursor-help"
+                    title={
+                      propias.length > 0
+                        ? `Esta regla fue modificada para su empresa. Difiere de la regla estándar.${
+                            propias[0]?.updated_at
+                              ? ` Última modificación: ${propias[0].updated_by ?? 'usuario'} · ${formatearFechaHora(propias[0].updated_at)}.`
+                              : ''
+                          }`
+                        : 'La regla es la estándar del sistema para este proceso.'
+                    }
+                  >
                     {propias.length > 0 ? 'Personalizada' : 'Por defecto'}
                   </Badge>
-                  <Button variant="ghost" size="sm" onClick={() => navegar('/accounting/rules')}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      // Abre la regla exacta de esta operación, no la lista.
+                      const principal = propias[0];
+                      const destino = principal
+                        ? `/accounting/rules?regla=${encodeURIComponent(principal.id)}`
+                        : `/accounting/rules?proceso=${encodeURIComponent(proceso.codigo)}`;
+                      navegar(destino);
+                    }}
+                  >
                     Editar regla
                   </Button>
                 </div>
@@ -401,10 +421,10 @@ export default function AccountingGuidePage() {
                   ? proceso.asientos.map((asiento) => {
                       const debe = asiento.lineas
                         .filter((linea) => linea.lado === 'DEBE')
-                        .reduce((suma, linea) => suma + importeDeLinea(linea, total), 0);
+                        .reduce((suma, linea) => suma + importeDeLinea(linea, total, costoEjemplo), 0);
                       const haber = asiento.lineas
                         .filter((linea) => linea.lado === 'HABER')
-                        .reduce((suma, linea) => suma + importeDeLinea(linea, total), 0);
+                        .reduce((suma, linea) => suma + importeDeLinea(linea, total, costoEjemplo), 0);
                       const cuadra = Math.abs(debe - haber) < 0.005;
 
                       return (
@@ -440,10 +460,10 @@ export default function AccountingGuidePage() {
                                     <span className="block text-[11px] text-muted-foreground">{linea.detalle}</span>
                                   </TableCell>
                                   <TableCell align="right" className="tabular-nums">
-                                    {linea.lado === 'DEBE' ? monto(importeDeLinea(linea, total)) : ''}
+                                    {linea.lado === 'DEBE' ? monto(importeDeLinea(linea, total, costoEjemplo)) : ''}
                                   </TableCell>
                                   <TableCell align="right" className="tabular-nums">
-                                    {linea.lado === 'HABER' ? monto(importeDeLinea(linea, total)) : ''}
+                                    {linea.lado === 'HABER' ? monto(importeDeLinea(linea, total, costoEjemplo)) : ''}
                                   </TableCell>
                                 </TableRow>
                               ))}
@@ -467,7 +487,6 @@ export default function AccountingGuidePage() {
             );
           })}
         </div>
-      </div>
     </Page>
   );
 }
