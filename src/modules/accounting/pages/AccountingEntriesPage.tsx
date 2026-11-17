@@ -31,7 +31,7 @@ import {
 import { formatCurrency, formatDateToPeru } from '@/lib/formatters';
 import {
   BookOpen,
-  PlusCircle,
+  Plus,
   SquareArrowOutUpRight,
 } from 'lucide-react';
 import { useRolePermissions } from '@/hooks/useRolePermissions';
@@ -349,7 +349,7 @@ export default function AccountingEntriesPage() {
           />
           {canCreateAccountingEntry ? (
             <Button size="sm" onClick={() => setIsModalOpen(true)} className="bg-foreground text-background hover:bg-foreground/90">
-              <PlusCircle aria-hidden="true" />
+              <Plus className="mr-1 h-4 w-4" aria-hidden="true" />
               Nuevo asiento
             </Button>
           ) : null}
