@@ -30,6 +30,22 @@ import { accountingApi } from '../services/accountingApi';
 import type { AccountingAccount } from '../types/accounting.types';
 
 /**
+ * Mensaje de error al editar una cuenta.
+ *
+ * Si el servidor responde 404, la causa casi siempre es que el backend
+ * desplegado aún no tiene el endpoint de edición: sin este aviso el botón
+ * "no hacía nada".
+ */
+const mensajeDeErrorCuenta = (error: any, respaldo: string): string => {
+  if (error?.response?.status === 404) {
+    return 'El servidor todavía no tiene habilitada la edición de cuentas. Falta desplegar el backend con este cambio.';
+  }
+  const texto = error?.response?.data?.message;
+  if (Array.isArray(texto)) return texto.join(' · ');
+  return typeof texto === 'string' && texto.trim() ? texto : respaldo;
+};
+
+/**
  * Plan de cuentas que usa el módulo de facturación.
  *
  * POR QU0 ESTAS Y NO OTRAS
@@ -92,14 +108,14 @@ export default function AccountingPlanCuentasPage() {
     mutationFn: ({ code, isActive }: { code: string; isActive: boolean }) =>
       accountingApi.updateAccount(code, { isActive }),
     onSuccess: refrescar,
-    onError: (e: any) => setErrorAlta(e?.response?.data?.message ?? 'No se pudo cambiar el estado de la cuenta.'),
+    onError: (e: any) => setErrorAlta(mensajeDeErrorCuenta(e, 'No se pudo cambiar el estado de la cuenta.')),
   });
 
   const renombrar = useMutation({
     mutationFn: ({ code, name }: { code: string; name: string }) =>
       accountingApi.updateAccount(code, { name: name.trim() }),
     onSuccess: async () => { setEditando(null); setErrorAlta(null); await refrescar(); },
-    onError: (e: any) => setErrorAlta(e?.response?.data?.message ?? 'No se pudo renombrar la cuenta.'),
+    onError: (e: any) => setErrorAlta(mensajeDeErrorCuenta(e, 'No se pudo renombrar la cuenta.')),
   });
 
   const crear = useMutation({
@@ -217,7 +233,7 @@ export default function AccountingPlanCuentasPage() {
   return (
     <Page>
       <PageHeader
-        title="Plan de Cuentas"
+        title="Plan Contable"
         description={`${accounts.length} cuentas · jerarquía por elemento, cuenta y subcuenta`}
       >
         <Button size="sm" variant="outline" onClick={() => setAbrirTesoreria(true)}>Cuentas de tesorería</Button>
@@ -225,6 +241,10 @@ export default function AccountingPlanCuentasPage() {
       </PageHeader>
 
       <TreasuryAccountsCard abierto={abrirTesoreria} onCerrar={() => setAbrirTesoreria(false)} cuentas={accounts} />
+
+      {errorAlta ? (
+        <Card className="border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{errorAlta}</Card>
+      ) : null}
 
       <Card className="mb-4">
         <div className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center">

@@ -33,6 +33,21 @@ const DIARIOS = [
   { value: 'CAJ', label: 'Caja y bancos' },
 ];
 
+/**
+ * Áreas que ya existen en el sistema. El asiento manual se origina en una de
+ * ellas; es el mismo concepto que muestra la columna ORIGEN en la lista.
+ */
+const ORIGENES = [
+  'Facturación',
+  'Compras',
+  'Gastos',
+  'Cobranzas',
+  'Importaciones',
+  'Inventario',
+  'Caja y bancos',
+  'Administración',
+];
+
 interface ManualEntryModalProps {
   open: boolean;
   period: string;
@@ -94,7 +109,7 @@ export default function ManualEntryModal({ open, onClose, onSaved, proximoNumero
   // Referencia completa: el correlativo sale de los asientos ya cargados del
   // período; si aún no hay ninguno, será el 0001.
   const [anio, mes] = entryDate.split('-');
-  const referencia = proximoNumero ? proximoNumero(entryDate) : `MISC/${anio}/${mes}/0001`;
+  const referencia = proximoNumero ? proximoNumero(entryDate) : `AS/${anio}/${mes}/0001`;
 
   const updateLine = (index: number, patch: Partial<LineDraft>) => {
     setLines((prev) => prev.map((line, i) => (i === index ? { ...line, ...patch } : line)));
@@ -201,15 +216,23 @@ export default function ManualEntryModal({ open, onClose, onSaved, proximoNumero
               </Select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground" htmlFor="asiento-origen">
+              <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                 Origen (opcional)
               </label>
-              <Input
-                id="asiento-origen"
-                placeholder="Ej. Tienda principal"
-                value={responsible}
-                onChange={(e) => setResponsible(e.target.value)}
-              />
+              <Select
+                value={responsible || 'ninguno'}
+                onValueChange={(valor) => setResponsible(valor === 'ninguno' ? '' : valor)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar origen" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ninguno">Sin origen específico</SelectItem>
+                  {ORIGENES.map((origen) => (
+                    <SelectItem key={origen} value={origen}>{origen}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5 sm:col-span-2">
               <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground" htmlFor="asiento-concepto">
