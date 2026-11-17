@@ -4,7 +4,6 @@ import { Download, FileDown } from 'lucide-react';
 import {
   Button,
   Card,
-  Input,
   Page,
   PageHeader,
   Table,
@@ -15,6 +14,7 @@ import {
   TableRow,
 } from '@/components/ui';
 import { accountingApi } from '../services/accountingApi';
+import { RangoFechas } from '../components/AccountingUI';
 import type { BalanceSheetLine } from '../types/accounting.types';
 import { descargarCsv, descargarPdf, importe } from '../lib/exportReport';
 
@@ -111,32 +111,19 @@ export default function AccountingBalanceSheetPage() {
 
       <Card className="mb-4 print:hidden">
         <div className="flex flex-wrap items-end gap-3 p-4">
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground" htmlFor="general-desde">Desde</label>
-            <Input
-              id="general-desde"
-              type="date"
-              className="w-40"
-              value={desde}
-              onChange={(evento) => {
-                setDesde(evento.target.value);
-                if (evento.target.value) setPeriod(evento.target.value.slice(0, 7));
-              }}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground" htmlFor="general-hasta">Hasta</label>
-            <Input
-              id="general-hasta"
-              type="date"
-              className="w-40"
-              value={hasta}
-              onChange={(evento) => {
-                setHasta(evento.target.value);
-                if (evento.target.value) setPeriod(evento.target.value.slice(0, 7));
-              }}
-            />
-          </div>
+          <RangoFechas
+            idPrefijo="general"
+            desde={desde}
+            hasta={hasta}
+            onDesde={(valor) => {
+              setDesde(valor);
+              if (valor) setPeriod(valor.slice(0, 7));
+            }}
+            onHasta={(valor) => {
+              setHasta(valor);
+              if (valor) setPeriod(valor.slice(0, 7));
+            }}
+          />
           <div className="ml-auto flex gap-2">
             <Button variant="outline" onClick={irAlMesActual}>Mes actual</Button>
             <Button variant="outline" onClick={exportar} disabled={!data}>

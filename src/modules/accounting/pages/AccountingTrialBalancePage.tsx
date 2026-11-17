@@ -4,7 +4,6 @@ import { Download, FileDown } from 'lucide-react';
 import {
   Button,
   Card,
-  Input,
   Page,
   PageHeader,
   Table,
@@ -15,6 +14,7 @@ import {
   TableRow,
 } from '@/components/ui';
 import { accountingApi } from '../services/accountingApi';
+import { RangoFechas } from '../components/AccountingUI';
 import type { TrialBalanceRow } from '../types/accounting.types';
 import { descargarCsv, descargarPdf, importe } from '../lib/exportReport';
 
@@ -160,32 +160,19 @@ export default function AccountingTrialBalancePage() {
 
       <Card className="mb-4 print:hidden">
         <div className="flex flex-wrap items-end gap-3 p-4">
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground" htmlFor="balance-desde">Desde</label>
-            <Input
-              id="balance-desde"
-              type="date"
-              className="w-40"
-              value={desde}
-              onChange={(evento) => {
-                setDesde(evento.target.value);
-                if (evento.target.value) setPeriod(evento.target.value.slice(0, 7));
-              }}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground" htmlFor="balance-hasta">Hasta</label>
-            <Input
-              id="balance-hasta"
-              type="date"
-              className="w-40"
-              value={hasta}
-              onChange={(evento) => {
-                setHasta(evento.target.value);
-                if (evento.target.value) setPeriod(evento.target.value.slice(0, 7));
-              }}
-            />
-          </div>
+          <RangoFechas
+            idPrefijo="balance"
+            desde={desde}
+            hasta={hasta}
+            onDesde={(valor) => {
+              setDesde(valor);
+              if (valor) setPeriod(valor.slice(0, 7));
+            }}
+            onHasta={(valor) => {
+              setHasta(valor);
+              if (valor) setPeriod(valor.slice(0, 7));
+            }}
+          />
           <div className="ml-auto flex gap-2">
             <Button variant="outline" onClick={exportar} disabled={filas.length === 0}>
               <Download className="mr-1.5 h-4 w-4" /> Descargar CSV

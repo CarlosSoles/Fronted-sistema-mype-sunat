@@ -2,7 +2,7 @@ import type { LucideIcon } from 'lucide-react';
 import { ChevronRight } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Card } from '@/components/ui';
+import { Card, Input } from '@/components/ui';
 import { cn } from 'cn';
 
 /**
@@ -95,6 +95,50 @@ export function SectionTitle({ title, hint }: { title: string; hint?: string }) 
     <div className="flex items-baseline justify-between gap-3">
       <h2 className="text-sm font-semibold">{title}</h2>
       {hint ? <span className="text-xs text-muted-foreground">{hint}</span> : null}
+    </div>
+  );
+}
+
+/**
+ * Rango de fechas del módulo.
+ *
+ * Un solo componente para todas las pantallas: las etiquetas van a la izquierda
+ * de cada fecha, en la misma fila, y los campos miden lo mismo en el diario, el
+ * mayor y los reportes. Evita que cada página invente su propia separación.
+ */
+export function RangoFechas({
+  desde,
+  hasta,
+  onDesde,
+  onHasta,
+  idPrefijo,
+}: {
+  desde: string;
+  hasta: string;
+  onDesde: (valor: string) => void;
+  onHasta: (valor: string) => void;
+  idPrefijo: string;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <label className="text-xs text-muted-foreground" htmlFor={`${idPrefijo}-desde`}>Desde</label>
+      <Input
+        id={`${idPrefijo}-desde`}
+        aria-label="Desde"
+        type="date"
+        value={desde}
+        onChange={(evento) => onDesde(evento.target.value)}
+        className="h-9 w-36"
+      />
+      <label className="text-xs text-muted-foreground" htmlFor={`${idPrefijo}-hasta`}>Hasta</label>
+      <Input
+        id={`${idPrefijo}-hasta`}
+        aria-label="Hasta"
+        type="date"
+        value={hasta}
+        onChange={(evento) => onHasta(evento.target.value)}
+        className="h-9 w-36"
+      />
     </div>
   );
 }

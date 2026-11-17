@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { BookOpen, SquareArrowOutUpRight } from 'lucide-react';
 import {
-  Input,
   Badge,
   Card,
   Page,
@@ -19,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui';
-import { Toolbar } from '../components/AccountingUI';
+import { Toolbar, RangoFechas } from '../components/AccountingUI';
 import { EntryDetailDialog, type EntryDetail } from '../components/EntryDetailDialog';
 import { accountingApi } from '../services/accountingApi';
 import { formatearNumeroAsiento } from '../lib/numeroAsiento';
@@ -137,28 +136,13 @@ export default function AccountingLedgerPage() {
 
       <Toolbar
         status={
-          <div className="flex items-end gap-2">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground" htmlFor="mayor-desde">Desde</label>
-              <Input
-                id="mayor-desde"
-                type="date"
-                className="w-40"
-                value={desde}
-                onChange={(evento) => setDesde(evento.target.value)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground" htmlFor="mayor-hasta">Hasta</label>
-              <Input
-                id="mayor-hasta"
-                type="date"
-                className="w-40"
-                value={hasta}
-                onChange={(evento) => setHasta(evento.target.value)}
-              />
-            </div>
-          </div>
+          <RangoFechas
+            idPrefijo="mayor"
+            desde={desde}
+            hasta={hasta}
+            onDesde={setDesde}
+            onHasta={setHasta}
+          />
         }
       >
         <div className="min-w-72 space-y-1.5">
