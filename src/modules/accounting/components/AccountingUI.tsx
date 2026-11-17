@@ -53,7 +53,7 @@ export function Stat({
 /** Barra de filtros uniforme: el período a la izquierda, el estado a la derecha. */
 export function Toolbar({ children, status }: { children: ReactNode; status?: ReactNode }) {
   return (
-    <Card className="flex flex-col gap-3 p-4 sm:flex-row sm:items-end sm:justify-between">
+    <Card className="flex flex-col gap-3 p-3 sm:flex-row sm:items-end sm:justify-between">
       <div className="flex flex-wrap items-end gap-3">{children}</div>
       {status ? <div className="flex flex-wrap items-center gap-2">{status}</div> : null}
     </Card>

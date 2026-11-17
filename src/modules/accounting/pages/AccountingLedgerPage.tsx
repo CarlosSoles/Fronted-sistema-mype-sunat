@@ -145,10 +145,9 @@ export default function AccountingLedgerPage() {
           />
         }
       >
-        <div className="min-w-72 space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">Cuenta contable</label>
+        <div className="min-w-72">
           <Select value={accountCode || undefined} onValueChange={setAccountCode}>
-            <SelectTrigger>
+            <SelectTrigger aria-label="Cuenta contable">
               <SelectValue placeholder="Seleccionar cuenta contable" />
             </SelectTrigger>
             <SelectContent>

@@ -159,7 +159,7 @@ export default function AccountingTrialBalancePage() {
       />
 
       <Card className="mb-4 print:hidden">
-        <div className="flex flex-wrap items-end gap-3 p-4">
+        <div className="flex flex-wrap items-end gap-3 p-3">
           <RangoFechas
             idPrefijo="balance"
             desde={desde}
