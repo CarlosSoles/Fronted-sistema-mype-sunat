@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { BookOpen, Eye } from 'lucide-react';
+import { BookOpen, SquareArrowOutUpRight } from 'lucide-react';
 import {
   Input,
   Badge,
@@ -22,6 +22,7 @@ import {
 import { Toolbar } from '../components/AccountingUI';
 import { EntryDetailDialog, type EntryDetail } from '../components/EntryDetailDialog';
 import { accountingApi } from '../services/accountingApi';
+import { formatearNumeroAsiento } from '../lib/numeroAsiento';
 import type { LedgerMovement } from '../types/accounting.types';
 
 const periodoActual = () => {
@@ -119,26 +120,6 @@ export default function AccountingLedgerPage() {
       />
 
       <Toolbar>
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground" htmlFor="mayor-desde">Desde</label>
-          <Input
-            id="mayor-desde"
-            type="date"
-            className="w-40"
-            value={desde}
-            onChange={(evento) => setDesde(evento.target.value)}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground" htmlFor="mayor-hasta">Hasta</label>
-          <Input
-            id="mayor-hasta"
-            type="date"
-            className="w-40"
-            value={hasta}
-            onChange={(evento) => setHasta(evento.target.value)}
-          />
-        </div>
         <div className="min-w-72 space-y-1.5">
           <label className="text-xs font-medium text-muted-foreground">Cuenta contable</label>
           <Select value={accountCode || undefined} onValueChange={setAccountCode}>
@@ -153,6 +134,28 @@ export default function AccountingLedgerPage() {
               ))}
             </SelectContent>
           </Select>
+        </div>
+        <div className="ml-auto flex items-end gap-2">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground" htmlFor="mayor-desde">Desde</label>
+            <Input
+              id="mayor-desde"
+              type="date"
+              className="w-40"
+              value={desde}
+              onChange={(evento) => setDesde(evento.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground" htmlFor="mayor-hasta">Hasta</label>
+            <Input
+              id="mayor-hasta"
+              type="date"
+              className="w-40"
+              value={hasta}
+              onChange={(evento) => setHasta(evento.target.value)}
+            />
+          </div>
         </div>
       </Toolbar>
 
@@ -198,18 +201,8 @@ export default function AccountingLedgerPage() {
               movements.map((movement) => (
                 <TableRow key={`${movement.entryId}-${movement.entryNumber}`} className="transition-colors hover:bg-muted/40">
                   <TableCell className="whitespace-nowrap tabular-nums">{movement.entryDate}</TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    <span className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        aria-label={`Ver detalle del asiento ${movement.entryNumber}`}
-                        onClick={() => setDetalle(movement)}
-                        className="rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                      </button>
-                      <span className="font-mono text-xs text-muted-foreground">{movement.entryNumber}</span>
-                    </span>
+                  <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
+                    {formatearNumeroAsiento(movement.entryNumber, period)}
                   </TableCell>
                   <TableCell>
                     <div className="space-y-0.5">
@@ -222,15 +215,25 @@ export default function AccountingLedgerPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="flex flex-col gap-0.5">
-                      <Badge variant="outline" className="w-fit text-muted-foreground">
-                        {etiquetaOrigen(movement.sourceModule)}
-                      </Badge>
-                      {movement.sourceReferenceId ? (
-                        <span className="font-mono text-[11px] text-muted-foreground">
-                          {movement.sourceReferenceId}
-                        </span>
-                      ) : null}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex flex-col gap-0.5">
+                        <Badge variant="outline" className="w-fit text-muted-foreground">
+                          {etiquetaOrigen(movement.sourceModule)}
+                        </Badge>
+                        {movement.sourceReferenceId ? (
+                          <span className="font-mono text-[11px] text-muted-foreground">
+                            {movement.sourceReferenceId}
+                          </span>
+                        ) : null}
+                      </div>
+                      <button
+                        type="button"
+                        aria-label={`Ver detalle del asiento ${formatearNumeroAsiento(movement.entryNumber, period)}`}
+                        onClick={() => setDetalle(movement)}
+                        className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                      >
+                        <SquareArrowOutUpRight className="h-3.5 w-3.5" />
+                      </button>
                     </div>
                   </TableCell>
                   <TableCell align="right" className="whitespace-nowrap tabular-nums">

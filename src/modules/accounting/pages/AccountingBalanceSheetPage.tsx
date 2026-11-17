@@ -90,7 +90,7 @@ export default function AccountingBalanceSheetPage() {
   );
 
   return (
-    <Page>
+    <Page className="reporte-imprimible">
       <PageHeader
         title="Balance General"
         description="Estado de Situación Financiera conforme al PCGE (activo, pasivo y patrimonio)"
@@ -99,7 +99,7 @@ export default function AccountingBalanceSheetPage() {
       <Card className="mb-4 print:hidden">
         <div className="flex flex-wrap items-end gap-3 p-4">
           <div className="max-w-xs space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Período</label>
+            <label className="text-xs font-medium text-muted-foreground">Fecha de corte</label>
             <PeriodInput value={period} onChange={setPeriod} />
           </div>
           <Button variant="outline" onClick={() => setPeriod(periodoActual())}>Mes actual</Button>

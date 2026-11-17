@@ -25,7 +25,8 @@ describe('EntryDetailDialog', () => {
 
     // El diálogo se monta en un portal, así que el nodo aparece dos veces en el DOM.
     expect(screen.getAllByText('AS/2026/10/0001').length).toBeGreaterThan(0);
-    expect(screen.getByText('F001-000003')).toBeTruthy();
+    // El comprobante ya no se muestra: la referencia principal es el número de asiento.
+    expect(screen.queryByText('F001-000003')).toBeNull();
     expect(screen.getByText('Facturación')).toBeTruthy();
     expect(screen.getByText('Asiento 4/5 — Costo de ventas y baja de mercaderías')).toBeTruthy();
     expect(screen.getByText('Líneas del asiento (2)')).toBeTruthy();
