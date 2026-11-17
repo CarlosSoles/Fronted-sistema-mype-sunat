@@ -1,4 +1,5 @@
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, FileText, Lock, Plus, Unlock } from 'lucide-react';
 import {
@@ -45,10 +46,24 @@ const mesActual = hoy.getMonth() + 1;
 export default function AccountingPeriodsPage() {
   const queryClient = useQueryClient();
   const [anioFiltro, setAnioFiltro] = useState<string>('todos');
+  const navigate = useNavigate();
   const [abrirNuevo, setAbrirNuevo] = useState(false);
   const [nuevo, setNuevo] = useState({ year: anioActual, month: mesActual });
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
+  /** Reapertura: período elegido y motivo obligatorio. */
+  const [reabriendo, setReabriendo] = useState<string | null>(null);
+  const [motivo, setMotivo] = useState('');
+
+  // Los avisos se borran solos: antes el verde y el rojo se quedaban pegados.
+  useEffect(() => {
+    if (!ok && !error) return;
+    const temporizador = setTimeout(() => {
+      setOk(null);
+      setError(null);
+    }, 6000);
+    return () => clearTimeout(temporizador);
+  }, [ok, error]);
 
   const { data: periods = [], isLoading, error: queryError } = useQuery({
     queryKey: ['accounting-periods'],
@@ -114,6 +129,23 @@ export default function AccountingPeriodsPage() {
       await invalidate();
     },
     onError: (e: any) => setError(mensajeDeError(e, 'No se pudo cerrar el período.')),
+  });
+
+  /**
+   * Reabrir exige motivo: se pide en un diálogo y el backend lo audita.
+   */
+  const reopenPeriod = useMutation({
+    mutationFn: ({ period, motivo }: { period: string; motivo: string }) =>
+      accountingApi.reopenPeriod(period, motivo),
+    onSuccess: async (resultado) => {
+      setReabriendo(null);
+      setMotivo('');
+      setError(null);
+      const avisos = resultado.advertencias?.length ? ` ${resultado.advertencias.join(' ')}` : '';
+      setOk(`Período ${resultado.period.period} reabierto.${avisos}`);
+      await invalidate();
+    },
+    onError: (e: any) => setError(mensajeDeError(e, 'No se pudo reabrir el período.')),
   });
 
   const openYear = useMutation({
@@ -298,15 +330,36 @@ export default function AccountingPeriodsPage() {
                       <TableCell>{fecha(period.openedAt)}</TableCell>
                       <TableCell>{fecha(period.closedAt)}</TableCell>
                       <TableCell align="right">
-                        {period.status === 'ABIERTO' ? (
-                          <Button variant="outline" size="sm" onClick={() => closePeriod.mutate(period.period)} disabled={closePeriod.isPending}>
-                            <Lock className="mr-1 h-3.5 w-3.5" /> Cerrar
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => navigate(`/accounting/entries?period=${period.period}`)}
+                            title="Ver los asientos de este período en el Libro Diario"
+                          >
+                            <FileText className="mr-1 h-3.5 w-3.5" /> Ver asientos
                           </Button>
-                        ) : (
-                          <Button variant="outline" size="sm" onClick={() => openPeriod.mutate({ y: period.year, m: period.month })} disabled={openPeriod.isPending}>
-                            <CalendarDays className="mr-1 h-3.5 w-3.5" /> Reabrir
-                          </Button>
-                        )}
+                          {/* El botón alterna en la misma posición: Cerrar o Reabrir. */}
+                          {period.status === 'ABIERTO' ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => { setOk(null); setError(null); closePeriod.mutate(period.period); }}
+                              disabled={closePeriod.isPending && closePeriod.variables === period.period}
+                            >
+                              <Lock className="mr-1 h-3.5 w-3.5" /> Cerrar
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => { setOk(null); setError(null); setMotivo(''); setReabriendo(period.period); }}
+                              disabled={period.status !== 'CERRADO'}
+                            >
+                              <CalendarDays className="mr-1 h-3.5 w-3.5" /> Reabrir
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -361,6 +414,44 @@ export default function AccountingPeriodsPage() {
               disabled={openPeriod.isPending}
             >
               {openPeriod.isPending ? 'Abriendo…' : 'Abrir período'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reabrir exige motivo: queda en la auditoría del período. */}
+      <Dialog open={Boolean(reabriendo)} onOpenChange={(abierto) => { if (!abierto) setReabriendo(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reabrir el período {reabriendo}</DialogTitle>
+            <DialogDescription>
+              Un período cerrado deja de admitir asientos. Reabrirlo es una excepción: indica el motivo,
+              que quedará registrado con tu usuario y la fecha.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <label className="text-xs font-medium" htmlFor="motivo-reapertura">
+              Motivo de la reapertura
+            </label>
+            <textarea
+              id="motivo-reapertura"
+              value={motivo}
+              onChange={(evento) => setMotivo(evento.target.value)}
+              placeholder="Por ejemplo: ajuste por factura omitida del proveedor XYZ"
+              rows={3}
+              className="w-full rounded-md border bg-background p-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Mínimo 10 caracteres. Si el ejercicio ya tiene asiento de cierre, primero hay que anularlo.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReabriendo(null)}>Cancelar</Button>
+            <Button
+              onClick={() => { if (reabriendo) { setError(null); reopenPeriod.mutate({ period: reabriendo, motivo }); } }}
+              disabled={reopenPeriod.isPending || motivo.trim().length < 10}
+            >
+              {reopenPeriod.isPending ? 'Reabriendo…' : 'Reabrir período'}
             </Button>
           </DialogFooter>
         </DialogContent>

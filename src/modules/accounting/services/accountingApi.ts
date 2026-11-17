@@ -228,6 +228,21 @@ export const accountingApi = {
     return response.data;
   },
 
+  /**
+   * Reabre un período cerrado. El motivo es obligatorio y queda auditado en el
+   * backend; devuelve advertencias sobre períodos posteriores.
+   */
+  reopenPeriod: async (
+    period: string,
+    motivo: string,
+  ): Promise<{ period: AccountingPeriod; advertencias: string[] }> => {
+    const response = await apiClient.post<{ period: AccountingPeriod; advertencias: string[] }>(
+      `/accounting/periods/${period}/reopen`,
+      { motivo },
+    );
+    return response.data;
+  },
+
   getLedger: async (
     period: string,
     accountCode: string,

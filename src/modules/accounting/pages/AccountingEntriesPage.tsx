@@ -8,6 +8,7 @@
  */
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { apiClient } from '@/lib/axios';
 import { cachedGet } from '@/lib/offlineCache';
 import { EntryDetailDialog, type EntryDetail } from '../components/EntryDetailDialog';
@@ -252,9 +253,22 @@ export default function AccountingEntriesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [diario, setDiario] = useState<Diario>('TODOS');
   const [detalle, setDetalle] = useState<Entry | null>(null);
-  const [desde, setDesde] = useState(() => primerDiaDelMes());
-  const [hasta, setHasta] = useState(() => ultimoDiaDelMes());
   const [busqueda, setBusqueda] = useState('');
+
+  // Desde Períodos contables, "Ver asientos" llega con ?period=YYYY-MM.
+  const [parametros] = useSearchParams();
+  const periodoDeUrl = parametros.get('period');
+  const [desde, setDesde] = useState(() =>
+    periodoDeUrl && /^\d{4}-\d{2}$/.test(periodoDeUrl) ? `${periodoDeUrl}-01` : primerDiaDelMes(),
+  );
+  const [hasta, setHasta] = useState(() => {
+    if (periodoDeUrl && /^\d{4}-\d{2}$/.test(periodoDeUrl)) {
+      const [anio, mes] = periodoDeUrl.split('-').map(Number);
+      const fin = new Date(anio, mes, 0);
+      return `${fin.getFullYear()}-${String(fin.getMonth() + 1).padStart(2, '0')}-${String(fin.getDate()).padStart(2, '0')}`;
+    }
+    return ultimoDiaDelMes();
+  });
 
   // El periodo que se pide al backend se deduce del rango elegido: el diario ya
   // no tiene selector de periodo, ese se maneja en Períodos contables.
