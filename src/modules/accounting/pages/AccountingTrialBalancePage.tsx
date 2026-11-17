@@ -153,8 +153,8 @@ export default function AccountingTrialBalancePage() {
 
       <Card className="mb-4 print:hidden">
         <div className="flex flex-wrap items-end gap-3 p-3">
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Período</label>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-muted-foreground">Período</label>
             <PeriodInput value={period} onChange={setPeriod} />
           </div>
           <div className="ml-auto flex gap-2">
