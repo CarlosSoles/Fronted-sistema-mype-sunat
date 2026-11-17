@@ -160,6 +160,37 @@ export default function AccountingPeriodsPage() {
     return Number.isNaN(fecha.getTime()) ? '—' : fecha.toLocaleDateString('es-PE');
   };
 
+  /**
+   * Acciones que afectan a todo un ejercicio.
+   *
+   * Con un año filtrado se muestran en la barra superior, junto a «Nuevo
+   * período»; con «Todos los años» cada grupo lleva las suyas, para que no haya
+   * duda de a qué año se aplican.
+   */
+  const anioSeleccionado = anioFiltro === 'todos' ? null : Number(anioFiltro);
+
+  const accionesDelAnio = (year: number) => (
+    <>
+      <Button variant="ghost" size="sm" onClick={() => openYear.mutate(year)} disabled={openYear.isPending}>
+        <Unlock className="mr-1 h-3.5 w-3.5" /> Abrir año
+      </Button>
+      <Button variant="ghost" size="sm" onClick={() => closeYear.mutate(year)} disabled={closeYear.isPending}>
+        <Lock className="mr-1 h-3.5 w-3.5" /> Cerrar año
+      </Button>
+      <Button variant="ghost" size="sm" onClick={() => closingEntry.mutate(year)} disabled={closingEntry.isPending}>
+        <FileText className="mr-1 h-3.5 w-3.5" /> Asiento de cierre
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => { if (window.confirm(`¿Generar el asiento de cierre y bloquear el año ${year}?`)) closeAnnual.mutate(year); }}
+        disabled={closeAnnual.isPending}
+      >
+        <Lock className="mr-1 h-3.5 w-3.5" /> Cerrar año completo
+      </Button>
+    </>
+  );
+
   return (
     <Page>
       <PageHeader
@@ -180,7 +211,12 @@ export default function AccountingPeriodsPage() {
               ))}
             </SelectContent>
           </Select>
-          <Button className="ml-auto" onClick={() => { setError(null); setOk(null); setAbrirNuevo(true); }}>
+          {anioSeleccionado !== null ? (
+            <div className="ml-auto flex flex-wrap items-center gap-1.5">
+              {accionesDelAnio(anioSeleccionado)}
+            </div>
+          ) : null}
+          <Button className={anioSeleccionado !== null ? '' : 'ml-auto'} onClick={() => { setError(null); setOk(null); setAbrirNuevo(true); }}>
             <Plus className="mr-1 h-4 w-4" /> Nuevo período
           </Button>
         </div>
@@ -220,23 +256,7 @@ export default function AccountingPeriodsPage() {
                         <Badge variant="outline">{grupo.abiertos} abierto(s)</Badge>
                         <Badge variant="secondary">{grupo.cerrados} cerrado(s)</Badge>
                         <div className="ml-auto flex flex-wrap gap-1.5">
-                          <Button variant="ghost" size="sm" onClick={() => openYear.mutate(grupo.year)} disabled={openYear.isPending}>
-                            <Unlock className="mr-1 h-3.5 w-3.5" /> Abrir año
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={() => closeYear.mutate(grupo.year)} disabled={closeYear.isPending}>
-                            <Lock className="mr-1 h-3.5 w-3.5" /> Cerrar año
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={() => closingEntry.mutate(grupo.year)} disabled={closingEntry.isPending}>
-                            <FileText className="mr-1 h-3.5 w-3.5" /> Asiento de cierre
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => { if (window.confirm(`¿Generar el asiento de cierre y bloquear el año ${grupo.year}?`)) closeAnnual.mutate(grupo.year); }}
-                            disabled={closeAnnual.isPending}
-                          >
-                            <Lock className="mr-1 h-3.5 w-3.5" /> Cerrar año completo
-                          </Button>
+                          {anioSeleccionado === null ? accionesDelAnio(grupo.year) : null}
                         </div>
                       </div>
                     </TableCell>
