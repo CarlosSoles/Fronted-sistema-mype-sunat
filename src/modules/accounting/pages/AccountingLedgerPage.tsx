@@ -4,7 +4,6 @@ import { BookOpen, SquareArrowOutUpRight } from 'lucide-react';
 import {
   Badge,
   Card,
-  Input,
   Page,
   PageHeader,
   Table,
@@ -17,6 +16,7 @@ import {
 import { Toolbar, RangoFechas } from '../components/AccountingUI';
 import { EntryDetailDialog, type EntryDetail } from '../components/EntryDetailDialog';
 import { accountingApi } from '../services/accountingApi';
+import { AccountCombobox } from '../components/AccountCombobox';
 import { formatearNumeroAsiento } from '../lib/numeroAsiento';
 import { etiquetaOrigen } from '../lib/origenLabels';
 import type { LedgerMovement } from '../types/accounting.types';
@@ -33,7 +33,6 @@ const money = (value: number) => `S/ ${value.toFixed(2)}`;
 export default function AccountingLedgerPage() {
   const [period] = useState(periodoActual);
   const [accountCode, setAccountCode] = useState('');
-  const [textoCuenta, setTextoCuenta] = useState('');
   // Rango visible del mayor. El período sigue siendo el que se pide al backend;
   // estas fechas solo recortan lo que ya llegó.
   const [desde, setDesde] = useState(() => `${periodoActual()}-01`);
@@ -126,30 +125,13 @@ export default function AccountingLedgerPage() {
         }
       >
         <div className="min-w-72">
-          {/*
-            Búsqueda por escritura: el datalist deja filtrar por código o nombre
-            mientras se escribe, sin abrir una lista de 1700 cuentas.
-          */}
-          <Input
-            list="mayor-cuentas"
-            aria-label="Cuenta contable"
+          <AccountCombobox
+            idPrefijo="mayor"
+            accounts={accounts}
+            value={accountCode}
+            onChange={setAccountCode}
             placeholder="Buscar cuenta por código o nombre"
-            value={textoCuenta}
-            onChange={(evento) => {
-              const valor = evento.target.value;
-              setTextoCuenta(valor);
-              const codigo = valor.split(' · ')[0].trim();
-              if (accounts.some((cuenta) => cuenta.code === codigo)) setAccountCode(codigo);
-            }}
-            className="h-9"
           />
-          <datalist id="mayor-cuentas">
-            {accounts.map((account) => (
-              <option key={account.code} value={account.code}>
-                {account.code} · {account.name}
-              </option>
-            ))}
-          </datalist>
         </div>
       </Toolbar>
 
