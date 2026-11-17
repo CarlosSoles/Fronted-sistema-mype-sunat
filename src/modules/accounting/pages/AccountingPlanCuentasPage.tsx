@@ -110,7 +110,7 @@ export default function AccountingPlanCuentasPage() {
   const [abrirTesoreria, setAbrirTesoreria] = useState(false);
   const [nueva, setNueva] = useState({ code: '', name: '', parentCode: '' });
   const [errorAlta, setErrorAlta] = useState<string | null>(null);
-  const [editando, setEditando] = useState<{ code: string; name: string } | null>(null);
+  const [editando, setEditando] = useState<{ code: string; name: string; element: string } | null>(null);
   const queryClient = useQueryClient();
 
   const refrescar = async () => {
@@ -129,8 +129,8 @@ export default function AccountingPlanCuentasPage() {
   });
 
   const renombrar = useMutation({
-    mutationFn: ({ code, name }: { code: string; name: string }) =>
-      accountingApi.updateAccount(code, { name: name.trim() }),
+    mutationFn: ({ code, name, element }: { code: string; name: string; element?: string }) =>
+      accountingApi.updateAccount(code, { name: name.trim(), ...(element ? { element } : {}) }),
     onSuccess: async () => { setEditando(null); setErrorAlta(null); await refrescar(); },
     onError: (e: any) => setErrorAlta(mensajeDeErrorCuenta(e, 'No se pudo renombrar la cuenta.')),
   });
@@ -224,7 +224,7 @@ export default function AccountingPlanCuentasPage() {
               variant="ghost"
               size="sm"
               aria-label={`Editar ${node.code}`}
-              onClick={() => setEditando({ code: node.code, name: node.name })}
+              onClick={() => setEditando({ code: node.code, name: node.name, element: node.element })}
             >
               <Pencil className="h-4 w-4" />
             </Button>
@@ -390,11 +390,19 @@ export default function AccountingPlanCuentasPage() {
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-medium" htmlFor="editar-tipo">Tipo de cuenta</label>
-                <Input
-                  id="editar-tipo"
-                  value={ELEMENTOS.find((elemento) => elemento.value === (editando?.code ?? '').charAt(0))?.label ?? '—'}
-                  disabled
-                />
+                <Select
+                  value={editando?.element ?? undefined}
+                  onValueChange={(valor) => setEditando((prev) => (prev ? { ...prev, element: valor } : prev))}
+                >
+                  <SelectTrigger id="editar-tipo">
+                    <SelectValue placeholder="Seleccionar tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ELEMENTOS.map((elemento) => (
+                      <SelectItem key={elemento.label} value={elemento.label}>{elemento.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="space-y-1.5">
