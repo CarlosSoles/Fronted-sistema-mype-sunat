@@ -163,12 +163,6 @@ export default function AccountingLedgerPage() {
         </div>
       </Toolbar>
 
-      {data && data.subcuentas && data.subcuentas.length > 1 ? (
-        <p className="mb-3 text-xs text-muted-foreground">
-          La cuenta {data.accountCode} agrupa las subcuentas: {data.subcuentas.join(', ')}
-        </p>
-      ) : null}
-
       {error ? (
         <Card className="p-4 mb-4 text-sm text-destructive">
           No se pudo cargar el libro mayor. Verifica el período y la cuenta.
