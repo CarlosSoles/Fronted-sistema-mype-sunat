@@ -55,8 +55,10 @@ export default function AccountingLedgerPage() {
   });
 
   const { data: accounts = [] } = useQuery({
-    queryKey: ['accounting-accounts'],
-    queryFn: () => accountingApi.getAccounts(),
+    // El mayor debe poder consultar cualquier cuenta, incluso una ya inactiva:
+    // sus movimientos históricos siguen existiendo.
+    queryKey: ['accounting-accounts', 'todas-mayor'],
+    queryFn: () => accountingApi.getAccounts({ includeInactive: true }),
   });
 
   const { data, isLoading, error } = useQuery({
