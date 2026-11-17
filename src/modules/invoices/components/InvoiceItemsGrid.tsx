@@ -231,9 +231,16 @@ export const InvoiceItemsGrid = ({
                       step="0.001"
                       className={`${CLASE_CELDA} text-right`}
                       value={item.cantidad}
-                      onChange={(e) =>
-                        onCambiar(i, { cantidad: Number(e.target.value) })
-                      }
+                      onChange={(e) => {
+                        const cant = Number(e.target.value);
+                        const descMonto = item.descuentoHeredado && item.descuentoPorcentaje
+                          ? Number(((cant * item.valorUnitario * item.descuentoPorcentaje) / 100).toFixed(2))
+                          : item.descuento?.monto;
+                        onCambiar(i, {
+                          cantidad: cant,
+                          ...(item.descuentoHeredado && item.descuento ? { descuento: { ...item.descuento, monto: descMonto ?? 0 } } : {}),
+                        });
+                      }}
                     />
                     )}
                     {visible('cantidad') && <p id={`${item.clave}-cantidad-error`} role="alert" className="text-[11px] text-destructive">{errores.cantidad}</p>}
@@ -257,14 +264,19 @@ export const InvoiceItemsGrid = ({
                   <td className="order-3 min-w-0 flex-1 basis-[110px] space-y-1 lg:table-cell lg:px-1.5 lg:py-1.5 lg:align-top">
                     <span className="mb-0.5 block text-[10px] font-medium text-muted-foreground lg:hidden">Desc. Cat. 53</span>
                     <select aria-label={`Tipo de descuento de la línea ${i + 1}`} className={CLASE_CELDA}
-                      disabled={!admiteDescuento}
+                      disabled={!admiteDescuento || Boolean(item.descuentoHeredado)}
                       value={item.descuento?.codigo ?? ''}
                       onChange={(e) => onCambiar(i, { descuento: e.target.value ? { codigo: e.target.value as '00' | '01', monto: item.descuento?.monto ?? 0 } : null })}>
                       <option value="">Sin desc.</option>
                       <option value="00">00 - Base IGV</option>
                       <option value="01">01 - No base IGV</option>
                     </select>
-                    {item.descuento && <InvoiceMoneyInput aria-label={`Monto de descuento de la línea ${i + 1}`} disabled={!admiteDescuento} className={`${CLASE_CELDA} text-right`} value={item.descuento.monto} onValue={monto => onCambiar(i, { descuento: { ...item.descuento!, monto } })} />}
+                    {item.descuento && <InvoiceMoneyInput aria-label={`Monto de descuento de la línea ${i + 1}`} disabled={!admiteDescuento || Boolean(item.descuentoHeredado)} className={`${CLASE_CELDA} text-right`} value={item.descuento.monto} onValue={monto => onCambiar(i, { descuento: { ...item.descuento!, monto } })} />}
+                    {item.descuentoHeredado && (
+                      <span className="block text-[10px] font-medium text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 rounded px-1 py-0.5 mt-0.5 border border-emerald-200">
+                        {item.descuentoPorcentaje}% fijado en catálogo
+                      </span>
+                    )}
                     {item.descuento && item.descuento.monto > item.cantidad * item.valorUnitario && <p role="alert" className="text-[11px] text-destructive">El descuento no puede superar el valor de la línea.</p>}
                     {item.descuento?.codigo === '01' && <p className="text-[10px] leading-tight text-amber-700">El asiento automático utiliza la cuenta 74. Podría quedar pendiente de revisión si la cuenta no está activa en el plan de la empresa o los importes no concuerdan.</p>}
                   </td>
@@ -300,6 +312,7 @@ export const InvoiceItemsGrid = ({
                     <select
                       aria-label={`Detracción de la línea ${i + 1}`}
                       className={CLASE_CELDA}
+                      disabled={Boolean(item.detraccionHeredada)}
                       value={item.codigoDetraccion ?? ''}
                       onChange={(e) =>
                         onCambiar(i, {
@@ -308,12 +321,17 @@ export const InvoiceItemsGrid = ({
                       }
                     >
                       <option value="">Sin detrac.</option>
-                      {CODIGOS_DETRACCION.filter(d => d.codigo === '009').map((d) => (
+                      {CODIGOS_DETRACCION.map((d) => (
                         <option key={d.codigo} value={d.codigo}>
                           {d.codigo} - {d.porcentaje * 100}%
                         </option>
                       ))}
                     </select>
+                    {item.detraccionHeredada && (
+                      <span className="block text-[10px] font-medium text-blue-600 bg-blue-50 dark:bg-blue-950/40 rounded px-1 py-0.5 mt-0.5 border border-blue-200">
+                        SPOT {item.codigoDetraccion} catálogo
+                      </span>
+                    )}
                   </td>
 
                   <td className="order-6 ml-auto flex items-center gap-1 self-end lg:table-cell lg:px-2 lg:py-1.5 lg:text-right lg:align-top">

@@ -85,6 +85,10 @@ export interface ItemBorrador {
   /** True cuando la unidad proviene del producto y no debe editarse en la venta. */
   unidadHeredada?: boolean;
   descuento?: { codigo: '00' | '01'; monto: number } | null;
+  /** True cuando el descuento proviene del catálogo de inventario y no es editable en el comprobante. */
+  descuentoHeredado?: boolean;
+  /** Porcentaje de descuento original del catálogo para recalcular ante cambios de cantidad. */
+  descuentoPorcentaje?: number;
   /** Importe del ICBPER de la línea; > 0 la marca como bolsa plástica. */
   icbper: number;
   /** Cantidad de bolsas entregadas con este producto, independiente de su cantidad. */
@@ -98,6 +102,8 @@ export interface ItemBorrador {
    * dentro debe detraer solo el flete.
    */
   codigoDetraccion?: string;
+  /** True cuando la detracción proviene del catálogo de inventario y no es editable en el comprobante. */
+  detraccionHeredada?: boolean;
 }
 
 /** Importes derivados de una línea. */
@@ -330,6 +336,10 @@ export const itemDesdeProducto = (
     valorUnitario: number;
     precioUnitario?: number;
     afectacion?: string | null;
+    hasDetraction?: boolean;
+    detractionCode?: string | null;
+    detractionRate?: number | null;
+    discountRate?: number | null;
   },
   clave: string,
 ): ItemBorrador => {
@@ -337,6 +347,10 @@ export const itemDesdeProducto = (
   if (!unidadValida(unidad)) throw new Error(`Unidad del producto no compatible: ${unidad || 'sin configurar'}. Corrija el catálogo; no se presume NIU.`);
   const valor = Number(producto.valorUnitario);
   const afectacion = normalizarAfectacionProducto(producto.afectacion);
+  const valorPositivo = Number.isFinite(valor) && valor > 0 ? valor : 0;
+  const discRate = producto.discountRate !== undefined && producto.discountRate !== null ? Number(producto.discountRate) : 0;
+  const descMonto = discRate > 0 && valorPositivo > 0 ? Number(((valorPositivo * discRate) / 100).toFixed(2)) : 0;
+  const tieneDetraccion = Boolean(producto.hasDetraction && producto.detractionCode);
 
   return {
     clave,
@@ -345,12 +359,17 @@ export const itemDesdeProducto = (
     descripcion: producto.descripcion,
     unidad,
     cantidad: 1,
-    valorUnitario: Number.isFinite(valor) && valor > 0 ? valor : 0,
-    precioUnitario: afectacion === 'GRATUITA' ? 0 : producto.precioUnitario ?? (Number.isFinite(valor) && valor > 0 ? (afectacion === 'GRAVADA' ? Number((valor * 1.18).toFixed(10)) : valor) : 0),
+    valorUnitario: valorPositivo,
+    precioUnitario: afectacion === 'GRATUITA' ? 0 : producto.precioUnitario ?? (valorPositivo > 0 ? (afectacion === 'GRAVADA' ? Number((valorPositivo * 1.18).toFixed(10)) : valorPositivo) : 0),
     afectacion,
     codigoAfectacion: ({ GRAVADA: '10', EXONERADA: '20', INAFECTA: '30', GRATUITA: '11' } as Record<string, string>)[producto.afectacion?.trim().toUpperCase() ?? ''] ?? producto.afectacion?.trim(),
     afectacionHeredada: true,
     unidadHeredada: true,
+    descuento: descMonto > 0 ? { codigo: '00', monto: descMonto } : null,
+    descuentoHeredado: discRate > 0,
+    descuentoPorcentaje: discRate > 0 ? discRate : undefined,
+    codigoDetraccion: tieneDetraccion ? producto.detractionCode! : undefined,
+    detraccionHeredada: tieneDetraccion,
     icbper: 0,
   };
 };

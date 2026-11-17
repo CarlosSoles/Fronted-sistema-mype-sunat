@@ -20,6 +20,12 @@ export function MovementDetailModal({
 }) {
   if (!movement) return null;
   const entrada = movement.direction === 'ENTRADA';
+  const isTransfer =
+    movement.operationTypeCode === '11' ||
+    movement.operationTypeCode === '21' ||
+    movement.operationTypeCode === '22' ||
+    Boolean(movement.sourceReferenceId?.startsWith('TRF'));
+  const isCommercialPurchase = entrada && !isTransfer && (movement.operationTypeCode === '02' || movement.operationTypeCode === '18');
 
   return (
     <Dialog open onOpenChange={(abierto) => !abierto && onClose()}>
@@ -46,7 +52,29 @@ export function MovementDetailModal({
           <div className="col-span-2"><p className="text-xs text-muted-foreground">Notas</p><p>{movement.notes || '—'}</p></div>
         </div>
 
-        {entrada && (
+        {isTransfer && (
+          <div className="mt-4 p-3 rounded-lg border border-indigo-500/20 bg-indigo-500/5">
+            <p className="text-xs font-semibold text-indigo-800 dark:text-indigo-300 uppercase tracking-wider mb-2">
+              Control de Traslado Inter-Almacén (Transferencia)
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+              <div className="bg-card p-2.5 rounded border border-border/60">
+                <p className="text-[10px] text-muted-foreground uppercase font-medium">Asiento Doble Kardex</p>
+                <p className="font-semibold text-foreground mt-0.5">
+                  {movement.operationTypeCode === '22' ? 'Salida de Almacén Origen' : 'Ingreso a Almacén Destino'}
+                </p>
+                <p className="text-[9px] text-muted-foreground mt-0.5">Sin efecto en la valorización consolidada (conserva costo histórico)</p>
+              </div>
+              <div className="bg-card p-2.5 rounded border border-border/60">
+                <p className="text-[10px] text-muted-foreground uppercase font-medium">Número de Referencia TRF</p>
+                <p className="font-mono font-bold text-primary mt-0.5">{movement.sourceReferenceId || movement.movementNumber}</p>
+                <p className="text-[9px] text-muted-foreground mt-0.5">Amparado por Guía de Remisión Remitente</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {isCommercialPurchase && (
           <div className="mt-4 p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
             <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider mb-2">
               Desglose Comercial y Fiscal del Ingreso

@@ -103,11 +103,11 @@ export const ManualMovementModal: React.FC<ManualMovementModalProps> = ({
           </DialogTitle>
         </DialogHeader>
 
-        {/* Banner Aclaratorio de Deslinde (Obs 18) */}
+        {/* Banner Aclaratorio de Deslinde */}
         <div className="flex items-start gap-2.5 p-2.5 rounded-md bg-blue-500/10 border border-blue-500/20 text-blue-700 dark:text-blue-300 text-xs">
           <Info className="h-4 w-4 shrink-0 mt-0.5" />
           <p className="leading-snug">
-            <strong>Movimiento Interno:</strong> Asienta entradas o salidas físicas dentro de un único almacén (compras, mermas, desmedros, reposición por nota de débito). Para traslados entre dos almacenes físicos con guía de remisión, use el módulo de <strong>Transferencias</strong>.
+            <strong>Movimiento Interno:</strong> Asienta entradas o salidas físicas en un almacén (ajustes de inventario, compras, mermas, desmedros, saldo inicial). Para traslados entre dos almacenes con guía de remisión, use el botón <strong>Nueva Transferencia entre Almacenes</strong>.
           </p>
         </div>
 
@@ -145,19 +145,24 @@ export const ManualMovementModal: React.FC<ManualMovementModalProps> = ({
                 {direction === 'ENTRADA' ? (
                   <>
                     <option value="02">02 - Compra Nacional</option>
+                    <option value="16">16 - Saldo Inicial / Apertura de Inventario</option>
+                    <option value="28">28 - Ajuste por Inventario Físico (Sobrante de Conteo)</option>
+                    <option value="24">24 - Devolución del Cliente (Nota de Crédito)</option>
                     <option value="08">08 - Reposición por Nota de Débito (Proveedor)</option>
-                    <option value="24">24 - Devolución del Cliente</option>
-                    <option value="28">28 - Ajuste por Inventario Físico (Sobrante)</option>
-                    <option value="16">16 - Saldo Inicial</option>
+                    <option value="19">19 - Entrada de Producción / Transformación</option>
+                    <option value="03">03 - Consignación Recibida</option>
                     <option value="99">99 - Otros Ingresos</option>
                   </>
                 ) : (
                   <>
                     <option value="01">01 - Venta Nacional</option>
-                    <option value="13">13 - Mermas (Art. 37 LIR / Manipuleo)</option>
-                    <option value="14">14 - Desmedros (Deterioro / Notarial)</option>
+                    <option value="13">13 - Mermas (Art. 37 LIR / Evaporación o manipuleo)</option>
+                    <option value="14">14 - Desmedros (Deterioro cualitativo / Destrucción notarial)</option>
+                    <option value="28">28 - Ajuste por Inventario Físico (Faltante de Conteo)</option>
+                    <option value="12">12 - Retiro de Bienes / Muestras / Promoción</option>
                     <option value="25">25 - Devolución a Proveedor</option>
-                    <option value="12">12 - Retiro de Bienes / Muestras</option>
+                    <option value="10">10 - Salida a Producción / Materia Prima</option>
+                    <option value="15">15 - Destrucción de Existencias</option>
                     <option value="99">99 - Otras Salidas</option>
                   </>
                 )}

@@ -172,8 +172,22 @@ export default function PartnersPage({ context = 'customs' }: { context?: 'custo
       <PartnerDetailDrawer partnerId={selectedId} onClose={() => setSelectedId(null)} readOnly={!canWrite} />
 
 
-      {canWrite && isNewOpen && <PartnerFormDialog onClose={() => setIsNewOpen(false)} enableRucLookup={billing} initialRole={billing ? 'CLIENTE' : 'PROVEEDOR'} allowOffline={!billing} />}
-      {canWrite && editingPartner && <PartnerFormDialog partner={editingPartner} onClose={() => setEditingPartner(null)} />}
+      {canWrite && isNewOpen && (
+        <PartnerFormDialog
+          context={role === 'IMPORTADOR' ? 'customs' : undefined}
+          onClose={() => setIsNewOpen(false)}
+          enableRucLookup={billing}
+          initialRole={role === 'IMPORTADOR' ? 'IMPORTADOR' : (billing ? 'CLIENTE' : 'PROVEEDOR')}
+          allowOffline={!billing}
+        />
+      )}
+      {canWrite && editingPartner && (
+        <PartnerFormDialog
+          context={editingPartner.roles?.includes('IMPORTADOR') ? 'customs' : undefined}
+          partner={editingPartner}
+          onClose={() => setEditingPartner(null)}
+        />
+      )}
     </Page>
   );
 }

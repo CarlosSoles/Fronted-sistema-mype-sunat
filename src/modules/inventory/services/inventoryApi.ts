@@ -31,6 +31,10 @@ export const inventoryApi = {
     unitCode: string;
     costPrice?: number;
     salePrice?: number;
+    hasDetraction?: boolean;
+    detractionCode?: string;
+    detractionRate?: number;
+    discountRate?: number;
   }>> => {
     const params = options?.includeServices === false ? { includeServices: 'false' } : {};
     const response = await apiClient.get('/inventory/stocks/products', { params });

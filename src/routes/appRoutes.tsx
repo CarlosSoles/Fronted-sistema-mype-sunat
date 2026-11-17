@@ -48,7 +48,6 @@ const PurchasesPage = React.lazy(() => import('@/modules/purchases/pages/Purchas
 const PurchaseOrdersPage = React.lazy(() => import('@/modules/purchases/pages/PurchaseOrdersPage'));
 const PurchasesDashboardPage = React.lazy(() => import('@/modules/purchases/pages/PurchasesDashboardPage'));
 const PurchasesPayablesPage = React.lazy(() => import('@/modules/inventory/pages/PurchasesPayablesPage'));
-const InventoryTransfersPage = React.lazy(() => import('@/modules/inventory/pages/InventoryTransfersPage'));
 const InventoryAdjustmentsPage = React.lazy(() => import('@/modules/inventory/pages/InventoryAdjustmentsPage'));
 const InventoryConfigPage = React.lazy(() => import('@/modules/inventory/pages/InventoryConfigPage'));
 const UserWarehousesPage = React.lazy(() => import('@/modules/auth/pages/UserWarehousesPage'));
@@ -99,10 +98,10 @@ const PageLoadingFallback = () => (
 
 // Redirección dinámica al módulo correspondiente según la Matriz RBAC del rol activo
 const RoleHomeRedirect = () => {
-  const p=useServerPermissions();
-  if(p.isLoading)return <PageLoadingFallback/>;
-  if(p.isError)return <p role='alert'>No se pudieron consultar los permisos.</p>;
-  const target=getPermissionHome(p.homePath);
+  const p = useServerPermissions();
+  if (p.isLoading) return <PageLoadingFallback />;
+  if (p.isError) return <p role='alert'>No se pudieron consultar los permisos.</p>;
+  const target = getPermissionHome(p.homePath);
   return <Navigate to={target} replace />;
 };
 
@@ -465,11 +464,7 @@ export const AppRoutes = () => {
             />
             <Route
               path="/inventory/transfers"
-              element={
-                <RoleProtectedRoute >
-                  <InventoryTransfersPage />
-                </RoleProtectedRoute>
-              }
+              element={<Navigate to="/inventory/movements?tab=transfers" replace />}
             />
             <Route
               path="/inventory/adjustments"
@@ -532,7 +527,7 @@ export const AppRoutes = () => {
               path="/sire"
               element={<Navigate to="/sire/conciliacion" replace />}
             />
-                        <Route
+            <Route
               path="/sire/configuracion"
               element={
                 <RoleProtectedRoute >
@@ -557,7 +552,7 @@ export const AppRoutes = () => {
                 </RoleProtectedRoute>
               }
             />
-<Route
+            <Route
               path="/sire/importar"
               element={
                 <RoleProtectedRoute >

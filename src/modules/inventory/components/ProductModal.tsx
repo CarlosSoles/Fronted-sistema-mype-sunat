@@ -102,6 +102,10 @@ export const ProductModal: React.FC<ProductModalProps> = ({
       promo_price: undefined,
       commission_rate: undefined,
       min_price: undefined,
+      discount_rate: undefined,
+      has_detraction: false,
+      detraction_code: '',
+      detraction_rate: undefined,
       warehouse_location: '',
       attributes: [],
       variants: [],
@@ -194,11 +198,20 @@ export const ProductModal: React.FC<ProductModalProps> = ({
         setValue('wholesale_price', (initialData as any).wholesale_price ?? undefined);
         setValue('promo_price', (initialData as any).promo_price ?? undefined);
         setValue('commission_rate', (initialData as any).commission_rate ?? undefined);
+        setValue('min_price', (initialData as any).min_price ?? undefined);
+        setValue('discount_rate', (initialData as any).discount_rate !== undefined ? Number((initialData as any).discount_rate) : undefined);
+        setValue('has_detraction', Boolean((initialData as any).has_detraction));
+        setValue('detraction_code', (initialData as any).detraction_code || '');
+        setValue('detraction_rate', (initialData as any).detraction_rate !== undefined ? Number((initialData as any).detraction_rate) : undefined);
         setValue('warehouse_location', (initialData as any).warehouse_location || '');
 
         // Consultar ficha extendida (proveedores, presentaciones, variantes y atributos)
         inventoryApi.getProductBySku(initialData.sku).then((detailed) => {
           if (detailed) {
+            if (detailed.discount_rate !== undefined) setValue('discount_rate', Number(detailed.discount_rate));
+            if (detailed.has_detraction !== undefined) setValue('has_detraction', Boolean(detailed.has_detraction));
+            if (detailed.detraction_code) setValue('detraction_code', detailed.detraction_code);
+            if (detailed.detraction_rate !== undefined) setValue('detraction_rate', Number(detailed.detraction_rate));
             if (detailed.attributes && Array.isArray(detailed.attributes)) {
               setValue('attributes', detailed.attributes);
             }
@@ -787,7 +800,81 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                         className="mt-1 h-8 text-xs font-mono"
                       />
                     </div>
+                    <div>
+                      <label className="font-semibold text-emerald-600 text-[11px]">% Descuento Comercial Venta</label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        placeholder="ej: 5.00"
+                        {...register('discount_rate', { valueAsNumber: true })}
+                        className="mt-1 h-8 text-xs font-mono font-bold text-emerald-600"
+                      />
+                    </div>
                   </div>
+                </div>
+
+                {/* Régimen de Detracciones SPOT SUNAT */}
+                <div className="bg-muted/30 p-3 rounded-lg border space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 font-semibold text-xs">
+                      <Tag className="h-4 w-4 text-blue-600" />
+                      Régimen de Detracción SUNAT (SPOT - Catálogo 54)
+                    </div>
+                    <label className="flex items-center gap-2 text-xs cursor-pointer">
+                      <input
+                        type="checkbox"
+                        {...register('has_detraction')}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4"
+                      />
+                      <span className="text-[11px] font-medium text-foreground">¿Sujeto a Detracción?</span>
+                    </label>
+                  </div>
+                  {watch('has_detraction') && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t">
+                      <div>
+                        <label className="font-medium text-foreground text-[11px]">Código y Concepto Catálogo 54</label>
+                        <select
+                          {...register('detraction_code')}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setValue('detraction_code', val);
+                            const rates: Record<string, number> = {
+                              '009': 10,
+                              '012': 12,
+                              '019': 10,
+                              '022': 12,
+                              '027': 4,
+                              '037': 12,
+                            };
+                            if (rates[val]) {
+                              setValue('detraction_rate', rates[val]);
+                            }
+                          }}
+                          className="mt-1 w-full h-8 rounded-md border border-input bg-background px-2 text-xs"
+                        >
+                          <option value="">Seleccione código SUNAT</option>
+                          <option value="009">009 - Arena y piedra (10%)</option>
+                          <option value="012">012 - Intermediación laboral y tercerización (12%)</option>
+                          <option value="019">019 - Arrendamiento de bienes muebles (10%)</option>
+                          <option value="022">022 - Otros servicios empresariales (12%)</option>
+                          <option value="027">027 - Flete terrestre / Transporte de carga (4%)</option>
+                          <option value="037">037 - Demás servicios gravados con IGV (12%)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="font-medium text-muted-foreground text-[11px]">Tasa de Detracción SPOT (%)</label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          {...register('detraction_rate', { valueAsNumber: true })}
+                          className="mt-1 h-8 text-xs font-mono font-bold text-blue-600"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
