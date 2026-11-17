@@ -359,7 +359,7 @@ export default function AccountingEntriesPage() {
             placeholder="Buscar número o concepto…"
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            className="h-9 w-64"
+            className="h-8 w-full sm:w-80"
           />
           {canCreateAccountingEntry ? (
             <Button size="sm" onClick={() => setIsModalOpen(true)} className="bg-foreground text-background hover:bg-foreground/90">

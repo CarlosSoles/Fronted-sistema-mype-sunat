@@ -149,7 +149,7 @@ export function AccountCombobox({
           aria-controls={`${idPrefijo}-lista`}
           aria-autocomplete="list"
           autoComplete="off"
-          className="h-9 w-full rounded-md border bg-background pl-9 pr-9 text-sm outline-none focus:ring-2 focus:ring-ring"
+          className="h-8 w-full rounded-md border bg-background pl-9 pr-9 text-sm outline-none focus:ring-2 focus:ring-ring"
           placeholder={placeholder}
           value={texto}
           onChange={(evento) => {

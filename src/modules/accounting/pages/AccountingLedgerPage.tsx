@@ -212,7 +212,7 @@ export default function AccountingLedgerPage() {
           />
         }
       >
-        <div className="min-w-72">
+        <div className="w-full sm:w-80">
           <AccountCombobox
             idPrefijo="mayor"
             accounts={cuentasOfrecidas}
@@ -228,7 +228,7 @@ export default function AccountingLedgerPage() {
               value={cuentaDesde}
               onChange={(evento) => setCuentaDesde(evento.target.value)}
               placeholder="10"
-              className="h-9 w-24 font-mono"
+              className="h-8 w-24 font-mono"
               aria-label="Código de cuenta inicial"
             />
           </label>
@@ -238,7 +238,7 @@ export default function AccountingLedgerPage() {
               value={cuentaHasta}
               onChange={(evento) => setCuentaHasta(evento.target.value)}
               placeholder="19"
-              className="h-9 w-24 font-mono"
+              className="h-8 w-24 font-mono"
               aria-label="Código de cuenta final"
             />
           </label>

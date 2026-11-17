@@ -263,7 +263,7 @@ export default function AccountingPeriodsPage() {
       <Card className="mb-4">
         <div className="flex flex-wrap items-center gap-3 p-3">
           <Select value={anioFiltro} onValueChange={setAnioFiltro}>
-            <SelectTrigger className="h-9 w-52" aria-label="Año fiscal">
+            <SelectTrigger className="h-8 w-52" aria-label="Año fiscal">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

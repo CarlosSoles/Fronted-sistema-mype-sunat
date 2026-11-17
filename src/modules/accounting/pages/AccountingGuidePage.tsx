@@ -335,7 +335,7 @@ export default function AccountingGuidePage() {
                   value={busqueda}
                   onChange={(evento) => setBusqueda(evento.target.value)}
                   placeholder="Código de cuenta, nombre u operación"
-                  className="h-9 w-72 pl-9"
+                  className="h-8 w-full sm:w-80 pl-9"
                   aria-label="Buscar en la guía"
                 />
               </span>
@@ -346,7 +346,7 @@ export default function AccountingGuidePage() {
                 value={importe}
                 onChange={(evento) => setImporte(evento.target.value)}
                 inputMode="decimal"
-                className="h-9 w-32 text-right tabular-nums"
+                className="h-8 w-32 text-right tabular-nums"
                 aria-label="Importe total del comprobante"
               />
             </label>

@@ -13,6 +13,19 @@ import { cn } from 'cn';
  * módulo se lean como una sola aplicación.
  */
 
+/**
+ * Tamaños compartidos por todas las barras del módulo.
+ *
+ * Estaban repetidos en cada pantalla y se habían desviado: unas usaban h-8 y
+ * otras el h-8 del design system. Ahora el valor se define una sola vez y las
+ * pantallas solo lo consumen.
+ */
+export const ALTO_CONTROL = 'h-8';
+/** Ancho estándar de un buscador de texto (320 px), fluido en pantallas angostas. */
+export const ANCHO_BUSCADOR = 'w-full sm:w-80';
+/** Espaciado interno de las barras de filtros. */
+export const PADDING_BARRA = 'p-3';
+
 /** Tarjeta de cifra: etiqueta tenue, número grande y un icono discreto. */
 export function Stat({
   label,
@@ -50,13 +63,17 @@ export function Stat({
   );
 }
 
-/** Barra de filtros uniforme: el período a la izquierda, el estado a la derecha. */
+/**
+ * Barra de filtros uniforme.
+ *
+ * Todos los controles comparten altura y espaciado; el buscador usa el ancho
+ * estándar. `overflow-visible` deja que los desplegables (como el buscador de
+ * cuentas) se pinten fuera de la tarjeta, que el Card base recortaría.
+ */
 export function Toolbar({ children, status }: { children: ReactNode; status?: ReactNode }) {
   return (
-    // `overflow-visible` deja que los desplegables de los filtros (como el
-    // buscador de cuentas) se pinten fuera de la tarjeta; el Card base recorta.
-    <Card className="flex flex-col gap-3 overflow-visible p-3 sm:flex-row sm:items-end sm:justify-between">
-      <div className="flex flex-wrap items-end gap-3">{children}</div>
+    <Card className={cn('flex flex-col gap-3 overflow-visible sm:flex-row sm:items-center sm:justify-between', PADDING_BARRA)}>
+      <div className="flex flex-1 flex-wrap items-center gap-2">{children}</div>
       {status ? <div className="flex flex-wrap items-center gap-2">{status}</div> : null}
     </Card>
   );
@@ -130,7 +147,7 @@ export function RangoFechas({
         type="date"
         value={desde}
         onChange={(evento) => onDesde(evento.target.value)}
-        className="h-9 w-36"
+        className="h-8 w-36"
       />
       <label className="text-xs text-muted-foreground" htmlFor={`${idPrefijo}-hasta`}>Hasta</label>
       <Input
@@ -139,7 +156,7 @@ export function RangoFechas({
         type="date"
         value={hasta}
         onChange={(evento) => onHasta(evento.target.value)}
-        className="h-9 w-36"
+        className="h-8 w-36"
       />
     </div>
   );
