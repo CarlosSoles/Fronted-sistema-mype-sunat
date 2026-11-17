@@ -11,7 +11,18 @@ function matches(pattern:string,path:string){
 }
 export function useServerPermissions(){
  const {user,scope}=usePermissionsIdentity();
- const query=useQuery({queryKey:['permissions-me',...scope],queryFn:permissionsApi.mine,enabled:Boolean(user),retry:false,staleTime:15_000,refetchInterval:30_000});
+ const query=useQuery({
+  queryKey:['permissions-me',...scope],
+  queryFn:permissionsApi.mine,
+  enabled:Boolean(user),
+  // El backend en Render puede tardar ~40 s en despertar (cold start). Sin
+  // reintentos la aplicación mostraba "No se pudieron consultar los permisos"
+  // al primer intento y había que recargar a mano.
+  retry:3,
+  retryDelay:(intento)=>Math.min(1000*2**intento,8000),
+  staleTime:15_000,
+  refetchInterval:30_000,
+ });
  const data=query.data;
  const valid=Boolean(data&&typeof data.role?.code==='string'&&typeof data.role?.name==='string'&&Array.isArray(data.modules)&&data.modules.every(m=>m&&typeof m.canView==='boolean'&&typeof m.canWrite==='boolean')&&Array.isArray(data.actions)&&data.actions.every(a=>a&&typeof a.actionCode==='string'&&typeof a.allowed==='boolean')&&Array.isArray(data.menus)&&data.menus.every(m=>m&&typeof m.path==='string'&&typeof m.canView==='boolean'));
  const ready=Boolean(user)&&query.isSuccess&&valid;

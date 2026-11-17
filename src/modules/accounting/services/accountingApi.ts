@@ -194,6 +194,14 @@ export const accountingApi = {
     return response.data;
   },
 
+  /** Borra un período sin asientos. El backend rechaza los que tienen movimientos. */
+  deletePeriod: async (period: string): Promise<{ period: string; deleted: boolean }> => {
+    const response = await apiClient.delete<{ period: string; deleted: boolean }>(
+      `/accounting/periods/${encodeURIComponent(period)}`,
+    );
+    return response.data;
+  },
+
   generateClosingEntry: async (year: number): Promise<{ resultado: number; totalIngresos: number; totalGastos: number }> => {
     const response = await apiClient.post(`/accounting/closing-entry/${year}`);
     return response.data;

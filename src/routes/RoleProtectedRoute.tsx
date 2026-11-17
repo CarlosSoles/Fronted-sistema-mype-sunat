@@ -21,7 +21,24 @@ export const RoleProtectedRoute = ({ children }: { children?: ReactNode }) => {
   const p = useServerPermissions();
   const { pathname } = useLocation();
   if (p.isLoading) return <p role="status">Consultando accesos…</p>;
-  if (p.isError) return <div role="alert">No se pudieron consultar los permisos. <button type="button" onClick={() => void p.refetch()}>Reintentar</button></div>;
+  if (p.isError) {
+    return (
+      <div role="alert" className="mx-auto max-w-md space-y-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm">
+        <p className="font-medium text-destructive">No se pudieron consultar los permisos.</p>
+        <p className="text-muted-foreground">
+          Puede que el servidor esté despertando. La aplicación reintenta sola; si el problema
+          continúa, pulsa el botón.
+        </p>
+        <button
+          type="button"
+          className="rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+          onClick={() => void p.refetch()}
+        >
+          Reintentar
+        </button>
+      </div>
+    );
+  }
 
   const adelanto = RUTAS_ADELANTADAS.find((ruta) => ruta.path === pathname);
   const elServidorLoConoce = (p.snapshot?.menus ?? []).some((menu) => menu.path === pathname);
