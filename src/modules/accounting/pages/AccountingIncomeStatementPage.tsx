@@ -14,8 +14,7 @@ import {
   TableRow,
 } from '@/components/ui';
 import { accountingApi } from '../services/accountingApi';
-import { RangoFechas } from '../components/AccountingUI';
-import { formatDateToPeru } from '@/lib/formatters';
+import { PeriodInput } from '@/components/common/PeriodInput';
 import { descargarCsv, descargarPdf, importe } from '../lib/exportReport';
 
 const periodoActual = () => {
@@ -23,25 +22,20 @@ const periodoActual = () => {
   return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
 };
 
-/** "2026-11" -> "2026-11-30", último día del mes. */
-const ultimoDiaDe = (periodo: string): string => {
+/** "2026-11" -> "NOVIEMBRE 2026". */
+const nombreMes = (periodo: string): string => {
   const [anio, mes] = periodo.split('-').map(Number);
-  if (!anio || !mes) return `${periodo}-01`;
-  return `${periodo}-${String(new Date(anio, mes, 0).getDate()).padStart(2, '0')}`;
+  if (!anio || !mes) return periodo;
+  return new Date(anio, mes - 1, 1)
+    .toLocaleDateString('es-PE', { month: 'long', year: 'numeric' })
+    .toUpperCase();
 };
 
 export default function AccountingIncomeStatementPage() {
   const [period, setPeriod] = useState(periodoActual);
-  const [desde, setDesde] = useState(() => `${periodoActual()}-01`);
-  const [hasta, setHasta] = useState(() => ultimoDiaDe(periodoActual()));
 
-  /** "Este mes": vuelve al mes en curso con su rango completo. */
-  const irAlMesActual = () => {
-    const actual = periodoActual();
-    setPeriod(actual);
-    setDesde(`${actual}-01`);
-    setHasta(ultimoDiaDe(actual));
-  };
+  /** "Este mes": lleva el reporte al mes en curso. */
+  const irAlMesActual = () => setPeriod(periodoActual());
   const { data, isLoading, error } = useQuery({
     queryKey: ['accounting-income-statement', period],
     queryFn: () => accountingApi.getIncomeStatement(period),
@@ -80,6 +74,28 @@ export default function AccountingIncomeStatementPage() {
     return { ingresos, gastos };
   }, [data]);
 
+  /**
+   * Grupos del reporte separados por bloque.
+   *
+   * El backend devuelve los grupos en un orden propio; aquí se clasifican por su
+   * etiqueta para poder intercalar la utilidad bruta y la de operación, como en
+   * el formato contable. Lo que no se reconoce va al final, sin perderse.
+   */
+  const grupos = useMemo(() => {
+    const todos = data?.groups ?? [];
+    const ingresos: typeof todos = [];
+    const costos: typeof todos = [];
+    const gastos: typeof todos = [];
+    const otros: typeof todos = [];
+    for (const grupo of todos) {
+      if (/ingreso/i.test(grupo.label)) ingresos.push(grupo);
+      else if (/costo/i.test(grupo.label)) costos.push(grupo);
+      else if (/gasto/i.test(grupo.label)) gastos.push(grupo);
+      else otros.push(grupo);
+    }
+    return { ingresos, costos, gastos, otros };
+  }, [data]);
+
   return (
     <Page className="reporte-imprimible">
       <PageHeader
@@ -89,19 +105,10 @@ export default function AccountingIncomeStatementPage() {
 
       <Card className="mb-4 print:hidden">
         <div className="flex flex-wrap items-center gap-3 p-3">
-          <RangoFechas
-            idPrefijo="resultados"
-            desde={desde}
-            hasta={hasta}
-            onDesde={(valor) => {
-              setDesde(valor);
-              if (valor) setPeriod(valor.slice(0, 7));
-            }}
-            onHasta={(valor) => {
-              setHasta(valor);
-              if (valor) setPeriod(valor.slice(0, 7));
-            }}
-          />
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Período</label>
+            <PeriodInput value={period} onChange={setPeriod} />
+          </div>
           <div className="ml-auto flex gap-2">
             <Button variant="outline" onClick={irAlMesActual}>Este mes</Button>
             <Button variant="outline" onClick={exportar} disabled={!data || totalFilas === 0}>
@@ -124,7 +131,7 @@ export default function AccountingIncomeStatementPage() {
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Estados financieros</p>
         <h2 className="text-lg font-semibold">Estado de Resultados</h2>
         <p className="text-xs text-muted-foreground">
-          Del {formatDateToPeru(desde)} al {formatDateToPeru(hasta)} · Expresado en soles (PEN)
+          Período {nombreMes(period)} · Expresado en soles (PEN)
         </p>
       </div>
 
@@ -144,19 +151,30 @@ export default function AccountingIncomeStatementPage() {
               </TableRow>
             ) : !data ? null : (
               <>
-                {data.groups.map((group) => (
+                {/* Orden del reporte: ingresos, costo, utilidad bruta, gastos,
+                    utilidad de operación y resultado del período. */}
+                {grupos.ingresos.map((group) => (
+                  <GrupoResultado key={group.key} group={group} />
+                ))}
+                {grupos.costos.map((group) => (
                   <GrupoResultado key={group.key} group={group} />
                 ))}
                 <TableRow className="bg-muted/50 font-semibold">
-                  <TableCell colSpan={2}>Resultado bruto</TableCell>
+                  <TableCell colSpan={2}>UTILIDAD BRUTA</TableCell>
                   <TableCell align="right" className="tabular-nums">{importe(data.resultadoBruto)}</TableCell>
                 </TableRow>
+                {grupos.gastos.map((group) => (
+                  <GrupoResultado key={group.key} group={group} />
+                ))}
                 <TableRow className="bg-muted/50 font-semibold">
-                  <TableCell colSpan={2}>Resultado operativo</TableCell>
+                  <TableCell colSpan={2}>UTILIDAD DE OPERACIÓN</TableCell>
                   <TableCell align="right" className="tabular-nums">{importe(data.resultadoOperativo)}</TableCell>
                 </TableRow>
+                {grupos.otros.map((group) => (
+                  <GrupoResultado key={group.key} group={group} />
+                ))}
                 <TableRow className="bg-slate-800 font-semibold text-white hover:bg-slate-800">
-                  <TableCell colSpan={2} className="text-white">Resultado del período</TableCell>
+                  <TableCell colSpan={2} className="text-white">RESULTADO NETO DEL PERÍODO</TableCell>
                   <TableCell align="right" className="tabular-nums text-white">
                     {importe(data.resultadoOperativo)}
                   </TableCell>

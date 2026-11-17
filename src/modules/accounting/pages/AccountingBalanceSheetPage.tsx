@@ -4,7 +4,6 @@ import { Download, FileDown } from 'lucide-react';
 import {
   Button,
   Card,
-  Input,
   Page,
   PageHeader,
   Table,
@@ -15,19 +14,13 @@ import {
   TableRow,
 } from '@/components/ui';
 import { accountingApi } from '../services/accountingApi';
+import { PeriodInput } from '@/components/common/PeriodInput';
 import type { BalanceSheetLine } from '../types/accounting.types';
 import { descargarCsv, descargarPdf, importe } from '../lib/exportReport';
 
 const periodoActual = () => {
   const hoy = new Date();
   return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
-};
-
-/** "2026-11" -> "2026-11-30", último día del mes. */
-const ultimoDiaDe = (periodo: string): string => {
-  const [anio, mes] = periodo.split('-').map(Number);
-  if (!anio || !mes) return `${periodo}-01`;
-  return `${periodo}-${String(new Date(anio, mes, 0).getDate()).padStart(2, '0')}`;
 };
 
 const money = (valor: number) => `S/ ${importe(valor)}`;
@@ -45,14 +38,9 @@ const sumar = (lineas: BalanceSheetLine[]) => lineas.reduce((suma, linea) => sum
 
 export default function AccountingBalanceSheetPage() {
   const [period, setPeriod] = useState(periodoActual);
-  const [fechaCorte, setFechaCorte] = useState(() => ultimoDiaDe(periodoActual()));
 
-  /** "Mes actual": vuelve al mes en curso con su último día como corte. */
-  const irAlMesActual = () => {
-    const actual = periodoActual();
-    setPeriod(actual);
-    setFechaCorte(ultimoDiaDe(actual));
-  };
+  /** "Hoy": lleva el reporte al mes en curso. */
+  const irAlMesActual = () => setPeriod(periodoActual());
   const { data, isLoading, error } = useQuery({
     queryKey: ['accounting-balance-sheet', period],
     queryFn: () => accountingApi.getBalanceSheet(period),
@@ -109,19 +97,10 @@ export default function AccountingBalanceSheetPage() {
 
       <Card className="mb-4 print:hidden">
         <div className="flex flex-wrap items-center gap-3 p-3">
-          <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground" htmlFor="general-corte">
-            Fecha de corte
+          <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Al cierre de
           </label>
-          <Input
-            id="general-corte"
-            type="date"
-            className="h-9 w-36"
-            value={fechaCorte}
-            onChange={(evento) => {
-              setFechaCorte(evento.target.value);
-              if (evento.target.value) setPeriod(evento.target.value.slice(0, 7));
-            }}
-          />
+          <PeriodInput value={period} onChange={setPeriod} />
           <div className="ml-auto flex gap-2">
             <Button variant="outline" onClick={irAlMesActual}>Hoy</Button>
             <Button variant="outline" onClick={exportar} disabled={!data}>
