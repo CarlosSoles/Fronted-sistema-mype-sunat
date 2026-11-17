@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, ChevronRight, Pencil, Plus, Power, Search } from 'lucide-react';
 import {
@@ -111,6 +111,14 @@ export default function AccountingPlanCuentasPage() {
   const [nueva, setNueva] = useState({ code: '', name: '', parentCode: '' });
   const [errorAlta, setErrorAlta] = useState<string | null>(null);
   const [editando, setEditando] = useState<{ code: string; name: string; element: string } | null>(null);
+  /** Aviso temporal: se borra solo y al iniciar otra acción. */
+  const [aviso, setAviso] = useState<{ tipo: 'ok' | 'aviso'; texto: string } | null>(null);
+
+  useEffect(() => {
+    if (!aviso) return;
+    const temporizador = setTimeout(() => setAviso(null), 5000);
+    return () => clearTimeout(temporizador);
+  }, [aviso]);
   const queryClient = useQueryClient();
 
   const refrescar = async () => {
@@ -124,7 +132,22 @@ export default function AccountingPlanCuentasPage() {
   const alternar = useMutation({
     mutationFn: ({ code, isActive }: { code: string; isActive: boolean }) =>
       accountingApi.updateAccount(code, { isActive }),
-    onSuccess: refrescar,
+    onSuccess: async (resultado, variables) => {
+      const cuantas = resultado.descendientesAfectados;
+      const accion = variables.isActive ? 'activada' : 'inactivada';
+      setAviso({
+        tipo: 'ok',
+        texto: cuantas > 0
+          ? `Cuenta ${variables.code} ${accion} junto con ${cuantas} subcuenta(s).`
+          : `Cuenta ${variables.code} ${accion}.`,
+      });
+      // Las advertencias (reglas, tesorería) se muestran como aviso aparte.
+      if (resultado.advertencias.length > 0) {
+        setAviso({ tipo: 'aviso', texto: resultado.advertencias.join(' ') });
+      }
+      setErrorAlta(null);
+      await refrescar();
+    },
     onError: (e: any) => setErrorAlta(mensajeDeErrorCuenta(e, 'No se pudo cambiar el estado de la cuenta.')),
   });
 
@@ -153,20 +176,64 @@ export default function AccountingPlanCuentasPage() {
   const cuentaEditadaActiva = Boolean(accounts.find((cuenta) => cuenta.code === editando?.code)?.isActive);
   const padreExiste = !nueva.code || nueva.code.length === 1 || accounts.some((a) => a.code === nueva.parentCode);
   const tree = useMemo(() => buildTree(accounts), [accounts]);
-  const filtered = useMemo(() => {
+
+  /**
+   * Códigos que cumplen los filtros.
+   *
+   * El árbol no se sustituye por esta lista: se usa para decidir qué ramas se
+   * muestran, de modo que la jerarquía y las acciones se conservan siempre.
+   */
+  const coincidencias = useMemo(() => {
     const term = search.trim().toLowerCase();
     const hayFiltros = Boolean(term || filtroTipo || filtroEstado !== 'TODOS');
-    if (!hayFiltros) return null;
-    return accounts.filter((account) => {
-      if (filtroTipo && !account.code.startsWith(filtroTipo)) return false;
-      if (filtroEstado === 'ACTIVA' && !account.isActive) return false;
-      if (filtroEstado === 'INACTIVA' && account.isActive) return false;
+    const codigos = new Set<string>();
+    for (const account of accounts) {
+      if (filtroTipo && !account.code.startsWith(filtroTipo)) continue;
+      if (filtroEstado === 'ACTIVA' && !account.isActive) continue;
+      if (filtroEstado === 'INACTIVA' && account.isActive) continue;
       if (term && !account.code.toLowerCase().includes(term) && !account.name.toLowerCase().includes(term)) {
-        return false;
+        continue;
       }
-      return true;
-    });
+      codigos.add(account.code);
+    }
+    return { codigos, hayFiltros };
   }, [accounts, search, filtroTipo, filtroEstado]);
+
+  /** Árbol visible: coincidencias más sus ancestros, sin perder la jerarquía. */
+  const arbolVisible = useMemo(() => {
+    if (!coincidencias.hayFiltros) return tree;
+    const porCodigo = new Map(accounts.map((cuenta) => [cuenta.code, cuenta]));
+    const incluir = new Set<string>();
+    for (const code of coincidencias.codigos) {
+      incluir.add(code);
+      let actual = porCodigo.get(code);
+      while (actual?.parentCode) {
+        incluir.add(actual.parentCode);
+        actual = porCodigo.get(actual.parentCode);
+      }
+    }
+    const podar = (nodos: TreeNode[]): TreeNode[] =>
+      nodos
+        .filter((nodo) => incluir.has(nodo.code))
+        .map((nodo) => ({ ...nodo, children: podar(nodo.children) }));
+    return podar(tree);
+  }, [tree, accounts, coincidencias]);
+
+  // Con filtros activos, las ramas con coincidencias se abren solas.
+  useEffect(() => {
+    if (!coincidencias.hayFiltros) return;
+    const porCodigo = new Map(accounts.map((cuenta) => [cuenta.code, cuenta]));
+    const abrir = new Set<string>();
+    for (const code of coincidencias.codigos) {
+      let actual = porCodigo.get(code);
+      while (actual?.parentCode) {
+        abrir.add(actual.parentCode);
+        actual = porCodigo.get(actual.parentCode);
+      }
+    }
+    if (abrir.size === 0) return;
+    setExpanded((prev) => new Set([...prev, ...abrir]));
+  }, [coincidencias, accounts]);
 
   const toggle = (code: string) => {
     setExpanded((prev) => {
@@ -177,11 +244,37 @@ export default function AccountingPlanCuentasPage() {
     });
   };
 
+  /** Subcuentas de una cuenta, para avisar cuántas se verán afectadas. */
+  const descendientesDe = (code: string): number =>
+    accounts.filter((cuenta) => cuenta.code !== code && cuenta.code.startsWith(code)).length;
+
+  /** Resalta el término buscado dentro de un texto. */
+  const terminoBusqueda = search.trim().toLowerCase();
+  const resaltar = (texto: string): React.ReactNode => {
+    if (!terminoBusqueda) return texto;
+    const posicion = texto.toLowerCase().indexOf(terminoBusqueda);
+    if (posicion < 0) return texto;
+    return (
+      <>
+        {texto.slice(0, posicion)}
+        <mark className="rounded bg-amber-200/70 px-0.5 dark:bg-amber-400/30">
+          {texto.slice(posicion, posicion + terminoBusqueda.length)}
+        </mark>
+        {texto.slice(posicion + terminoBusqueda.length)}
+      </>
+    );
+  };
+
   const renderRow = (node: TreeNode, depth: number): React.ReactNode[] => {
     const isOpen = expanded.has(node.code);
     const hasChildren = node.children.length > 0;
+    // Con filtros activos, los ancestros que no coinciden se atenúan.
+    const coincide = !coincidencias.hayFiltros || coincidencias.codigos.has(node.code);
+    // Una subcuenta no se reactiva mientras su padre siga inactivo.
+    const padre = node.parentCode ? accounts.find((cuenta) => cuenta.code === node.parentCode) : undefined;
+    const padreInactivo = !node.isActive && padre !== undefined && !padre.isActive;
     const rows: React.ReactNode[] = [
-      <TableRow key={node.code}>
+      <TableRow key={node.code} className={coincide ? undefined : 'opacity-60'}>
         <TableCell>
           <div className="flex items-center gap-1" style={{ paddingLeft: `${depth * 18}px` }}>
             {hasChildren ? (
@@ -196,10 +289,10 @@ export default function AccountingPlanCuentasPage() {
             ) : (
               <span className="w-4" />
             )}
-            <span className="font-mono font-bold">{node.code}</span>
+            <span className="font-mono font-bold">{resaltar(node.code)}</span>
           </div>
         </TableCell>
-        <TableCell className={node.level <= 2 ? 'font-semibold' : ''}>{node.name}</TableCell>
+        <TableCell className={node.level <= 2 ? 'font-semibold' : ''}>{resaltar(node.name)}</TableCell>
         <TableCell>{node.element}</TableCell>
         <TableCell align="center">
           <Badge variant={node.nature === 'Deudora' ? 'secondary' : 'outline'}>{node.nature}</Badge>
@@ -234,10 +327,28 @@ export default function AccountingPlanCuentasPage() {
               size="sm"
               aria-label={node.isActive ? `Desactivar ${node.code}` : `Activar ${node.code}`}
               aria-pressed={!node.isActive}
+              title={
+                padreInactivo
+                  ? 'Active primero la cuenta padre'
+                  : node.isActive
+                    ? 'Inactivar cuenta'
+                    : 'Reactivar cuenta'
+              }
               // Solo se bloquea el botón de la fila que se está guardando; si se
               // deshabilitaran todos, parecería que se pulsaron en todas.
-              disabled={alternar.isPending && alternar.variables?.code === node.code}
-              onClick={() => alternar.mutate({ code: node.code, isActive: !node.isActive })}
+              // Una subcuenta con el padre inactivo no se puede reactivar.
+              disabled={(alternar.isPending && alternar.variables?.code === node.code) || padreInactivo}
+              onClick={() => {
+                if (node.isActive) {
+                  const subcuentas = descendientesDe(node.code);
+                  const mensaje = subcuentas > 0
+                    ? `Esta cuenta tiene ${subcuentas} subcuenta(s) activa(s) y se inactivarán también. ¿Continuar?`
+                    : `¿Inactivar la cuenta ${node.code} · ${node.name}?`;
+                  if (!window.confirm(mensaje)) return;
+                }
+                setAviso(null);
+                alternar.mutate({ code: node.code, isActive: !node.isActive });
+              }}
             >
               <Power className={`h-4 w-4 ${node.isActive ? '' : 'text-muted-foreground'}`} />
             </Button>
@@ -262,6 +373,18 @@ export default function AccountingPlanCuentasPage() {
       </PageHeader>
 
       <TreasuryAccountsCard abierto={abrirTesoreria} onCerrar={() => setAbrirTesoreria(false)} cuentas={accounts} />
+
+      {aviso ? (
+        <Card
+          className={
+            aviso.tipo === 'ok'
+              ? 'border-emerald-600/30 bg-emerald-500/5 p-3 text-sm text-emerald-700 dark:text-emerald-400'
+              : 'border-amber-500/40 bg-amber-500/5 p-3 text-sm text-amber-700 dark:text-amber-400'
+          }
+        >
+          {aviso.texto}
+        </Card>
+      ) : null}
 
       {errorAlta ? (
         <Card className="border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{errorAlta}</Card>
@@ -307,6 +430,25 @@ export default function AccountingPlanCuentasPage() {
                 <SelectItem value="INACTIVA">Inactivas</SelectItem>
               </SelectContent>
             </Select>
+            <span className="text-xs tabular-nums text-muted-foreground">
+              Mostrando {coincidencias.hayFiltros ? coincidencias.codigos.size : accounts.length} de {accounts.length} cuentas
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setExpanded(new Set(accounts.filter((cuenta) => descendientesDe(cuenta.code) > 0).map((cuenta) => cuenta.code)))}
+            >
+              Expandir todo
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setExpanded(new Set())}
+            >
+              Colapsar todo
+            </Button>
           </div>
         </div>
       </Card>
@@ -334,40 +476,14 @@ export default function AccountingPlanCuentasPage() {
                 <TableRow>
                   <TableCell colSpan={6}>Cargando catálogo PCGE⬦</TableCell>
                 </TableRow>
-              ) : filtered ? (
-                filtered.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6}>No hay cuentas que coincidan con la búsqueda.</TableCell>
-                  </TableRow>
-                ) : (
-                  filtered.map((account) => (
-                    <TableRow key={account.code} className="transition-colors hover:bg-muted/40">
-                      <TableCell className="whitespace-nowrap font-mono text-xs font-semibold">{account.code}</TableCell>
-                      <TableCell>{account.name}</TableCell>
-                      <TableCell className="text-muted-foreground">{account.element}</TableCell>
-                      <TableCell align="center">
-                        <Badge variant={account.nature === 'Deudora' ? 'secondary' : 'outline'}>
-                          {account.nature}
-                        </Badge>
-                      </TableCell>
-                      <TableCell align="center" className="text-muted-foreground/60"></TableCell>
-                      <TableCell align="center">
-                        <Badge
-                          variant="outline"
-                          className={
-                            account.isActive
-                              ? 'border-emerald-600/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400'
-                              : 'text-muted-foreground'
-                          }
-                        >
-                          {account.isActive ? 'Activa' : 'Inactiva'}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )
+              ) : arbolVisible.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7}>No hay cuentas que coincidan con la búsqueda.</TableCell>
+                </TableRow>
               ) : (
-                tree.flatMap((node) => renderRow(node, 0))
+                // Una sola vista de árbol, con o sin filtros: así nunca se
+                // pierden las flechas, el conteo ni las acciones.
+                arbolVisible.flatMap((node) => renderRow(node, 0))
               )}
             </TableBody>
           </Table>

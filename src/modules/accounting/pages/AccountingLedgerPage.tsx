@@ -1,11 +1,14 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { BookOpen, SquareArrowOutUpRight } from 'lucide-react';
+import { BookOpen, Download, Printer, SquareArrowOutUpRight } from 'lucide-react';
 import {
   Badge,
+  Button,
   Card,
+  Input,
   Page,
   PageHeader,
+  Switch,
   Table,
   TableBody,
   TableCell,
@@ -18,6 +21,7 @@ import { EntryDetailDialog, type EntryDetail } from '../components/EntryDetailDi
 import { accountingApi } from '../services/accountingApi';
 import { AccountCombobox } from '../components/AccountCombobox';
 import { formatearNumeroAsiento } from '../lib/numeroAsiento';
+import { descargarCsv, descargarPdf, monto } from '../lib/exportReport';
 import { etiquetaOrigen } from '../lib/origenLabels';
 import type { LedgerMovement } from '../types/accounting.types';
 
@@ -45,6 +49,8 @@ const referenciaVisible = (referencia?: string | null): boolean => {
 export default function AccountingLedgerPage() {
   const [period] = useState(periodoActual);
   const [accountCode, setAccountCode] = useState('');
+  /** Por defecto una cuenta de mayor muestra el consolidado de sus subcuentas. */
+  const [soloDirectos, setSoloDirectos] = useState(false);
   // Rango visible del mayor. El período sigue siendo el que se pide al backend;
   // estas fechas solo recortan lo que ya llegó.
   const [desde, setDesde] = useState(() => `${periodoActual()}-01`);
@@ -54,15 +60,40 @@ export default function AccountingLedgerPage() {
     return `${fin.getFullYear()}-${String(fin.getMonth() + 1).padStart(2, '0')}-${String(fin.getDate()).padStart(2, '0')}`;
   });
 
+  /** Rango de cuentas opcional: consolida todo lo que cae entre dos códigos. */
+  const [cuentaDesde, setCuentaDesde] = useState('');
+  const [cuentaHasta, setCuentaHasta] = useState('');
+  const [soloConMovimientos, setSoloConMovimientos] = useState(false);
+
   const { data: accounts = [] } = useQuery({
-    queryKey: ['accounting-accounts'],
-    queryFn: () => accountingApi.getAccounts(),
+    // El mayor debe poder consultar cualquier cuenta, incluso una ya inactiva:
+    // sus movimientos históricos siguen existiendo.
+    queryKey: ['accounting-accounts', 'todas-mayor'],
+    queryFn: () => accountingApi.getAccounts({ includeInactive: true }),
   });
 
+  const { data: conMovimientos = [] } = useQuery({
+    queryKey: ['accounting-accounts', 'con-movimientos', period],
+    queryFn: () => accountingApi.getAccountsWithMovements(period),
+    enabled: soloConMovimientos,
+  });
+
+  const cuentasOfrecidas = useMemo(() => {
+    if (!soloConMovimientos) return accounts;
+    const codigos = new Set(conMovimientos);
+    return accounts.filter((cuenta) => codigos.has(cuenta.code));
+  }, [accounts, conMovimientos, soloConMovimientos]);
+
+  const hayRango = Boolean(cuentaDesde.trim() && cuentaHasta.trim());
+
   const { data, isLoading, error } = useQuery({
-    queryKey: ['accounting-ledger', period, accountCode],
-    queryFn: () => accountingApi.getLedger(period, accountCode),
-    enabled: Boolean(accountCode),
+    queryKey: ['accounting-ledger', period, accountCode, soloDirectos, cuentaDesde, cuentaHasta],
+    queryFn: () =>
+      accountingApi.getLedger(period, hayRango ? '' : accountCode, {
+        soloDirectos,
+        ...(hayRango ? { desde: cuentaDesde, hasta: cuentaHasta } : {}),
+      }),
+    enabled: hayRango || Boolean(accountCode),
   });
 
   const movements = useMemo(() => {
@@ -123,7 +154,49 @@ export default function AccountingLedgerPage() {
       <PageHeader
         title="Libro Mayor"
         description="Movimientos de la cuenta seleccionada, del más antiguo al más reciente"
-      />
+      >
+        <div className="flex gap-2 print:hidden">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const filas: (string | number)[][] = [
+                  ['Fecha', 'Asiento', 'Descripción', 'Módulo', 'Referencia', 'Debe', 'Haber', 'Saldo'],
+                ];
+                if (data) filas.push(['', '', `Saldo inicial`, '', '', '', '', monto(data.openingBalance)]);
+                for (const movimiento of movements) {
+                  filas.push([
+                    movimiento.entryDate,
+                    formatearNumeroAsiento(movimiento.entryNumber, period),
+                    movimiento.glosa,
+                    etiquetaOrigen(movimiento.sourceModule),
+                    movimiento.sourceReferenceId ?? '',
+                    movimiento.debit.toFixed(2),
+                    movimiento.credit.toFixed(2),
+                    movimiento.saldo.toFixed(2),
+                  ]);
+                }
+                filas.push([
+                  '',
+                  '',
+                  'Totales',
+                  '',
+                  '',
+                  (data?.totalDebit ?? 0).toFixed(2),
+                  (data?.totalCredit ?? 0).toFixed(2),
+                  (data?.closingBalance ?? 0).toFixed(2),
+                ]);
+                descargarCsv(`libro-mayor-${data?.accountCode ?? accountCode}-${period}`, filas);
+              }}
+              disabled={movements.length === 0}
+            >
+              <Download className="mr-1 h-4 w-4" /> Excel
+            </Button>
+            <Button variant="outline" size="sm" onClick={descargarPdf} disabled={movements.length === 0}>
+              <Printer className="mr-1 h-4 w-4" /> PDF
+            </Button>
+        </div>
+      </PageHeader>
 
       <Toolbar
         status={
@@ -139,12 +212,50 @@ export default function AccountingLedgerPage() {
         <div className="min-w-72">
           <AccountCombobox
             idPrefijo="mayor"
-            accounts={accounts}
+            accounts={cuentasOfrecidas}
             value={accountCode}
             onChange={setAccountCode}
             placeholder="Buscar cuenta por código o nombre"
           />
         </div>
+        <div className="flex items-end gap-2">
+          <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
+            Desde cuenta
+            <Input
+              value={cuentaDesde}
+              onChange={(evento) => setCuentaDesde(evento.target.value)}
+              placeholder="10"
+              className="h-9 w-24 font-mono"
+              aria-label="Código de cuenta inicial"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
+            Hasta cuenta
+            <Input
+              value={cuentaHasta}
+              onChange={(evento) => setCuentaHasta(evento.target.value)}
+              placeholder="19"
+              className="h-9 w-24 font-mono"
+              aria-label="Código de cuenta final"
+            />
+          </label>
+        </div>
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Switch
+            checked={soloDirectos}
+            onCheckedChange={setSoloDirectos}
+            aria-label="Ver solo los movimientos propios de la cuenta"
+          />
+          Solo movimientos directos
+        </label>
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Switch
+            checked={soloConMovimientos}
+            onCheckedChange={setSoloConMovimientos}
+            aria-label="Ofrecer solo cuentas con movimientos en el período"
+          />
+          Solo cuentas con movimientos
+        </label>
       </Toolbar>
 
       {error ? (
@@ -167,9 +278,9 @@ export default function AccountingLedgerPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {!accountCode ? (
+            {!accountCode && !hayRango ? (
               <TableRow>
-                <TableCell colSpan={7}>Selecciona una cuenta para ver sus movimientos.</TableCell>
+                <TableCell colSpan={7}>Selecciona una cuenta o un rango de cuentas para ver sus movimientos.</TableCell>
               </TableRow>
             ) : isLoading ? (
               <TableRow>
@@ -177,7 +288,11 @@ export default function AccountingLedgerPage() {
               </TableRow>
             ) : movements.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7}>No hay movimientos para esa cuenta en el período.</TableCell>
+                <TableCell colSpan={7}>
+                  {hayRango
+                    ? `Las cuentas del ${cuentaDesde} al ${cuentaHasta} no tienen movimientos entre ${desde} y ${hasta}.`
+                    : `La cuenta ${data?.accountCode ?? accountCode} no tiene movimientos entre ${desde} y ${hasta}.`}
+                </TableCell>
               </TableRow>
             ) : (
               movements.map((movement) => (

@@ -2,6 +2,7 @@ import { apiClient } from '@/lib/axios';
 import { cachedGet } from '@/lib/offlineCache';
 import {
   type AccountingAccount,
+  type UpdateAccountResponse,
   type AccountingEntry,
   type AccountingPeriod,
   type CreateAccountingEntryInput,
@@ -164,8 +165,8 @@ export const accountingApi = {
   updateAccount: async (
     code: string,
     cambios: { name?: string; element?: string; isActive?: boolean },
-  ): Promise<AccountingAccount> => {
-    const response = await apiClient.patch<AccountingAccount>(
+  ): Promise<UpdateAccountResponse> => {
+    const response = await apiClient.patch<UpdateAccountResponse>(
       `/accounting/accounts/${encodeURIComponent(code)}`,
       cambios,
     );
@@ -227,13 +228,34 @@ export const accountingApi = {
     return response.data;
   },
 
-  getLedger: async (period: string, accountCode: string): Promise<LedgerResponse> => {
-    return cachedGet(`accounting-ledger:${period}:${accountCode}`, async () => {
+  getLedger: async (
+    period: string,
+    accountCode: string,
+    opciones: { soloDirectos?: boolean; desde?: string; hasta?: string } = {},
+  ): Promise<LedgerResponse> => {
+    const soloDirectos = opciones.soloDirectos === true;
+    const desde = opciones.desde?.trim() ?? '';
+    const hasta = opciones.hasta?.trim() ?? '';
+    const clave = `accounting-ledger:${period}:${accountCode}:${soloDirectos}:${desde}:${hasta}`;
+    return cachedGet(clave, async () => {
       const response = await apiClient.get<LedgerResponse>('/accounting/ledger', {
-        params: { period, accountCode },
+        params: {
+          period,
+          accountCode,
+          ...(soloDirectos ? { soloDirectos: 'true' } : {}),
+          ...(desde && hasta ? { desde, hasta } : {}),
+        },
       });
       return response.data;
     });
+  },
+
+  /** Códigos de cuenta con movimientos en el período. */
+  getAccountsWithMovements: async (period: string): Promise<string[]> => {
+    const response = await apiClient.get<string[]>('/accounting/accounts/with-movements', {
+      params: { period },
+    });
+    return response.data;
   },
 
   getIgvReconciliation: async (period: string) => {
