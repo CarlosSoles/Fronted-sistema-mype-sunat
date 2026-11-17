@@ -22,15 +22,6 @@ const periodoActual = () => {
   return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
 };
 
-/** "2026-11" -> "NOVIEMBRE 2026". */
-const nombreMes = (periodo: string): string => {
-  const [anio, mes] = periodo.split('-').map(Number);
-  if (!anio || !mes) return periodo;
-  return new Date(anio, mes - 1, 1)
-    .toLocaleDateString('es-PE', { month: 'long', year: 'numeric' })
-    .toUpperCase();
-};
-
 export default function AccountingIncomeStatementPage() {
   const [period, setPeriod] = useState(periodoActual);
 
@@ -105,8 +96,8 @@ export default function AccountingIncomeStatementPage() {
 
       <Card className="mb-4 print:hidden">
         <div className="flex flex-wrap items-center gap-3 p-3">
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Período</label>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-muted-foreground">Período</label>
             <PeriodInput value={period} onChange={setPeriod} />
           </div>
           <div className="ml-auto flex gap-2">
@@ -126,14 +117,6 @@ export default function AccountingIncomeStatementPage() {
           No se pudo cargar el estado de resultados. Verifica el período.
         </Card>
       ) : null}
-
-      <div className="mb-3 text-center">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Estados financieros</p>
-        <h2 className="text-lg font-semibold">Estado de Resultados</h2>
-        <p className="text-xs text-muted-foreground">
-          Período {nombreMes(period)} · Expresado en soles (PEN)
-        </p>
-      </div>
 
       <Card flush>
         <Table>
