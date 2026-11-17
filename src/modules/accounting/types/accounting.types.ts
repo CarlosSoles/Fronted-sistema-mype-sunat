@@ -47,6 +47,17 @@ export interface AccountingPeriod {
   closedAt?: string | null;
 }
 
+/** Vista previa del asiento de cierre anual. */
+export interface ClosingPreview {
+  year: number;
+  totalIngresos: number;
+  totalGastos: number;
+  resultado: number;
+  tipo: 'UTILIDAD' | 'PÉRDIDA' | 'SIN RESULTADO';
+  lineas: Array<{ accountCode: string; accountName: string; debitAmount: number; creditAmount: number }>;
+  tieneAsientoCierre: boolean;
+}
+
 export interface AccountingLineInput {
   lineOrder: number;
   accountCode: string;

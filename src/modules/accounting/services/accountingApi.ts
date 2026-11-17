@@ -3,6 +3,7 @@ import { cachedGet } from '@/lib/offlineCache';
 import {
   type AccountingAccount,
   type UpdateAccountResponse,
+  type ClosingPreview,
   type AccountingEntry,
   type AccountingPeriod,
   type CreateAccountingEntryInput,
@@ -216,6 +217,12 @@ export const accountingApi = {
   closeAnnual: async (year: number): Promise<{ closingEntryCreated: boolean; periods: AccountingPeriod[] }> => {
     const { data } = await apiClient.post(`/accounting/periods/year/${year}/close-annual`);
     return data;
+  },
+
+  /** Vista previa del cierre: ingresos, gastos y resultado del ejercicio. */
+  getClosingPreview: async (year: number): Promise<ClosingPreview> => {
+    const response = await apiClient.get<ClosingPreview>(`/accounting/closing-preview/${year}`);
+    return response.data;
   },
 
   closeFiscalYear: async (year: number): Promise<AccountingPeriod[]> => {

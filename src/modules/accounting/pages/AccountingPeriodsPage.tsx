@@ -1,7 +1,8 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarDays, FileText, Lock, Plus, Unlock } from 'lucide-react';
+import { CalendarDays, FileText, ListChecks, Lock, Plus, Unlock } from 'lucide-react';
+import { AnnualCloseWizard } from '../components/AnnualCloseWizard';
 import {
   Badge,
   Button,
@@ -54,6 +55,8 @@ export default function AccountingPeriodsPage() {
   /** Reapertura: período elegido y motivo obligatorio. */
   const [reabriendo, setReabriendo] = useState<string | null>(null);
   const [motivo, setMotivo] = useState('');
+  /** Año abierto en el asistente de cierre guiado. */
+  const [wizardAnio, setWizardAnio] = useState<number | null>(null);
 
   // Los avisos se borran solos: antes el verde y el rojo se quedaban pegados.
   useEffect(() => {
@@ -221,6 +224,12 @@ export default function AccountingPeriodsPage() {
 
   const accionesDelAnio = (year: number) => (
     <>
+      {/* El cierre guiado es la acción recomendada: lleva de la mano por los
+          cuatro pasos en lugar de dejar botones sueltos que se pueden pulsar
+          en cualquier orden. */}
+      <Button variant="default" size="sm" onClick={() => setWizardAnio(year)}>
+        <ListChecks className="mr-1 h-3.5 w-3.5" /> Cierre guiado
+      </Button>
       <Button variant="ghost" size="sm" onClick={() => openYear.mutate(year)} disabled={openYear.isPending}>
         <Unlock className="mr-1 h-3.5 w-3.5" /> Abrir año
       </Button>
@@ -456,6 +465,19 @@ export default function AccountingPeriodsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {wizardAnio !== null ? (
+        <AnnualCloseWizard
+          year={wizardAnio}
+          periods={periods}
+          abierto
+          onCerrar={() => setWizardAnio(null)}
+          onAviso={(texto, tipo) => {
+            if (tipo === 'error') { setOk(null); setError(texto); }
+            else { setError(null); setOk(texto); }
+          }}
+        />
+      ) : null}
     </Page>
   );
 }
