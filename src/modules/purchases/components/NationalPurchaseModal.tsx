@@ -30,6 +30,9 @@ interface PurchaseItemRow {
   description: string;
   quantity: number;
   unitCost: number;
+  hasDetraction?: boolean;
+  detractionCode?: string;
+  detractionRate?: number;
 }
 
 interface NationalPurchaseModalProps {
@@ -60,7 +63,15 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
   ]);
 
   const [availableProducts, setAvailableProducts] = useState<
-    Array<{ sku: string; name: string; isService?: boolean; currentCost?: number }>
+    Array<{
+      sku: string;
+      name: string;
+      isService?: boolean;
+      currentCost?: number;
+      hasDetraction?: boolean;
+      detractionCode?: string;
+      detractionRate?: number;
+    }>
   >([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -81,6 +92,9 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
               name: p.description || p.sku,
               isService: p.isService,
               currentCost: p.costPrice ?? bal?.averageUnitCost,
+              hasDetraction: p.hasDetraction,
+              detractionCode: p.detractionCode,
+              detractionRate: p.detractionRate,
             };
           });
           setAvailableProducts(list);
@@ -90,6 +104,9 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
             name: b.description || b.sku,
             isService: false,
             currentCost: b.averageUnitCost,
+            hasDetraction: (b as any).hasDetraction,
+            detractionCode: (b as any).detractionCode,
+            detractionRate: (b as any).detractionRate,
           }));
           setAvailableProducts(list);
         }
@@ -105,6 +122,11 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
   const igvAmount = Math.round(netAmount * 0.18 * 100) / 100;
   const totalAmount = Math.round((netAmount + igvAmount) * 100) / 100;
 
+  const itemConDetraccion = items.find((it) => it.hasDetraction && it.detractionCode);
+  const aplicaDetraccion = Boolean(itemConDetraccion && totalAmount > 700);
+  const tasaDetraccion = itemConDetraccion?.detractionRate || 12;
+  const montoDetraccion = aplicaDetraccion ? Math.round(totalAmount * (tasaDetraccion / 100) * 100) / 100 : 0;
+
   const handleAddItem = () => {
     setItems((prev) => [...prev, { sku: '', description: '', quantity: 1, unitCost: 0 }]);
   };
@@ -119,13 +141,21 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
 
-      // Si cambia el SKU y coincide con un producto conocido, autocompletar descripción
+      // Si cambia el SKU y coincide con un producto conocido, autocompletar descripción y detracción
       if (field === 'sku') {
         const matched = availableProducts.find(
           (p) => p.sku.toLowerCase() === String(value).trim().toLowerCase(),
         );
-        if (matched && !updated[index].description) {
-          updated[index].description = matched.name;
+        if (matched) {
+          if (!updated[index].description) {
+            updated[index].description = matched.name;
+          }
+          if (matched.currentCost && !updated[index].unitCost) {
+            updated[index].unitCost = matched.currentCost;
+          }
+          updated[index].hasDetraction = matched.hasDetraction;
+          updated[index].detractionCode = matched.detractionCode;
+          updated[index].detractionRate = matched.detractionRate;
         }
       }
 
@@ -402,12 +432,22 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
                           />
                         </td>
                         <td className="py-1.5 pr-2">
-                          <Input
-                            placeholder="Descripción del producto..."
-                            value={item.description}
-                            onChange={(e) => handleItemChange(idx, 'description', e.target.value)}
-                            className="h-7 text-xs"
-                          />
+                          <div className="flex items-center gap-1.5">
+                            <Input
+                              placeholder="Descripción del producto..."
+                              value={item.description}
+                              onChange={(e) => handleItemChange(idx, 'description', e.target.value)}
+                              className="h-7 text-xs flex-1"
+                            />
+                            {item.hasDetraction && item.detractionCode && (
+                              <span
+                                className="text-[10px] font-mono font-semibold bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 px-1 py-0.5 rounded whitespace-nowrap"
+                                title={`Sujeto a SPOT: ${item.detractionCode} (${item.detractionRate || 0}%)`}
+                              >
+                                SPOT {item.detractionCode} ({item.detractionRate || 0}%)
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="py-1.5 pr-2">
                           <Input
@@ -472,6 +512,18 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
                   <span>Total Factura (CxP):</span>
                   <span className="text-emerald-600">{money(totalAmount)}</span>
                 </div>
+                {aplicaDetraccion && (
+                  <div className="flex justify-between text-blue-600 font-semibold border-t pt-1">
+                    <span>Retención SPOT ({tasaDetraccion}%):</span>
+                    <span>-{money(montoDetraccion)}</span>
+                  </div>
+                )}
+                {aplicaDetraccion && (
+                  <div className="flex justify-between text-muted-foreground text-[11px]">
+                    <span>Neto a Pagar Proveedor:</span>
+                    <span>{money(totalAmount - montoDetraccion)}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>

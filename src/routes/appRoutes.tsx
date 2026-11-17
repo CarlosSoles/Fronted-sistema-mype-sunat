@@ -48,7 +48,6 @@ const PurchasesPage = React.lazy(() => import('@/modules/purchases/pages/Purchas
 const PurchaseOrdersPage = React.lazy(() => import('@/modules/purchases/pages/PurchaseOrdersPage'));
 const PurchasesDashboardPage = React.lazy(() => import('@/modules/purchases/pages/PurchasesDashboardPage'));
 const PurchasesPayablesPage = React.lazy(() => import('@/modules/inventory/pages/PurchasesPayablesPage'));
-const InventoryTransfersPage = React.lazy(() => import('@/modules/inventory/pages/InventoryTransfersPage'));
 const InventoryAdjustmentsPage = React.lazy(() => import('@/modules/inventory/pages/InventoryAdjustmentsPage'));
 const InventoryConfigPage = React.lazy(() => import('@/modules/inventory/pages/InventoryConfigPage'));
 const UserWarehousesPage = React.lazy(() => import('@/modules/auth/pages/UserWarehousesPage'));
@@ -459,11 +458,7 @@ export const AppRoutes = () => {
             />
             <Route
               path="/inventory/transfers"
-              element={
-                <RoleProtectedRoute allowedRoles={['ADMIN']}>
-                  <InventoryTransfersPage />
-                </RoleProtectedRoute>
-              }
+              element={<Navigate to="/inventory/movements?tab=transfers" replace />}
             />
             <Route
               path="/inventory/adjustments"

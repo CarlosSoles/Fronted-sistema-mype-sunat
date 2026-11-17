@@ -131,44 +131,46 @@ export const DamFormatAView: React.FC<DamFormatAViewProps> = ({ declaration }) =
           </span>
         </div>
 
-        <div className="border rounded-md overflow-x-auto">
+        <div className="border rounded-lg overflow-x-auto shadow-sm">
           <table className="w-full text-left">
-            <thead className="bg-muted text-[11px] font-semibold border-b">
+            <thead className="bg-muted/70 text-[11px] font-semibold border-b text-muted-foreground uppercase tracking-wider">
               <tr>
-                <th className="p-2">Serie</th>
-                <th className="p-2">Subpartida (SPN)</th>
-                <th className="p-2">Descripción Comercial Detallada</th>
-                <th className="p-2 text-right">Cant. Física</th>
-                <th className="p-2 text-right">P. Neto (kg)</th>
-                <th className="p-2 text-right">P. Bruto (kg)</th>
-                <th className="p-2 text-right">FOB Unit.</th>
-                <th className="p-2 text-right">FOB Total (USD)</th>
-                <th className="p-2">Destino Fiscal</th>
+                <th className="p-2.5">Serie</th>
+                <th className="p-2.5">Subpartida (SPN)</th>
+                <th className="p-2.5">Descripción Comercial Detallada</th>
+                <th className="p-2.5 text-right">Cant. Física</th>
+                <th className="p-2.5 text-right">P. Neto (kg)</th>
+                <th className="p-2.5 text-right">P. Bruto (kg)</th>
+                <th className="p-2.5 text-right">FOB Unit.</th>
+                <th className="p-2.5 text-right">FOB Total (USD)</th>
+                <th className="p-2.5 text-center">Destino Fiscal</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border text-[11px]">
               {series.map((s, idx) => {
-                const qty = s.physical_quantity || 100;
-                const totalFob = s.fob_usd || 50000;
-                const unitFob = qty > 0 ? totalFob / qty : 500;
+                const qty = s.physical_quantity ?? 1;
+                const totalFob = Number(s.fob_usd) || Number(declaration.fob_total_usd) || 0;
+                const unitFob = qty > 0 ? totalFob / qty : 0;
+                const netWeight = Number(s.net_weight_kg) || 0;
+                const grossWeight = Number(s.gross_weight_kg) || 0;
                 return (
-                  <tr key={idx} className="hover:bg-muted/30">
-                    <td className="p-2 font-mono font-bold">N° {s.series_order || idx + 1}</td>
-                    <td className="p-2 font-mono text-primary font-bold">{s.hs_code || '8471.30.00.00'}</td>
-                    <td className="p-2 max-w-[280px]">
-                      <span className="font-medium block">{s.commercial_description}</span>
+                  <tr key={idx} className="hover:bg-muted/30 transition-colors">
+                    <td className="p-2.5 font-mono font-bold">N° {s.series_order || idx + 1}</td>
+                    <td className="p-2.5 font-mono text-primary font-bold">{s.hs_code || '8471.30.00.00'}</td>
+                    <td className="p-2.5">
+                      <span className="font-medium block text-foreground">{s.commercial_description}</span>
                       <span className="text-[10px] text-muted-foreground">Origen: CN (China) · Estado: NUEVO</span>
                     </td>
-                    <td className="p-2 text-right font-mono font-semibold">
+                    <td className="p-2.5 text-right font-mono font-semibold">
                       {qty} {s.physical_unit || 'NIU'}
                     </td>
-                    <td className="p-2 text-right font-mono">{s.net_weight_kg || 250}</td>
-                    <td className="p-2 text-right font-mono">{s.gross_weight_kg || 280}</td>
-                    <td className="p-2 text-right font-mono">{formatCurrency(unitFob, 'USD')}</td>
-                    <td className="p-2 text-right font-mono font-bold text-foreground">
+                    <td className="p-2.5 text-right font-mono">{netWeight}</td>
+                    <td className="p-2.5 text-right font-mono">{grossWeight}</td>
+                    <td className="p-2.5 text-right font-mono">{formatCurrency(unitFob, 'USD')}</td>
+                    <td className="p-2.5 text-right font-mono font-bold text-foreground">
                       {formatCurrency(totalFob, 'USD')}
                     </td>
-                    <td className="p-2">
+                    <td className="p-2.5 text-center">
                       <Badge
                         variant={s.destination_type === 'ACTIVO_FIJO' ? 'secondary' : 'default'}
                         className="text-[9px] py-0"
@@ -180,6 +182,30 @@ export const DamFormatAView: React.FC<DamFormatAViewProps> = ({ declaration }) =
                 );
               })}
             </tbody>
+            <tfoot className="bg-muted/40 font-semibold border-t text-[11px]">
+              <tr>
+                <td colSpan={3} className="p-2.5 text-right uppercase tracking-wider text-muted-foreground">
+                  Totales Declarados ({series.length} {series.length === 1 ? 'serie' : 'series'}):
+                </td>
+                <td className="p-2.5 text-right font-mono">
+                  {series.reduce((acc, s) => acc + (s.physical_quantity ?? 1), 0)}
+                </td>
+                <td className="p-2.5 text-right font-mono">
+                  {series.reduce((acc, s) => acc + (Number(s.net_weight_kg) || 0), 0)} kg
+                </td>
+                <td className="p-2.5 text-right font-mono">
+                  {series.reduce((acc, s) => acc + (Number(s.gross_weight_kg) || 0), 0)} kg
+                </td>
+                <td className="p-2.5 text-right font-mono text-muted-foreground">-</td>
+                <td className="p-2.5 text-right font-mono font-bold text-primary">
+                  {formatCurrency(
+                    series.reduce((acc, s) => acc + (Number(s.fob_usd) || 0), 0) || Number(declaration.fob_total_usd) || 0,
+                    'USD',
+                  )}
+                </td>
+                <td></td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </div>

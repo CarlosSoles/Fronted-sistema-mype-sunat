@@ -96,6 +96,12 @@ export interface KardexResponse {
 export interface CreateOpeningPayload {
   openingDate?: string;
   warehouseCode?: string;
+  period?: string;
+  documentTypeCode?: string;
+  documentSerial?: string;
+  documentNumber?: string;
+  openingReason?: string;
+  generateAccountingEntry?: boolean;
   notes?: string;
   items: Array<{ sku: string; quantity: number; unitCost: number }>;
 }

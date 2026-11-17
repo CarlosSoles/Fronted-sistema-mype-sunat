@@ -41,11 +41,10 @@ import {
 } from '../services/masterDataApi';
 import {
   inventoryLedgerApi,
-  type AccountingMappingRecord,
 } from '@/modules/inventory/services/inventoryLedgerApi';
 
 type TabKey = 'currencies' | 'rates' | 'incoterms' | 'countries' | 'ports' | 'documents' | 'services' | 'mappings';
-type DialogKey = 'currency' | 'rate' | 'incoterm' | 'document' | 'mapping' | 'country' | 'port' | 'service' | null;
+type DialogKey = 'currency' | 'rate' | 'incoterm' | 'document' | 'country' | 'port' | 'service' | null;
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -125,7 +124,6 @@ export default function MasterDataPage() {
     isRequired: false,
     isActive: true,
   });
-  const [mappingForm, setMappingForm] = useState<AccountingMappingRecord | null>(null);
   const [serviceForm, setServiceForm] = useState({
     sku: '',
     description: '',
@@ -331,18 +329,6 @@ export default function MasterDataPage() {
     mutationFn: (code: string) => masterDataApi.deleteDocumentType(code),
     onSuccess: () => invalidate('documents'),
     onError: (e) => alert(apiError(e)),
-  });
-
-  // Guardar Mapeo contable
-  const mappingMutation = useMutation({
-    mutationFn: (mapping: { process_code: string; role_code: string; account_code: string }) =>
-      inventoryLedgerApi.updateAccountingMapping(mapping),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['accounting', 'mappings'] });
-      setDialog(null);
-      setError(null);
-    },
-    onError: (e) => setError(apiError(e)),
   });
 
   // Guardar / Actualizar Servicio Aduanero
@@ -1063,58 +1049,72 @@ export default function MasterDataPage() {
 
         {/* Mappings Contables PCGE */}
         {tab === 'mappings' && (
-          <table className="w-full text-left text-xs">
-            <thead className="bg-muted/50 text-muted-foreground uppercase">
-              <tr>
-                <th className="p-3">Proceso Operativo</th>
-                <th className="p-3">Rol Contable</th>
-                <th className="p-3">Cuenta PCGE 2019</th>
-                <th className="p-3">Descripción de Afectación</th>
-                <th className="p-3 text-center">Tipo</th>
-                <th className="p-3 text-right">Acción</th>
-              </tr>
-            </thead>
-            <tbody>
-              {mappings.isLoading ? (
-                <tr>
-                  <td colSpan={6} className="p-6 text-center text-muted-foreground">
-                    Cargando mapa de cuentas contables...
-                  </td>
-                </tr>
-              ) : (mappings.data ?? []).map((m) => (
-                <tr key={`${m.process_code}:${m.role_code}`} className="border-t hover:bg-muted/20">
-                  <td className="p-3 font-semibold text-primary">
-                    <Badge variant="outline" className="font-mono text-[10px]">
-                      {m.process_code}
-                    </Badge>
-                  </td>
-                  <td className="p-3 font-mono font-medium">{m.role_code}</td>
-                  <td className="p-3 font-mono font-bold text-base text-foreground">
-                    {m.account_code}
-                  </td>
-                  <td className="p-3 text-muted-foreground">{m.description}</td>
-                  <td className="p-3 text-center">
-                    <Badge variant={m.is_custom ? 'default' : 'secondary'}>
-                      {m.is_custom ? 'Personalizada' : 'Estándar PCGE'}
-                    </Badge>
-                  </td>
-                  <td className="p-3 text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setMappingForm(m);
-                        setDialog('mapping');
-                      }}
-                      className="h-7 w-7 p-0"
-                    >
-                      <Edit2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-3 bg-muted/30 border-b text-xs">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <BookOpen className="h-4 w-4 text-primary" />
+                <span>
+                  <strong>Vista de Solo Lectura:</strong> Las cuentas contables se encuentran centralizadas y sincronizadas directamente con el catálogo del <strong>Plan Contable General Empresarial (PCGE 2019)</strong> del módulo de Contabilidad.
+                </span>
+              </div>
+              <Badge variant="outline" className="text-[11px] font-medium bg-background text-primary border-primary/30">
+                Sincronizado con Contabilidad
+              </Badge>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-muted/70 text-muted-foreground uppercase text-[11px] font-semibold border-b">
+                  <tr>
+                    <th className="p-3 w-40">Proceso Operativo</th>
+                    <th className="p-3 w-48">Rol Contable</th>
+                    <th className="p-3 w-36">Cuenta PCGE 2019</th>
+                    <th className="p-3">Descripción de Afectación</th>
+                    <th className="p-3 text-center w-36">Tipo</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {mappings.isLoading ? (
+                    <tr>
+                      <td colSpan={5} className="p-6 text-center text-muted-foreground">
+                        Cargando mapa de cuentas contables...
+                      </td>
+                    </tr>
+                  ) : (mappings.data ?? []).map((m) => (
+                    <tr key={`${m.process_code}:${m.role_code}`} className="hover:bg-muted/20 transition-colors">
+                        <td className="p-3 font-semibold">
+                          <Badge
+                            variant="outline"
+                            className={`font-mono text-[10px] font-bold ${
+                              m.process_code === 'IMPORTACION'
+                                ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30'
+                                : m.process_code === 'COMPRA'
+                                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                                : m.process_code === 'VENTA'
+                                ? 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/30'
+                                : m.process_code === 'TRANSFERENCIA'
+                                ? 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30'
+                                : 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30'
+                            }`}
+                          >
+                            {m.process_code}
+                          </Badge>
+                        </td>
+                        <td className="p-3 font-mono font-medium text-foreground">{m.role_code}</td>
+                        <td className="p-3 font-mono font-bold text-sm text-primary">
+                          {m.account_code}
+                        </td>
+                        <td className="p-3 text-muted-foreground font-normal">{m.description}</td>
+                        <td className="p-3 text-center">
+                          <Badge variant={m.is_custom ? 'default' : 'secondary'} className="text-[10px]">
+                            {m.is_custom ? 'Personalizada' : 'Estándar PCGE'}
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         )}
       </Card>
 
@@ -1474,63 +1474,6 @@ export default function MasterDataPage() {
             <Button variant="outline" onClick={() => setDialog(null)}>Cancelar</Button>
             <Button onClick={() => documentMutation.mutate()} disabled={documentMutation.isPending || !documentForm.code || !documentForm.name} className="gap-1.5">
               <Save className="h-3.5 w-3.5" /> Guardar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Mapeo Contable */}
-      <Dialog open={dialog === 'mapping'} onOpenChange={(open) => !open && setDialog(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Configurar Cuenta Contable PCGE 2019</DialogTitle>
-          </DialogHeader>
-          {mappingForm && (
-            <div className="grid gap-3 text-xs">
-              <div>
-                <p className="font-semibold text-muted-foreground uppercase text-[10px]">Proceso Operativo</p>
-                <p className="font-bold text-sm text-primary">{mappingForm.process_code}</p>
-              </div>
-              <div>
-                <p className="font-semibold text-muted-foreground uppercase text-[10px]">Rol en el Asiento</p>
-                <p className="font-mono font-medium">{mappingForm.role_code}</p>
-              </div>
-              <div>
-                <p className="font-semibold text-muted-foreground uppercase text-[10px]">Descripción</p>
-                <p className="text-muted-foreground">{mappingForm.description}</p>
-              </div>
-              <div>
-                <label className="font-semibold uppercase text-[10px] block mb-1">
-                  Código de Cuenta PCGE 2019 *
-                </label>
-                <Input
-                  placeholder="ej. 12121, 40111, 20111"
-                  value={mappingForm.account_code}
-                  onChange={(e) => setMappingForm({ ...mappingForm, account_code: e.target.value.trim() })}
-                  className="font-mono font-bold"
-                />
-                <p className="text-[11px] text-muted-foreground mt-1">
-                  Debe ser una cuenta válida del catálogo PCGE 2019 oficial de SUNAT.
-                </p>
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialog(null)}>Cancelar</Button>
-            <Button
-              onClick={() => {
-                if (mappingForm) {
-                  mappingMutation.mutate({
-                    process_code: mappingForm.process_code,
-                    role_code: mappingForm.role_code,
-                    account_code: mappingForm.account_code,
-                  });
-                }
-              }}
-              disabled={mappingMutation.isPending || !mappingForm?.account_code}
-              className="gap-1.5"
-            >
-              <Save className="h-3.5 w-3.5" /> Guardar Asignación
             </Button>
           </DialogFooter>
         </DialogContent>
