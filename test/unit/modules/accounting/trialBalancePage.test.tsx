@@ -1,0 +1,61 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
+import AccountingTrialBalancePage from '@/modules/accounting/pages/AccountingTrialBalancePage';
+import { accountingApi } from '@/modules/accounting/services/accountingApi';
+
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
+
+const montar = () => {
+  const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={cliente}>
+      <MemoryRouter>
+        <AccountingTrialBalancePage />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+};
+
+describe('Balance de Comprobación', () => {
+  it('muestra saldo inicial, debe, haber y saldo final con sus totales', async () => {
+    vi.spyOn(accountingApi, 'getTrialBalance').mockResolvedValue({
+      period: '2026-11',
+      rows: [
+        { accountCode: '101', accountName: 'Caja', openingBalance: 100, debit: 50, credit: 20, balance: 130 },
+        { accountCode: '701', accountName: 'Ventas', openingBalance: 0, debit: 0, credit: 130, balance: -130 },
+      ],
+      totalDebit: 50,
+      totalCredit: 150,
+      totalOpening: 100,
+      totalBalance: 0,
+    });
+
+    montar();
+
+    expect(await screen.findByText('Caja')).toBeTruthy();
+    expect(screen.getByText('Saldo inicial')).toBeTruthy();
+    expect(screen.getByText('Saldo final')).toBeTruthy();
+    expect(screen.getByText('TOTALES')).toBeTruthy();
+    expect(screen.getByText('Descargar CSV')).toBeTruthy();
+  });
+
+  it('marca el descuadre cuando debe y haber no coinciden', async () => {
+    vi.spyOn(accountingApi, 'getTrialBalance').mockResolvedValue({
+      period: '2026-11',
+      rows: [{ accountCode: '101', accountName: 'Caja', openingBalance: 0, debit: 50, credit: 0, balance: 50 }],
+      totalDebit: 50,
+      totalCredit: 10,
+      totalOpening: 0,
+      totalBalance: 50,
+    });
+
+    montar();
+
+    expect(await screen.findByText(/Descuadre de/)).toBeTruthy();
+  });
+});
