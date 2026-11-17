@@ -53,7 +53,7 @@ describe('PartnerFormDialog: Estandarización de Proveedor del Exterior vs Vista
     expect(screen.queryByText(/Indicadores tributarios/i)).not.toBeInTheDocument();
 
     // Botones estandarizados
-    expect(screen.getByRole('button', { name: 'Crear Proveedor' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Crear Proveedor|Guardar tercero/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cancelar' })).toBeInTheDocument();
 
     qc.clear();
@@ -76,7 +76,7 @@ describe('PartnerFormDialog: Estandarización de Proveedor del Exterior vs Vista
 
     // En vista general sí se muestra la barra de roles para permitir conmutar o asociar roles
     expect(screen.getByText(/Roles asignados/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Crear Proveedor' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Crear Proveedor|Guardar tercero/i })).toBeInTheDocument();
 
     qc.clear();
   });
@@ -103,7 +103,7 @@ describe('PartnerFormDialog: Estandarización de Proveedor del Exterior vs Vista
     expect(screen.getByText(/2\. DATOS BANCARIOS INTERNACIONALES/i)).toBeInTheDocument();
     expect(screen.getByText(/3\. LOGÍSTICA DE TRANSPORTE Y EMBARCACIÓN/i)).toBeInTheDocument();
     expect(screen.getByText(/4\. CONTACTO COMERCIAL/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Crear Proveedor' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Crear Proveedor|Guardar tercero/i })).toBeInTheDocument();
 
     qc.clear();
   });

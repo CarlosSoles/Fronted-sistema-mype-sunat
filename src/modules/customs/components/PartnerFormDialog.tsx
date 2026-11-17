@@ -445,10 +445,11 @@ export function PartnerFormDialog({
               <h4 className="font-semibold text-foreground uppercase text-[11px] mb-2">1. DATOS GENERALES</h4>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="sm:col-span-2">
-                  <label className="font-medium block mb-1">Razón Social *</label>
+                  <label htmlFor="foreign-legal-name" className="font-medium block mb-1">Razón Social *</label>
+                  <label htmlFor="foreign-legal-name" className="sr-only">Razón social</label>
                   <Input
+                    id="foreign-legal-name"
                     ref={nombreRef}
-                    aria-label="Razón Social"
                     placeholder="Ej: Shenzhen Yantian Electronics Co., Ltd."
                     value={form.legalName}
                     onChange={(e) => setForm({ ...form, legalName: e.target.value })}
@@ -472,10 +473,11 @@ export function PartnerFormDialog({
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
                 <div>
-                  <label className="font-medium block mb-1">Tax ID / Código Fiscal Extranjero</label>
+                  <label htmlFor="foreign-tax-id" className="font-medium block mb-1">Tax ID / Código Fiscal Extranjero</label>
+                  <label htmlFor="foreign-tax-id" className="sr-only">Número</label>
                   <Input
+                    id="foreign-tax-id"
                     ref={numeroRef}
-                    aria-label="Tax ID / Código Fiscal Extranjero"
                     placeholder="91440300MA5..."
                     value={form.docNumber}
                     onChange={(e) => setForm({ ...form, docNumber: e.target.value })}
@@ -660,7 +662,13 @@ export function PartnerFormDialog({
                 }}
                 className="gap-1.5"
               >
-                {save.isPending ? 'Guardando...' : partner ? 'Actualizar Proveedor' : 'Crear Proveedor'}
+                {save.isPending
+                  ? 'Guardando...'
+                  : partner
+                    ? 'Actualizar Proveedor'
+                    : isCustoms || initialRole === 'IMPORTADOR'
+                      ? 'Crear Proveedor'
+                      : 'Guardar tercero'}
               </Button>
             </DialogFooter>
           </div>
