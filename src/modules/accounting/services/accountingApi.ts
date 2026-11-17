@@ -160,10 +160,10 @@ export const accountingApi = {
     return response.data;
   },
 
-  /** Cambia el nombre y/o el estado de una cuenta del catálogo. */
+  /** Cambia el nombre, el tipo y/o el estado de una cuenta del catálogo. */
   updateAccount: async (
     code: string,
-    cambios: { name?: string; isActive?: boolean },
+    cambios: { name?: string; element?: string; isActive?: boolean },
   ): Promise<AccountingAccount> => {
     const response = await apiClient.patch<AccountingAccount>(
       `/accounting/accounts/${encodeURIComponent(code)}`,
