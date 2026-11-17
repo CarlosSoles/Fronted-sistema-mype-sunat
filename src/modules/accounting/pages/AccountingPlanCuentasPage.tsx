@@ -29,6 +29,22 @@ import {
 import { accountingApi } from '../services/accountingApi';
 import type { AccountingAccount } from '../types/accounting.types';
 
+/** Elementos del PCGE, en el orden oficial. El primero dígito del código manda. */
+const ELEMENTOS = [
+  { value: '1', label: 'Activo' },
+  { value: '2', label: 'Activo realizable' },
+  { value: '3', label: 'Activo inmovilizado' },
+  { value: '4', label: 'Pasivo' },
+  { value: '5', label: 'Patrimonio' },
+  { value: '6', label: 'Gastos' },
+  { value: '7', label: 'Ingresos' },
+  { value: '8', label: 'Saldos intermediarios' },
+  { value: '9', label: 'Costos de producción' },
+];
+
+/** "1011101" -> "101110"; una cuenta raíz no tiene padre. */
+const nuevaPadreDe = (codigo: string): string => (codigo.length > 1 ? codigo.slice(0, -1) : 'Sin padre (cuenta raíz)');
+
 /**
  * Mensaje de error al editar una cuenta.
  *
@@ -133,6 +149,7 @@ export default function AccountingPlanCuentasPage() {
   });
 
   const padresPosibles = useMemo(() => accounts.filter((a) => a.code.length < nueva.code.length && nueva.code.startsWith(a.code)).sort((a, b) => b.code.length - a.code.length), [accounts, nueva.code]);
+  const cuentaEditadaActiva = Boolean(accounts.find((cuenta) => cuenta.code === editando?.code)?.isActive);
   const padreExiste = !nueva.code || nueva.code.length === 1 || accounts.some((a) => a.code === nueva.parentCode);
   const tree = useMemo(() => buildTree(accounts), [accounts]);
   const filtered = useMemo(() => {
@@ -237,7 +254,7 @@ export default function AccountingPlanCuentasPage() {
         description={`${accounts.length} cuentas · jerarquía por elemento, cuenta y subcuenta`}
       >
         <Button size="sm" variant="outline" onClick={() => setAbrirTesoreria(true)}>Cuentas de tesorería</Button>
-        <Button size="sm" onClick={() => setAbrirAlta(true)}><Plus className="h-4 w-4 mr-1" /> Nueva subcuenta</Button>
+        <Button size="sm" onClick={() => setAbrirAlta(true)}><Plus className="h-4 w-4 mr-1" /> Nueva cuenta</Button>
       </PageHeader>
 
       <TreasuryAccountsCard abierto={abrirTesoreria} onCerrar={() => setAbrirTesoreria(false)} cuentas={accounts} />
@@ -358,19 +375,62 @@ export default function AccountingPlanCuentasPage() {
       <Dialog open={Boolean(editando)} onOpenChange={(abierto) => { if (!abierto) setEditando(null); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Editar cuenta {editando?.code}</DialogTitle>
+            <DialogTitle>Editar cuenta contable</DialogTitle>
             <DialogDescription>
-              Cambia la denominación de la cuenta. El código no se modifica porque los asientos ya
+              Modifica los datos de la cuenta. El código no se cambia porque los asientos ya
               registrados lo referencian.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-1.5 py-2">
-            <label className="text-xs font-medium" htmlFor="cuenta-nombre">Denominación</label>
-            <Input
-              id="cuenta-nombre"
-              value={editando?.name ?? ''}
-              onChange={(evento) => setEditando((prev) => (prev ? { ...prev, name: evento.target.value } : prev))}
-            />
+          <div className="space-y-3 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium" htmlFor="editar-codigo">Código</label>
+                <Input id="editar-codigo" value={editando?.code ?? ''} disabled className="font-mono" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium" htmlFor="editar-tipo">Tipo de cuenta</label>
+                <Input
+                  id="editar-tipo"
+                  value={ELEMENTOS.find((elemento) => elemento.value === (editando?.code ?? '').charAt(0))?.label ?? '—'}
+                  disabled
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium" htmlFor="cuenta-nombre">Nombre de la cuenta</label>
+              <Input
+                id="cuenta-nombre"
+                value={editando?.name ?? ''}
+                onChange={(evento) => setEditando((prev) => (prev ? { ...prev, name: evento.target.value } : prev))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium" htmlFor="editar-padre">Cuenta padre (subcuenta de)</label>
+              <Input
+                id="editar-padre"
+                value={nuevaPadreDe(editando?.code ?? '')}
+                disabled
+              />
+            </div>
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div>
+                <p className="text-sm font-medium">Cuenta activa</p>
+                <p className="text-xs text-muted-foreground">Disponible para registrar asientos.</p>
+              </div>
+              <Button
+                type="button"
+                variant={cuentaEditadaActiva ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  const actual = accounts.find((cuenta) => cuenta.code === editando?.code);
+                  if (actual) alternar.mutate({ code: actual.code, isActive: !actual.isActive });
+                }}
+                disabled={alternar.isPending}
+              >
+                {cuentaEditadaActiva ? 'Activa' : 'Inactiva'}
+              </Button>
+            </div>
+            {errorAlta ? <p className="text-xs text-destructive">{errorAlta}</p> : null}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditando(null)}>Cancelar</Button>
@@ -378,7 +438,7 @@ export default function AccountingPlanCuentasPage() {
               onClick={() => { if (editando) renombrar.mutate(editando); }}
               disabled={renombrar.isPending || !editando?.name.trim()}
             >
-              {renombrar.isPending ? 'Guardando…' : 'Guardar'}
+              {renombrar.isPending ? 'Guardando…' : 'Guardar cambios'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -386,21 +446,84 @@ export default function AccountingPlanCuentasPage() {
 
       <Dialog open={abrirAlta} onOpenChange={setAbrirAlta}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Nueva subcuenta PCGE</DialogTitle><DialogDescription>Agrega una divisionaria al catálogo. El código padre debe existir.</DialogDescription></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Nueva cuenta contable</DialogTitle>
+            <DialogDescription>
+              El código es único en todo el plan contable. Una subcuenta hereda el tipo de su cuenta padre.
+            </DialogDescription>
+          </DialogHeader>
           <div className="space-y-3 py-2">
-            <div className="space-y-1.5"><label className="text-xs font-medium">Código</label><Input value={nueva.code} inputMode="numeric" onChange={(e) => { const code = e.target.value.replace(/\D/g, ""); setNueva({ ...nueva, code, parentCode: code.length > 1 ? code.slice(0, -1) : "" }); }} placeholder="2011101" /></div>
-            <div className="space-y-1.5"><label className="text-xs font-medium">Nombre</label><Input value={nueva.name} onChange={(e) => setNueva({ ...nueva, name: e.target.value })} placeholder="Almacén principal" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium" htmlFor="nueva-codigo">Código</label>
+                <Input
+                  id="nueva-codigo"
+                  value={nueva.code}
+                  inputMode="numeric"
+                  onChange={(e) => {
+                    const code = e.target.value.replace(/\D/g, '');
+                    setNueva({ ...nueva, code, parentCode: code.length > 1 ? code.slice(0, -1) : '' });
+                  }}
+                  placeholder="1011101"
+                  className="font-mono"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium" htmlFor="nueva-tipo">Tipo de cuenta</label>
+                <Select
+                  value={nueva.code.charAt(0) || undefined}
+                  onValueChange={(valor) => setNueva({ ...nueva, code: valor })}
+                >
+                  <SelectTrigger id="nueva-tipo">
+                    <SelectValue placeholder="Seleccionar tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ELEMENTOS.map((elemento) => (
+                      <SelectItem key={elemento.value} value={elemento.value}>{elemento.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium">Cuenta padre</label>
-              <select className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={nueva.parentCode} onChange={(e) => setNueva({ ...nueva, parentCode: e.target.value })}>
-                <option value="">Sin padre (cuenta raíz)</option>
-                {padresPosibles.map((a) => <option key={a.code} value={a.code}>{a.code} · {a.name}</option>)}
-              </select>
-              {nueva.code.length > 1 && !padreExiste ? <p className="text-xs text-destructive">No existe la cuenta padre {nueva.parentCode}. Créala primero.</p> : null}
+              <label className="text-xs font-medium" htmlFor="nueva-nombre">Nombre de la cuenta</label>
+              <Input
+                id="nueva-nombre"
+                value={nueva.name}
+                onChange={(e) => setNueva({ ...nueva, name: e.target.value })}
+                placeholder="Almacén principal"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium" htmlFor="nueva-padre">Cuenta padre (subcuenta de)</label>
+              <Select
+                value={nueva.parentCode || 'raiz'}
+                onValueChange={(valor) => setNueva({ ...nueva, parentCode: valor === 'raiz' ? '' : valor })}
+              >
+                <SelectTrigger id="nueva-padre">
+                  <SelectValue placeholder="Sin padre (cuenta raíz)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="raiz">Sin padre (cuenta raíz)</SelectItem>
+                  {padresPosibles.map((cuenta) => (
+                    <SelectItem key={cuenta.code} value={cuenta.code}>
+                      {cuenta.code} · {cuenta.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {nueva.code.length > 1 && !padreExiste ? (
+                <p className="text-xs text-destructive">No existe la cuenta padre {nueva.parentCode}. Créala primero.</p>
+              ) : null}
             </div>
             {errorAlta ? <p className="text-xs text-destructive">{errorAlta}</p> : null}
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setAbrirAlta(false)}>Cancelar</Button><Button onClick={() => crear.mutate()} disabled={crear.isPending || !nueva.code || !nueva.name || !padreExiste}>{crear.isPending ? 'Creando⬦' : 'Crear cuenta'}</Button></DialogFooter>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAbrirAlta(false)}>Cancelar</Button>
+            <Button onClick={() => crear.mutate()} disabled={crear.isPending || !nueva.code || !nueva.name || !padreExiste}>
+              {crear.isPending ? 'Creando…' : 'Registrar cuenta'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </Page>

@@ -22,7 +22,6 @@ import {
 import { Toolbar } from '../components/AccountingUI';
 import { EntryDetailDialog, type EntryDetail } from '../components/EntryDetailDialog';
 import { accountingApi } from '../services/accountingApi';
-import { PeriodInput } from '@/components/common/PeriodInput';
 import type { LedgerMovement } from '../types/accounting.types';
 
 const periodoActual = () => {
@@ -47,7 +46,7 @@ const etiquetaOrigen = (source: string): string => {
 
 
 export default function AccountingLedgerPage() {
-  const [period, setPeriod] = useState(periodoActual);
+  const [period] = useState(periodoActual);
   const [accountCode, setAccountCode] = useState('');
   // Rango visible del mayor. El período sigue siendo el que se pide al backend;
   // estas fechas solo recortan lo que ya llegó.
@@ -121,10 +120,6 @@ export default function AccountingLedgerPage() {
 
       <Toolbar>
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">Período</label>
-          <PeriodInput value={period} onChange={setPeriod} />
-        </div>
-        <div className="space-y-1.5">
           <label className="text-xs font-medium text-muted-foreground" htmlFor="mayor-desde">Desde</label>
           <Input
             id="mayor-desde"
@@ -161,31 +156,10 @@ export default function AccountingLedgerPage() {
         </div>
       </Toolbar>
 
-      {data ? (
-        <div className="grid gap-3 md:grid-cols-4 mb-4">
-          <Card className="p-4">
-            <p className="text-xs text-muted-foreground">Cuenta</p>
-            <p className="font-mono font-semibold">{data.accountCode}</p>
-            <p className="text-sm">{data.accountName}</p>
-            {data.subcuentas && data.subcuentas.length > 1 ? (
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Incluye subcuentas: {data.subcuentas.join(', ')}
-              </p>
-            ) : null}
-          </Card>
-          <Card className="p-4">
-            <p className="text-xs text-muted-foreground">Debe</p>
-            <p className="text-xl font-semibold">{money(data.totalDebit)}</p>
-          </Card>
-          <Card className="p-4">
-            <p className="text-xs text-muted-foreground">Haber</p>
-            <p className="text-xl font-semibold">{money(data.totalCredit)}</p>
-          </Card>
-          <Card className="p-4">
-            <p className="text-xs text-muted-foreground">Saldo final</p>
-            <p className="text-xl font-semibold">{money(data.closingBalance)}</p>
-          </Card>
-        </div>
+      {data && data.subcuentas && data.subcuentas.length > 1 ? (
+        <p className="mb-3 text-xs text-muted-foreground">
+          La cuenta {data.accountCode} agrupa las subcuentas: {data.subcuentas.join(', ')}
+        </p>
       ) : null}
 
       {error ? (
@@ -273,12 +247,21 @@ export default function AccountingLedgerPage() {
         </Table>
       </Card>
 
-      {!accountCode ? (
-        <p className="mt-3 text-xs text-muted-foreground flex items-center gap-1">
-          <BookOpen className="w-3.5 h-3.5" />
-          El saldo inicial del período es S/ 0.00; el saldo se acumula con cada movimiento.
+      {data && accountCode ? (
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/30 px-4 py-3 text-sm">
+          <span className="text-muted-foreground">
+            {movements.length} movimiento(s) en el rango · {data.accountCode} {data.accountName}
+          </span>
+          <span className="font-semibold tabular-nums">
+            Saldo final: {money(data.closingBalance)}
+          </span>
+        </div>
+      ) : (
+        <p className="mt-3 flex items-center gap-1 text-xs text-muted-foreground">
+          <BookOpen className="h-3.5 w-3.5" />
+          El saldo se acumula con cada movimiento del rango seleccionado.
         </p>
-      ) : null}
+      )}
 
       <EntryDetailDialog
         entry={asiento}

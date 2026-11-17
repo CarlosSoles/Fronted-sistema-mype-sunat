@@ -217,7 +217,7 @@ export default function ManualEntryModal({ open, onClose, onSaved, proximoNumero
             </div>
             <div className="space-y-1.5">
               <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                Origen (opcional)
+                Origen
               </label>
               <Select
                 value={responsible || 'ninguno'}
