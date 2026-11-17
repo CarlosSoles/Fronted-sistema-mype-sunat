@@ -46,9 +46,6 @@ interface Proceso {
   asientos: Asiento[];
 }
 
-const DEBE_TOTAL: Linea[] = [];
-void DEBE_TOTAL;
-
 const PROCESOS: Proceso[] = [
   {
     codigo: 'VENTA',
