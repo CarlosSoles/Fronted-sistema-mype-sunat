@@ -107,8 +107,10 @@ it.each([{ roles: ['PROVEEDOR'] }, { roles: ['PROVEEDOR', 'IMPORTADOR', 'AGENTE'
   fireEvent.click(screen.getByRole('button', { name: 'Nuevo tercero' }));
   fireEvent.click(screen.getByLabelText('CLIENTE'));
   for (const role of roles) fireEvent.click(screen.getByLabelText(role));
-  fireEvent.change(screen.getByLabelText('Número'), { target: { value: '20555555556' } });
-  fireEvent.change(screen.getByLabelText('Razón social'), { target: { value: 'Proveedor nuevo' } });
+  // Al desmarcar CLIENTE el formulario se vuelve a pintar; en un runner lento
+  // el campo puede no existir todavía, así que se espera en vez de leer de golpe.
+  fireEvent.change(await screen.findByLabelText('Número', {}, { timeout: 5000 }), { target: { value: '20555555556' } });
+  fireEvent.change(await screen.findByLabelText('Razón social', {}, { timeout: 5000 }), { target: { value: 'Proveedor nuevo' } });
   fireEvent.click(screen.getByRole('button', { name: 'Guardar tercero' }));
   await waitFor(() => expect(masterDataApi.createPartner).toHaveBeenCalledWith(expect.objectContaining({ docNumber: '20555555556', roles })));
   expect(screen.queryByTitle('Eliminar tercero')).toBeNull();
