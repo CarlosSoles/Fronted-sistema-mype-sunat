@@ -58,20 +58,38 @@ export default function AccountingPeriodsPage() {
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['accounting-periods'] });
 
   /**
-   * Mensaje del servidor, o el texto de respaldo.
+   * Mensaje del servidor, siempre como texto.
    *
-   * class-validator devuelve un objeto por campo; sin normalizarlo, la pantalla
-   * mostraba literalmente "[object Object]".
+   * class-validator devuelve un objeto por campo y Prisma puede devolver un
+   * error anidado; sin normalizarlo del todo la pantalla mostraba literalmente
+   * "[object Object]" y no había forma de saber qué había fallado.
    */
   const mensajeDeError = (e: any, respaldo: string): string => {
-    const texto = e?.response?.data?.message;
-    if (Array.isArray(texto)) return texto.join(' · ');
+    const datos = e?.response?.data;
+    const texto = datos?.message ?? datos?.error ?? datos;
+    if (Array.isArray(texto)) {
+      // El backend devuelve [{ field, rule, message }] por cada validación.
+      const partes = texto.map((valor) => {
+        if (typeof valor === 'string') return valor;
+        if (valor && typeof valor === 'object') {
+          const item = valor as { field?: string; message?: string };
+          return item.field ? `${item.field}: ${item.message ?? 'valor inválido'}` : (item.message ?? JSON.stringify(valor));
+        }
+        return String(valor);
+      });
+      if (partes.length > 0) return partes.join(' · ');
+    }
     if (typeof texto === 'string' && texto.trim()) return texto;
     if (texto && typeof texto === 'object') {
       const detalles = Object.values(texto as Record<string, unknown>)
-        .flat()
-        .filter((valor): valor is string => typeof valor === 'string');
+        .flatMap((valor) => (Array.isArray(valor) ? valor : [valor]))
+        .filter((valor): valor is string => typeof valor === 'string' && valor.trim().length > 0);
       if (detalles.length > 0) return detalles.join(' · ');
+      try {
+        return JSON.stringify(texto).slice(0, 300);
+      } catch {
+        // Si no se puede serializar, se usa el respaldo.
+      }
     }
     if (typeof e?.message === 'string' && e.message.trim()) return e.message;
     return respaldo;
