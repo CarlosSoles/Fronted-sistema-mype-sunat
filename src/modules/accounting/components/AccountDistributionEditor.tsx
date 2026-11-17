@@ -62,7 +62,7 @@ export function AccountDistributionEditor({ label, total, accounts, rows, onChan
           <label className="text-[11px] flex-1">
             Cuenta
             <select
-              className="mt-1 h-9 w-full rounded border bg-background px-2 text-xs"
+              className="mt-1 h-8 w-full rounded border bg-background px-2 text-xs"
               value={fila.accountCode}
               disabled={disabled}
               onChange={(e) => actualizar(indice, { accountCode: e.target.value })}

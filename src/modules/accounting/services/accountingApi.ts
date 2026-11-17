@@ -372,6 +372,9 @@ export interface AccountingRule {
   base_calculation: string;
   description?: string | null;
   is_active: boolean;
+  /** Auditoría de la última modificación (si existe). */
+  updated_at?: string | null;
+  updated_by?: string | null;
 }
 
 export interface AccountingRuleInput {

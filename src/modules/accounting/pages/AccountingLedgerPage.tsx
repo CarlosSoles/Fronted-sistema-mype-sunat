@@ -1,15 +1,20 @@
-import { useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { BookOpen, Download, Printer, SquareArrowOutUpRight } from 'lucide-react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { BookOpen, ChevronLeft, ChevronRight, Download, Printer, SquareArrowOutUpRight, TriangleAlert } from 'lucide-react';
 import {
   Badge,
   Button,
   Card,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   Input,
   Page,
   PageHeader,
-  Switch,
   Table,
   TableBody,
   TableCell,
@@ -22,40 +27,36 @@ import { EntryDetailDialog, type EntryDetail } from '../components/EntryDetailDi
 import { accountingApi } from '../services/accountingApi';
 import { AccountCombobox } from '../components/AccountCombobox';
 import { formatearNumeroAsiento } from '../lib/numeroAsiento';
-import { descargarCsv, descargarPdf, monto } from '../lib/exportReport';
 import { etiquetaOrigen } from '../lib/origenLabels';
+import { descargarCsv, descargarPdf } from '../lib/exportReport';
+import { formatCurrency, formatDateToPeru } from '@/lib/formatters';
 import type { LedgerMovement } from '../types/accounting.types';
 
-const periodoActual = () => {
+const POR_PAGINA = 50;
+
+const periodoActual = (): string => {
   const hoy = new Date();
   return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
 };
 
-const money = (value: number) => `S/ ${value.toFixed(2)}`;
+const money = (valor: number): string => formatCurrency(Number(valor) || 0, 'PEN');
 
 /**
- * Referencia del documento que originó el asiento.
+ * Libro Mayor.
  *
- * Se muestra solo si es legible: algunos asientos guardan un identificador
- * interno (`PAGO-GASTO-5fac8124-ed44-…`) que no aporta nada y ensancha la fila.
+ * Una cuenta de mayor muestra siempre el consolidado de sus subcuentas; el
+ * detalle por cuenta se ve en la columna Cuenta. El saldo corrido arranca con el
+ * saldo inicial del período, que se muestra como primera fila.
  */
-const referenciaVisible = (referencia?: string | null): boolean => {
-  if (!referencia) return false;
-  if (/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(referencia)) return false;
-  return referencia.length <= 32;
-};
-
-
-
 export default function AccountingLedgerPage() {
   const [period] = useState(periodoActual);
   // La guía contable enlaza aquí con ?cuenta=, así el código abre su mayor.
+  const navegar = useNavigate();
   const [parametros] = useSearchParams();
   const [accountCode, setAccountCode] = useState(() => parametros.get('cuenta') ?? '');
-  /** Por defecto una cuenta de mayor muestra el consolidado de sus subcuentas. */
-  const [soloDirectos, setSoloDirectos] = useState(false);
-  // Rango visible del mayor. El período sigue siendo el que se pide al backend;
-  // estas fechas solo recortan lo que ya llegó.
+  const [soloConMovimientos, setSoloConMovimientos] = useState(false);
+  const [pagina, setPagina] = useState(1);
+
   const [desde, setDesde] = useState(() => `${periodoActual()}-01`);
   const [hasta, setHasta] = useState(() => {
     const hoy = new Date();
@@ -63,14 +64,7 @@ export default function AccountingLedgerPage() {
     return `${fin.getFullYear()}-${String(fin.getMonth() + 1).padStart(2, '0')}-${String(fin.getDate()).padStart(2, '0')}`;
   });
 
-  /** Rango de cuentas opcional: consolida todo lo que cae entre dos códigos. */
-  const [cuentaDesde, setCuentaDesde] = useState('');
-  const [cuentaHasta, setCuentaHasta] = useState('');
-  const [soloConMovimientos, setSoloConMovimientos] = useState(false);
-
   const { data: accounts = [] } = useQuery({
-    // El mayor debe poder consultar cualquier cuenta, incluso una ya inactiva:
-    // sus movimientos históricos siguen existiendo.
     queryKey: ['accounting-accounts', 'todas-mayor'],
     queryFn: () => accountingApi.getAccounts({ includeInactive: true }),
   });
@@ -87,24 +81,20 @@ export default function AccountingLedgerPage() {
     return accounts.filter((cuenta) => codigos.has(cuenta.code));
   }, [accounts, conMovimientos, soloConMovimientos]);
 
-  const hayRango = Boolean(cuentaDesde.trim() && cuentaHasta.trim());
-
   const { data, isLoading, error } = useQuery({
-    queryKey: ['accounting-ledger', period, accountCode, soloDirectos, cuentaDesde, cuentaHasta],
-    queryFn: () =>
-      accountingApi.getLedger(period, hayRango ? '' : accountCode, {
-        soloDirectos,
-        ...(hayRango ? { desde: cuentaDesde, hasta: cuentaHasta } : {}),
-      }),
-    enabled: hayRango || Boolean(accountCode),
+    queryKey: ['accounting-ledger', period, accountCode],
+    queryFn: () => accountingApi.getLedger(period, accountCode),
+    enabled: Boolean(accountCode),
   });
+
+  // Se vuelve a la primera página al cambiar de cuenta.
+  useEffect(() => setPagina(1), [accountCode]);
 
   const movements = useMemo(() => {
     const rangoInvalido = Boolean(desde && hasta && desde > hasta);
     const todos = data?.movements ?? [];
     if (rangoInvalido) return todos;
     return todos.filter((movimiento) => {
-      // Fecha calendario: se compara el texto, sin pasar por zonas horarias.
       const fecha = movimiento.entryDate.slice(0, 10);
       if (desde && fecha < desde) return false;
       if (hasta && fecha > hasta) return false;
@@ -112,10 +102,40 @@ export default function AccountingLedgerPage() {
     });
   }, [data, desde, hasta]);
 
+  const totalPaginas = Math.max(1, Math.ceil(movements.length / POR_PAGINA));
+  const paginaActual = Math.min(pagina, totalPaginas);
+  const visibles = movements.slice((paginaActual - 1) * POR_PAGINA, paginaActual * POR_PAGINA);
+
+  /**
+   * Vista agrupada por subcuenta.
+   *
+   * Solo tiene sentido cuando se consulta una cuenta de mayor con varias hijas:
+   * se ordenan los movimientos por cuenta y se calcula el subtotal de cada una
+   * sobre el rango visible.
+   */
+  const [agrupar, setAgrupar] = useState(false);
+  const porSubcuenta = useMemo(() => {
+    const grupos = new Map<string, { nombre: string; movimientos: LedgerMovement[]; debe: number; haber: number }>();
+    for (const movimiento of movements) {
+      const grupo = grupos.get(movimiento.accountCode) ?? {
+        nombre: movimiento.accountName,
+        movimientos: [],
+        debe: 0,
+        haber: 0,
+      };
+      grupo.movimientos.push(movimiento);
+      grupo.debe += movimiento.debit;
+      grupo.haber += movimiento.credit;
+      grupos.set(movimiento.accountCode, grupo);
+    }
+    return [...grupos.entries()].sort(([a], [b]) => a.localeCompare(b));
+  }, [movements]);
+
+  const puedeAgrupar = (data?.subcuentas?.length ?? 0) > 1;
+
   const [detalle, setDetalle] = useState<LedgerMovement | null>(null);
 
   // El detalle necesita las líneas del asiento, que el mayor no devuelve.
-  // Se piden solo cuando se abre el panel.
   const { data: asientos = [], isFetching: cargandoAsientos } = useQuery({
     queryKey: ['accounting-entries', period],
     queryFn: () => accountingApi.getEntries(period),
@@ -124,33 +144,74 @@ export default function AccountingLedgerPage() {
 
   const asiento = useMemo(() => {
     if (!detalle) return null;
+    const correlativo = Number(detalle.entryNumber);
+    // El Diario expone las líneas en `lines`; el mayor solo trae el total.
+    const encontrado =
+      asientos.find((item) => item.id === detalle.entryId) ??
+      asientos.find((item) => item.entryNumber === correlativo);
 
-    // El mayor y la lista de asientos pueden no compartir el mismo id, así que
-    // se busca por id y, si no aparece, por número de asiento.
-    const porNumero = (item: (typeof asientos)[number]) => {
-      const correlativo = Number(item.numeroAsiento?.match(/(\d+)$/)?.[1]);
-      return correlativo === detalle.entryNumber;
-    };
-    const encontrado = asientos.find((item) => item.id === detalle.entryId) ?? asientos.find(porNumero);
-
-    // Respaldo: el encabezado siempre sale del propio movimiento del mayor, de
-    // modo que el detalle nunca queda en blanco mientras llegan las líneas.
-    const numero = formatearNumeroAsiento(detalle.entryNumber, period);
     return {
       id: encontrado?.id ?? detalle.entryId,
-      numero: encontrado?.numeroAsiento || numero,
-      fecha: encontrado?.fechaContable || detalle.entryDate,
+      numero: formatearNumeroAsiento(detalle.entryNumber, period),
+      fecha: detalle.entryDate,
       glosa: encontrado?.glosa || detalle.glosa,
       origen: etiquetaOrigen(detalle.sourceModule),
+      diario: encontrado?.journalCode ?? null,
       referencia: detalle.sourceReferenceId ?? '',
-      lineas: (encontrado?.movimientos ?? []).map((movimiento) => ({
-        code: movimiento.cuentaContable,
-        name: movimiento.denominacion,
-        debit: Number(movimiento.debe) || 0,
-        credit: Number(movimiento.haber) || 0,
+      observacion: encontrado?.observation ?? null,
+      anulado: detalle.status === 'ANULADO',
+      lineas: (encontrado?.lines ?? []).map((linea) => ({
+        code: linea.accountCode,
+        name: linea.accountName,
+        debit: Number(linea.debitAmount) || 0,
+        credit: Number(linea.creditAmount) || 0,
       })),
     } satisfies EntryDetail;
   }, [detalle, asientos, period]);
+
+  const [exportando, setExportando] = useState(false);
+  const [rangoDesde, setRangoDesde] = useState('');
+  const [rangoHasta, setRangoHasta] = useState('');
+
+  const exportarRango = useMutation({
+    mutationFn: async (formato: 'csv' | 'pdf') => {
+      if (formato === 'pdf') {
+        descargarPdf();
+        return 0;
+      }
+      const datos = await accountingApi.getLedger(period, '', { desde: rangoDesde.trim(), hasta: rangoHasta.trim() });
+      const filas: (string | number)[][] = [
+        ['Fecha', 'Asiento', 'Cuenta', 'Descripción', 'Módulo', 'Referencia', 'Debe', 'Haber', 'Saldo'],
+        ['', '', '', `Saldo inicial`, '', '', '', '', datos.openingBalance.toFixed(2)],
+      ];
+      for (const movimiento of datos.movements) {
+        filas.push([
+          formatDateToPeru(movimiento.entryDate),
+          formatearNumeroAsiento(movimiento.entryNumber, period),
+          movimiento.accountCode,
+          movimiento.glosa,
+          etiquetaOrigen(movimiento.sourceModule),
+          movimiento.sourceReferenceId ?? '',
+          movimiento.debit.toFixed(2),
+          movimiento.credit.toFixed(2),
+          movimiento.saldo.toFixed(2),
+        ]);
+      }
+      filas.push(['', '', '', 'Totales', '', '', datos.totalDebit.toFixed(2), datos.totalCredit.toFixed(2), datos.closingBalance.toFixed(2)]);
+      descargarCsv(`mayor-${rangoDesde.trim()}-${rangoHasta.trim()}-${period}`, filas);
+      return datos.movements.length;
+    },
+    onSuccess: () => setExportando(false),
+  });
+
+  const naturaleza = data?.nature;
+  const saldoFinal = data?.closingBalance ?? 0;
+  // Un saldo con signo contrario a la naturaleza de la cuenta es una señal de
+  // alarma contable (una caja con saldo acreedor, por ejemplo).
+  const saldoContrario =
+    (naturaleza === 'Deudora' && saldoFinal < -0.005) || (naturaleza === 'Acreedora' && saldoFinal > 0.005);
+
+  const indicador = (saldo: number) => (saldo < 0 ? 'A' : 'D');
 
   return (
     <Page>
@@ -158,222 +219,326 @@ export default function AccountingLedgerPage() {
         title="Libro Mayor"
         description="Movimientos de la cuenta seleccionada, del más antiguo al más reciente"
       >
-        <div className="flex gap-2 print:hidden">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const filas: (string | number)[][] = [
-                  ['Fecha', 'Asiento', 'Descripción', 'Módulo', 'Referencia', 'Debe', 'Haber', 'Saldo'],
-                ];
-                if (data) filas.push(['', '', `Saldo inicial`, '', '', '', '', monto(data.openingBalance)]);
-                for (const movimiento of movements) {
-                  filas.push([
-                    movimiento.entryDate,
-                    formatearNumeroAsiento(movimiento.entryNumber, period),
-                    movimiento.glosa,
-                    etiquetaOrigen(movimiento.sourceModule),
-                    movimiento.sourceReferenceId ?? '',
-                    movimiento.debit.toFixed(2),
-                    movimiento.credit.toFixed(2),
-                    movimiento.saldo.toFixed(2),
-                  ]);
-                }
-                filas.push([
-                  '',
-                  '',
-                  'Totales',
-                  '',
-                  '',
-                  (data?.totalDebit ?? 0).toFixed(2),
-                  (data?.totalCredit ?? 0).toFixed(2),
-                  (data?.closingBalance ?? 0).toFixed(2),
-                ]);
-                descargarCsv(`libro-mayor-${data?.accountCode ?? accountCode}-${period}`, filas);
-              }}
-              disabled={movements.length === 0}
-            >
-              <Download className="mr-1 h-4 w-4" /> Excel
-            </Button>
-            <Button variant="outline" size="sm" onClick={descargarPdf} disabled={movements.length === 0}>
-              <Printer className="mr-1 h-4 w-4" /> PDF
-            </Button>
+        <div className="flex gap-1.5 print:hidden">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => { setRangoDesde(''); setRangoHasta(''); setExportando(true); }}
+            className="h-8"
+          >
+            <Download className="mr-1 h-4 w-4" /> Exportar
+          </Button>
+          <Button variant="outline" size="icon" onClick={descargarPdf} title="Imprimir o guardar en PDF" aria-label="Imprimir o guardar en PDF">
+            <Printer className="h-4 w-4" />
+          </Button>
         </div>
       </PageHeader>
 
       <Toolbar
         status={
-          <RangoFechas
-            idPrefijo="mayor"
-            desde={desde}
-            hasta={hasta}
-            onDesde={setDesde}
-            onHasta={setHasta}
-          />
+          <div className="flex flex-wrap items-center gap-3">
+            {puedeAgrupar ? (
+              <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={agrupar}
+                  onChange={(evento) => setAgrupar(evento.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-input"
+                  aria-label="Agrupar por subcuenta"
+                />
+                Agrupar por subcuenta
+              </label>
+            ) : null}
+            <RangoFechas idPrefijo="mayor" desde={desde} hasta={hasta} onDesde={setDesde} onHasta={setHasta} />
+          </div>
         }
       >
-        <div className="min-w-72">
+        <div className="w-full sm:w-80">
           <AccountCombobox
             idPrefijo="mayor"
             accounts={cuentasOfrecidas}
             value={accountCode}
             onChange={setAccountCode}
             placeholder="Buscar cuenta por código o nombre"
+            casilla={{
+              etiqueta: 'Solo cuentas con movimientos en el período',
+              checked: soloConMovimientos,
+              onChange: setSoloConMovimientos,
+            }}
           />
         </div>
-        <div className="flex items-end gap-2">
-          <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
-            Desde cuenta
-            <Input
-              value={cuentaDesde}
-              onChange={(evento) => setCuentaDesde(evento.target.value)}
-              placeholder="10"
-              className="h-9 w-24 font-mono"
-              aria-label="Código de cuenta inicial"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
-            Hasta cuenta
-            <Input
-              value={cuentaHasta}
-              onChange={(evento) => setCuentaHasta(evento.target.value)}
-              placeholder="19"
-              className="h-9 w-24 font-mono"
-              aria-label="Código de cuenta final"
-            />
-          </label>
-        </div>
-        <label className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Switch
-            checked={soloDirectos}
-            onCheckedChange={setSoloDirectos}
-            aria-label="Ver solo los movimientos propios de la cuenta"
-          />
-          Solo movimientos directos
-        </label>
-        <label className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Switch
-            checked={soloConMovimientos}
-            onCheckedChange={setSoloConMovimientos}
-            aria-label="Ofrecer solo cuentas con movimientos en el período"
-          />
-          Solo cuentas con movimientos
-        </label>
       </Toolbar>
 
       {error ? (
-        <Card className="p-4 mb-4 text-sm text-destructive">
+        <Card className="mb-4 p-4 text-sm text-destructive">
           No se pudo cargar el libro mayor. Verifica el período y la cuenta.
+        </Card>
+      ) : null}
+
+      {/* Resumen del reporte: qué se está viendo y con qué saldos. */}
+      {data ? (
+        <Card className="mb-4 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold">
+                <span className="font-mono">{data.accountCode}</span> · {data.accountName}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Período {data.period} · Naturaleza {data.nature}
+                {data.subcuentas && data.subcuentas.length > 1
+                  ? ` · ${data.subcuentas.length} cuentas consolidadas`
+                  : ''}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-xs sm:grid-cols-4">
+              <div>
+                <p className="text-muted-foreground">Saldo inicial</p>
+                <p className="tabular-nums font-medium">{money(data.openingBalance)}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Total debe</p>
+                <p className="tabular-nums font-medium">{money(data.totalDebit)}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Total haber</p>
+                <p className="tabular-nums font-medium">{money(data.totalCredit)}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Saldo final</p>
+                <p className={`tabular-nums font-semibold ${saldoFinal < 0 ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                  {money(saldoFinal)} <span className="text-[10px] font-normal">{indicador(saldoFinal)}</span>
+                </p>
+              </div>
+            </div>
+          </div>
+          {saldoContrario ? (
+            <p className="mt-3 flex items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/5 p-2 text-[11px] text-amber-700 dark:text-amber-400">
+              <TriangleAlert className="h-3.5 w-3.5" />
+              El saldo es contrario a la naturaleza de la cuenta (una cuenta {data.nature.toLowerCase()} no debería
+              quedar con saldo {saldoFinal < 0 ? 'acreedor' : 'deudor'}).
+            </p>
+          ) : null}
         </Card>
       ) : null}
 
       <Card flush>
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Fecha</TableHead>
-              <TableHead>Asiento</TableHead>
+            <TableRow className="bg-muted/40 hover:bg-muted/40">
+              <TableHead className="w-28">Fecha</TableHead>
+              <TableHead className="w-40">Asiento</TableHead>
+              <TableHead className="w-24">Cuenta</TableHead>
               <TableHead>Descripción</TableHead>
-              <TableHead>Módulo / Referencia</TableHead>
-              <TableHead align="right">Debe</TableHead>
-              <TableHead align="right">Haber</TableHead>
-              <TableHead align="right">Saldo</TableHead>
+              <TableHead className="w-44">Módulo / Referencia</TableHead>
+              <TableHead align="right" className="w-28">Debe</TableHead>
+              <TableHead align="right" className="w-28">Haber</TableHead>
+              <TableHead align="right" className="w-32">Saldo</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {!accountCode && !hayRango ? (
+            {!accountCode ? (
               <TableRow>
-                <TableCell colSpan={7}>Selecciona una cuenta o un rango de cuentas para ver sus movimientos.</TableCell>
+                <TableCell colSpan={8}>Selecciona una cuenta para ver sus movimientos.</TableCell>
               </TableRow>
             ) : isLoading ? (
               <TableRow>
-                <TableCell colSpan={7}>Cargando movimientos…</TableCell>
+                <TableCell colSpan={8}>Cargando movimientos…</TableCell>
               </TableRow>
             ) : movements.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7}>
-                  {hayRango
-                    ? `Las cuentas del ${cuentaDesde} al ${cuentaHasta} no tienen movimientos entre ${desde} y ${hasta}.`
-                    : `La cuenta ${data?.accountCode ?? accountCode} no tiene movimientos entre ${desde} y ${hasta}.`}
+                <TableCell colSpan={8}>
+                  La cuenta {data?.accountCode ?? accountCode} no tiene movimientos entre {formatDateToPeru(desde)} y{' '}
+                  {formatDateToPeru(hasta)}.
                 </TableCell>
               </TableRow>
             ) : (
-              movements.map((movement) => (
-                <TableRow key={`${movement.entryId}-${movement.entryNumber}`} className="transition-colors hover:bg-muted/40">
-                  <TableCell className="whitespace-nowrap tabular-nums">{movement.entryDate}</TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    <span className="flex items-center gap-1">
-                      <span className="font-mono text-xs text-muted-foreground">
-                        {formatearNumeroAsiento(movement.entryNumber, period)}
-                      </span>
-                      <button
-                        type="button"
-                        aria-label={`Ver detalle del asiento ${formatearNumeroAsiento(movement.entryNumber, period)}`}
-                        onClick={() => setDetalle(movement)}
-                        className="rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                      >
-                        <SquareArrowOutUpRight className="h-3.5 w-3.5" />
-                      </button>
-                    </span>
+              <>
+                {/* Saldo de apertura como primera fila del reporte. */}
+                <TableRow className="bg-muted/20">
+                  <TableCell colSpan={7} className="text-xs font-medium">
+                    Saldo inicial al {formatDateToPeru(desde)}
                   </TableCell>
-                  <TableCell>
-                    <div className="space-y-0.5">
-                      <p className="text-xs font-medium">
-                        <span className="font-mono text-muted-foreground">{movement.accountCode}</span>
-                        {' · '}
-                        {movement.accountName}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{movement.glosa}</p>
-                    </div>
+                  <TableCell align="right" className="tabular-nums font-medium">
+                    {money(data?.openingBalance ?? 0)}
                   </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col gap-0.5">
-                      <Badge variant="outline" className="w-fit text-muted-foreground">
-                        {etiquetaOrigen(movement.sourceModule)}
-                      </Badge>
-                      {referenciaVisible(movement.sourceReferenceId) ? (
-                        <span className="truncate font-mono text-[11px] text-muted-foreground">
-                          {movement.sourceReferenceId}
-                        </span>
-                      ) : null}
-                    </div>
-                  </TableCell>
-                  <TableCell align="right" className="whitespace-nowrap tabular-nums">
-                    {movement.debit ? money(movement.debit) : '—'}
-                  </TableCell>
-                  <TableCell align="right" className="whitespace-nowrap tabular-nums">
-                    {movement.credit ? money(movement.credit) : '—'}
-                  </TableCell>
-                  <TableCell align="right" className="whitespace-nowrap font-medium tabular-nums">{money(movement.saldo)}</TableCell>
                 </TableRow>
-              ))
+
+                {agrupar && puedeAgrupar
+                  ? porSubcuenta.map(([codigo, grupo]) => (
+                      <Fragment key={`grupo-${codigo}`}>
+                        <TableRow className="bg-muted/30">
+                          <TableCell colSpan={5} className="text-xs font-medium">
+                            <span className="font-mono">{codigo}</span> · {grupo.nombre}
+                          </TableCell>
+                          <TableCell align="right" className="tabular-nums text-xs">{money(grupo.debe)}</TableCell>
+                          <TableCell align="right" className="tabular-nums text-xs">{money(grupo.haber)}</TableCell>
+                          <TableCell align="right" className="tabular-nums text-xs">{money(grupo.debe - grupo.haber)}</TableCell>
+                        </TableRow>
+                        {grupo.movimientos.map((movement, indice) => (
+                          <TableRow
+                            key={`${movement.entryId}-${codigo}-${indice}`}
+                            className="cursor-pointer transition-colors hover:bg-muted/40"
+                            onClick={() => setDetalle(movement)}
+                          >
+                            <TableCell className="whitespace-nowrap pl-8 tabular-nums">{formatDateToPeru(movement.entryDate)}</TableCell>
+                            <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
+                              {formatearNumeroAsiento(movement.entryNumber, period)}
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap font-mono text-xs">{movement.accountCode}</TableCell>
+                            <TableCell className="text-xs">{movement.glosa}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{etiquetaOrigen(movement.sourceModule)}</TableCell>
+                            <TableCell align="right" className="tabular-nums">{movement.debit ? money(movement.debit) : ''}</TableCell>
+                            <TableCell align="right" className="tabular-nums">{movement.credit ? money(movement.credit) : ''}</TableCell>
+                            <TableCell align="right" className="tabular-nums">{money(movement.saldo)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </Fragment>
+                    ))
+                  : null}
+
+                {!agrupar || !puedeAgrupar
+                  ? visibles.map((movement, indice) => (
+                  <TableRow
+                    key={`${movement.entryId}-${movement.accountCode}-${indice}`}
+                    className="cursor-pointer transition-colors hover:bg-muted/40"
+                    onClick={() => setDetalle(movement)}
+                  >
+                    <TableCell className="whitespace-nowrap tabular-nums">{formatDateToPeru(movement.entryDate)}</TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      <span className="flex items-center gap-1">
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {formatearNumeroAsiento(movement.entryNumber, period)}
+                        </span>
+                        <button
+                          type="button"
+                          aria-label={`Ver detalle del asiento ${formatearNumeroAsiento(movement.entryNumber, period)}`}
+                          onClick={(evento) => { evento.stopPropagation(); setDetalle(movement); }}
+                          className="rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                        >
+                          <SquareArrowOutUpRight className="h-3.5 w-3.5" />
+                        </button>
+                        {movement.status === 'ANULADO' ? (
+                          <Badge variant="outline" className="border-destructive/30 text-destructive">Anulación</Badge>
+                        ) : null}
+                      </span>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap font-mono text-xs">{movement.accountCode}</TableCell>
+                    <TableCell>
+                      <p className="text-xs">{movement.glosa}</p>
+                      <p className="text-[11px] text-muted-foreground">{movement.accountName}</p>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-0.5">
+                        <Badge variant="outline" className="w-fit text-muted-foreground">
+                          {etiquetaOrigen(movement.sourceModule)}
+                        </Badge>
+                        {movement.sourceReferenceId && movement.sourceReferenceId.length <= 32 ? (
+                          <span className="truncate font-mono text-[11px] text-muted-foreground">
+                            {movement.sourceReferenceId}
+                          </span>
+                        ) : null}
+                      </div>
+                    </TableCell>
+                    <TableCell align="right" className="tabular-nums whitespace-nowrap">
+                      {movement.debit ? money(movement.debit) : ''}
+                    </TableCell>
+                    <TableCell align="right" className="tabular-nums whitespace-nowrap">
+                      {movement.credit ? money(movement.credit) : ''}
+                    </TableCell>
+                    <TableCell align="right" className="tabular-nums whitespace-nowrap">
+                      {money(movement.saldo)}{' '}
+                      <span className="text-[10px] text-muted-foreground">{indicador(movement.saldo)}</span>
+                    </TableCell>
+                  </TableRow>
+                  ))
+                  : null}
+
+                {/* Totales al pie del reporte. */}
+                <TableRow className="bg-muted/40 font-medium">
+                  <TableCell colSpan={5} className="text-xs">Totales del período</TableCell>
+                  <TableCell align="right" className="tabular-nums">{money(data?.totalDebit ?? 0)}</TableCell>
+                  <TableCell align="right" className="tabular-nums">{money(data?.totalCredit ?? 0)}</TableCell>
+                  <TableCell align="right" className="tabular-nums">{money(data?.closingBalance ?? 0)}</TableCell>
+                </TableRow>
+              </>
             )}
           </TableBody>
         </Table>
       </Card>
 
-      {data && accountCode ? (
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/30 px-4 py-3 text-sm">
-          <span className="text-muted-foreground">
-            {movements.length} movimiento(s) en el rango · {data.accountCode} {data.accountName}
+      {movements.length > POR_PAGINA ? (
+        <div className="mt-3 flex items-center justify-end gap-2 print:hidden">
+          <Button variant="outline" size="sm" onClick={() => setPagina((valor) => Math.max(1, valor - 1))} disabled={paginaActual === 1}>
+            <ChevronLeft className="mr-1 h-4 w-4" /> Anterior
+          </Button>
+          <span className="text-xs tabular-nums text-muted-foreground">
+            Página {paginaActual} de {totalPaginas} · {movements.length} movimientos
           </span>
-          <span className="font-semibold tabular-nums">
-            Saldo final: {money(data.closingBalance)}
-          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPagina((valor) => Math.min(totalPaginas, valor + 1))}
+            disabled={paginaActual === totalPaginas}
+          >
+            Siguiente <ChevronRight className="ml-1 h-4 w-4" />
+          </Button>
         </div>
-      ) : (
-        <p className="mt-3 flex items-center gap-1 text-xs text-muted-foreground">
-          <BookOpen className="h-3.5 w-3.5" />
-          El saldo se acumula con cada movimiento del rango seleccionado.
-        </p>
-      )}
+      ) : null}
+
+      <p className="mt-3 text-xs text-muted-foreground">
+        <BookOpen className="mr-1 inline h-3.5 w-3.5" />
+        El saldo se acumula con cada movimiento del rango seleccionado y arranca con el saldo inicial del período.
+      </p>
 
       <EntryDetailDialog
         entry={asiento}
         open={Boolean(detalle)}
+        onOpenChange={(abierto) => { if (!abierto) setDetalle(null); }}
         cargando={cargandoAsientos}
-        onOpenChange={(open) => { if (!open) setDetalle(null); }}
+        cuentaResaltada={accountCode}
+        onVerCuenta={(code) => setAccountCode(code)}
+        onVerEnDiario={() => { if (detalle) navegar(`/accounting/entries?period=${period}`); }}
       />
+
+      {/* Exportar: permite acotar a un rango de cuentas sin ocupar la barra. */}
+      <Dialog open={exportando} onOpenChange={setExportando}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Exportar el libro mayor</DialogTitle>
+            <DialogDescription>
+              Exporta la cuenta seleccionada o un rango de cuentas (por ejemplo de 10 a 19).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3 py-2">
+            <label className="space-y-1 text-xs font-medium">
+              Desde cuenta
+              <Input value={rangoDesde} onChange={(evento) => setRangoDesde(evento.target.value)} placeholder="10" className="font-mono" />
+            </label>
+            <label className="space-y-1 text-xs font-medium">
+              Hasta cuenta
+              <Input value={rangoHasta} onChange={(evento) => setRangoHasta(evento.target.value)} placeholder="19" className="font-mono" />
+            </label>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Si dejas ambos vacíos se exporta la cuenta seleccionada.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExportando(false)}>Cancelar</Button>
+            <Button
+              variant="outline"
+              onClick={() => { setExportando(false); descargarPdf(); }}
+            >
+              <Printer className="mr-1 h-4 w-4" /> PDF
+            </Button>
+            <Button
+              onClick={() => exportarRango.mutate('csv')}
+              disabled={exportarRango.isPending || Boolean((rangoDesde && !rangoHasta) || (!rangoDesde && rangoHasta))}
+            >
+              <Download className="mr-1 h-4 w-4" /> Excel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Page>
   );
 }

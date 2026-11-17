@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, ChevronRight, Pencil, Plus, Power, Search } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronsDown, ChevronsUp, Pencil, Plus, Power, Search } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -324,8 +324,9 @@ export default function AccountingPlanCuentasPage() {
             <Button
               type="button"
               variant="ghost"
-              size="sm"
+              size="icon"
               aria-label={`Editar ${node.code}`}
+              title={`Editar ${node.code}`}
               onClick={() => setEditando({ code: node.code, name: node.name, element: node.element })}
             >
               <Pencil className="h-4 w-4" />
@@ -333,7 +334,7 @@ export default function AccountingPlanCuentasPage() {
             <Button
               type="button"
               variant="ghost"
-              size="sm"
+              size="icon"
               aria-label={node.isActive ? `Desactivar ${node.code}` : `Activar ${node.code}`}
               aria-pressed={!node.isActive}
               title={
@@ -401,7 +402,7 @@ export default function AccountingPlanCuentasPage() {
 
       <Card className="mb-4">
         <div className="flex flex-col gap-3 p-3 lg:flex-row lg:items-center">
-          <div className="relative w-full lg:max-w-sm">
+          <div className="relative w-full sm:w-80">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               className="pl-9"
@@ -410,42 +411,50 @@ export default function AccountingPlanCuentasPage() {
               onChange={(event) => setSearch(event.target.value)}
             />
           </div>
-          <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
-            <Select value={filtroTipo || 'todos'} onValueChange={(v) => setFiltroTipo(v === 'todos' ? '' : v)}>
-              <SelectTrigger className="h-9 w-44">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos los tipos</SelectItem>
-                {/* Elementos del PCGE: el 2 no es Pasivo, es Activo realizable. */}
-                <SelectItem value="1">Activo</SelectItem>
-                <SelectItem value="2">Activo realizable</SelectItem>
-                <SelectItem value="3">Activo inmovilizado</SelectItem>
-                <SelectItem value="4">Pasivo</SelectItem>
-                <SelectItem value="5">Patrimonio</SelectItem>
-                <SelectItem value="6">Gastos</SelectItem>
-                <SelectItem value="7">Ingresos</SelectItem>
-                <SelectItem value="8">Saldos intermediarios</SelectItem>
-                <SelectItem value="9">Costos de producción</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={filtroEstado} onValueChange={(v) => setFiltroEstado(v as 'TODOS' | 'ACTIVA' | 'INACTIVA')}>
-              <SelectTrigger className="h-9 w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="TODOS">Todos los estados</SelectItem>
-                <SelectItem value="ACTIVA">Activas</SelectItem>
-                <SelectItem value="INACTIVA">Inactivas</SelectItem>
-              </SelectContent>
-            </Select>
-            <span className="text-xs tabular-nums text-muted-foreground">
-              Mostrando {coincidencias.hayFiltros ? coincidencias.codigos.size : accounts.length} de {accounts.length} cuentas
+          <Select value={filtroTipo || 'todos'} onValueChange={(v) => setFiltroTipo(v === 'todos' ? '' : v)}>
+            <SelectTrigger className="h-8 w-44" aria-label="Filtrar por tipo de cuenta">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos los tipos</SelectItem>
+              {/* Elementos del PCGE: el 2 no es Pasivo, es Activo realizable. */}
+              <SelectItem value="1">Activo</SelectItem>
+              <SelectItem value="2">Activo realizable</SelectItem>
+              <SelectItem value="3">Activo inmovilizado</SelectItem>
+              <SelectItem value="4">Pasivo</SelectItem>
+              <SelectItem value="5">Patrimonio</SelectItem>
+              <SelectItem value="6">Gastos</SelectItem>
+              <SelectItem value="7">Ingresos</SelectItem>
+              <SelectItem value="8">Saldos intermediarios</SelectItem>
+              <SelectItem value="9">Costos de producción</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filtroEstado} onValueChange={(v) => setFiltroEstado(v as 'TODOS' | 'ACTIVA' | 'INACTIVA')}>
+            <SelectTrigger className="h-8 w-40" aria-label="Filtrar por estado">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="TODOS">Todos los estados</SelectItem>
+              <SelectItem value="ACTIVA">Activas</SelectItem>
+              <SelectItem value="INACTIVA">Inactivas</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* El contador solo aporta cuando hay un filtro: sin él, el subtítulo
+              del encabezado ya dice el total del catálogo. */}
+          {coincidencias.hayFiltros ? (
+            <span className="text-xs tabular-nums text-muted-foreground" aria-live="polite">
+              Mostrando {coincidencias.codigos.size} de {accounts.length}
             </span>
+          ) : null}
+
+          <div className="ml-auto flex items-center gap-1">
             <Button
               type="button"
               variant="outline"
-              size="sm"
+              size="icon"
+              title="Expandir hasta subcuenta"
+              aria-label="Expandir hasta subcuenta"
               onClick={() =>
                 // Expandir todo el catálogo son casi 1700 filas y la tabla se
                 // vuelve lenta e ilegible, así que se abre hasta subcuenta.
@@ -458,15 +467,17 @@ export default function AccountingPlanCuentasPage() {
                 )
               }
             >
-              Expandir todo
+              <ChevronsDown className="h-4 w-4" />
             </Button>
             <Button
               type="button"
               variant="outline"
-              size="sm"
+              size="icon"
+              title="Colapsar todo"
+              aria-label="Colapsar todo"
               onClick={() => setExpanded(new Set())}
             >
-              Colapsar todo
+              <ChevronsUp className="h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -728,13 +739,13 @@ function TreasuryAccountsCard({
         <div className="space-y-3">
           <div className="grid gap-2 md:grid-cols-4">
             <label className="text-xs md:col-span-2">Subcuenta PCGE
-              <select className="mt-1 h-9 w-full rounded border bg-background px-2" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })}>
+              <select className="mt-1 h-8 w-full rounded border bg-background px-2" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })}>
                 <option value="">Seleccionar subcuenta</option>
                 {hojas.filter((c) => c.code.startsWith('10')).map((c) => <option key={c.code} value={c.code}>{c.code} · {c.name}</option>)}
               </select>
             </label>
             <label className="text-xs">Tipo
-              <select className="mt-1 h-9 w-full rounded border bg-background px-2" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as 'CAJA' | 'BANCO' })}>
+              <select className="mt-1 h-8 w-full rounded border bg-background px-2" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as 'CAJA' | 'BANCO' })}>
                 <option value="CAJA">Caja</option>
                 <option value="BANCO">Banco</option>
               </select>

@@ -1,8 +1,10 @@
-import { CheckCircle2, Scale, TriangleAlert } from 'lucide-react';
+import { CheckCircle2, ExternalLink, Scale, TriangleAlert } from 'lucide-react';
 import {
   Badge,
+  Button,
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   Table,
@@ -24,149 +26,226 @@ export interface EntryDetail {
   diario?: string | null;
   referencia?: string | null;
   observacion?: string | null;
+  creado?: string | null;
+  responsable?: string | null;
+  anulado?: boolean;
   lineas: Array<{ code: string; name: string; debit: number; credit: number }>;
 }
 
-const money = (value: number) => formatCurrency(Number(value) || 0, 'PEN');
+const money = (valor: number) => formatCurrency(Number(valor) || 0, 'PEN');
+
+/** Nombre legible del diario contable. */
+const NOMBRE_DIARIO: Record<string, string> = {
+  VEN: 'Ventas',
+  COM: 'Compras',
+  CAJ: 'Caja y bancos',
+  OPV: 'Operaciones varias',
+  IMP: 'Importaciones',
+  GAS: 'Gastos',
+};
+
+const fechaHora = (valor?: string | null): string => {
+  if (!valor) return '';
+  const fecha = new Date(valor);
+  if (Number.isNaN(fecha.getTime())) return '';
+  return `${formatDateToPeru(valor)} ${fecha.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}`;
+};
 
 /**
- * Detalle de un asiento en ventana flotante centrada.
+ * Detalle de un asiento.
  *
- * El ancho queda fijo y las columnas se reparten con `table-fixed`: así el
- * contenido largo se recorta en vez de empujar la tabla y obligar a desplazar
- * el modal a la derecha.
+ * Componente único para el Libro Diario y el Libro Mayor: la estructura, los
+ * importes y el indicador de cuadre son los mismos en ambos libros. Las tarjetas
+ * sin dato no se muestran, en lugar de dejar guiones vacíos.
  */
 export function EntryDetailDialog({
   entry,
   open,
   onOpenChange,
   cargando = false,
+  /** Cuenta desde la que se abrió (mayor), para resaltar su línea. */
+  cuentaResaltada,
+  /** Navegación al mayor de una cuenta. */
+  onVerCuenta,
+  /** Navegación al Libro Diario cuando se abre desde el mayor. */
+  onVerEnDiario,
 }: {
   entry: EntryDetail | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   cargando?: boolean;
+  cuentaResaltada?: string;
+  onVerCuenta?: (code: string) => void;
+  onVerEnDiario?: () => void;
 }) {
-  const totalDebe = entry?.lineas.reduce((acc, linea) => acc + linea.debit, 0) ?? 0;
-  const totalHaber = entry?.lineas.reduce((acc, linea) => acc + linea.credit, 0) ?? 0;
-  const cuadrado = Math.abs(totalDebe - totalHaber) <= 0.01;
+  const lineas = entry?.lineas ?? [];
+  const totalDebe = lineas.reduce((acc, linea) => acc + linea.debit, 0);
+  const totalHaber = lineas.reduce((acc, linea) => acc + linea.credit, 0);
+  const sinLineas = lineas.length === 0;
+  const cuadrado = !sinLineas && Math.abs(totalDebe - totalHaber) <= 0.01;
+
+  const tarjetas = entry
+    ? [
+        { etiqueta: 'Referencia', valor: entry.referencia },
+        { etiqueta: 'Fecha contable', valor: entry.fecha ? formatDateToPeru(entry.fecha) : '' },
+        { etiqueta: 'Origen', valor: entry.origen },
+        { etiqueta: 'Diario contable', valor: entry.diario ? (NOMBRE_DIARIO[entry.diario] ?? entry.diario) : '' },
+        { etiqueta: 'Creado', valor: fechaHora(entry.creado) },
+        { etiqueta: 'Responsable', valor: entry.responsable },
+      ].filter((tarjeta) => Boolean(tarjeta.valor && String(tarjeta.valor).trim()))
+    : [];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
         {cargando ? (
           <p className="py-10 text-sm text-muted-foreground">Cargando asiento…</p>
         ) : entry ? (
           <>
             <DialogHeader className="gap-1">
-              <div className="flex flex-wrap items-center justify-between gap-2 pr-8">
+              <div className="flex flex-wrap items-center gap-2 pr-8">
                 <DialogTitle className="font-mono text-base">{entry.numero}</DialogTitle>
                 <Badge
                   variant="outline"
                   className={
-                    cuadrado
-                      ? 'border-emerald-600/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400'
-                      : 'border-destructive/30 bg-destructive/5 text-destructive'
+                    entry.anulado
+                      ? 'border-destructive/30 bg-destructive/5 text-destructive'
+                      : 'border-emerald-600/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400'
                   }
                 >
-                  {cuadrado ? 'Registrado' : 'Descuadrado'}
+                  {entry.anulado ? 'Anulado' : 'Registrado'}
                 </Badge>
+                <span className="text-xs text-muted-foreground">{formatDateToPeru(entry.fecha)}</span>
               </div>
-              <p className="text-xs text-muted-foreground">
-                {formatDateToPeru(entry.fecha)}
-                {entry.diario ? ` · ${entry.diario}` : ''}
-              </p>
+              <DialogDescription className="sr-only">
+                Detalle del asiento {entry.numero}
+              </DialogDescription>
             </DialogHeader>
 
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {/* El número del asiento (AS/...) es la referencia principal; el
-                  documento de origen se muestra aparte si existe. */}
-              <Chip etiqueta="Número / Referencia" valor={entry.numero} />
-              <Chip etiqueta="Fecha contable" valor={formatDateToPeru(entry.fecha)} />
-              <Chip etiqueta="Diario contable" valor={entry.diario ?? '—'} />
-              <Chip etiqueta="Origen" valor={entry.origen} />
+            {/* Ficha del asiento: solo se muestran los datos que existen. */}
+            {tarjetas.length > 0 ? (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {tarjetas.map((tarjeta) => (
+                  <div key={tarjeta.etiqueta} className="rounded-md border p-2">
+                    <p className="text-[11px] text-muted-foreground">{tarjeta.etiqueta}</p>
+                    <p className="truncate text-xs font-medium" title={String(tarjeta.valor)}>
+                      {tarjeta.valor}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            <div className="space-y-2">
+              <div>
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Concepto</p>
+                <p className="text-sm">{entry.glosa || '—'}</p>
+              </div>
+              {entry.observacion ? (
+                <div>
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Observación</p>
+                  <p className="text-sm">{entry.observacion}</p>
+                </div>
+              ) : null}
             </div>
 
-            <div className="space-y-3">
-              <div>
-                <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Concepto</p>
-                <p className="mt-1 text-sm font-medium leading-snug">{entry.glosa}</p>
-              </div>
-              <div>
-                <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Observación</p>
-                <p className="mt-1 text-sm text-muted-foreground">{entry.observacion?.trim() || '—'}</p>
-              </div>
-            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-28">Cuenta</TableHead>
+                  <TableHead>Descripción</TableHead>
+                  <TableHead align="right" className="w-28">Debe</TableHead>
+                  <TableHead align="right" className="w-28">Haber</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sinLineas ? (
+                  <TableRow>
+                    <TableCell colSpan={4}>
+                      <span className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-400">
+                        <TriangleAlert className="h-4 w-4" />
+                        Este asiento no tiene líneas registradas; no se puede comprobar el cuadre.
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  lineas.map((linea, indice) => {
+                    const resaltada = cuentaResaltada && linea.code === cuentaResaltada;
+                    return (
+                      <TableRow
+                        key={`${linea.code}-${indice}`}
+                        className={resaltada ? 'bg-muted/60' : undefined}
+                      >
+                        <TableCell className="whitespace-nowrap">
+                          {onVerCuenta ? (
+                            <button
+                              type="button"
+                              onClick={() => onVerCuenta(linea.code)}
+                              className="font-mono text-xs font-semibold underline-offset-2 hover:underline"
+                              title={`Ver el libro mayor de ${linea.code}`}
+                            >
+                              {linea.code}
+                            </button>
+                          ) : (
+                            <span className="font-mono text-xs font-semibold">{linea.code}</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-xs">{linea.name}</TableCell>
+                        <TableCell align="right" className="tabular-nums whitespace-nowrap">
+                          {linea.debit ? money(linea.debit) : ''}
+                        </TableCell>
+                        <TableCell align="right" className="tabular-nums whitespace-nowrap">
+                          {linea.credit ? money(linea.credit) : ''}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
 
-            <div className="flex items-center justify-between">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Líneas del asiento ({entry.lineas.length})
-              </p>
-              {cuadrado ? (
-                <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
-                  <CheckCircle2 className="h-3.5 w-3.5" /> Asiento cuadrado
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3">
+              <div className="flex flex-wrap gap-4 text-xs">
+                <span>
+                  Total debe: <strong className="tabular-nums">{money(totalDebe)}</strong>
                 </span>
+                <span>
+                  Total haber: <strong className="tabular-nums">{money(totalHaber)}</strong>
+                </span>
+              </div>
+              {sinLineas ? (
+                <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-400">
+                  Sin líneas
+                </Badge>
               ) : (
-                <span className="flex items-center gap-1 text-[11px] font-medium text-destructive">
-                  <TriangleAlert className="h-3.5 w-3.5" /> Asiento descuadrado
+                <span
+                  className={`flex items-center gap-1 text-xs font-medium ${
+                    cuadrado ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'
+                  }`}
+                >
+                  {cuadrado ? <CheckCircle2 className="h-4 w-4" /> : <Scale className="h-4 w-4" />}
+                  {cuadrado ? 'Cuadra' : 'No cuadra'}
                 </span>
               )}
             </div>
 
-            <div className="rounded-lg ring-1 ring-foreground/10">
-              <Table className="table-fixed">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[58%]">Cuenta contable</TableHead>
-                    <TableHead align="right" className="w-[21%]">Debe</TableHead>
-                    <TableHead align="right" className="w-[21%]">Haber</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {entry.lineas.map((linea, index) => (
-                    <TableRow key={`${entry.id}-${index}`}>
-                      <TableCell>
-                        <span className="flex min-w-0 flex-col gap-0.5">
-                          <span className="font-mono text-xs font-semibold">{linea.code}</span>
-                          <span className="truncate text-[11px] leading-snug text-muted-foreground" title={linea.name}>
-                            {linea.name}
-                          </span>
-                        </span>
-                      </TableCell>
-                      <TableCell align="right" className="whitespace-nowrap tabular-nums">
-                        {linea.debit ? money(linea.debit) : '—'}
-                      </TableCell>
-                      <TableCell align="right" className="whitespace-nowrap tabular-nums">
-                        {linea.credit ? money(linea.credit) : '—'}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-
-            <div className="flex items-center justify-between rounded-lg bg-foreground px-3 py-2 text-sm text-background">
-              <span className="text-xs uppercase tracking-wider">Debe · Haber</span>
-              <span className="flex items-center gap-4 font-medium tabular-nums">
-                <span>{money(totalDebe)}</span>
-                <span>{money(totalHaber)}</span>
-                <Scale className={cuadrado ? 'h-4 w-4 text-emerald-400' : 'h-4 w-4 text-red-400'} />
-              </span>
-            </div>
+            {onVerEnDiario || (entry.referencia && onVerCuenta) ? (
+              <div className="flex flex-wrap justify-end gap-2 print:hidden">
+                {entry.referencia && onVerCuenta ? (
+                  <Button variant="ghost" size="sm" onClick={() => onVerCuenta(entry.referencia!.split('-')[0])}>
+                    <ExternalLink className="mr-1 h-4 w-4" /> Ver documento de origen
+                  </Button>
+                ) : null}
+                {onVerEnDiario ? (
+                  <Button variant="ghost" size="sm" onClick={onVerEnDiario}>
+                    <ExternalLink className="mr-1 h-4 w-4" /> Ver en Libro Diario
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
           </>
-        ) : (
-          <p className="py-10 text-sm text-muted-foreground">No se pudo cargar el asiento.</p>
-        )}
+        ) : null}
       </DialogContent>
     </Dialog>
-  );
-}
-
-function Chip({ etiqueta, valor }: { etiqueta: string; valor: string }) {
-  return (
-    <div className="min-w-0 rounded-lg bg-muted/40 p-2.5">
-      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{etiqueta}</p>
-      <p className="mt-1 truncate text-sm" title={valor}>{valor}</p>
-    </div>
   );
 }
