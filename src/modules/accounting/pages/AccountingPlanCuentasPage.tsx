@@ -233,7 +233,10 @@ export default function AccountingPlanCuentasPage() {
               variant="ghost"
               size="sm"
               aria-label={node.isActive ? `Desactivar ${node.code}` : `Activar ${node.code}`}
-              disabled={alternar.isPending}
+              aria-pressed={!node.isActive}
+              // Solo se bloquea el botón de la fila que se está guardando; si se
+              // deshabilitaran todos, parecería que se pulsaron en todas.
+              disabled={alternar.isPending && alternar.variables?.code === node.code}
               onClick={() => alternar.mutate({ code: node.code, isActive: !node.isActive })}
             >
               <Power className={`h-4 w-4 ${node.isActive ? '' : 'text-muted-foreground'}`} />

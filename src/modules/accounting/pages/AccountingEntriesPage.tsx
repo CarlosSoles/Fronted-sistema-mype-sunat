@@ -11,6 +11,7 @@ import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/axios';
 import { cachedGet } from '@/lib/offlineCache';
 import { EntryDetailDialog, type EntryDetail } from '../components/EntryDetailDialog';
+import { RangoFechas } from '../components/AccountingUI';
 import { etiquetaOrigen } from '../lib/origenLabels';
 import {
   Badge,
@@ -382,25 +383,13 @@ export default function AccountingEntriesPage() {
             ))}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Input
-              id="diario-desde"
-              aria-label="Desde"
-              type="date"
-              value={desde}
-              onChange={(e) => setDesde(e.target.value)}
-              className="h-9 w-36"
-            />
-            <span className="text-xs text-muted-foreground">a</span>
-            <Input
-              id="diario-hasta"
-              aria-label="Hasta"
-              type="date"
-              value={hasta}
-              onChange={(e) => setHasta(e.target.value)}
-              className="h-9 w-36"
-            />
-          </div>
+          <RangoFechas
+            idPrefijo="diario"
+            desde={desde}
+            hasta={hasta}
+            onDesde={setDesde}
+            onHasta={setHasta}
+          />
         </div>
         {rangoInvalido ? (
           <p className="mt-2 text-xs text-destructive">
