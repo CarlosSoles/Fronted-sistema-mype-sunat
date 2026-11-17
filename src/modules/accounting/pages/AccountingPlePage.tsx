@@ -10,7 +10,7 @@ export default function AccountingPlePage() {
   const companyId = activeCompany?.tenantId ?? user?.companyId ?? '';
   const companyRuc = activeCompany?.ruc ?? user?.companyRuc ?? '';
   const [isDownloadingDiario, setIsDownloadingDiario] = useState(false);
-  const [isDownloadingMayor, setIsDownloadingMayor] = useState(false);
+  const [, setIsDownloadingMayor] = useState(false);
   const [isDownloadingBalances, setIsDownloadingBalances] = useState(false);
   const [isDownloadingVentas, setIsDownloadingVentas] = useState(false);
   const [isDownloadingCompras, setIsDownloadingCompras] = useState(false);
@@ -138,6 +138,11 @@ export default function AccountingPlePage() {
         </div>
       </Card>
 
+      {/* Es un aviso informativo, no un error: el 6.1 aún no está implementado. */}
+      <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-sm text-amber-700 dark:text-amber-400">
+        El libro 060100 todavía no está implementado: hoy se exportan el 5.1 (Libro Diario) y el 3.1 (Inventarios y Balances).
+      </div>
+
       {error && (
         <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
           {error}
@@ -198,15 +203,15 @@ export default function AccountingPlePage() {
             size="sm"
             className="w-full"
             onClick={() => handleExportPle('060100')}
-            disabled={isDownloadingMayor}
+            disabled
+            title="El libro 6.1 todavía no está implementado en el servidor"
           >
-            {isDownloadingMayor ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Download className="w-4 h-4 mr-2" />
-            )}
-            {isDownloadingMayor ? 'Generando Trama...' : 'Descargar Libro Mayor 6.1'}
+            <Download className="w-4 h-4 mr-2" />
+            Libro Mayor 6.1 no disponible
           </Button>
+          <p className="text-[11px] text-muted-foreground">
+            El servidor aún no genera la trama 6.1; hoy se exportan el 5.1 (Diario) y el 3.1 (Inventarios y Balances).
+          </p>
         </Card>
         {/* Libro de Inventarios y Balances 3.1 */}
         <Card className="p-5 space-y-3 border">
