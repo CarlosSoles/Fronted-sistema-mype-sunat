@@ -31,11 +31,33 @@ export default function AccountingRulesPage() {
       {error ? <Card className="p-4 mb-4 text-sm text-destructive">{error}</Card> : null}
       <Card flush>
         <Table>
-          <TableHeader><TableRow><TableHead>Proceso</TableHead><TableHead>Documento</TableHead><TableHead>Orden</TableHead><TableHead>Cuenta</TableHead><TableHead>Lado</TableHead><TableHead>Base</TableHead><TableHead>Descripción</TableHead><TableHead align="right">Acción</TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>Proceso</TableHead><TableHead>Orden</TableHead><TableHead>Cuenta</TableHead><TableHead>Lado</TableHead><TableHead>Base</TableHead><TableHead>Descripción</TableHead><TableHead align="right">Acción</TableHead></TableRow></TableHeader>
           <TableBody>
-            {isLoading ? <TableRow><TableCell colSpan={8}>Cargando reglas…</TableCell></TableRow> : null}
-            {!isLoading && data.length === 0 ? <TableRow><TableCell colSpan={8}>Sin reglas. Crea la primera.</TableCell></TableRow> : null}
-            {data.map((r) => <TableRow key={r.id}><TableCell><Badge variant="outline">{r.process_code}</Badge></TableCell><TableCell>{r.document_type}</TableCell><TableCell>{r.line_order}</TableCell><TableCell className="font-mono">{r.account_code}</TableCell><TableCell>{r.side}</TableCell><TableCell>{r.base_calculation}</TableCell><TableCell className="text-xs text-muted-foreground">{r.description ?? '—'}</TableCell><TableCell align="right"><Button size="sm" variant="outline" onClick={() => setEditar({ processCode: r.process_code, documentType: r.document_type, lineOrder: r.line_order, accountCode: r.account_code, side: r.side, baseCalculation: r.base_calculation, description: r.description ?? '' })}>Editar</Button></TableCell></TableRow>)}
+            {isLoading ? <TableRow><TableCell colSpan={7}>Cargando reglas…</TableCell></TableRow> : null}
+            {!isLoading && data.length === 0 ? <TableRow><TableCell colSpan={7}>Sin reglas. Crea la primera.</TableCell></TableRow> : null}
+            {data.map((r) => {
+              // Se muestra código y nombre de la cuenta: el código solo obliga a
+              // recordar el plan de cuentas de memoria.
+              const cuenta = (cuentas.data ?? []).find((c) => c.code === r.account_code);
+              return (
+                <TableRow key={r.id}>
+                  <TableCell><Badge variant="outline">{r.process_code}</Badge></TableCell>
+                  <TableCell className="tabular-nums">{r.line_order}</TableCell>
+                  <TableCell>
+                    <span className="font-mono text-xs">{r.account_code}</span>
+                    {cuenta ? <span className="ml-2 text-muted-foreground">{cuenta.name}</span> : null}
+                  </TableCell>
+                  <TableCell>{r.side}</TableCell>
+                  <TableCell>{r.base_calculation}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{r.description ?? '—'}</TableCell>
+                  <TableCell align="right">
+                    <Button size="sm" variant="outline" onClick={() => setEditar({ processCode: r.process_code, documentType: r.document_type, lineOrder: r.line_order, accountCode: r.account_code, side: r.side, baseCalculation: r.base_calculation, description: r.description ?? '' })}>
+                      Editar
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </Card>
@@ -46,9 +68,9 @@ export default function AccountingRulesPage() {
           {editar ? <div className="space-y-3 py-2">
             <div className="grid grid-cols-2 gap-3">
               <label className="text-xs">Proceso<select className="mt-1 h-9 w-full rounded border bg-background px-2" value={editar.processCode} onChange={(e) => setEditar({ ...editar, processCode: e.target.value })}>{['VENTA', 'COMPRA', 'PAGO', 'GASTO', 'AJUSTE'].map((p) => <option key={p}>{p}</option>)}</select></label>
-              <label className="text-xs">Documento<input className="mt-1 h-9 w-full rounded border bg-background px-2" value={editar.documentType ?? '*'} onChange={(e) => setEditar({ ...editar, documentType: e.target.value })} /></label>
               <label className="text-xs">Orden<input type="number" className="mt-1 h-9 w-full rounded border bg-background px-2" value={editar.lineOrder} onChange={(e) => setEditar({ ...editar, lineOrder: Number(e.target.value) })} /></label>
               <label className="text-xs">Lado<select className="mt-1 h-9 w-full rounded border bg-background px-2" value={editar.side} onChange={(e) => setEditar({ ...editar, side: e.target.value as 'DEBE' | 'HABER' })}><option>DEBE</option><option>HABER</option></select></label>
+              <label className="text-xs">Base<select className="mt-1 h-9 w-full rounded border bg-background px-2" value={editar.baseCalculation} onChange={(e) => setEditar({ ...editar, baseCalculation: e.target.value })}>{['TOTAL', 'BASE', 'IGV', 'COSTO', 'MONTO_PAGADO'].map((b) => <option key={b}>{b}</option>)}</select></label>
             </div>
             <label className="text-xs block">Cuenta<select className="mt-1 h-9 w-full rounded border bg-background px-2" value={editar.accountCode} onChange={(e) => setEditar({ ...editar, accountCode: e.target.value })}><option value="">Seleccionar cuenta</option>{(cuentas.data ?? []).map((c) => <option key={c.code} value={c.code}>{c.code} · {c.name}</option>)}</select></label>
             <label className="text-xs block">Base<select className="mt-1 h-9 w-full rounded border bg-background px-2" value={editar.baseCalculation} onChange={(e) => setEditar({ ...editar, baseCalculation: e.target.value })}>{['TOTAL', 'BASE', 'IGV', 'COSTO', 'MONTO_PAGADO'].map((b) => <option key={b}>{b}</option>)}</select></label>
