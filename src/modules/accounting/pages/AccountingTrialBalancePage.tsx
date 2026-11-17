@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { CheckCircle2, Download, FileDown, TriangleAlert } from 'lucide-react';
+import { Download, FileDown } from 'lucide-react';
 import {
   Button,
   Card,
+  Input,
   Page,
   PageHeader,
   Table,
@@ -14,13 +15,20 @@ import {
   TableRow,
 } from '@/components/ui';
 import { accountingApi } from '../services/accountingApi';
-import { PeriodInput } from '@/components/common/PeriodInput';
 import type { TrialBalanceRow } from '../types/accounting.types';
 import { descargarCsv, descargarPdf, importe } from '../lib/exportReport';
 
 const periodoActual = () => {
   const hoy = new Date();
   return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
+};
+
+/** "2026-11" -> "2026-11-30", último día del mes. */
+const ultimoDiaDe = (periodo: string): string => {
+  const [anio, mes] = periodo.split('-').map(Number);
+  if (!anio || !mes) return `${periodo}-01`;
+  const ultimo = new Date(anio, mes, 0).getDate();
+  return `${periodo}-${String(ultimo).padStart(2, '0')}`;
 };
 
 /** "2026-11" -> "NOVIEMBRE 2026", para el encabezado de la columna. */
@@ -60,6 +68,16 @@ interface Bloque {
 
 export default function AccountingTrialBalancePage() {
   const [period, setPeriod] = useState(periodoActual);
+  const [desde, setDesde] = useState(() => `${periodoActual()}-01`);
+  const [hasta, setHasta] = useState(() => ultimoDiaDe(periodoActual()));
+
+  /** "Mes actual": vuelve al mes en curso con su rango de días completo. */
+  const irAlMesActual = () => {
+    const actual = periodoActual();
+    setPeriod(actual);
+    setDesde(`${actual}-01`);
+    setHasta(ultimoDiaDe(actual));
+  };
   const { data, isLoading, error } = useQuery({
     queryKey: ['accounting-trial-balance', period],
     queryFn: () => accountingApi.getTrialBalance(period),
@@ -151,11 +169,33 @@ export default function AccountingTrialBalancePage() {
       <Card className="mb-4 print:hidden">
         <div className="flex flex-wrap items-end gap-3 p-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Desde</label>
-            <PeriodInput value={period} onChange={setPeriod} />
+            <label className="text-xs font-medium text-muted-foreground" htmlFor="balance-desde">Desde</label>
+            <Input
+              id="balance-desde"
+              type="date"
+              className="w-40"
+              value={desde}
+              onChange={(evento) => {
+                setDesde(evento.target.value);
+                if (evento.target.value) setPeriod(evento.target.value.slice(0, 7));
+              }}
+            />
           </div>
-          <Button variant="outline" onClick={() => setPeriod(periodoActual())}>Mes actual</Button>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground" htmlFor="balance-hasta">Hasta</label>
+            <Input
+              id="balance-hasta"
+              type="date"
+              className="w-40"
+              value={hasta}
+              onChange={(evento) => {
+                setHasta(evento.target.value);
+                if (evento.target.value) setPeriod(evento.target.value.slice(0, 7));
+              }}
+            />
+          </div>
           <div className="ml-auto flex gap-2">
+            <Button variant="outline" onClick={irAlMesActual}>Mes actual</Button>
             <Button variant="outline" onClick={exportar} disabled={filas.length === 0}>
               <Download className="mr-1.5 h-4 w-4" /> Descargar CSV
             </Button>
@@ -171,31 +211,6 @@ export default function AccountingTrialBalancePage() {
           No se pudo cargar el balance. Verifica el período.
         </Card>
       ) : null}
-
-      <div className="mb-3 text-center">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Estados financieros</p>
-        <h2 className="text-lg font-semibold">Balance de Comprobación</h2>
-        <p className="text-xs text-muted-foreground">
-          Período {nombreMes(period)} · Expresado en soles (PEN)
-        </p>
-      </div>
-
-      <Card
-        className={`mb-3 flex items-center gap-2 p-3 text-sm ${
-          cuadra
-            ? 'border-emerald-600/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400'
-            : 'border-destructive/30 bg-destructive/5 text-destructive'
-        }`}
-      >
-        {cuadra ? <CheckCircle2 className="h-4 w-4" /> : <TriangleAlert className="h-4 w-4" />}
-        <span>
-          {!data
-            ? 'Sin datos'
-            : cuadra
-              ? `Cuadra: Debe final (${importe(totales.finalDebe)}) = Haber final (${importe(totales.finalHaber)})`
-              : `Descuadre de ${importe(Math.abs(totales.diferencia))}. Revisa asientos incompletos.`}
-        </span>
-      </Card>
 
       <Card flush>
         <Table className="table-fixed">

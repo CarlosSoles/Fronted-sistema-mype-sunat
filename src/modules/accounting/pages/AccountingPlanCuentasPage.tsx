@@ -275,7 +275,7 @@ export default function AccountingPlanCuentasPage() {
               onChange={(event) => setSearch(event.target.value)}
             />
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
             <Select value={filtroTipo || 'todos'} onValueChange={(v) => setFiltroTipo(v === 'todos' ? '' : v)}>
               <SelectTrigger className="h-9 w-44">
                 <SelectValue />
@@ -304,9 +304,6 @@ export default function AccountingPlanCuentasPage() {
                 <SelectItem value="INACTIVA">Inactivas</SelectItem>
               </SelectContent>
             </Select>
-            <span className="ml-auto text-xs tabular-nums text-muted-foreground">
-              {(filtered ?? accounts).length} cuenta(s)
-            </span>
           </div>
         </div>
       </Card>

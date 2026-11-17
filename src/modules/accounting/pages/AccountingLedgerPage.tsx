@@ -23,6 +23,7 @@ import { Toolbar } from '../components/AccountingUI';
 import { EntryDetailDialog, type EntryDetail } from '../components/EntryDetailDialog';
 import { accountingApi } from '../services/accountingApi';
 import { formatearNumeroAsiento } from '../lib/numeroAsiento';
+import { etiquetaOrigen } from '../lib/origenLabels';
 import type { LedgerMovement } from '../types/accounting.types';
 
 const periodoActual = () => {
@@ -31,18 +32,6 @@ const periodoActual = () => {
 };
 
 const money = (value: number) => `S/ ${value.toFixed(2)}`;
-
-/** Traduce el origen técnico a una etiqueta legible. */
-const etiquetaOrigen = (source: string): string => {
-  const etiquetas: Record<string, string> = {
-    INVOICES: 'Facturación',
-    M1_INVOICES: 'Facturación',
-    CUSTOMS: 'Importaciones',
-    M1_CUSTOMS: 'Importaciones',
-    MANUAL: 'Manual',
-  };
-  return etiquetas[source] ?? source;
-};
 
 
 
@@ -201,8 +190,20 @@ export default function AccountingLedgerPage() {
               movements.map((movement) => (
                 <TableRow key={`${movement.entryId}-${movement.entryNumber}`} className="transition-colors hover:bg-muted/40">
                   <TableCell className="whitespace-nowrap tabular-nums">{movement.entryDate}</TableCell>
-                  <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
-                    {formatearNumeroAsiento(movement.entryNumber, period)}
+                  <TableCell className="whitespace-nowrap">
+                    <span className="flex items-center gap-1">
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {formatearNumeroAsiento(movement.entryNumber, period)}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={`Ver detalle del asiento ${formatearNumeroAsiento(movement.entryNumber, period)}`}
+                        onClick={() => setDetalle(movement)}
+                        className="rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                      >
+                        <SquareArrowOutUpRight className="h-3.5 w-3.5" />
+                      </button>
+                    </span>
                   </TableCell>
                   <TableCell>
                     <div className="space-y-0.5">
@@ -215,25 +216,15 @@ export default function AccountingLedgerPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex flex-col gap-0.5">
-                        <Badge variant="outline" className="w-fit text-muted-foreground">
-                          {etiquetaOrigen(movement.sourceModule)}
-                        </Badge>
-                        {movement.sourceReferenceId ? (
-                          <span className="font-mono text-[11px] text-muted-foreground">
-                            {movement.sourceReferenceId}
-                          </span>
-                        ) : null}
-                      </div>
-                      <button
-                        type="button"
-                        aria-label={`Ver detalle del asiento ${formatearNumeroAsiento(movement.entryNumber, period)}`}
-                        onClick={() => setDetalle(movement)}
-                        className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                      >
-                        <SquareArrowOutUpRight className="h-3.5 w-3.5" />
-                      </button>
+                    <div className="flex flex-col gap-0.5">
+                      <Badge variant="outline" className="w-fit text-muted-foreground">
+                        {etiquetaOrigen(movement.sourceModule)}
+                      </Badge>
+                      {movement.sourceReferenceId ? (
+                        <span className="font-mono text-[11px] text-muted-foreground">
+                          {movement.sourceReferenceId}
+                        </span>
+                      ) : null}
                     </div>
                   </TableCell>
                   <TableCell align="right" className="whitespace-nowrap tabular-nums">
