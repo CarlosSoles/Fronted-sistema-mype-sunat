@@ -14,21 +14,13 @@ import {
   TableRow,
 } from '@/components/ui';
 import { accountingApi } from '../services/accountingApi';
-import { RangoFechas } from '../components/AccountingUI';
+import { PeriodInput } from '@/components/common/PeriodInput';
 import type { TrialBalanceRow } from '../types/accounting.types';
 import { descargarCsv, descargarPdf, importe } from '../lib/exportReport';
 
 const periodoActual = () => {
   const hoy = new Date();
   return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
-};
-
-/** "2026-11" -> "2026-11-30", último día del mes. */
-const ultimoDiaDe = (periodo: string): string => {
-  const [anio, mes] = periodo.split('-').map(Number);
-  if (!anio || !mes) return `${periodo}-01`;
-  const ultimo = new Date(anio, mes, 0).getDate();
-  return `${periodo}-${String(ultimo).padStart(2, '0')}`;
 };
 
 /** "2026-11" -> "NOVIEMBRE 2026", para el encabezado de la columna. */
@@ -68,8 +60,9 @@ interface Bloque {
 
 export default function AccountingTrialBalancePage() {
   const [period, setPeriod] = useState(periodoActual);
-  const [desde, setDesde] = useState(() => `${periodoActual()}-01`);
-  const [hasta, setHasta] = useState(() => ultimoDiaDe(periodoActual()));
+
+  /** "Mes actual": devuelve el reporte al mes en curso. */
+  const irAlMesActual = () => setPeriod(periodoActual());
   const { data, isLoading, error } = useQuery({
     queryKey: ['accounting-trial-balance', period],
     queryFn: () => accountingApi.getTrialBalance(period),
@@ -160,20 +153,12 @@ export default function AccountingTrialBalancePage() {
 
       <Card className="mb-4 print:hidden">
         <div className="flex flex-wrap items-end gap-3 p-3">
-          <RangoFechas
-            idPrefijo="balance"
-            desde={desde}
-            hasta={hasta}
-            onDesde={(valor) => {
-              setDesde(valor);
-              if (valor) setPeriod(valor.slice(0, 7));
-            }}
-            onHasta={(valor) => {
-              setHasta(valor);
-              if (valor) setPeriod(valor.slice(0, 7));
-            }}
-          />
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Período</label>
+            <PeriodInput value={period} onChange={setPeriod} />
+          </div>
           <div className="ml-auto flex gap-2">
+            <Button variant="outline" onClick={irAlMesActual}>Mes actual</Button>
             <Button variant="outline" onClick={exportar} disabled={filas.length === 0}>
               <Download className="mr-1.5 h-4 w-4" /> Descargar CSV
             </Button>
