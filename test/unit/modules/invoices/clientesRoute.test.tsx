@@ -105,8 +105,8 @@ it.each([{ roles: ['PROVEEDOR'] }, { roles: ['PROVEEDOR', 'IMPORTADOR', 'AGENTE'
   mount('ADMIN');
   await screen.findByRole('heading', { name: 'Clientes y proveedores' }, { timeout: 5000 });
   fireEvent.click(screen.getByRole('button', { name: 'Nuevo tercero' }));
-  fireEvent.click(screen.getByLabelText('CLIENTE'));
-  for (const role of roles) fireEvent.click(screen.getByLabelText(role));
+  fireEvent.click(await screen.findByLabelText('CLIENTE', {}, { timeout: 5000 }));
+  for (const role of roles) fireEvent.click(await screen.findByLabelText(role, {}, { timeout: 5000 }));
   // Al desmarcar CLIENTE el formulario se vuelve a pintar; en un runner lento
   // el campo puede no existir todavía, así que se espera en vez de leer de golpe.
   fireEvent.change(await screen.findByLabelText('Número', {}, { timeout: 5000 }), { target: { value: '20555555556' } });
@@ -114,7 +114,7 @@ it.each([{ roles: ['PROVEEDOR'] }, { roles: ['PROVEEDOR', 'IMPORTADOR', 'AGENTE'
   fireEvent.click(screen.getByRole('button', { name: 'Guardar tercero' }));
   await waitFor(() => expect(masterDataApi.createPartner).toHaveBeenCalledWith(expect.objectContaining({ docNumber: '20555555556', roles })));
   expect(screen.queryByTitle('Eliminar tercero')).toBeNull();
-});
+}, 15000);
 it('edita y guarda un proveedor sin CLIENTE y conserva su ficha', async () => {
   vi.mocked(masterDataApi.getPartners).mockResolvedValue([{ ...partner, roles: ['PROVEEDOR'] }]);
   mount('ADMIN');
