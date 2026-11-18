@@ -275,9 +275,7 @@ export default function AccountingGuidePage() {
         </div>
       </PageHeader>
 
-      {/* Ancho de lectura: con la página completa la tabla dejaba un hueco
-          grande entre la denominación y las cifras. */}
-      <div className="mx-auto w-full max-w-4xl space-y-4">
+      <div className="space-y-4">
           <Card className="border-l-2 border-l-primary p-4 text-sm">
             <p className="font-medium">Cómo leer esta guía</p>
             <p className="mt-1 text-muted-foreground">
@@ -401,7 +399,7 @@ export default function AccountingGuidePage() {
                                     {linea.cuenta}
                                   </button>
                                 </TableCell>
-                                <TableCell className={linea.lado === 'HABER' ? 'pl-8' : ''}>
+                                <TableCell className={linea.lado === 'HABER' ? 'pl-12' : 'pl-6'}>
                                   <span className="block truncate" title={linea.nombre}>{linea.nombre}</span>
                                   <span className="block truncate text-[11px] text-muted-foreground">{linea.detalle}</span>
                                 </TableCell>
