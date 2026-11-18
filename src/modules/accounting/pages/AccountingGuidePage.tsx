@@ -373,13 +373,16 @@ export default function AccountingGuidePage() {
                             <p className="text-sm font-medium">{asiento.titulo}</p>
                             <span className="text-[11px] text-muted-foreground">{asiento.disparador}</span>
                           </div>
-                          <Table>
+                          {/* Anchos fijos: cada asiento es una tabla distinta y,
+                              sin ellos, la denominación y las cifras empezaban en
+                              posiciones diferentes según el largo de la cuenta. */}
+                          <Table className="table-fixed">
                             <TableHeader>
                               <TableRow>
-                                <TableHead>Cuenta</TableHead>
+                                <TableHead className="w-24">Cuenta</TableHead>
                                 <TableHead>Denominación</TableHead>
-                                <TableHead align="right">Debe</TableHead>
-                                <TableHead align="right">Haber</TableHead>
+                                <TableHead align="right" className="w-32">Debe</TableHead>
+                                <TableHead align="right" className="w-32">Haber</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -396,8 +399,8 @@ export default function AccountingGuidePage() {
                                     </button>
                                   </TableCell>
                                   <TableCell className={linea.lado === 'HABER' ? 'pl-8' : ''}>
-                                    <span className="block">{linea.nombre}</span>
-                                    <span className="block text-[11px] text-muted-foreground">{linea.detalle}</span>
+                                    <span className="block truncate" title={linea.nombre}>{linea.nombre}</span>
+                                    <span className="block truncate text-[11px] text-muted-foreground">{linea.detalle}</span>
                                   </TableCell>
                                   <TableCell align="right" className="tabular-nums">
                                     {linea.lado === 'DEBE' ? monto(importeDeLinea(linea, total, costoEjemplo)) : ''}
