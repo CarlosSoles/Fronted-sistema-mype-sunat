@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractApiErrorMessage } from '@/lib/apiErrors';
+import { extractApiErrorMessage, getApiErrorStatus, getApiRetryAfterMs, RATE_LIMIT_MESSAGE } from '@/lib/apiErrors';
 
 describe('extractApiErrorMessage utility', () => {
   it('retorna el fallback cuando el error es nulo o indefinido', () => {
@@ -65,4 +65,20 @@ describe('extractApiErrorMessage utility', () => {
     const nativeError = new Error('Fallo de conexión local');
     expect(extractApiErrorMessage(nativeError)).toBe('Fallo de conexión local');
   });
+});
+
+it('expone el estado HTTP y prioriza 429 sobre un mensaje de credenciales del backend', () => {
+  const error = { response: { status: 429, data: { message: 'Credenciales de acceso incorrectas' } } };
+  expect(getApiErrorStatus(error)).toBe(429);
+  expect(getApiErrorStatus(new Error('red'))).toBeUndefined();
+  expect(extractApiErrorMessage(error, 'Credenciales de acceso incorrectas')).toBe(RATE_LIMIT_MESSAGE);
+});
+it.each([undefined, {}, { 'retry-after': 'invalid' }, { 'retry-after': '-1' }])('Retry-After ausente o inválido usa 60 s: %j', headers => {
+  expect(getApiRetryAfterMs({ response: { headers } })).toBe(60_000);
+});
+it('interpreta segundos, fecha HTTP y AxiosHeaders sin espera inmediata', () => {
+  const now = Date.parse('2026-11-17T15:00:00Z');
+  expect(getApiRetryAfterMs({ response: { headers: { get: () => '90' } } }, now)).toBe(90_000);
+  expect(getApiRetryAfterMs({ response: { headers: { 'Retry-After': 'Tue, 17 Nov 2026 15:02:00 GMT' } } }, now)).toBe(120_000);
+  expect(getApiRetryAfterMs({ response: { headers: { 'retry-after': '0' } } }, now)).toBe(1000);
 });

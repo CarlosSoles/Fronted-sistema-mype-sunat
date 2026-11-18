@@ -15,7 +15,9 @@ import {
   PageText,
 } from '@/components/ui';
 import { Eye, EyeOff, Loader2, LogIn } from 'lucide-react';
-import { extractApiErrorMessage } from '@/lib/apiErrors';
+import { extractApiErrorMessage, getApiErrorStatus } from '@/lib/apiErrors';
+
+const CREDENTIALS_MESSAGE = 'Credenciales de acceso incorrectas o cuenta inactiva. Verifica tus datos.';
 
 export const LoginForm = () => {
   const { mutate: login, isPending, error } = useLogin();
@@ -48,7 +50,7 @@ export const LoginForm = () => {
       {error && (
         <Alert variant="destructive">
           <AlertDescription>
-            {extractApiErrorMessage(error, 'Credenciales de acceso incorrectas o cuenta inactiva. Verifica tus datos.')}
+            {getApiErrorStatus(error) === 401 ? CREDENTIALS_MESSAGE : extractApiErrorMessage(error, CREDENTIALS_MESSAGE)}
           </AlertDescription>
         </Alert>
       )}

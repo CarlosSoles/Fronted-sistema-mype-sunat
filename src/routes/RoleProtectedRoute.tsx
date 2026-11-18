@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useServerPermissions } from '@/modules/auth/hooks/useServerPermissions';
+import { RATE_LIMIT_MESSAGE } from '@/lib/apiErrors';
 import { getPermissionHome } from './roleNavigation';
 
 /**
@@ -24,14 +25,15 @@ export const RoleProtectedRoute = ({ children }: { children?: ReactNode }) => {
   if (p.isError) {
     return (
       <div role="alert" className="mx-auto max-w-md space-y-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm">
-        <p className="font-medium text-destructive">No se pudieron consultar los permisos.</p>
-        <p className="text-muted-foreground">
+        <p className="font-medium text-destructive">{p.errorStatus === 429 ? RATE_LIMIT_MESSAGE : 'No se pudieron consultar los permisos.'}</p>
+        {p.errorStatus !== 429 && <p className="text-muted-foreground">
           Puede que el servidor esté despertando. La aplicación reintenta sola; si el problema
           continúa, pulsa el botón.
-        </p>
+        </p>}
         <button
           type="button"
           className="rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+          disabled={p.errorStatus === 429}
           onClick={() => void p.refetch()}
         >
           Reintentar

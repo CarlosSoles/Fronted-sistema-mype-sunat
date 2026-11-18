@@ -1,3 +1,4 @@
+import { RATE_LIMIT_MESSAGE } from '@/lib/apiErrors';
 import React, { Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -100,7 +101,7 @@ const PageLoadingFallback = () => (
 const RoleHomeRedirect = () => {
   const p = useServerPermissions();
   if (p.isLoading) return <PageLoadingFallback />;
-  if (p.isError) return <p role='alert'>No se pudieron consultar los permisos.</p>;
+  if (p.isError) return <p role='alert'>{p.errorStatus === 429 ? RATE_LIMIT_MESSAGE : 'No se pudieron consultar los permisos.'}</p>;
   const target = getPermissionHome(p.homePath);
   return <Navigate to={target} replace />;
 };
