@@ -276,9 +276,8 @@ export default function AccountingLedgerPage() {
             <TableRow className="bg-muted/40 hover:bg-muted/40">
               <TableHead className="w-24">Fecha</TableHead>
               <TableHead className="w-36">Asiento</TableHead>
-              <TableHead className="w-20">Cuenta</TableHead>
               <TableHead>Descripción</TableHead>
-              <TableHead className="w-40">Módulo / Referencia</TableHead>
+              <TableHead className="w-48">Módulo / Referencia</TableHead>
               <TableHead align="right" className="w-28">Debe</TableHead>
               <TableHead align="right" className="w-28">Haber</TableHead>
               <TableHead align="right" className="w-32">Saldo</TableHead>
@@ -287,15 +286,15 @@ export default function AccountingLedgerPage() {
           <TableBody>
             {!accountCode ? (
               <TableRow>
-                <TableCell colSpan={8}>Selecciona una cuenta para ver sus movimientos.</TableCell>
+                <TableCell colSpan={7}>Selecciona una cuenta para ver sus movimientos.</TableCell>
               </TableRow>
             ) : isLoading ? (
               <TableRow>
-                <TableCell colSpan={8}>Cargando movimientos…</TableCell>
+                <TableCell colSpan={7}>Cargando movimientos…</TableCell>
               </TableRow>
             ) : movements.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8}>
+                <TableCell colSpan={7}>
                   La cuenta {data?.accountCode ?? accountCode} no tiene movimientos entre {formatDateToPeru(desde)} y{' '}
                   {formatDateToPeru(hasta)}.
                 </TableCell>
@@ -306,7 +305,7 @@ export default function AccountingLedgerPage() {
                   ? porSubcuenta.map(([codigo, grupo]) => (
                       <Fragment key={`grupo-${codigo}`}>
                         <TableRow className="bg-muted/30">
-                          <TableCell colSpan={5} className="text-xs font-medium">
+                          <TableCell colSpan={4} className="text-xs font-medium">
                             <span className="font-mono">{codigo}</span> · {grupo.nombre}
                           </TableCell>
                           <TableCell align="right" className="tabular-nums text-xs">{money(grupo.debe)}</TableCell>
@@ -323,8 +322,7 @@ export default function AccountingLedgerPage() {
                             <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
                               {formatearNumeroAsiento(movement.entryNumber, period)}
                             </TableCell>
-                            <TableCell className="whitespace-nowrap font-mono text-xs">{movement.accountCode}</TableCell>
-                            <TableCell className="text-xs">{movement.glosa}</TableCell>
+                                    <TableCell className="text-xs">{movement.glosa}</TableCell>
                             <TableCell className="text-xs text-muted-foreground">{etiquetaOrigen(movement.sourceModule)}</TableCell>
                             <TableCell align="right" className="tabular-nums">{movement.debit ? money(movement.debit) : ''}</TableCell>
                             <TableCell align="right" className="tabular-nums">{movement.credit ? money(movement.credit) : ''}</TableCell>
@@ -361,7 +359,6 @@ export default function AccountingLedgerPage() {
                         ) : null}
                       </span>
                     </TableCell>
-                    <TableCell className="whitespace-nowrap font-mono text-xs">{movement.accountCode}</TableCell>
                     <TableCell>
                       <p className="text-xs">{movement.glosa}</p>
                       <p className="text-[11px] text-muted-foreground">{movement.accountName}</p>
@@ -394,7 +391,7 @@ export default function AccountingLedgerPage() {
 
                 {/* Totales al pie del reporte. */}
                 <TableRow className="bg-muted/40 font-medium">
-                  <TableCell colSpan={5} className="text-xs">Totales del período</TableCell>
+                  <TableCell colSpan={4} className="text-xs">Totales del período</TableCell>
                   <TableCell align="right" className="tabular-nums">{money(data?.totalDebit ?? 0)}</TableCell>
                   <TableCell align="right" className="tabular-nums">{money(data?.totalCredit ?? 0)}</TableCell>
                   <TableCell align="right" className="tabular-nums">{money(data?.closingBalance ?? 0)}</TableCell>

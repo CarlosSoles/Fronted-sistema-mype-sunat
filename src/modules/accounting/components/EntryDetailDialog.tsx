@@ -223,21 +223,13 @@ export function EntryDetailDialog({
               </Table>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3">
-              <div className="flex flex-wrap gap-4 text-xs">
-                <span>
-                  Total debe: <strong className="tabular-nums">{money(totalDebe)}</strong>
-                </span>
-                <span>
-                  Total haber: <strong className="tabular-nums">{money(totalHaber)}</strong>
-                </span>
-              </div>
-              {onVerEnDiario ? (
+            {onVerEnDiario ? (
+              <div className="flex justify-end border-t pt-3">
                 <Button variant="ghost" size="sm" onClick={onVerEnDiario}>
                   <ExternalLink className="mr-1 h-4 w-4" /> Ver en Libro Diario
                 </Button>
-              ) : null}
-            </div>
+              </div>
+            ) : null}
           </>
         ) : null}
       </DialogContent>
