@@ -1,11 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, ChevronRight, ChevronsDown, ChevronsUp, Lock, Printer, Receipt, RotateCcw, Search, ShoppingCart, Wallet } from 'lucide-react';
-import { Badge, Button, Card, Input, Page, PageHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
-import { useQuery } from '@tanstack/react-query';
-import { accountingApi } from '../services/accountingApi';
-import { descargarPdf, monto } from '../lib/exportReport';
-import type { AccountingRule } from '../services/accountingApi';
+import { ChevronDown, ChevronRight, ChevronsDown, ChevronsUp, Lock, Receipt, Search, ShoppingCart, Wallet } from 'lucide-react';
+import { Button, Card, Input, Page, PageHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
+import { monto } from '../lib/exportReport';
 
 /**
  * Guía contable.
@@ -19,7 +16,7 @@ import type { AccountingRule } from '../services/accountingApi';
  * enlaza a Reglas de contabilización.
  */
 
-import { TASA_IGV, IMPORTE_EJEMPLO, COSTO_EJEMPLO, formatearFechaHora } from '../lib/parametros';
+import { TASA_IGV, IMPORTE_EJEMPLO, COSTO_EJEMPLO } from '../lib/parametros';
 
 type Calculo = 'BASE' | 'IGV' | 'TOTAL' | 'COSTO';
 
@@ -211,11 +208,6 @@ export default function AccountingGuidePage() {
   const [costo, setCosto] = useState(String(COSTO_EJEMPLO.toFixed(2)));
   const [abiertos, setAbiertos] = useState<Set<string>>(new Set(PROCESOS.map((p) => p.codigo)));
 
-  const { data: reglas = [] } = useQuery({
-    queryKey: ['accounting-rules'],
-    queryFn: () => accountingApi.getRules(),
-  });
-
   const total = Number(importe.replace(',', '.')) || 0;
   const costoEjemplo = Number(costo.replace(',', '.')) || 0;
 
@@ -255,9 +247,6 @@ export default function AccountingGuidePage() {
     });
   };
 
-  const reglasDe = (codigo: string): AccountingRule[] =>
-    reglas.filter((regla) => regla.process_code === codigo && regla.is_active !== false);
-
   return (
     <Page>
       <PageHeader
@@ -283,9 +272,7 @@ export default function AccountingGuidePage() {
           >
             <ChevronsUp className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="icon" title="Imprimir o guardar en PDF" aria-label="Imprimir o guardar en PDF" onClick={descargarPdf}>
-            <Printer className="h-4 w-4" />
-          </Button>
+
         </div>
       </PageHeader>
 
@@ -301,54 +288,42 @@ export default function AccountingGuidePage() {
 
           <Card className="space-y-3 p-3 print:hidden">
             <div className="flex flex-wrap items-end gap-3">
-              <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
+              <label className="flex w-full flex-col gap-1 text-[11px] text-muted-foreground sm:w-80">
                 Buscar
-                <span className="relative">
+                <span className="relative w-full">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     value={busqueda}
                     onChange={(evento) => setBusqueda(evento.target.value)}
                     placeholder="Código de cuenta, nombre u operación"
-                    className="h-8 w-full sm:w-80 pl-9"
+                    className="h-8 w-full pl-9"
                     aria-label="Buscar en la guía"
                   />
                 </span>
               </label>
-              <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
-                Importe de ejemplo (total con IGV)
-                <Input
-                  value={importe}
-                  onChange={(evento) => setImporte(evento.target.value)}
-                  inputMode="decimal"
-                  className="h-8 w-36 text-right tabular-nums"
-                  aria-label="Importe de ejemplo del comprobante, total con IGV"
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
-                Costo de ejemplo
-                <Input
-                  value={costo}
-                  onChange={(evento) => setCosto(evento.target.value)}
-                  inputMode="decimal"
-                  className="h-8 w-36 text-right tabular-nums"
-                  aria-label="Costo de ejemplo del bien vendido"
-                />
-              </label>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setImporte(IMPORTE_EJEMPLO.toFixed(2));
-                  setCosto(COSTO_EJEMPLO.toFixed(2));
-                }}
-              >
-                <RotateCcw className="mr-1 h-4 w-4" /> Restablecer a {IMPORTE_EJEMPLO.toFixed(2)}
-              </Button>
-              <p className="flex items-center gap-2 pb-1 text-xs text-muted-foreground">
-                <Badge className="border-emerald-600/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400">DEBE</Badge>
-                <Badge className="border-sky-600/30 bg-sky-500/5 text-sky-700 dark:text-sky-400">HABER</Badge>
-                sangría en el Haber
-              </p>
+
+              <div className="ml-auto flex flex-wrap items-end gap-3">
+                <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
+                  Importe de ejemplo (total con IGV)
+                  <Input
+                    value={importe}
+                    onChange={(evento) => setImporte(evento.target.value)}
+                    inputMode="decimal"
+                    className="h-8 w-36 text-right tabular-nums"
+                    aria-label="Importe de ejemplo del comprobante, total con IGV"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
+                  Costo de ejemplo
+                  <Input
+                    value={costo}
+                    onChange={(evento) => setCosto(evento.target.value)}
+                    inputMode="decimal"
+                    className="h-8 w-36 text-right tabular-nums"
+                    aria-label="Costo de ejemplo del bien vendido"
+                  />
+                </label>
+              </div>
             </div>
             <p className="text-[11px] text-muted-foreground">
               Solo simula cómo se distribuye el asiento. No registra nada. El costo del bien es independiente del
@@ -362,7 +337,6 @@ export default function AccountingGuidePage() {
 
           {procesosVisibles.map((proceso) => {
             const abierto = abiertos.has(proceso.codigo);
-            const propias = reglasDe(proceso.codigo);
             return (
               <section key={proceso.codigo} className="space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
@@ -381,40 +355,7 @@ export default function AccountingGuidePage() {
                       <span className="block text-xs text-muted-foreground">{proceso.resumen}</span>
                     </span>
                   </button>
-                  {/*
-                    «Personalizada» significa que la empresa tiene reglas
-                    propias para este proceso; el tooltip explica la diferencia y
-                    muestra quién y cuándo la cambió, si el dato existe.
-                  */}
-                  <Badge
-                    variant="outline"
-                    className="ml-auto cursor-help"
-                    title={
-                      propias.length > 0
-                        ? `Esta regla fue modificada para su empresa. Difiere de la regla estándar.${
-                            propias[0]?.updated_at
-                              ? ` Última modificación: ${propias[0].updated_by ?? 'usuario'} · ${formatearFechaHora(propias[0].updated_at)}.`
-                              : ''
-                          }`
-                        : 'La regla es la estándar del sistema para este proceso.'
-                    }
-                  >
-                    {propias.length > 0 ? 'Personalizada' : 'Por defecto'}
-                  </Badge>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      // Abre la regla exacta de esta operación, no la lista.
-                      const principal = propias[0];
-                      const destino = principal
-                        ? `/accounting/rules?regla=${encodeURIComponent(principal.id)}`
-                        : `/accounting/rules?proceso=${encodeURIComponent(proceso.codigo)}`;
-                      navegar(destino);
-                    }}
-                  >
-                    Editar regla
-                  </Button>
+
                 </div>
 
                 {abierto

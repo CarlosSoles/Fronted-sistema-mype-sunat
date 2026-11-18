@@ -42,7 +42,7 @@ describe('Balance de Comprobación', () => {
     expect(screen.getByText('Balance inicial')).toBeTruthy();
     expect(screen.getByText('Balance final')).toBeTruthy();
     expect(screen.getByText('TOTAL')).toBeTruthy();
-    expect(screen.getByText('Descargar CSV')).toBeTruthy();
+    expect(screen.getByLabelText('Descargar CSV')).toBeTruthy();
   });
 
   it('muestra la diferencia final cuando debe y haber no coinciden', async () => {
