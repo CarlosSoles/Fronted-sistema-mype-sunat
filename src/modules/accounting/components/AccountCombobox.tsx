@@ -35,8 +35,9 @@ function leerRecientes(): string[] {
  * Selector de cuenta contable con búsqueda.
  *
  * Se abre hacia abajo como un desplegable normal, pero admite escribir para
- * filtrar por código o nombre. Recorrer 1738 cuentas en un `Select` no es
- * viable, así que la lista se limita a 50 resultados.
+ * filtrar por código o nombre. Al abrirlo sin escribir muestra las cuentas
+ * recientes arriba y el catálogo completo debajo: antes solo mostraba las
+ * recientes y parecía que el catálogo tenía tres cuentas.
  */
 export function AccountCombobox({
   accounts,
@@ -55,7 +56,7 @@ export function AccountCombobox({
   const porCodigo = useMemo(() => new Map(accounts.map((cuenta) => [cuenta.code, cuenta])), [accounts]);
   const seleccionada = porCodigo.get(value);
 
-  /** Ruta de ancestros: "Activo › 10 Efectivo… › 101 Caja". */
+  /** Ruta de ancestros: "1 Activo › 10 Efectivo… › 101 Caja". */
   const caminoDe = (cuenta: AccountingAccount): string => {
     const ancestros: AccountingAccount[] = [];
     let padre = cuenta.parentCode ? porCodigo.get(cuenta.parentCode) : undefined;
@@ -85,36 +86,35 @@ export function AccountCombobox({
     return () => document.removeEventListener('mousedown', alClicFuera);
   }, [abierto]);
 
+  const termino = normalizar(texto.trim());
+  const esLaElegida = Boolean(
+    seleccionada && termino === normalizar(`${seleccionada.code} · ${seleccionada.name}`),
+  );
+  const sinFiltro = !termino || esLaElegida;
+
   const { filtradas, total } = useMemo(() => {
-    const termino = normalizar(texto.trim());
-    const esLaElegida = seleccionada && termino === normalizar(`${seleccionada.code} · ${seleccionada.name}`);
-
-    // Sin texto (o con la cuenta ya elegida) se ofrecen las recientes.
-    if (!termino || esLaElegida) {
-      if (recientes.length > 0) {
-        const recientesValidas = recientes
-          .map((code) => porCodigo.get(code))
-          .filter((cuenta): cuenta is AccountingAccount => Boolean(cuenta));
-        if (recientesValidas.length > 0) {
-          return { filtradas: recientesValidas.slice(0, LIMITE), total: recientesValidas.length };
-        }
-      }
-      return { filtradas: accounts.slice(0, LIMITE), total: accounts.length };
-    }
-
+    if (sinFiltro) return { filtradas: accounts.slice(0, LIMITE), total: accounts.length };
     const coincidencias = accounts.filter(
-      (cuenta) =>
-        normalizar(cuenta.code).includes(termino) || normalizar(cuenta.name).includes(termino),
+      (cuenta) => normalizar(cuenta.code).includes(termino) || normalizar(cuenta.name).includes(termino),
     );
     return { filtradas: coincidencias.slice(0, LIMITE), total: coincidencias.length };
-  }, [accounts, texto, seleccionada, recientes, porCodigo]);
+  }, [accounts, termino, sinFiltro]);
+
+  /** Recientes válidas, solo mientras no se escribe. */
+  const recientesValidas = useMemo(() => {
+    if (!sinFiltro) return [];
+    return recientes
+      .map((codigo) => porCodigo.get(codigo))
+      .filter((cuenta): cuenta is AccountingAccount => Boolean(cuenta))
+      .slice(0, 5);
+  }, [recientes, porCodigo, sinFiltro]);
 
   const elegir = (cuenta: AccountingAccount) => {
     onChange(cuenta.code);
     setTexto(`${cuenta.code} · ${cuenta.name}`);
     setAbierto(false);
     try {
-      const nuevas = [cuenta.code, ...leerRecientes().filter((code) => code !== cuenta.code)].slice(0, 5);
+      const nuevas = [cuenta.code, ...leerRecientes().filter((codigo) => codigo !== cuenta.code)].slice(0, 5);
       localStorage.setItem(CLAVE_RECIENTES, JSON.stringify(nuevas));
     } catch {
       // Si el navegador bloquea el almacenamiento, se ignora.
@@ -139,6 +139,38 @@ export function AccountCombobox({
     } else if (evento.key === 'Escape') {
       setAbierto(false);
     }
+  };
+
+  const opcion = (cuenta: AccountingAccount, indice: number) => {
+    const camino = caminoDe(cuenta);
+    return (
+      <button
+        key={`${cuenta.code}-${indice}`}
+        type="button"
+        role="option"
+        aria-selected={cuenta.code === value}
+        // onMouseDown evita que el input pierda el foco antes del clic.
+        onMouseDown={(evento) => {
+          evento.preventDefault();
+          elegir(cuenta);
+        }}
+        onMouseEnter={() => setResaltado(indice)}
+        className={cn(
+          'flex w-full flex-col items-start gap-0.5 rounded px-2 py-1.5 text-left text-sm hover:bg-muted',
+          (cuenta.code === value || indice === resaltado) && 'bg-muted',
+        )}
+      >
+        <span className="flex w-full items-center gap-2">
+          <span className="shrink-0 font-mono text-xs text-muted-foreground">{cuenta.code}</span>
+          <span className="shrink-0 rounded border px-1 text-[10px] text-muted-foreground">N{cuenta.level}</span>
+          <span className="truncate">{cuenta.name}</span>
+          {cuenta.isActive ? null : (
+            <span className="ml-auto shrink-0 rounded border px-1 text-[10px] text-muted-foreground">Inactiva</span>
+          )}
+        </span>
+        {camino ? <span className="w-full truncate text-[11px] text-muted-foreground">{camino}</span> : null}
+      </button>
+    );
   };
 
   return (
@@ -182,49 +214,25 @@ export function AccountCombobox({
             <p className="px-3 py-2 text-xs text-muted-foreground">Sin cuentas que coincidan.</p>
           ) : (
             <>
-              {texto.trim() === '' || !recientes.length ? null : (
-                <p className="px-2 py-1 text-[11px] uppercase tracking-wide text-muted-foreground">Recientes</p>
-              )}
-              {filtradas.map((cuenta, indice) => {
-                const camino = caminoDe(cuenta);
-                return (
-                  <button
-                    key={cuenta.code}
-                    type="button"
-                    role="option"
-                    aria-selected={cuenta.code === value}
-                    // onMouseDown evita que el input pierda el foco antes del clic.
-                    onMouseDown={(evento) => {
-                      evento.preventDefault();
-                      elegir(cuenta);
-                    }}
-                    onMouseEnter={() => setResaltado(indice)}
-                    className={cn(
-                      'flex w-full flex-col items-start gap-0.5 rounded px-2 py-1.5 text-left text-sm hover:bg-muted',
-                      (cuenta.code === value || indice === resaltado) && 'bg-muted',
-                    )}
-                  >
-                    <span className="flex w-full items-center gap-2">
-                      <span className="shrink-0 font-mono text-xs text-muted-foreground">{cuenta.code}</span>
-                      <span className="shrink-0 rounded border px-1 text-[10px] text-muted-foreground">N{cuenta.level}</span>
-                      <span className="truncate">{cuenta.name}</span>
-                      {cuenta.isActive ? null : (
-                        <span className="ml-auto shrink-0 rounded border px-1 text-[10px] text-muted-foreground">
-                          Inactiva
-                        </span>
-                      )}
-                    </span>
-                    {camino ? (
-                      <span className="w-full truncate text-[11px] text-muted-foreground">{camino}</span>
-                    ) : null}
-                  </button>
-                );
-              })}
+              {/* Recientes arriba, sin sustituir al catálogo completo. */}
+              {recientesValidas.length > 0 ? (
+                <>
+                  <p className="px-2 py-1 text-[11px] uppercase tracking-wide text-muted-foreground">Recientes</p>
+                  {recientesValidas.map((cuenta, indice) => opcion(cuenta, indice))}
+                  <p className="mt-1 border-t px-2 py-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+                    Todas las cuentas
+                  </p>
+                </>
+              ) : null}
+
+              {filtradas.map((cuenta, indice) => opcion(cuenta, indice))}
+
               {total > LIMITE ? (
                 <p className="px-2 py-1.5 text-[11px] text-muted-foreground">
                   Mostrando {LIMITE} de {total}: siga escribiendo para filtrar.
                 </p>
               ) : null}
+
               {casilla ? (
                 <label className="mt-1 flex cursor-pointer items-center gap-2 border-t px-2 py-2 text-xs text-muted-foreground">
                   <input

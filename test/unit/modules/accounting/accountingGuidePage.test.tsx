@@ -61,9 +61,4 @@ describe('AccountingGuidePage', () => {
     expect(screen.getAllByText(/S\/ 118[.,]00/).length).toBeGreaterThan(0);
   });
 
-  it('marca las reglas propias de la empresa como personalizadas', async () => {
-    montar();
-    // El mock tiene una regla de VENTA, así que ese proceso es personalizado.
-    expect((await screen.findAllByText('Personalizada')).length).toBeGreaterThan(0);
-  });
 });

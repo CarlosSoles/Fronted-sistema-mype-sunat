@@ -103,7 +103,7 @@ export default function AccountingIncomeStatementPage() {
           <div className="ml-auto flex gap-2">
             <Button variant="outline" onClick={irAlMesActual}>Este mes</Button>
             <Button variant="outline" onClick={exportar} disabled={!data || totalFilas === 0}>
-              <Download className="mr-1.5 h-4 w-4" /> Descargar CSV
+              <Download className="h-4 w-4" aria-hidden="true" />
             </Button>
             <Button variant="outline" onClick={descargarPdf} disabled={!data || totalFilas === 0}>
               <FileDown className="mr-1.5 h-4 w-4" /> PDF

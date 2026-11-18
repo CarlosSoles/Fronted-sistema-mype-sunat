@@ -159,8 +159,8 @@ export default function AccountingTrialBalancePage() {
           </div>
           <div className="ml-auto flex gap-2">
             <Button variant="outline" onClick={irAlMesActual}>Mes actual</Button>
-            <Button variant="outline" onClick={exportar} disabled={filas.length === 0}>
-              <Download className="mr-1.5 h-4 w-4" /> Descargar CSV
+            <Button variant="outline" size="icon" onClick={exportar} disabled={filas.length === 0} title="Descargar CSV" aria-label="Descargar CSV">
+              <Download className="h-4 w-4" aria-hidden="true" />
             </Button>
             <Button variant="outline" onClick={descargarPdf} disabled={filas.length === 0}>
               <FileDown className="mr-1.5 h-4 w-4" /> PDF

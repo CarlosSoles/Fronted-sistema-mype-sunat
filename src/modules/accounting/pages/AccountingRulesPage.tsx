@@ -281,7 +281,7 @@ export default function AccountingRulesPage() {
             />
           </span>
           <Select value={filtroProceso} onValueChange={setFiltroProceso}>
-            <SelectTrigger className="h-8 w-56" aria-label="Filtrar por proceso">
+            <SelectTrigger className="h-8 w-56 sm:ml-auto" aria-label="Filtrar por proceso">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
