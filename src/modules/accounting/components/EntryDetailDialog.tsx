@@ -65,8 +65,6 @@ export function EntryDetailDialog({
   onVerCuenta,
   /** Navegación al Libro Diario cuando se abre desde el mayor. */
   onVerEnDiario,
-  /** El mayor no muestra la observación del asiento. */
-  mostrarObservacion = true,
 }: {
   entry: EntryDetail | null;
   open: boolean;
@@ -75,7 +73,6 @@ export function EntryDetailDialog({
   cuentaResaltada?: string;
   onVerCuenta?: (code: string) => void;
   onVerEnDiario?: () => void;
-  mostrarObservacion?: boolean;
 }) {
   const lineas = entry?.lineas ?? [];
   const totalDebe = lineas.reduce((acc, linea) => acc + linea.debit, 0);
@@ -93,7 +90,6 @@ export function EntryDetailDialog({
           etiqueta: 'Diario contable',
           valor: entry.diario ? (NOMBRE_DIARIO[entry.diario] ?? entry.diario) : '',
         },
-        { etiqueta: 'Documento', valor: entry.referencia },
       ].filter((tarjeta) => Boolean(tarjeta.valor && String(tarjeta.valor).trim()))
     : [];
 
@@ -150,12 +146,6 @@ export function EntryDetailDialog({
               <p className="mt-1 text-sm">{entry.glosa || '—'}</p>
             </div>
 
-            {mostrarObservacion && entry.observacion ? (
-              <div className="rounded-lg border p-3">
-                <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Observación</p>
-                <p className="mt-1 text-sm">{entry.observacion}</p>
-              </div>
-            ) : null}
 
             <div>
               <div className="mb-2 flex items-center justify-between">
@@ -181,16 +171,15 @@ export function EntryDetailDialog({
               <Table className="table-fixed">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[32%]">Cuenta contable</TableHead>
-                    <TableHead>Descripción</TableHead>
-                    <TableHead align="right" className="w-24">Debe</TableHead>
-                    <TableHead align="right" className="w-24">Haber</TableHead>
+                    <TableHead>Cuenta contable</TableHead>
+                    <TableHead align="right" className="w-28">Debe</TableHead>
+                    <TableHead align="right" className="w-28">Haber</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {sinLineas ? (
                     <TableRow>
-                      <TableCell colSpan={4}>
+                      <TableCell colSpan={3}>
                         <span className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-400">
                           <TriangleAlert className="h-4 w-4" />
                           Este asiento no tiene líneas registradas; no se puede comprobar el cuadre.
@@ -220,7 +209,6 @@ export function EntryDetailDialog({
                               </>
                             )}
                           </TableCell>
-                          <TableCell className="text-xs"><span className="block truncate" title={linea.name}>{linea.name}</span></TableCell>
                           <TableCell align="right" className="tabular-nums whitespace-nowrap">
                             {linea.debit ? money(linea.debit) : ''}
                           </TableCell>

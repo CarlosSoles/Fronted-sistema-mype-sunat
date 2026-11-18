@@ -138,12 +138,6 @@ export default function AccountingPlePage() {
         </div>
       </Card>
 
-      {/* Aviso informativo del alcance real de la pantalla. */}
-      <div className="rounded-md border border-sky-500/40 bg-sky-500/5 p-3 text-sm text-sky-700 dark:text-sky-400">
-        Se exportan el 5.1 (Libro Diario), el 6.1 (Libro Mayor), el 3.1 (Inventarios y Balances), el 14.1
-        (Registro de Ventas) y el 8.1 (Registro de Compras), según la ficha del PLE.
-      </div>
-
       {error && (
         <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
           {error}

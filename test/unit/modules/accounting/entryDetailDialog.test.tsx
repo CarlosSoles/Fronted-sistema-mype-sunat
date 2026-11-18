@@ -45,14 +45,7 @@ describe('EntryDetailDialog', () => {
     expect(screen.getByText('Número / Referencia')).toBeTruthy();
     expect(screen.getByText('Fecha contable')).toBeTruthy();
     expect(screen.getByText('Diario contable')).toBeTruthy();
-  });
-
-  it('muestra la observación solo cuando se le pide', () => {
-    const { rerender } = render(<EntryDetailDialog entry={ASIENTO} open onOpenChange={vi.fn()} />);
-    expect(screen.getByText('Observación')).toBeTruthy();
-
-    rerender(<EntryDetailDialog entry={ASIENTO} open onOpenChange={vi.fn()} mostrarObservacion={false} />);
-    expect(screen.queryByText('Observación')).toBeNull();
+    expect(screen.queryByText('Documento')).toBeNull();
   });
 
   it('avisa cuando el asiento no cuadra', () => {
