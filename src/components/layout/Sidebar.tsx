@@ -42,15 +42,6 @@ export interface SubNavItem {
   title: string;
   path: string;
   icon: React.ComponentType<{ className?: string }>;
-  /**
-   * Roles que pueden ver este subítem dentro del módulo.
-   *
-   * Sin esto heredaría los roles del padre y ofrecería entradas que la propia
-   * ruta rechaza: el caso de Configuración de Facturación, que solo admite
-   * ADMIN pero aparecería a un operador y lo llevaría a "sin acceso".
-   */
-  allowedRoles?: string[];
-
   /** Agrupador visual dentro del módulo (ej. Registros / Reportes). */
   group?: string;
   /**
@@ -175,8 +166,8 @@ export const NAV_ITEMS: NavItem[] = [
       { title: 'Resumen de inventario', path: '/inventory/dashboard', icon: LayoutDashboard, group: 'Inventario' },
       { title: 'Existencias y Catálogo', path: '/inventory/stocks', icon: Boxes, group: 'Inventario' },
       { title: 'Movimientos', path: '/inventory/movements', icon: GitCompareArrows, group: 'Inventario' },
-      { title: 'Ajustes y toma física', path: '/inventory/adjustments', icon: ClipboardCheck, allowedRoles: ['ADMIN'], group: 'Inventario' },
-      { title: 'Saldo inicial', path: '/inventory/opening', icon: FileUp, allowedRoles: ['ADMIN'], group: 'Inventario' },
+      { title: 'Ajustes y toma física', path: '/inventory/adjustments', icon: ClipboardCheck, group: 'Inventario' },
+      { title: 'Saldo inicial', path: '/inventory/opening', icon: FileUp, group: 'Inventario' },
       { title: 'Kardex valorizado', path: '/kardex/general', icon: BookOpen, group: 'Kardex' },
       { title: 'Configuración y Costeo', path: '/inventory/config', icon: Settings, group: 'Kardex' },
     ],
@@ -283,7 +274,6 @@ export const Sidebar = () => {
    * invisible hasta que el backend se redespliegue.
    */
   const puedeVerSubItem = (sub: SubNavItem): boolean => {
-    if (sub.allowedRoles && user?.role && !sub.allowedRoles.includes(user.role)) return false;
     if (permissions.canNavigate(sub.path)) return true;
     if (!sub.adelanto) return false;
     const menus = permissions.snapshot?.menus ?? [];
