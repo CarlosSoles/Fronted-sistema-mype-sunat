@@ -29,6 +29,7 @@ import {
   TableRow,
 } from '@/components/ui';
 import { accountingApi } from '../services/accountingApi';
+import { formatDateToPeru } from '@/lib/formatters';
 import type { AccountingPeriod } from '../types/accounting.types';
 
 const hoy = new Date();
@@ -215,11 +216,22 @@ export default function AccountingPeriodsPage() {
       }));
   }, [visibles]);
 
-  const fecha = (valor?: string | null) => {
-    if (!valor) return '—';
-    const fecha = new Date(valor);
-    return Number.isNaN(fecha.getTime()) ? '—' : fecha.toLocaleDateString('es-PE');
+  /** Primer día del período, como fecha ISO corta. */
+  const inicioDelMes = (period: string): string => `${period}-01`;
+
+  /** Último día del período: el día 0 del mes siguiente. */
+  const finDelMes = (period: string): string => {
+    const [anio, mes] = period.split('-').map(Number);
+    const ultimo = new Date(anio, mes, 0).getDate();
+    return `${period}-${String(ultimo).padStart(2, '0')}`;
   };
+
+  /**
+   * Fecha legible. Se apoya en el formateador del sistema porque una fecha sin
+   * hora (`2026-11-01`) se interpretaba como medianoche UTC y en Lima retrocedía
+   * al día anterior.
+   */
+  const fecha = (valor?: string | null) => (valor ? formatDateToPeru(valor) : '—');
 
   /**
    * Acciones que afectan a todo un ejercicio.
@@ -392,8 +404,8 @@ export default function AccountingPeriodsPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/20 hover:bg-muted/20">
-                    <TableHead className="w-[14%]">Período</TableHead>
-                    <TableHead className="w-[12%]">Año / mes</TableHead>
+                    <TableHead className="w-[14%]">Inicio</TableHead>
+                    <TableHead className="w-[14%]">Fin</TableHead>
                     <TableHead className="w-[14%]">Estado</TableHead>
                     <TableHead className="w-[16%]">Abierto</TableHead>
                     <TableHead className="w-[16%]">Cerrado</TableHead>
@@ -403,8 +415,8 @@ export default function AccountingPeriodsPage() {
                 <TableBody>
                   {grupo.periodos.map((period) => (
                     <TableRow key={period.period}>
-                      <TableCell className="font-mono font-bold">{period.period}</TableCell>
-                      <TableCell>{period.year} / {String(period.month).padStart(2, '0')}</TableCell>
+                      <TableCell className="tabular-nums">{fecha(inicioDelMes(period.period))}</TableCell>
+                      <TableCell className="tabular-nums">{fecha(finDelMes(period.period))}</TableCell>
                       <TableCell>
                         <Badge
                           variant="outline"

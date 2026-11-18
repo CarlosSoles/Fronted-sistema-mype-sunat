@@ -60,8 +60,9 @@ it('muestra el año como encabezado y no como fila de la tabla', async () => {
   expect(await screen.findByText('Año fiscal 2026')).toBeTruthy();
   // Sin celdas con el texto del año: no hay fila de agrupación dentro de la tabla.
   expect(screen.queryAllByRole('cell', { name: /Año fiscal 2026/ })).toHaveLength(0);
-  // Los meses sí están en la tabla.
-  expect(screen.getAllByRole('cell', { name: '2026-11' }).length).toBeGreaterThan(0);
+  // Los meses aparecen como rango de fechas: inicio y fin.
+  expect(screen.getAllByRole('cell', { name: '01/11/2026' }).length).toBeGreaterThan(0);
+  expect(screen.getAllByRole('cell', { name: '30/11/2026' }).length).toBeGreaterThan(0);
 });
 
 it('muestra los contadores del año y la acción de cierre guiado', async () => {
