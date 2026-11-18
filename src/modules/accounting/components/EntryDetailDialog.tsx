@@ -1,7 +1,6 @@
-import { CheckCircle2, ExternalLink, Scale, TriangleAlert } from 'lucide-react';
+import { CheckCircle2, Scale, TriangleAlert } from 'lucide-react';
 import {
   Badge,
-  Button,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -51,8 +50,6 @@ const NOMBRE_DIARIO: Record<string, string> = {
  * del detalle de referencia: número en grande, una línea de contexto, tarjetas
  * con los datos que existen, concepto, líneas y totales.
  *
- * La observación solo se muestra en el Diario: en el Mayor el usuario está
- * revisando saldos, no la ficha completa del asiento.
  */
 export function EntryDetailDialog({
   entry,
@@ -64,7 +61,6 @@ export function EntryDetailDialog({
   /** Navegación al mayor de una cuenta. */
   onVerCuenta,
   /** Navegación al Libro Diario cuando se abre desde el mayor. */
-  onVerEnDiario,
 }: {
   entry: EntryDetail | null;
   open: boolean;
@@ -72,7 +68,6 @@ export function EntryDetailDialog({
   cargando?: boolean;
   cuentaResaltada?: string;
   onVerCuenta?: (code: string) => void;
-  onVerEnDiario?: () => void;
 }) {
   const lineas = entry?.lineas ?? [];
   const totalDebe = lineas.reduce((acc, linea) => acc + linea.debit, 0);
@@ -223,13 +218,6 @@ export function EntryDetailDialog({
               </Table>
             </div>
 
-            {onVerEnDiario ? (
-              <div className="flex justify-end border-t pt-3">
-                <Button variant="ghost" size="sm" onClick={onVerEnDiario}>
-                  <ExternalLink className="mr-1 h-4 w-4" /> Ver en Libro Diario
-                </Button>
-              </div>
-            ) : null}
           </>
         ) : null}
       </DialogContent>
