@@ -242,10 +242,11 @@ export const accountingApi = {
   reopenPeriod: async (
     period: string,
     motivo: string,
+    opciones: { anularCierre?: boolean } = {},
   ): Promise<{ period: AccountingPeriod; advertencias: string[] }> => {
     const response = await apiClient.post<{ period: AccountingPeriod; advertencias: string[] }>(
       `/accounting/periods/${period}/reopen`,
-      { motivo },
+      { motivo, ...(opciones.anularCierre ? { anularCierre: true } : {}) },
     );
     return response.data;
   },

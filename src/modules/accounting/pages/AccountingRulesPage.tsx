@@ -361,14 +361,22 @@ export default function AccountingRulesPage() {
                         </TableCell>
                         <TableCell>{etiquetaBase(regla.base_calculation)}</TableCell>
                         <TableCell>
-                          <span className="font-mono text-xs">{regla.account_code}</span>
-                          {cuenta ? (
-                            <span className="ml-2 truncate text-muted-foreground" title={cuenta.name}>
-                              {cuenta.name}
-                            </span>
-                          ) : null}
+                          {/* min-w-0 permite que el nombre se recorte en lugar de
+                              empujar la columna y montarse sobre la descripción. */}
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span className="shrink-0 font-mono text-xs">{regla.account_code}</span>
+                            {cuenta ? (
+                              <span className="truncate text-xs text-muted-foreground" title={cuenta.name}>
+                                {cuenta.name}
+                              </span>
+                            ) : null}
+                          </div>
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{regla.description ?? '—'}</TableCell>
+                        <TableCell className="text-xs">
+                          <span className="block truncate text-muted-foreground" title={regla.description ?? ''}>
+                            {regla.description ?? '—'}
+                          </span>
+                        </TableCell>
                         <TableCell align="right">
                           <Button
                             variant="ghost"

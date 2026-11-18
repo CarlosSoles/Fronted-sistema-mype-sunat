@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Download, FileDown } from 'lucide-react';
+import { Download, Printer } from 'lucide-react';
 import {
   Button,
   Card,
@@ -162,8 +162,8 @@ export default function AccountingTrialBalancePage() {
             <Button variant="outline" size="icon" onClick={exportar} disabled={filas.length === 0} title="Descargar CSV" aria-label="Descargar CSV">
               <Download className="h-4 w-4" aria-hidden="true" />
             </Button>
-            <Button variant="outline" onClick={descargarPdf} disabled={filas.length === 0}>
-              <FileDown className="mr-1.5 h-4 w-4" /> PDF
+            <Button variant="outline" size="icon" onClick={descargarPdf} title="Imprimir o guardar en PDF" aria-label="Imprimir o guardar en PDF" disabled={filas.length === 0}>
+              <Printer className="h-4 w-4" aria-hidden="true" />
             </Button>
           </div>
         </div>

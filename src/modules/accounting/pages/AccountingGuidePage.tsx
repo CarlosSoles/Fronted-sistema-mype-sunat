@@ -302,23 +302,23 @@ export default function AccountingGuidePage() {
               </label>
 
               <div className="ml-auto flex flex-wrap items-end gap-3">
-                <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
-                  Importe de ejemplo (total con IGV)
+                <label className="flex flex-col gap-1 text-[11px] text-muted-foreground" title="Total del comprobante con IGV">
+                  Importe
                   <Input
                     value={importe}
                     onChange={(evento) => setImporte(evento.target.value)}
                     inputMode="decimal"
-                    className="h-8 w-36 text-right tabular-nums"
+                    className="h-8 w-24 text-right tabular-nums"
                     aria-label="Importe de ejemplo del comprobante, total con IGV"
                   />
                 </label>
-                <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
-                  Costo de ejemplo
+                <label className="flex flex-col gap-1 text-[11px] text-muted-foreground" title="Costo del bien; no se deriva del precio de venta">
+                  Costo
                   <Input
                     value={costo}
                     onChange={(evento) => setCosto(evento.target.value)}
                     inputMode="decimal"
-                    className="h-8 w-36 text-right tabular-nums"
+                    className="h-8 w-24 text-right tabular-nums"
                     aria-label="Costo de ejemplo del bien vendido"
                   />
                 </label>
@@ -388,7 +388,7 @@ export default function AccountingGuidePage() {
                                   <TableCell className="whitespace-nowrap">
                                     <button
                                       type="button"
-                                      onClick={() => navegar(`/accounting/mayor?cuenta=${encodeURIComponent(linea.cuenta)}`)}
+                                      onClick={() => navegar(`/accounting/ledger?cuenta=${encodeURIComponent(linea.cuenta)}`)}
                                       className="font-mono text-xs font-semibold underline-offset-2 hover:underline"
                                       title="Ver en el Libro Mayor"
                                     >

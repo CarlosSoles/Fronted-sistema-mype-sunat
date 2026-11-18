@@ -436,7 +436,7 @@ export default function AccountingLedgerPage() {
         cargando={cargandoAsientos}
         cuentaResaltada={accountCode}
         onVerCuenta={(code) => setAccountCode(code)}
-        onVerEnDiario={() => { if (detalle) navegar(`/accounting/entries?period=${period}`); }}
+        onVerEnDiario={() => { if (detalle) navegar(`/accounting?period=${period}`); }}
       />
 
       {/* Exportar: permite acotar a un rango de cuentas sin ocupar la barra. */}

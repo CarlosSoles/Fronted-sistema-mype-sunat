@@ -178,13 +178,13 @@ export function EntryDetailDialog({
                 )}
               </div>
 
-              <Table>
+              <Table className="table-fixed">
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Cuenta contable</TableHead>
+                    <TableHead className="w-[32%]">Cuenta contable</TableHead>
                     <TableHead>Descripción</TableHead>
-                    <TableHead align="right">Debe</TableHead>
-                    <TableHead align="right">Haber</TableHead>
+                    <TableHead align="right" className="w-24">Debe</TableHead>
+                    <TableHead align="right" className="w-24">Haber</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -211,16 +211,16 @@ export function EntryDetailDialog({
                                 title={`Ver el libro mayor de ${linea.code}`}
                               >
                                 <span className="block font-mono text-xs font-bold text-destructive">{linea.code}</span>
-                                <span className="block text-[11px] text-muted-foreground">{linea.name}</span>
+                                <span className="block truncate text-[11px] text-muted-foreground">{linea.name}</span>
                               </button>
                             ) : (
                               <>
                                 <span className="block font-mono text-xs font-bold text-destructive">{linea.code}</span>
-                                <span className="block text-[11px] text-muted-foreground">{linea.name}</span>
+                                <span className="block truncate text-[11px] text-muted-foreground">{linea.name}</span>
                               </>
                             )}
                           </TableCell>
-                          <TableCell className="text-xs">{linea.name}</TableCell>
+                          <TableCell className="text-xs"><span className="block truncate" title={linea.name}>{linea.name}</span></TableCell>
                           <TableCell align="right" className="tabular-nums whitespace-nowrap">
                             {linea.debit ? money(linea.debit) : ''}
                           </TableCell>

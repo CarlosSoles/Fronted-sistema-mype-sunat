@@ -550,7 +550,7 @@ export default function AccountingEntriesPage() {
         }
         open={Boolean(detalle)}
         onOpenChange={(open) => { if (!open) setDetalle(null); }}
-        onVerCuenta={(code) => navegar(`/accounting/mayor?cuenta=${encodeURIComponent(code)}`)}
+        onVerCuenta={(code) => navegar(`/accounting/ledger?cuenta=${encodeURIComponent(code)}`)}
       />
 
       <ManualEntryModal
