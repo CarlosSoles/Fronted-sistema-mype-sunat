@@ -57,8 +57,6 @@ export default function AccountingPeriodsPage() {
   /** Reapertura: período elegido y motivo obligatorio. */
   const [reabriendo, setReabriendo] = useState<string | null>(null);
   const [motivo, setMotivo] = useState('');
-  /** Reabrir un año con asiento de cierre exige anularlo en el mismo paso. */
-  const [anularCierre, setAnularCierre] = useState(false);
   /** Año abierto en el asistente de cierre guiado. */
   const [wizardAnio, setWizardAnio] = useState<number | null>(null);
   /** Menú «⋯» con las acciones del año. */
@@ -149,7 +147,6 @@ export default function AccountingPeriodsPage() {
     onSuccess: async (resultado) => {
       setReabriendo(null);
       setMotivo('');
-      setAnularCierre(false);
       setError(null);
       const avisos = resultado.advertencias?.length ? ` ${resultado.advertencias.join(' ')}` : '';
       setOk(`Período ${resultado.period.period} reabierto.${avisos}`);
@@ -542,25 +539,11 @@ export default function AccountingPeriodsPage() {
               rows={3}
               className="w-full rounded-md border bg-background p-2 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
-            <label className="flex items-start gap-2 rounded-md border p-2 text-xs">
-              <input
-                type="checkbox"
-                checked={anularCierre}
-                onChange={(evento) => setAnularCierre(evento.target.checked)}
-                className="mt-0.5 h-3.5 w-3.5 rounded border-input"
-              />
-              <span>
-                Anular el asiento de cierre del ejercicio
-                <span className="block text-[11px] text-muted-foreground">
-                  Necesario si el año ya fue cerrado. Sin esto, reabrir duplicaría el resultado del ejercicio.
-                </span>
-              </span>
-            </label>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setReabriendo(null)}>Cancelar</Button>
             <Button
-              onClick={() => { if (reabriendo) { setError(null); reopenPeriod.mutate({ period: reabriendo, motivo, anular: anularCierre }); } }}
+              onClick={() => { if (reabriendo) { setError(null); reopenPeriod.mutate({ period: reabriendo, motivo, anular: true }); } }}
               disabled={reopenPeriod.isPending || motivo.trim().length < 10}
             >
               {reopenPeriod.isPending ? 'Reabriendo…' : 'Reabrir período'}
