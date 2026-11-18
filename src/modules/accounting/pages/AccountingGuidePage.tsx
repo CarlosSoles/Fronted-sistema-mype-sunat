@@ -11,9 +11,8 @@ import { monto } from '../lib/exportReport';
  * calculan en vivo a partir de un total de comprobante para que el contador
  * pueda comprobar el asiento con un caso concreto.
  *
- * Las cuentas mostradas son las de por defecto del sistema. Si la empresa tiene
- * reglas propias para ese proceso, la sección se marca como personalizada y se
- * enlaza a Reglas de contabilización.
+ * Las cuentas mostradas son las de por defecto del sistema. La personalización de
+ * reglas se gestiona en Reglas de contabilización.
  */
 
 import { TASA_IGV, IMPORTE_EJEMPLO, COSTO_EJEMPLO } from '../lib/parametros';
