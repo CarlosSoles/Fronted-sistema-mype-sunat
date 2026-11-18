@@ -275,7 +275,9 @@ export default function AccountingGuidePage() {
         </div>
       </PageHeader>
 
-      <div className="space-y-4">
+      {/* Ancho de lectura: con la página completa la tabla dejaba un hueco
+          grande entre la denominación y las cifras. */}
+      <div className="mx-auto w-full max-w-4xl space-y-4">
           <Card className="border-l-2 border-l-primary p-4 text-sm">
             <p className="font-medium">Cómo leer esta guía</p>
             <p className="mt-1 text-muted-foreground">
@@ -366,8 +368,8 @@ export default function AccountingGuidePage() {
                         <TableRow>
                           <TableHead className="w-24">Cuenta</TableHead>
                           <TableHead>Denominación</TableHead>
-                          <TableHead align="right" className="w-32">Debe</TableHead>
-                          <TableHead align="right" className="w-32">Haber</TableHead>
+                          <TableHead align="right" className="w-28">Debe</TableHead>
+                          <TableHead align="right" className="w-28">Haber</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
