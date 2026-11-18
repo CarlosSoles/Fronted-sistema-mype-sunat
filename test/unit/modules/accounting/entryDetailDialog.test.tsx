@@ -11,7 +11,7 @@ const ASIENTO: EntryDetail = {
   origen: 'Gastos',
   diario: 'GAS',
   referencia: 'PAGO-GASTO-123',
-  observacion: null,
+  observacion: 'Asiento 4/5 — pago del gasto',
   creado: '2026-11-12T11:41:00.000Z',
   responsable: 'Administrador',
   anulado: false,
@@ -28,39 +28,44 @@ describe('EntryDetailDialog', () => {
     render(<EntryDetailDialog entry={ASIENTO} open onOpenChange={vi.fn()} />);
 
     expect(screen.getAllByText('AS/2026/11/0077').length).toBeGreaterThan(0);
-    expect(screen.getByText('Cuentas por pagar')).toBeTruthy();
-    expect(screen.getByText('Caja o banco')).toBeTruthy();
+    expect(screen.getAllByText('Cuentas por pagar').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Caja o banco').length).toBeGreaterThan(0);
     expect(screen.getAllByText(/S\/ 118[.,]00/).length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText('Cuadra')).toBeTruthy();
+    expect(screen.getByText('Asiento cuadrado')).toBeTruthy();
     expect(screen.getByText('Registrado')).toBeTruthy();
+    expect(screen.getByText('Líneas del asiento (2)')).toBeTruthy();
   });
 
-  it('muestra las tarjetas solo cuando hay dato', () => {
+  it('usa Origen en lugar de responsable y no muestra Creado', () => {
     render(<EntryDetailDialog entry={ASIENTO} open onOpenChange={vi.fn()} />);
 
-    expect(screen.getByText('Referencia')).toBeTruthy();
-    expect(screen.getByText('Fecha contable')).toBeTruthy();
     expect(screen.getByText('Origen')).toBeTruthy();
+    expect(screen.queryByText('Responsable')).toBeNull();
+    expect(screen.queryByText('Creado')).toBeNull();
+    expect(screen.getByText('Número / Referencia')).toBeTruthy();
+    expect(screen.getByText('Fecha contable')).toBeTruthy();
     expect(screen.getByText('Diario contable')).toBeTruthy();
-    expect(screen.getByText('Creado')).toBeTruthy();
-    expect(screen.getByText('Responsable')).toBeTruthy();
+  });
 
-    // Sin observación no hay bloque ni guiones vacíos.
+  it('muestra la observación solo cuando se le pide', () => {
+    const { rerender } = render(<EntryDetailDialog entry={ASIENTO} open onOpenChange={vi.fn()} />);
+    expect(screen.getByText('Observación')).toBeTruthy();
+
+    rerender(<EntryDetailDialog entry={ASIENTO} open onOpenChange={vi.fn()} mostrarObservacion={false} />);
     expect(screen.queryByText('Observación')).toBeNull();
-    expect(screen.queryByText('—')).toBeNull();
   });
 
   it('avisa cuando el asiento no cuadra', () => {
     render(<EntryDetailDialog entry={{ ...ASIENTO, lineas: [ASIENTO.lineas[0]] }} open onOpenChange={vi.fn()} />);
-    expect(screen.getByText('No cuadra')).toBeTruthy();
+    expect(screen.getByText('Asiento descuadrado')).toBeTruthy();
   });
 
-  it('no dice "Cuadra" cuando el asiento no tiene líneas', () => {
+  it('no dice que cuadra cuando el asiento no tiene líneas', () => {
     render(<EntryDetailDialog entry={{ ...ASIENTO, lineas: [] }} open onOpenChange={vi.fn()} />);
 
     expect(screen.getByText(/no tiene líneas registradas/)).toBeTruthy();
     expect(screen.getByText('Sin líneas')).toBeTruthy();
-    expect(screen.queryByText('Cuadra')).toBeNull();
+    expect(screen.queryByText('Asiento cuadrado')).toBeNull();
   });
 
   it('marca los asientos anulados', () => {
@@ -68,7 +73,7 @@ describe('EntryDetailDialog', () => {
     expect(screen.getByText('Anulado')).toBeTruthy();
   });
 
-  it('resalta la línea de la cuenta consultada y permite abrir su mayor', async () => {
+  it('el código de cuenta abre su libro mayor', async () => {
     const verCuenta = vi.fn();
     render(
       <EntryDetailDialog
@@ -80,7 +85,6 @@ describe('EntryDetailDialog', () => {
       />,
     );
 
-    // El código de cuenta es un enlace al mayor.
     await userEvent.setup().click(screen.getByTitle('Ver el libro mayor de 1041'));
     expect(verCuenta).toHaveBeenCalledWith('1041');
   });
