@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { BookOpen, ChevronLeft, ChevronRight, Download, Printer, SquareArrowOutUpRight } from 'lucide-react';
 import {
@@ -51,7 +51,6 @@ const money = (valor: number): string => formatCurrency(Number(valor) || 0, 'PEN
 export default function AccountingLedgerPage() {
   const [period] = useState(periodoActual);
   // La guía contable enlaza aquí con ?cuenta=, así el código abre su mayor.
-  const navegar = useNavigate();
   const [parametros] = useSearchParams();
   const [accountCode, setAccountCode] = useState(() => parametros.get('cuenta') ?? '');
   const [soloConMovimientos, setSoloConMovimientos] = useState(false);
@@ -433,7 +432,6 @@ export default function AccountingLedgerPage() {
         cargando={cargandoAsientos}
         cuentaResaltada={accountCode}
         onVerCuenta={(code) => setAccountCode(code)}
-        onVerEnDiario={() => { if (detalle) navegar(`/accounting?period=${period}`); }}
       />
 
       {/* Exportar: permite acotar a un rango de cuentas sin ocupar la barra. */}

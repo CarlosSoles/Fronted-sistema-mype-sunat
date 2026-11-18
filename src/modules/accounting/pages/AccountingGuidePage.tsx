@@ -357,75 +357,76 @@ export default function AccountingGuidePage() {
 
                 </div>
 
-                {abierto
-                  ? proceso.asientos.map((asiento) => {
-                      const debe = asiento.lineas
-                        .filter((linea) => linea.lado === 'DEBE')
-                        .reduce((suma, linea) => suma + importeDeLinea(linea, total, costoEjemplo), 0);
-                      const haber = asiento.lineas
-                        .filter((linea) => linea.lado === 'HABER')
-                        .reduce((suma, linea) => suma + importeDeLinea(linea, total, costoEjemplo), 0);
-                      const cuadra = Math.abs(debe - haber) < 0.005;
+                {abierto ? (
+                  <Card className="overflow-hidden">
+                    {/* Una sola tabla por proceso: las columnas se reparten una vez
+                        y quedan alineadas entre todos sus asientos. */}
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-24">Cuenta</TableHead>
+                          <TableHead>Denominación</TableHead>
+                          <TableHead align="right" className="w-32">Debe</TableHead>
+                          <TableHead align="right" className="w-32">Haber</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {proceso.asientos.map((asiento) => {
+                          const debe = asiento.lineas
+                            .filter((linea) => linea.lado === 'DEBE')
+                            .reduce((suma, linea) => suma + importeDeLinea(linea, total, costoEjemplo), 0);
+                          const haber = asiento.lineas
+                            .filter((linea) => linea.lado === 'HABER')
+                            .reduce((suma, linea) => suma + importeDeLinea(linea, total, costoEjemplo), 0);
+                          const cuadra = Math.abs(debe - haber) < 0.005;
 
-                      return (
-                        <Card key={`${proceso.codigo}-${asiento.titulo}`} className="overflow-hidden">
-                          <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2">
-                            <p className="text-sm font-medium">{asiento.titulo}</p>
-                            <span className="text-[11px] text-muted-foreground">{asiento.disparador}</span>
-                          </div>
-                          {/* Anchos fijos: cada asiento es una tabla distinta y,
-                              sin ellos, la denominación y las cifras empezaban en
-                              posiciones diferentes según el largo de la cuenta. */}
-                          <Table className="table-fixed">
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead className="w-24">Cuenta</TableHead>
-                                <TableHead>Denominación</TableHead>
-                                <TableHead align="right" className="w-32">Debe</TableHead>
-                                <TableHead align="right" className="w-32">Haber</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {asiento.lineas.map((linea, indice) => (
-                                <TableRow key={`${linea.cuenta}-${indice}`}>
-                                  <TableCell className="whitespace-nowrap">
-                                    <button
-                                      type="button"
-                                      onClick={() => navegar(`/accounting/ledger?cuenta=${encodeURIComponent(linea.cuenta)}`)}
-                                      className="font-mono text-xs font-semibold underline-offset-2 hover:underline"
-                                      title="Ver en el Libro Mayor"
-                                    >
-                                      {linea.cuenta}
-                                    </button>
-                                  </TableCell>
-                                  <TableCell className={linea.lado === 'HABER' ? 'pl-8' : ''}>
-                                    <span className="block truncate" title={linea.nombre}>{linea.nombre}</span>
-                                    <span className="block truncate text-[11px] text-muted-foreground">{linea.detalle}</span>
-                                  </TableCell>
-                                  <TableCell align="right" className="tabular-nums">
-                                    {linea.lado === 'DEBE' ? monto(importeDeLinea(linea, total, costoEjemplo)) : ''}
-                                  </TableCell>
-                                  <TableCell align="right" className="tabular-nums">
-                                    {linea.lado === 'HABER' ? monto(importeDeLinea(linea, total, costoEjemplo)) : ''}
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                              <TableRow className="bg-muted/40 font-medium">
-                                <TableCell colSpan={2}>
-                                  Totales
-                                  <span className={`ml-2 text-[11px] ${cuadra ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
-                                    {cuadra ? 'Cuadra ✓' : 'No cuadra'}
-                                  </span>
+                          return [
+                            <TableRow key={`${asiento.titulo}-titulo`} className="bg-muted/30 hover:bg-muted/30">
+                              <TableCell colSpan={4}>
+                                <span className="text-sm font-medium">{asiento.titulo}</span>
+                                <span className="ml-2 text-[11px] text-muted-foreground">{asiento.disparador}</span>
+                              </TableCell>
+                            </TableRow>,
+                            ...asiento.lineas.map((linea, indice) => (
+                              <TableRow key={`${asiento.titulo}-${linea.cuenta}-${indice}`}>
+                                <TableCell className="whitespace-nowrap">
+                                  <button
+                                    type="button"
+                                    onClick={() => navegar(`/accounting/ledger?cuenta=${encodeURIComponent(linea.cuenta)}`)}
+                                    className="font-mono text-xs font-semibold underline-offset-2 hover:underline"
+                                    title="Ver en el Libro Mayor"
+                                  >
+                                    {linea.cuenta}
+                                  </button>
                                 </TableCell>
-                                <TableCell align="right" className="tabular-nums">{monto(debe)}</TableCell>
-                                <TableCell align="right" className="tabular-nums">{monto(haber)}</TableCell>
+                                <TableCell className={linea.lado === 'HABER' ? 'pl-8' : ''}>
+                                  <span className="block truncate" title={linea.nombre}>{linea.nombre}</span>
+                                  <span className="block truncate text-[11px] text-muted-foreground">{linea.detalle}</span>
+                                </TableCell>
+                                <TableCell align="right" className="tabular-nums">
+                                  {linea.lado === 'DEBE' ? monto(importeDeLinea(linea, total, costoEjemplo)) : ''}
+                                </TableCell>
+                                <TableCell align="right" className="tabular-nums">
+                                  {linea.lado === 'HABER' ? monto(importeDeLinea(linea, total, costoEjemplo)) : ''}
+                                </TableCell>
                               </TableRow>
-                            </TableBody>
-                          </Table>
-                        </Card>
-                      );
-                    })
-                  : null}
+                            )),
+                            <TableRow key={`${asiento.titulo}-totales`} className="bg-muted/40 font-medium">
+                              <TableCell colSpan={2}>
+                                Totales
+                                <span className={`ml-2 text-[11px] ${cuadra ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
+                                  {cuadra ? 'Cuadra ✓' : 'No cuadra'}
+                                </span>
+                              </TableCell>
+                              <TableCell align="right" className="tabular-nums">{monto(debe)}</TableCell>
+                              <TableCell align="right" className="tabular-nums">{monto(haber)}</TableCell>
+                            </TableRow>,
+                          ];
+                        })}
+                      </TableBody>
+                    </Table>
+                  </Card>
+                ) : null}
               </section>
             );
           })}
