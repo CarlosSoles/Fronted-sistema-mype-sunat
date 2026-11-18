@@ -328,15 +328,17 @@ export default function AccountingRulesPage() {
                 )}
               </div>
 
-              <Table>
+              {/* Anchos fijos: sin ellos la descripción se desplazaba según el
+                  largo del nombre de la cuenta de cada proceso. */}
+              <Table className="table-fixed">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-16">Orden</TableHead>
                     <TableHead className="w-24">Lado</TableHead>
-                    <TableHead className="w-44">Base</TableHead>
-                    <TableHead>Cuenta</TableHead>
-                    <TableHead>Descripción</TableHead>
-                    <TableHead align="right">Acción</TableHead>
+                    <TableHead className="w-40">Base</TableHead>
+                    <TableHead className="w-[28%]">Cuenta</TableHead>
+                    <TableHead className="w-[24%]">Descripción</TableHead>
+                    <TableHead align="right" className="w-20">Acción</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -360,7 +362,11 @@ export default function AccountingRulesPage() {
                         <TableCell>{etiquetaBase(regla.base_calculation)}</TableCell>
                         <TableCell>
                           <span className="font-mono text-xs">{regla.account_code}</span>
-                          {cuenta ? <span className="ml-2 text-muted-foreground">{cuenta.name}</span> : null}
+                          {cuenta ? (
+                            <span className="ml-2 truncate text-muted-foreground" title={cuenta.name}>
+                              {cuenta.name}
+                            </span>
+                          ) : null}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">{regla.description ?? '—'}</TableCell>
                         <TableCell align="right">

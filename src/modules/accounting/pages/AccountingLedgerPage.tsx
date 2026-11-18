@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { BookOpen, ChevronLeft, ChevronRight, Download, Printer, SquareArrowOutUpRight, TriangleAlert } from 'lucide-react';
+import { BookOpen, ChevronLeft, ChevronRight, Download, Printer, SquareArrowOutUpRight } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -204,13 +204,6 @@ export default function AccountingLedgerPage() {
     onSuccess: () => setExportando(false),
   });
 
-  const naturaleza = data?.nature;
-  const saldoFinal = data?.closingBalance ?? 0;
-  // Un saldo con signo contrario a la naturaleza de la cuenta es una señal de
-  // alarma contable (una caja con saldo acreedor, por ejemplo).
-  const saldoContrario =
-    (naturaleza === 'Deudora' && saldoFinal < -0.005) || (naturaleza === 'Acreedora' && saldoFinal > 0.005);
-
   const indicador = (saldo: number) => (saldo < 0 ? 'A' : 'D');
 
   return (
@@ -275,61 +268,17 @@ export default function AccountingLedgerPage() {
         </Card>
       ) : null}
 
-      {/* Resumen del reporte: qué se está viendo y con qué saldos. */}
-      {data ? (
-        <Card className="mb-4 p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold">
-                <span className="font-mono">{data.accountCode}</span> · {data.accountName}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Período {data.period} · Naturaleza {data.nature}
-                {data.subcuentas && data.subcuentas.length > 1
-                  ? ` · ${data.subcuentas.length} cuentas consolidadas`
-                  : ''}
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-3 text-xs sm:grid-cols-4">
-              <div>
-                <p className="text-muted-foreground">Saldo inicial</p>
-                <p className="tabular-nums font-medium">{money(data.openingBalance)}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Total debe</p>
-                <p className="tabular-nums font-medium">{money(data.totalDebit)}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Total haber</p>
-                <p className="tabular-nums font-medium">{money(data.totalCredit)}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Saldo final</p>
-                <p className={`tabular-nums font-semibold ${saldoFinal < 0 ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                  {money(saldoFinal)} <span className="text-[10px] font-normal">{indicador(saldoFinal)}</span>
-                </p>
-              </div>
-            </div>
-          </div>
-          {saldoContrario ? (
-            <p className="mt-3 flex items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/5 p-2 text-[11px] text-amber-700 dark:text-amber-400">
-              <TriangleAlert className="h-3.5 w-3.5" />
-              El saldo es contrario a la naturaleza de la cuenta (una cuenta {data.nature.toLowerCase()} no debería
-              quedar con saldo {saldoFinal < 0 ? 'acreedor' : 'deudor'}).
-            </p>
-          ) : null}
-        </Card>
-      ) : null}
-
       <Card flush>
-        <Table>
+        {/* Anchos fijos: la descripción ocupa el espacio restante y no se
+            desplaza según el largo de la glosa de cada asiento. */}
+        <Table className="table-fixed">
           <TableHeader>
             <TableRow className="bg-muted/40 hover:bg-muted/40">
-              <TableHead className="w-28">Fecha</TableHead>
-              <TableHead className="w-40">Asiento</TableHead>
-              <TableHead className="w-24">Cuenta</TableHead>
+              <TableHead className="w-24">Fecha</TableHead>
+              <TableHead className="w-36">Asiento</TableHead>
+              <TableHead className="w-20">Cuenta</TableHead>
               <TableHead>Descripción</TableHead>
-              <TableHead className="w-44">Módulo / Referencia</TableHead>
+              <TableHead className="w-40">Módulo / Referencia</TableHead>
               <TableHead align="right" className="w-28">Debe</TableHead>
               <TableHead align="right" className="w-28">Haber</TableHead>
               <TableHead align="right" className="w-32">Saldo</TableHead>
@@ -353,16 +302,6 @@ export default function AccountingLedgerPage() {
               </TableRow>
             ) : (
               <>
-                {/* Saldo de apertura como primera fila del reporte. */}
-                <TableRow className="bg-muted/20">
-                  <TableCell colSpan={7} className="text-xs font-medium">
-                    Saldo inicial al {formatDateToPeru(desde)}
-                  </TableCell>
-                  <TableCell align="right" className="tabular-nums font-medium">
-                    {money(data?.openingBalance ?? 0)}
-                  </TableCell>
-                </TableRow>
-
                 {agrupar && puedeAgrupar
                   ? porSubcuenta.map(([codigo, grupo]) => (
                       <Fragment key={`grupo-${codigo}`}>
