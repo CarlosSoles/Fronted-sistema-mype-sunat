@@ -28,7 +28,7 @@ export const useDuaWizard = (shipmentId: string, orderId?: string | null) => {
       // Ignorar error de JSON parse
     }
     return {
-      shipment_id: shipmentId || 'EXP-2026-00042',
+      shipment_id: shipmentId || '',
       customs_code: '118',
       declaration_year: new Date().getFullYear(),
       dispatch_mode: '10',
@@ -89,7 +89,7 @@ export const useDuaWizard = (shipmentId: string, orderId?: string | null) => {
         }
 
         // 2. Si viene shipmentId, consultar el expediente del Paso 2
-        if (shipmentId && shipmentId !== 'demo-shipment-001') {
+        if (shipmentId) {
           const shipment = await customsShipmentsApi.getShipmentById(shipmentId);
           if (isMounted && shipment) {
             setFormData((prev) => ({
@@ -132,7 +132,7 @@ export const useDuaWizard = (shipmentId: string, orderId?: string | null) => {
   const clearDraft = useCallback(() => {
     localStorage.removeItem(draftKey);
     setFormData({
-      shipment_id: shipmentId || 'EXP-2026-00042',
+      shipment_id: shipmentId || '',
       customs_code: '118',
       declaration_year: new Date().getFullYear(),
       dispatch_mode: '10',

@@ -16,6 +16,7 @@ import { getPermissionHome } from './roleNavigation';
  */
 const RUTAS_ADELANTADAS: ReadonlyArray<{ path: string; moduleCode: string }> = [
   { path: '/accounting/guia', moduleCode: 'M4' },
+  { path: '/customs/quotations', moduleCode: 'M2' },
   { path: '/credenciales-empresa', moduleCode: 'M4' },
 ];
 

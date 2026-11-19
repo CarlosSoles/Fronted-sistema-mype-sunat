@@ -75,16 +75,14 @@ export const landedCostApi = {
 
   /**
    * @deprecated Usar approveLandedCost en el nuevo flujo desacoplado.
-   * Asienta formalmente la entrada valorizada al inventario permanente.
+   * Asienta formalmente la entrada valorizada al inventario permanente y aprueba la hoja de costos.
    */
   applyKardex: async (
     payload: ApplyKardexPayload
-  ): Promise<{ message: string; movements_count: number }> => {
-    const response = await apiClient.post<{ message: string; movements_count: number }>(
-      '/customs/landed-cost/approve',
-      { shipmentId: payload.shipment_id }
-    );
-    return response.data;
+  ): Promise<{ message: string; movements_count?: number; sheet?: any }> => {
+    return landedCostApi.approveLandedCost({
+      shipmentId: payload.shipment_id,
+    });
   },
 
   /**

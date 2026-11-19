@@ -28,6 +28,8 @@ import {
   Globe,
   Anchor,
   Wrench,
+  Building2,
+  Landmark,
 } from 'lucide-react';
 import {
   masterDataApi,
@@ -38,13 +40,15 @@ import {
   type PortRecord,
   type ExchangeRateRecord,
   type CustomsServiceRecord,
+  type CustomsOfficeRecord,
+  type AuthorizedBankRecord,
 } from '../services/masterDataApi';
 import {
   inventoryLedgerApi,
 } from '@/modules/inventory/services/inventoryLedgerApi';
 
-type TabKey = 'currencies' | 'rates' | 'incoterms' | 'countries' | 'ports' | 'documents' | 'services' | 'mappings';
-type DialogKey = 'currency' | 'rate' | 'incoterm' | 'document' | 'country' | 'port' | 'service' | null;
+type TabKey = 'currencies' | 'rates' | 'incoterms' | 'countries' | 'ports' | 'offices' | 'banks' | 'documents' | 'services' | 'mappings';
+type DialogKey = 'currency' | 'rate' | 'incoterm' | 'document' | 'country' | 'port' | 'office' | 'bank' | 'service' | null;
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -62,6 +66,8 @@ const TABS: Array<{ key: TabKey; label: string; icon: typeof Coins }> = [
   { key: 'incoterms', label: 'Incoterms', icon: Ship },
   { key: 'countries', label: 'Países', icon: Globe },
   { key: 'ports', label: 'Puertos', icon: Anchor },
+  { key: 'offices', label: 'Aduanas SUNAT', icon: Building2 },
+  { key: 'banks', label: 'Bancos Autorizados', icon: Landmark },
   { key: 'documents', label: 'Documentos', icon: FileText },
   { key: 'services', label: 'Servicios Aduaneros / Gastos de Despacho', icon: Wrench },
   { key: 'mappings', label: 'Cuentas PCGE', icon: BookOpen },
@@ -75,7 +81,7 @@ export default function MasterDataPage() {
 
   useEffect(() => {
     const qTab = searchParams.get('tab') as TabKey;
-    if (qTab && ['currencies', 'rates', 'incoterms', 'countries', 'ports', 'documents', 'services', 'mappings'].includes(qTab)) {
+    if (qTab && ['currencies', 'rates', 'incoterms', 'countries', 'ports', 'offices', 'banks', 'documents', 'services', 'mappings'].includes(qTab)) {
       setTab(qTab);
     }
   }, [searchParams]);
@@ -135,6 +141,17 @@ export default function MasterDataPage() {
     isActive: true,
   });
 
+  const [officeForm, setOfficeForm] = useState({
+    code: '',
+    name: '',
+    isActive: true,
+  });
+  const [bankForm, setBankForm] = useState({
+    code: '',
+    name: '',
+    isActive: true,
+  });
+
   const currencies = useQuery({
     queryKey: ['master-data', 'currencies'],
     queryFn: masterDataApi.getCurrencies,
@@ -154,6 +171,16 @@ export default function MasterDataPage() {
   const ports = useQuery({
     queryKey: ['master-data', 'ports', portTypeFilter],
     queryFn: () => masterDataApi.getPorts(portTypeFilter === 'ALL' ? undefined : portTypeFilter),
+  });
+  const offices = useQuery({
+    queryKey: ['master-data', 'customs-offices'],
+    queryFn: masterDataApi.getCustomsOffices,
+    enabled: tab === 'offices',
+  });
+  const banks = useQuery({
+    queryKey: ['master-data', 'authorized-banks'],
+    queryFn: masterDataApi.getAuthorizedBanks,
+    enabled: tab === 'banks',
   });
   const documents = useQuery({
     queryKey: ['master-data', 'documents'],
@@ -352,8 +379,52 @@ export default function MasterDataPage() {
     onError: (e) => alert(apiError(e)),
   });
 
+  // Guardar Aduana SUNAT
+  const officeMutation = useMutation({
+    mutationFn: () =>
+      masterDataApi.upsertCustomsOffice({
+        code: officeForm.code.trim(),
+        name: officeForm.name.trim(),
+        isActive: officeForm.isActive,
+      }),
+    onSuccess: () => {
+      invalidate('customs-offices');
+      setDialog(null);
+      setError(null);
+    },
+    onError: (e) => setError(apiError(e)),
+  });
+
+  const deleteOfficeMutation = useMutation({
+    mutationFn: (code: string) => masterDataApi.deleteCustomsOffice(code),
+    onSuccess: () => invalidate('customs-offices'),
+    onError: (e) => alert(apiError(e)),
+  });
+
+  // Guardar Banco Autorizado SUNAT
+  const bankMutation = useMutation({
+    mutationFn: () =>
+      masterDataApi.upsertAuthorizedBank({
+        code: bankForm.code.trim(),
+        name: bankForm.name.trim(),
+        isActive: bankForm.isActive,
+      }),
+    onSuccess: () => {
+      invalidate('authorized-banks');
+      setDialog(null);
+      setError(null);
+    },
+    onError: (e) => setError(apiError(e)),
+  });
+
+  const deleteBankMutation = useMutation({
+    mutationFn: (code: string) => masterDataApi.deleteAuthorizedBank(code),
+    onSuccess: () => invalidate('authorized-banks'),
+    onError: (e) => alert(apiError(e)),
+  });
+
   const loadError =
-    currencies.error ?? rates.error ?? incoterms.error ?? countries.error ?? ports.error ?? documents.error ?? customsServices.error ?? mappings.error;
+    currencies.error ?? rates.error ?? incoterms.error ?? countries.error ?? ports.error ?? offices.error ?? banks.error ?? documents.error ?? customsServices.error ?? mappings.error;
 
   const refresh = () => {
     if (tab === 'currencies') currencies.refetch();
@@ -361,6 +432,8 @@ export default function MasterDataPage() {
     if (tab === 'incoterms') incoterms.refetch();
     if (tab === 'countries') countries.refetch();
     if (tab === 'ports') ports.refetch();
+    if (tab === 'offices') offices.refetch();
+    if (tab === 'banks') banks.refetch();
     if (tab === 'documents') documents.refetch();
     if (tab === 'services') customsServices.refetch();
     if (tab === 'mappings') mappings.refetch();
@@ -389,6 +462,14 @@ export default function MasterDataPage() {
     if (tab === 'ports') {
       setPortForm({ code: '', name: '', countryCode: 'PE', type: 'DESTINATION', status: 'ACTIVE' });
       setDialog('port');
+    }
+    if (tab === 'offices') {
+      setOfficeForm({ code: '', name: '', isActive: true });
+      setDialog('office');
+    }
+    if (tab === 'banks') {
+      setBankForm({ code: '', name: '', isActive: true });
+      setDialog('bank');
     }
     if (tab === 'documents') {
       setDocumentForm({ code: '', name: '', stage: 'EMBARQUE', isRequired: false, isActive: true });
@@ -499,6 +580,28 @@ export default function MasterDataPage() {
       isActive: d.is_active,
     });
     setDialog('document');
+  };
+
+  const startEditOffice = (o: CustomsOfficeRecord) => {
+    setError(null);
+    setIsEditing(true);
+    setOfficeForm({
+      code: o.code,
+      name: o.name,
+      isActive: o.is_active,
+    });
+    setDialog('office');
+  };
+
+  const startEditBank = (b: AuthorizedBankRecord) => {
+    setError(null);
+    setIsEditing(true);
+    setBankForm({
+      code: b.code,
+      name: b.name,
+      isActive: b.is_active,
+    });
+    setDialog('bank');
   };
 
   return (
@@ -889,6 +992,122 @@ export default function MasterDataPage() {
               </tbody>
             </table>
           </div>
+        )}
+
+        {/* Aduanas SUNAT */}
+        {tab === 'offices' && (
+          <table className="w-full text-left text-xs">
+            <thead className="bg-muted/50 text-muted-foreground uppercase">
+              <tr>
+                <th className="p-3">Código SUNAT</th>
+                <th className="p-3">Nombre de la Aduana</th>
+                <th className="p-3 text-center">Estado</th>
+                <th className="p-3 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {offices.isLoading ? (
+                <tr><td colSpan={4} className="p-6 text-center text-muted-foreground">Cargando aduanas...</td></tr>
+              ) : (offices.data ?? []).length === 0 ? (
+                <tr><td colSpan={4} className="p-6 text-center text-muted-foreground">No hay aduanas registradas.</td></tr>
+              ) : (offices.data ?? []).map((o) => (
+                <tr key={o.code} className="border-t hover:bg-muted/20">
+                  <td className="p-3 font-mono font-bold text-primary">{o.code}</td>
+                  <td className="p-3 font-medium">{o.name}</td>
+                  <td className="p-3 text-center">
+                    <Badge variant={o.is_active ? 'default' : 'secondary'}>
+                      {o.is_active ? 'Activo' : 'Inactivo'}
+                    </Badge>
+                  </td>
+                  <td className="p-3 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        title="Editar aduana"
+                        onClick={() => startEditOffice(o)}
+                        className="h-7 w-7 p-0 text-primary hover:text-primary/80"
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        title="Desactivar aduana"
+                        disabled={deleteOfficeMutation.isPending}
+                        onClick={() => {
+                          if (window.confirm(`¿Está seguro de desactivar la aduana ${o.code} (${o.name})?`)) {
+                            deleteOfficeMutation.mutate(o.code);
+                          }
+                        }}
+                        className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+
+        {/* Bancos Autorizados */}
+        {tab === 'banks' && (
+          <table className="w-full text-left text-xs">
+            <thead className="bg-muted/50 text-muted-foreground uppercase">
+              <tr>
+                <th className="p-3">Código Entidad</th>
+                <th className="p-3">Nombre del Banco</th>
+                <th className="p-3 text-center">Estado</th>
+                <th className="p-3 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {banks.isLoading ? (
+                <tr><td colSpan={4} className="p-6 text-center text-muted-foreground">Cargando bancos autorizados...</td></tr>
+              ) : (banks.data ?? []).length === 0 ? (
+                <tr><td colSpan={4} className="p-6 text-center text-muted-foreground">No hay bancos registrados.</td></tr>
+              ) : (banks.data ?? []).map((b) => (
+                <tr key={b.code} className="border-t hover:bg-muted/20">
+                  <td className="p-3 font-mono font-bold text-primary">{b.code}</td>
+                  <td className="p-3 font-medium">{b.name}</td>
+                  <td className="p-3 text-center">
+                    <Badge variant={b.is_active ? 'default' : 'secondary'}>
+                      {b.is_active ? 'Activo' : 'Inactivo'}
+                    </Badge>
+                  </td>
+                  <td className="p-3 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        title="Editar banco"
+                        onClick={() => startEditBank(b)}
+                        className="h-7 w-7 p-0 text-primary hover:text-primary/80"
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        title="Desactivar banco"
+                        disabled={deleteBankMutation.isPending}
+                        onClick={() => {
+                          if (window.confirm(`¿Está seguro de desactivar el banco ${b.code} (${b.name})?`)) {
+                            deleteBankMutation.mutate(b.code);
+                          }
+                        }}
+                        className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
 
         {/* Documentos */}
@@ -1416,6 +1635,112 @@ export default function MasterDataPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialog(null)}>Cancelar</Button>
             <Button onClick={() => incotermMutation.mutate()} disabled={incotermMutation.isPending || !incotermForm.code || !incotermForm.name} className="gap-1.5">
+              <Save className="h-3.5 w-3.5" /> Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Aduana SUNAT */}
+      <Dialog open={dialog === 'office'} onOpenChange={(open) => !open && setDialog(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{isEditing ? 'Editar Aduana SUNAT' : 'Nueva Aduana SUNAT'}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3 text-xs">
+            <div>
+              <p className="mb-1 font-medium">Código SUNAT (3 dígitos) *</p>
+              <Input
+                placeholder="ej. 118"
+                value={officeForm.code}
+                disabled={isEditing}
+                maxLength={3}
+                onChange={(e) => setOfficeForm({ ...officeForm, code: e.target.value })}
+                className="font-mono font-bold"
+              />
+            </div>
+            <div>
+              <p className="mb-1 font-medium">Nombre de la Aduana / Intendencia *</p>
+              <Input
+                placeholder="ej. Marítima del Callao"
+                value={officeForm.name}
+                onChange={(e) => setOfficeForm({ ...officeForm, name: e.target.value })}
+              />
+            </div>
+            {isEditing && (
+              <div>
+                <p className="mb-1 font-medium">Estado</p>
+                <select
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  value={officeForm.isActive ? '1' : '0'}
+                  onChange={(e) => setOfficeForm({ ...officeForm, isActive: e.target.value === '1' })}
+                >
+                  <option value="1">Activo</option>
+                  <option value="0">Inactivo</option>
+                </select>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialog(null)}>Cancelar</Button>
+            <Button
+              onClick={() => officeMutation.mutate()}
+              disabled={officeMutation.isPending || !officeForm.code || !officeForm.name}
+              className="gap-1.5"
+            >
+              <Save className="h-3.5 w-3.5" /> Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Banco Autorizado SUNAT */}
+      <Dialog open={dialog === 'bank'} onOpenChange={(open) => !open && setDialog(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{isEditing ? 'Editar Banco Autorizado' : 'Nuevo Banco Autorizado'}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3 text-xs">
+            <div>
+              <p className="mb-1 font-medium">Código Entidad Bancaria (3 dígitos) *</p>
+              <Input
+                placeholder="ej. 002"
+                value={bankForm.code}
+                disabled={isEditing}
+                maxLength={3}
+                onChange={(e) => setBankForm({ ...bankForm, code: e.target.value })}
+                className="font-mono font-bold"
+              />
+            </div>
+            <div>
+              <p className="mb-1 font-medium">Nombre de la Entidad Bancaria *</p>
+              <Input
+                placeholder="ej. Banco de Crédito del Perú (BCP)"
+                value={bankForm.name}
+                onChange={(e) => setBankForm({ ...bankForm, name: e.target.value })}
+              />
+            </div>
+            {isEditing && (
+              <div>
+                <p className="mb-1 font-medium">Estado</p>
+                <select
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  value={bankForm.isActive ? '1' : '0'}
+                  onChange={(e) => setBankForm({ ...bankForm, isActive: e.target.value === '1' })}
+                >
+                  <option value="1">Activo</option>
+                  <option value="0">Inactivo</option>
+                </select>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialog(null)}>Cancelar</Button>
+            <Button
+              onClick={() => bankMutation.mutate()}
+              disabled={bankMutation.isPending || !bankForm.code || !bankForm.name}
+              className="gap-1.5"
+            >
               <Save className="h-3.5 w-3.5" /> Guardar
             </Button>
           </DialogFooter>

@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   BookOpen,
   ArrowRight,
+  Handshake,
 } from 'lucide-react';
 import {
   importOrdersApi,
@@ -218,6 +219,15 @@ export default function ImportOrdersPage() {
         description="Gestión comercial de proformas, cotizaciones y órdenes de compra con proveedores extranjeros (Incoterms 2020, multimoneda y costeo estimado)."
       >
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/customs/quotations')}
+            className="gap-1.5 text-xs text-purple-400 border-purple-500/30 hover:bg-purple-500/10"
+          >
+            <Handshake className="h-3.5 w-3.5" />
+            Mesa de Negociación
+          </Button>
           <Button
             variant="outline"
             size="sm"

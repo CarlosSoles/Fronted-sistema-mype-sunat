@@ -1,7 +1,8 @@
 import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { CUSTOMS_OFFICES } from '../services/catalogsApi';
+import { catalogsApi } from '../services/catalogsApi';
 import { type RegisterDuaWizardPayload } from '../types';
 
 interface DuaStep1HeaderProps {
@@ -10,6 +11,11 @@ interface DuaStep1HeaderProps {
 }
 
 export const DuaStep1Header: React.FC<DuaStep1HeaderProps> = ({ data, onChange }) => {
+  const { data: offices = [] } = useQuery({
+    queryKey: ['customs', 'catalogs', 'offices'],
+    queryFn: catalogsApi.getCustomsOffices,
+  });
+
   return (
     <Card className="border-border/60 shadow-xs bg-card">
       <CardContent className="p-4 space-y-3 text-xs">
@@ -21,7 +27,7 @@ export const DuaStep1Header: React.FC<DuaStep1HeaderProps> = ({ data, onChange }
               onChange={(e) => onChange({ customs_code: e.target.value })}
               className="w-full h-8 px-2 text-xs rounded-md border border-input bg-background"
             >
-              {CUSTOMS_OFFICES.map((c) => (
+              {offices.map((c) => (
                 <option key={c.code} value={c.code}>
                   {c.code} - {c.name}
                 </option>

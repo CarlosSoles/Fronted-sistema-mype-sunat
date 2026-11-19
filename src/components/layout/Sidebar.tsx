@@ -22,6 +22,7 @@ import {
   WalletCards,
   FolderGit2,
   GitCompareArrows,
+  Handshake,
   KeyRound,
   LayoutDashboard,
   ListChecks,
@@ -135,10 +136,11 @@ export const NAV_ITEMS: NavItem[] = [
 
     subItems: [
       { title: 'Panel general', path: '/customs/dashboard', icon: LayoutDashboard },
-      { title: '1. Pedidos al exterior', path: '/customs/orders', icon: FilePlus },
-      { title: '2. Tránsito y arribo', path: '/customs/shipments', icon: FolderGit2 },
-      { title: '3. Despacho y DAM', path: '/customs/declarations', icon: FileCheck2 },
-      { title: '4. Recojo y almacén (Kardex)', path: '/customs/landed-cost', icon: Calculator },
+      { title: '1. Cotizaciones y Negociación', path: '/customs/quotations', icon: Handshake, adelanto: { moduleCode: 'M2' } },
+      { title: '2. Pedidos y Órdenes de Compra', path: '/customs/orders', icon: FilePlus },
+      { title: '3. Tránsito y arribo', path: '/customs/shipments', icon: FolderGit2 },
+      { title: '4. Despacho y DAM', path: '/customs/declarations', icon: FileCheck2 },
+      { title: '5. Recojo y almacén (Kardex)', path: '/customs/landed-cost', icon: Calculator },
       { title: 'Contabilidad y Asientos Aduaneros (PCGE / NIC 2)', path: '/customs/accounting', icon: BookOpen },
       { title: 'Proveedores del exterior', path: '/customs/suppliers', icon: Building2 },
       { title: 'Configuración aduanera', path: '/customs/config', icon: Settings },
@@ -292,6 +294,7 @@ export const Sidebar = () => {
    * invisible hasta que el backend se redespliegue.
    */
   const puedeVerSubItem = (sub: SubNavItem): boolean => {
+    if (permissions.snapshot?.role.code === 'ADMIN') return true;
     if (permissions.canNavigate(sub.path)) return true;
     if (!sub.adelanto) return false;
     const menus = permissions.snapshot?.menus ?? [];

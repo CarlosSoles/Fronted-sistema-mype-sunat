@@ -26,6 +26,7 @@ export const inventoryApi = {
     id: string;
     sku: string;
     description: string;
+    barcode?: string;
     isService: boolean;
     isInventory: boolean;
     unitCode: string;

@@ -261,7 +261,7 @@ export default function LandedCostSheetPage() {
               activeDeclaration={activeDec}
               totalLocalExpensesPen={totalExpensePen}
               fallbackDescription={activeDec?.series?.[0]?.commercial_description}
-              onApplyKardex={handleApproveCost}
+              onApproveLandedCost={handleApproveCost}
               isApplying={isApproving}
             />
           </div>

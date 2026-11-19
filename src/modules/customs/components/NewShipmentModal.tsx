@@ -13,7 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { shipmentSchema, type ShipmentFormData } from '../validators';
-import { CUSTOMS_OFFICES, catalogsApi, getStoredCountries, type CountryItem } from '../services/catalogsApi';
+import { catalogsApi, type CountryItem } from '../services/catalogsApi';
 import { SupplierSelector } from './SupplierSelector';
 import { CountrySelector } from './CountrySelector';
 import { FALLBACK_CURRENCIES, FALLBACK_INCOTERMS } from '../lib/customsConstants';
@@ -37,7 +37,7 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
   onSubmit,
 }) => {
   const [suppliers, setSuppliers] = useState<ForeignSupplierSummary[]>([]);
-  const [countries, setCountries] = useState<CountryItem[]>(getStoredCountries());
+  const [countries, setCountries] = useState<CountryItem[]>([]);
 
   // Catálogos configurables: si la API no responde, se usa el respaldo local.
   const incotermsQuery = useQuery({
@@ -52,6 +52,23 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
     staleTime: 1000 * 60 * 10,
     retry: 0,
   });
+  const countriesQuery = useQuery({
+    queryKey: ['master-data', 'countries'],
+    queryFn: masterDataApi.getCountries,
+    staleTime: 1000 * 60 * 10,
+    retry: 0,
+  });
+
+  useEffect(() => {
+    if (countriesQuery.data && countriesQuery.data.length > 0) {
+      const mapped: CountryItem[] = countriesQuery.data.map((c) => ({
+        code: c.code,
+        name: c.name,
+        flag: '🌐',
+      }));
+      setCountries(mapped);
+    }
+  }, [countriesQuery.data]);
   const incotermOptions =
     incotermsQuery.data && incotermsQuery.data.length > 0
       ? incotermsQuery.data
@@ -67,6 +84,14 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
     enabled: isOpen,
     staleTime: 1000 * 60 * 2,
   });
+
+  const officesQuery = useQuery({
+    queryKey: ['customs', 'catalogs', 'offices'],
+    queryFn: catalogsApi.getCustomsOffices,
+    enabled: isOpen,
+    staleTime: 1000 * 60 * 10,
+  });
+  const customsOffices = officesQuery.data || [];
   const [selectedOrderId, setSelectedOrderId] = useState<string>('NONE');
   const firstInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -305,7 +330,7 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
                   {...register('destination_customs')}
                   className="w-full h-8 px-2 text-xs rounded-md border border-input bg-background font-medium"
                 >
-                  {CUSTOMS_OFFICES.map((c) => (
+                  {customsOffices.map((c) => (
                     <option key={c.code} value={c.code}>
                       {c.code} — {c.name}
                     </option>

@@ -11,31 +11,36 @@ interface ComplianceAlertItem {
   severity: 'safe' | 'warning' | 'danger';
 }
 
+interface ComplianceTrafficLightProps {
+  alerts?: ComplianceAlertItem[];
+}
+
 const DEFAULT_ALERTS: ComplianceAlertItem[] = [
   {
     id: 'a1',
     title: 'Regularización Despacho Anticipado (Art. B.3 PG.01)',
-    reference: 'EXP-2026-00042',
-    daysRemaining: 12,
+    reference: 'Expediente en curso de regularización',
+    daysRemaining: 15,
     severity: 'safe',
   },
   {
     id: 'a2',
     title: 'Fecha Límite Pago con Garantía Art. 160 (Día 20)',
-    reference: 'Cuota CDA 0010 Callao',
-    daysRemaining: 4,
+    reference: 'Cuotas CDA según numeración',
+    daysRemaining: 5,
     severity: 'warning',
   },
   {
     id: 'a3',
     title: 'Plazo de Abandono Legal (30 días de descarga)',
-    reference: 'DEP-TEMPORAL Callao',
-    daysRemaining: 24,
+    reference: 'Almacén aduanero temporal',
+    daysRemaining: 25,
     severity: 'safe',
   },
 ];
 
-export const ComplianceTrafficLight: React.FC = () => {
+export const ComplianceTrafficLight: React.FC<ComplianceTrafficLightProps> = ({ alerts }) => {
+  const displayAlerts = alerts && alerts.length > 0 ? alerts : DEFAULT_ALERTS;
   return (
     <Card className="border-border/60 shadow-xs">
       <CardHeader className="p-4 pb-2">
@@ -50,7 +55,7 @@ export const ComplianceTrafficLight: React.FC = () => {
         </CardTitle>
       </CardHeader>
       <CardContent className="p-4 pt-2 space-y-2.5">
-        {DEFAULT_ALERTS.map((alert) => (
+        {displayAlerts.map((alert) => (
           <div
             key={alert.id}
             className="flex items-center justify-between p-2.5 rounded-lg border border-border/40 bg-muted/20 text-xs"
