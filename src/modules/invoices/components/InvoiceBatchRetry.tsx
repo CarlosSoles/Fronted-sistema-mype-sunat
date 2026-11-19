@@ -1,7 +1,7 @@
 import { useActionPermissions } from '@/modules/auth/hooks/useActionPermissions';
 import { useInvoiceWritePermission } from '../hooks/useInvoiceWritePermission';
 import { useRef, useState } from 'react';
-import { Alert, AlertDescription, AlertTitle, Button } from '@/components/ui';
+import { Button } from '@/components/ui';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { extractApiErrorMessage } from '@/lib/apiErrors';
 import { invoiceBatchRetryApi, type ReintentoMasivo } from '../services/invoiceBatchRetryApi';
@@ -59,9 +59,9 @@ export function InvoiceBatchRetry({ onComplete }: {onComplete:()=>void}) {
           <Button type="button" disabled={!moduleWrite || ocupado || !previa || previa.elegibles===0} onClick={()=>void ejecutar()}>Confirmar reenvío</Button></div>
       </DialogContent>
     </Dialog>
-    {resultado && <Alert><AlertTitle>Resultado del reenvío masivo</AlertTitle><AlertDescription>
+    {resultado && <section role="status" aria-label="Resultado del reenvío masivo"><h3 className="font-semibold">Resultado del reenvío masivo</h3>
       <Resumen datos={resultado} />
       <p>Los conteos corresponden a la ejecución reevaluada por la API. Actualizar el Monitor conserva este resultado.</p>
-    </AlertDescription></Alert>}
+    </section>}
   </section>;
 }

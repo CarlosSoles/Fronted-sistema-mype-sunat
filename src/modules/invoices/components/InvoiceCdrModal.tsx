@@ -1,3 +1,5 @@
+import { clasificarBandeja } from '../lib/invoiceBandejaState';
+import { InvoiceIssueGuidance } from './InvoiceIssueGuidance';
 import { useInvoiceDetailRefresh } from '../hooks/useInvoiceDetailRefresh';
 import { aComprobanteDemo } from '../lib/invoiceApiMapper';
 import { consultarSunatAporta } from '../lib/invoiceBandejaState';
@@ -48,12 +50,16 @@ interface InvoiceCdrModalProps {
   /** Pestaña inicial: 'cdr' (auditoría) o 'xml' (documento). */
   modoInicial?: 'cdr' | 'xml';
   onCerrar: () => void;
+  lateral?: boolean;
+  onActualizado?: (detalle: Invoice) => void;
 }
 
 /** Modal de auditoría CDR con visor del XML UBL 2.1. */
 export const InvoiceCdrModal = ({
   comprobante,
   modoInicial = 'cdr',
+  lateral = false,
+  onActualizado,
   onCerrar,
 }: InvoiceCdrModalProps) => {
   const emisor = useIdentidadEmisora();
@@ -71,6 +77,7 @@ export const InvoiceCdrModal = ({
   const idComprobante = comprobante?.id ?? null;
   const live = useInvoiceDetailRefresh(idComprobante);
   const detalle = live?.detail;
+  useEffect(()=>{if(detalle)onActualizado?.(detalle);},[detalle,onActualizado]);
   const historialCargado: { id: string; eventos?: Invoice['historial']; tieneCdr?: boolean; comprobanteOrigen?: Invoice['comprobanteOrigen']; resultado?: Invoice['resultadoPresentacion']; ultimoErrorCodigo?: string; ultimoErrorMensaje?: string; error?: boolean } | null = detalle ? {
     id: detalle.id, eventos: detalle.historial ?? [], tieneCdr: detalle.tieneCdr ?? Boolean(detalle.cdrCodigo), comprobanteOrigen: detalle.comprobanteOrigen ?? null,
     resultado: detalle.resultadoPresentacion, ultimoErrorCodigo: detalle.ultimoErrorCodigo, ultimoErrorMensaje: detalle.ultimoErrorMensaje,
@@ -93,6 +100,15 @@ export const InvoiceCdrModal = ({
       vigente = false;
     };
   }, [idComprobante, detalle?.estadoBackend, detalle?.hashCpe]);
+
+  useEffect(()=>{
+    if(!lateral||!idComprobante)return;
+    const anterior=document.activeElement as HTMLElement|null;
+    const tabla=anterior?.closest<HTMLElement>('[data-slot=table-container]');
+    const desplazamiento=tabla?.scrollLeft;
+    const frame=requestAnimationFrame(()=>{document.getElementById('m1-detalle-titulo')?.focus();if(tabla)tabla.scrollLeft=0;});
+    return()=>{cancelAnimationFrame(frame);if(tabla&&desplazamiento!==undefined)tabla.scrollLeft=desplazamiento;anterior?.focus({preventScroll:true});};
+  },[lateral,idComprobante]);
 
   if (!comprobante) return null;
 
@@ -180,16 +196,16 @@ export const InvoiceCdrModal = ({
       })
     : null;
 
-  return (
-    <Dialog open onOpenChange={(abierto) => !abierto && onCerrar()}>
-      <DialogContent className="min-w-0 max-h-[85vh] overflow-x-hidden overflow-y-auto sm:max-w-3xl [overflow-wrap:anywhere]">
+  const Titulo = lateral ? 'h2' : DialogTitle;
+  const contenido = (<>
+
         <DialogHeader className="pr-8">
-          <DialogTitle className="flex flex-wrap items-center gap-2">
+          <Titulo tabIndex={-1} id="m1-detalle-titulo" className="flex flex-wrap items-center gap-2">
             <span>
               {numeroSerie} · {c.clienteRazonSocial}
             </span>
             <InvoiceStatusBadge estadoBackend={c.estadoBackend} estado={c.estado} codigo={c.cdrCodigo} resultado={c.resultadoPresentacion} />
-          </DialogTitle>
+          </Titulo>
           <PageText variant="caption">
             {/* `null` es DESCONOCIDO, no "Contado": los comprobantes emitidos
                 antes de que el backend expusiera la forma de pago no tienen el
@@ -209,6 +225,8 @@ export const InvoiceCdrModal = ({
           </PageText>
         </DialogHeader>
 
+        {['ACEPTADO','OBSERVADO','RECHAZADO'].includes(clasificarBandeja(c)) && <h3 role="status" aria-live="polite" className="font-semibold">{c.estado==='RECHAZADO'?'Comprobante rechazado':c.estado==='OBSERVADO'?'Comprobante aceptado con observación por SUNAT':'Comprobante aceptado por SUNAT'}</h3>}
+        {c.estado==='RECHAZADO'&&<InvoiceIssueGuidance codigo={c.resultadoPresentacion?.codigo??c.ultimoErrorCodigo??c.cdrCodigo} motivo={c.resultadoPresentacion?.motivo??c.ultimoErrorMensaje??c.cdrDescripcion}/>}
         <InvoiceForcedResend key={`forzar-${c.id}`} id={c.id} incierto={c.resultadoPresentacion?.origen === 'TRANSPORTE_INCIERTO' && !['ACEPTADO','OBSERVADO'].includes(c.estado)} />
         {consultarSunatAporta({...c,tieneCdr:ficha?.tieneCdr}) && <InvoiceSunatConsulta key={c.id} id={c.id} />}
         <InvoiceBridgeReprocess key={`puente-${c.id}`} id={c.id} estado={c.estado} />
@@ -410,7 +428,10 @@ export const InvoiceCdrModal = ({
             Cerrar
           </Button>
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
+    </>);
+  if (lateral) return <aside className="m1-ux m1-detail fixed inset-y-4 right-0 z-40 w-full max-w-[min(720px,100vw)] overflow-y-auto rounded-l-xl border bg-background p-5 shadow-xl sm:w-[55vw]" role="region" aria-labelledby="m1-detalle-titulo" onKeyDown={e=>{if(e.key==='Escape'){e.stopPropagation();onCerrar();}}}>
+    {contenido}
+  </aside>;
+  return <Dialog open onOpenChange={abierto => { if (!abierto) onCerrar(); }}><DialogContent className="m1-ux min-w-0 max-h-[85vh] overflow-x-hidden overflow-y-auto sm:max-w-3xl [overflow-wrap:anywhere]">{contenido}</DialogContent></Dialog>;
+
 };

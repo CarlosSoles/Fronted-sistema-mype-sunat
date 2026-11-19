@@ -1,7 +1,9 @@
+import { InvoiceWait } from '../components/InvoiceWait';
+import { InvoiceUxPage as Page } from '../components/InvoiceUxPage';
 import { errorRangoFechas } from '../lib/invoiceDateRange';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Button, Card, Input, Page, PageHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
+import { Button, Card, Input, PageHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
 import { apiClient } from '@/lib/axios';
 import { formatCurrency } from '@/lib/formatters';
 
@@ -50,6 +52,7 @@ export default function SalesReportPage() {
     </div></Card>
     {errorFechas && <p role="alert" className="text-sm text-destructive">{errorFechas}</p>}
     {error ? <Card className="p-4 mb-4 text-sm text-destructive">No se pudo cargar el reporte. Revisa el rango de fechas.</Card> : null}
+    {isLoading && <InvoiceWait label="Cargando reporte de ventas…" skeleton />}
     {data ? <>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 mb-4">
         {[['Ventas', formatCurrency(data.totals.sales, 'PEN')], ['Base', formatCurrency(data.totals.taxable, 'PEN')], ['IGV', formatCurrency(data.totals.igv, 'PEN')], ['Costo', formatCurrency(data.totals.cost, 'PEN')], ['Utilidad', `${formatCurrency(data.totals.profit, 'PEN')} · ${pct(data.totals.margin)}`]].map(([k, v]) => <Card key={k} className="p-3"><p className="text-xs text-muted-foreground">{k}</p><p className="font-semibold">{v}</p></Card>)}

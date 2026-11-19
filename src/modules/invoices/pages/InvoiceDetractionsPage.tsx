@@ -1,8 +1,10 @@
+import { CheckCircle2, Clock3 } from 'lucide-react';
+import { InvoiceUxPage as Page } from '../components/InvoiceUxPage';
 import { InvoiceMoneyInput } from '../components/InvoiceMoneyInput';
 import { errorMontoDeposito, errorConstanciaDeposito } from '../lib/invoiceDepositValidation';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Card, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Input, Page, PageHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
+import { Button, Card, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Input, PageHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
 import { apiClient } from '@/lib/axios';
 import { PeriodInput } from '@/components/common/PeriodInput';
 import { formatCurrency, formatDateToPeru } from '@/lib/formatters';
@@ -19,7 +21,7 @@ export default function InvoiceDetractionsPage() {
   const balance = (d: Detraccion) => d.balance ?? Math.max(0, d.detraction - (d.depositedAmount ?? 0));
   const [form, setForm] = useState({ amount: '', date: new Date().toISOString().slice(0, 10), constancia: '' });
   const [error, setError] = useState('');
-  const { data = [], isLoading } = useQuery({ queryKey: ['detractions', period], queryFn: async () => (await apiClient.get<Detraccion[]>('/invoices/detractions', { params: { period } })).data });
+  const { data = [], isLoading, isError } = useQuery({ queryKey: ['detractions', period], queryFn: async () => (await apiClient.get<Detraccion[]>('/invoices/detractions', { params: { period } })).data });
   const errorMonto = selected ? errorMontoDeposito(Number(form.amount), balance(selected) + (editing?.amount ?? 0)) : undefined;
   const errorConstancia = errorConstanciaDeposito(form.constancia);
   const registrar = useMutation({
@@ -40,11 +42,13 @@ export default function InvoiceDetractionsPage() {
     <PageHeader title="Detracciones" description="Control de depósitos de detracción por comprobante" />
     <Card className="p-4 mb-4"><div className="flex flex-wrap items-end gap-3"><label className="text-xs">Período<PeriodInput value={period} onChange={setPeriod} /></label></div></Card>
     {error ? <Card className="p-3 mb-3 text-sm text-destructive">{error}</Card> : null}
-    <Card flush><Table><TableHeader><TableRow><TableHead>Comprobante</TableHead><TableHead>Fecha</TableHead><TableHead>Cliente</TableHead><TableHead align="right">Total</TableHead><TableHead align="right">Detracción</TableHead><TableHead>Depósitos</TableHead><TableHead align="right">Total depositado</TableHead><TableHead align="right">Saldo</TableHead><TableHead align="right">Acción</TableHead></TableRow></TableHeader><TableBody>
+    {isError && <p role="alert">No se pudieron consultar las detracciones. Reintente la consulta antes de registrar un depósito.</p>}
+    <a href="/invoices/facturas" className="underline">Ver comprobantes</a>
+    <Card flush><Table><caption className="sr-only">Depósitos y saldo de detracción por comprobante</caption><TableHeader><TableRow><TableHead>Comprobante</TableHead><TableHead>Fecha</TableHead><TableHead>Cliente</TableHead><TableHead align="right">Total</TableHead><TableHead align="right">Detracción</TableHead><TableHead>Depósitos</TableHead><TableHead align="right">Total depositado</TableHead><TableHead align="right">Saldo</TableHead><TableHead align="right">Acción</TableHead></TableRow></TableHeader><TableBody>
       {isLoading ? <TableRow><TableCell colSpan={9}>Cargando…</TableCell></TableRow> : null}
-      {!isLoading && data.length === 0 ? <TableRow><TableCell colSpan={9}>Sin comprobantes con detracción en el período.</TableCell></TableRow> : null}
+      {!isLoading && !isError && data.length === 0 ? <TableRow><TableCell colSpan={9}>No hay comprobantes con detracción en este periodo. Cambie el periodo o revise la bandeja.</TableCell></TableRow> : null}
       {data.map((d) => <TableRow key={d.id}>
-        <TableCell className="font-mono text-xs">{d.numero}</TableCell><TableCell>{formatDateToPeru(d.date)}</TableCell><TableCell>{d.customer}</TableCell>
+        <TableCell className="font-mono text-xs">{d.numero}<span className="flex items-center gap-1 font-sans">{balance(d)<=0?<CheckCircle2 aria-hidden="true" className="h-4 w-4"/>:<Clock3 aria-hidden="true" className="h-4 w-4"/>}{balance(d)<=0?'Depositada':'Pendiente de depósito'}</span></TableCell><TableCell>{formatDateToPeru(d.date)}</TableCell><TableCell>{d.customer}</TableCell>
         <TableCell align="right">{formatCurrency(d.total, 'PEN')}</TableCell><TableCell align="right">{formatCurrency(d.detraction, 'PEN')}</TableCell>
         <TableCell>{d.deposits?.length ? <ul className="space-y-2">{d.deposits.map(deposit => <li key={deposit.id} className="text-xs">
           {formatDateToPeru(deposit.date)} · {formatCurrency(deposit.amount, 'PEN')} · Constancia {deposit.constancia || '—'}

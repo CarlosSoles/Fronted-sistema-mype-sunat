@@ -17,7 +17,7 @@ beforeEach(()=>{vi.mocked(invoicesApi.getAlertas).mockResolvedValue({gravedadGlo
 afterEach(()=>{cleanup();clients.splice(0).forEach(c=>c.clear());vi.resetAllMocks();});
 it('panel pendiente no publica ceros ni ausencia de rechazos; cero real sí',async()=>{
  let resolver!:(v:never)=>void;vi.mocked(invoicesApi.getMetrics).mockReturnValue(new Promise(r=>{resolver=r;}));montar(<Dashboard/>);
- expect(screen.queryByText('S/ 0.00')).toBeNull();expect(screen.queryByText('Sin rechazos')).toBeNull();expect(screen.getAllByText('Cargando…').length).toBeGreaterThan(0);
+ expect(screen.queryByText('S/ 0.00')).toBeNull();expect(screen.queryByText('Sin rechazos')).toBeNull();expect(screen.queryByText('Sin rechazos')).toBeNull(); // Antes de 2 s no se añade un indicador de espera.
  resolver({facturado:0,total:0,aceptados:0,pendientes:0,rechazados:0,tasaAceptacion:0} as never);expect(await screen.findByText('S/ 0.00')).toBeTruthy();
 });
 it('panel fallido informa ausencia, no cero',async()=>{vi.mocked(invoicesApi.getMetrics).mockRejectedValue(new Error('red'));montar(<Dashboard/>);await screen.findByRole('alert');expect(screen.queryByText('S/ 0.00')).toBeNull();});

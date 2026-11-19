@@ -1,3 +1,4 @@
+import { ETIQUETAS_BANDEJA } from './invoiceBandejaState';
 /**
  * Contrato de la vista previa de resúmenes diarios (RC) y bajas (RA) — TA-67.
  *
@@ -20,15 +21,7 @@ export const esLineaReenviable = (linea: Pick<LineaResumen, 'estado' | 'reenviab
 
 /** Etiqueta legible del estado frente a SUNAT en Bajas y Resúmenes. */
 export const ETIQUETA_ESTADO_SUNAT: Record<string, string> = {
-  ACEPTADO: 'Aceptado por SUNAT',
-  OBSERVADO: 'Observado por SUNAT',
-  RECHAZADO: 'Rechazado por SUNAT',
-  ANULADO: 'Anulado (Baja)',
-  PENDIENTE: 'No enviado a SUNAT (Pendiente)',
-  EN_COLA: 'No enviado a SUNAT (En cola)',
-  ERROR_RED: 'Error de transporte (ver motivo)',
-  SIN_CONFIRMAR: 'Sin confirmación de SUNAT',
-  ENVIADO: 'Enviado a SUNAT',
+ ...ETIQUETAS_BANDEJA, PENDIENTE: ETIQUETAS_BANDEJA.EN_COLA, ENVIADO: ETIQUETAS_BANDEJA.EN_COLA,
 };
 
 export interface LineaResumen {

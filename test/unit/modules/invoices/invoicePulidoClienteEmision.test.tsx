@@ -1,3 +1,4 @@
+import { confirmarRevisionSiAbierta } from '../../../fixtures/invoiceEmissionProduct';
 import { seleccionarProductoPrueba } from '../../../fixtures/invoiceEmissionProduct';
 import { beforeEach as billingBeforeEach } from 'vitest';
 import { useAuthStore as billingAuth } from '@/stores/authStore';
@@ -40,7 +41,7 @@ it.each(['pagina', 'modal'].flatMap(via => ['clic', 'teclado', 'texto-sin-confir
   expect((screen.getByLabelText('Razón social / nombre') as HTMLInputElement).value).toBe(cliente.legal_name);
   const boton = screen.getByRole('button', { name: via === 'pagina' ? 'Emitir comprobante' : 'Emitir Factura' });
   // Texto sin confirmar conserva lo tipeado; no se incorpora selección implícita ni atajos nuevos.
-  await usuario.click(boton);
+  await usuario.click(boton); confirmarRevisionSiAbierta();
   await waitFor(() => expect(invoicesApi.emitirComprobante).toHaveBeenCalledTimes(1), { timeout: 3000 });
   expect(invoicesApi.emitirComprobante).toHaveBeenCalledWith(expect.objectContaining({ customer_identity_number: cliente.doc_number, customer_identity_type: '6', customer_legal_name: cliente.legal_name }), expect.any(String));
   expect(screen.queryByText('Falta la razón social del cliente.')).toBeNull();

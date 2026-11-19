@@ -451,7 +451,7 @@ export const InvoiceEmitModal = ({
   const teclado = useInvoiceKeyboard(nuevoItem, () => { void confirmar(); }, enviando || !puedeOperar);
   return (
     <Dialog open onOpenChange={(abierto) => !abierto && onCerrar()}>
-      <DialogContent ref={formularioRef} showCloseButton={false} onKeyDown={teclado.handler} onEscapeKeyDown={e => e.preventDefault()} className="max-h-[88vh] overflow-y-auto sm:max-w-[min(96vw,1440px)]">
+      <DialogContent ref={formularioRef} showCloseButton={false} onKeyDown={teclado.handler} onEscapeKeyDown={e => e.preventDefault()} className="m1-ux max-h-[88vh] overflow-y-auto sm:max-w-[min(96vw,1440px)]">
         <DialogHeader className="pr-8">
           <DialogTitle>Emitir Comprobante Electrónico</DialogTitle>
           {teclado.ayuda}
@@ -527,7 +527,7 @@ export const InvoiceEmitModal = ({
         </div>
 
         {b.formaPago === 'Credito' && (
-          <CreditInstallmentsEditor
+          <CreditInstallmentsEditor mostrarErrores={mostrarErrores}
             cuotas={b.cuotas}
             netoPendiente={flujo.neto}
             fechaEmision={b.fecha}

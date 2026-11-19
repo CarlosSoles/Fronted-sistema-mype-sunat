@@ -34,7 +34,7 @@ it('Monitor consulta solo puentes pendientes, muestra causa y usa reprocesar-pue
  vi.mocked(invoicesApi.getInvoiceById).mockResolvedValue({...invoice,historial:[]} as never);
  vi.mocked(invoicesApi.reprocesarPuente).mockResolvedValue({completo:false,errores:['Descarga omitida por servicio.']} as never);
  render(<InvoiceMonitorPage/>);const button=await screen.findByRole('button',{name:'Reprocesar puente'});
- expect(screen.getByText('ACEPTADO con puente pendiente')).toBeTruthy();fireEvent.click(button);
+ expect(screen.getByLabelText('Aceptada')).toBeTruthy();fireEvent.click(button);
  expect(await screen.findByText('Puente pendiente: Descarga omitida por servicio.')).toBeTruthy();expect(invoicesApi.reprocesarPuente).toHaveBeenCalledWith('p');
 });
 

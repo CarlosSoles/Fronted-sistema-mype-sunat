@@ -1,3 +1,8 @@
+import type { Invoice } from './types/invoice.types';
+import { clasificarBandeja, ETIQUETAS_BANDEJA } from './lib/invoiceBandejaState';
+import { Link } from 'react-router-dom';
+import { InvoiceWait } from './components/InvoiceWait';
+import { InvoiceUxPage as Page } from './components/InvoiceUxPage';
 import { enriquecerImportesBandeja } from './lib/invoiceBandejaAmounts';
 import { useInvoiceRefresh } from './hooks/useInvoiceRefresh';
 import { useInvoiceConfig } from './hooks/useInvoiceConfig';
@@ -16,13 +21,12 @@ import { useAuthStore } from '@/stores/authStore';
  * el backend está planificada para el Sprint 2.
  */
 import { useCallback, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Alert,
   AlertDescription,
   AlertTitle,
-  Page,
   PageHeader,
   Tabs,
   TabsContent,
@@ -93,12 +97,15 @@ interface VisorState {
 }
 
 export const InvoiceList = () => {
+  const cache=useQueryClient();
+  const reflejarDetalle=useCallback((detalle:Invoice)=>{cache.setQueryData<{data:Invoice[]}>(['invoices',1],prev=>prev?({...prev,data:prev.data.map(item=>item.id===detalle.id?{...item,...detalle,importesBandeja:detalle.importesBandeja??item.importesBandeja}:item)}):prev);},[cache]);
   const companyId = useAuthStore(state => state.activeCompany?.tenantId);
   const ruc = useAuthStore(state => state.activeCompany?.ruc) ?? '';
   const { data: configuracionFiscal, recargar: recargarConfiguracion, cargando: configuracionCargando, error: errorConfiguracion } = useInvoiceConfig(ruc);
   const navigate = useNavigate();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const activeTab = tabDesdeRuta(pathname);
+  const incluirNotas=activeTab==='comprobantes'&&new URLSearchParams(search).get('incluir_notas')==='1';
   const [filtros, setFiltros] = useInvoiceFiltros();
   const [modalEmision, setModalEmision] = useState<TipoEmision | null>(null);
   const { data: productosEmision = [] } = useQuery({
@@ -143,8 +150,8 @@ export const InvoiceList = () => {
 
   /** Lote filtrado que alimenta KPIs, monitor y grilla. */
   const visibles = useMemo(
-    () => aplicarFiltros(porApartado(comprobantes, activeTab), filtros),
-    [comprobantes, activeTab, filtros],
+    () => aplicarFiltros(incluirNotas?comprobantes.filter(c=>['01','03','07','08'].includes(c.tipo)):porApartado(comprobantes, activeTab), filtros),
+    [comprobantes, activeTab, filtros, incluirNotas],
   );
 
   const resumen = useMemo(
@@ -195,8 +202,15 @@ export const InvoiceList = () => {
   const refresco = useInvoiceRefresh();
 
   /** Grilla de comprobantes con los visores XML/CDR y la descarga PDF. */
-  const grilla = (mensajeVacio?: string, documentos = visibles) => (
+  const grilla = (mensajeVacio?: string, documentos = visibles) => isLoading ? <InvoiceWait label="Cargando comprobantes…" skeleton /> : !isError && documentos.length === 0 ? (
+    <section className="rounded-lg border p-6" aria-label="Bandeja sin resultados">
+      <h2 className="font-semibold">{comprobantes.length ? 'No hay comprobantes para los filtros elegidos' : 'Aún no emites comprobantes'}</h2>
+      {comprobantes.length ? <button className="mt-3 rounded border px-3 py-2" onClick={() => setFiltros({ ...FILTROS_INICIALES },true)}>Limpiar filtros</button> : <Link className="mt-3 inline-block rounded border px-3 py-2" to="/invoices/emision">Emitir el primero</Link>}
+      {mensajeVacio && <p className="text-sm">{mensajeVacio}</p>}
+    </section>
+  ) : (
     <InvoiceTable
+      key={JSON.stringify(filtros)}
       comprobantes={documentos}
       mensajeVacio={
         isLoading
@@ -219,7 +233,7 @@ export const InvoiceList = () => {
   return (
     <Page>
       <PageHeader
-        title="Facturación Electrónica UBL 2.1"
+        title={incluirNotas?'Comprobantes del periodo':'Facturas y boletas'}
         description="Emisión, consulta y seguimiento de comprobantes electrónicos sincronizados con SUNAT"
       />
 
@@ -239,16 +253,7 @@ export const InvoiceList = () => {
 
       {refresco.resultado && <p role={refresco.resultado.ok ? 'status' : 'alert'}>{refresco.resultado.mensaje}</p>}
       <InvoiceDemoNotice />
-
-      {isLoading ? (
-        <div role="status">Cargando indicadores…</div>
-      ) : !isError && activeTab !== 'notas' ? (
-        <InvoiceKpiCards mostrarNotas={false} resumen={resumen} filtrado={hayFiltrosActivos(filtros, activeTab)} />
-      ) : null}
-
-      {activeTab === 'comprobantes' && !isLoading && !isError && (
-        <InvoiceCombinedSummary resumen={resumenCombinado} />
-      )}
+      <p className="sr-only" role="status" aria-live="polite">{visibles.length} comprobantes en la vista. {visibles.map(c => `${c.serie}-${c.correlativo}: ${ETIQUETAS_BANDEJA[clasificarBandeja(c)]}`).join('; ')}</p>
 
       {filtros.desde && filtros.hasta && filtros.desde > filtros.hasta && (
         <Alert variant="destructive" role="alert">
@@ -260,7 +265,7 @@ export const InvoiceList = () => {
       <Tabs
         value={activeTab}
         onValueChange={(valor) =>
-          navigate(RUTA_POR_TAB[valor as InvoiceTabId])
+          navigate({ pathname: RUTA_POR_TAB[valor as InvoiceTabId], search })
         }
       >
         <InvoiceTabsNav conteo={conteo} />
@@ -268,6 +273,7 @@ export const InvoiceList = () => {
         <InvoiceFiltersBar
           filtros={filtros}
           onFiltrosChange={setFiltros}
+          onLimpiar={()=>setFiltros({...FILTROS_INICIALES},true)}
           onActualizar={() => { void refresco.actualizar(); }}
           actualizando={refresco.actualizando}
           ultimaActualizacion={refresco.ultimaActualizacion}
@@ -277,9 +283,24 @@ export const InvoiceList = () => {
           }}
         />
 
+      {isLoading ? (
+        <InvoiceWait label="Cargando indicadores…" skeleton />
+      ) : !isError && activeTab !== 'notas' ? (
+        <InvoiceKpiCards mostrarNotas={false} resumen={resumen} filtrado={hayFiltrosActivos(filtros, activeTab)} />
+      ) : null}
+
+      {activeTab === 'comprobantes' && !isLoading && !isError && (
+        <InvoiceCombinedSummary resumen={resumenCombinado} />
+      )}
 
 
-        <TabsContent value="comprobantes">{grilla()}</TabsContent>
+
+
+
+        <TabsContent value="comprobantes">
+          {incluirNotas&&<button className="mb-3 rounded border px-3 py-2 text-sm" onClick={()=>{const params=new URLSearchParams(search);params.delete('incluir_notas');navigate({pathname,search:params.toString()},{replace:true});}}>Tipos: facturas, boletas y notas · Quitar filtro</button>}
+          {grilla()}
+        </TabsContent>
 
         <TabsContent value="notas">
           {([
@@ -314,6 +335,8 @@ export const InvoiceList = () => {
 
       {visor && (
         <InvoiceCdrModal
+          lateral
+          onActualizado={reflejarDetalle}
           comprobante={visor.comprobante}
           modoInicial={visor.modo}
           onCerrar={() => setVisor(null)}

@@ -90,7 +90,7 @@ describe('notas separadas en la bandeja real', () => {
   it('filtra por estado sin mezclar crédito rechazado con débito aceptado', () => {
     montar();
     fireEvent.keyDown(screen.getByLabelText('Filtrar por estado CDR'), { key: 'ArrowDown' });
-    fireEvent.click(screen.getByRole('option', { name: 'Rechazado (SUNAT)' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Rechazada' }));
     expect(seccion('Notas de crédito').getByText('credito rechazado')).toBeTruthy();
     expect(seccion('Notas de crédito').getByText('1 documento')).toBeTruthy();
     expect(seccion('Notas de crédito').queryByText('cliente credito')).toBeNull();

@@ -12,13 +12,13 @@ it('reconcilia la tarjeta con las filas aceptadas visibles del mismo rango', () 
   const { container } = render(<><InvoiceKpiCards resumen={calcularResumenFiscal(visibles)} /><InvoiceTable comprobantes={visibles} onVerXml={vi.fn()} onVerCdr={vi.fn()} onDescargarPdf={vi.fn()} onReintentarCdr={vi.fn()} /></>);
   const filas = within(container.querySelector('tbody')!).getAllByRole('row');
   const importe = (texto: string) => Number(texto.replace(/[^0-9.]/g, ''));
-  const aceptadas = filas.filter((f) => within(f).queryByText('Aceptado'));
+  const aceptadas = filas.filter((f) => within(f).queryByText('Aceptada'));
   const sumar = (columna: number) => aceptadas.reduce((s, fila) => s + importe(within(fila).getAllByRole('cell')[columna].textContent ?? ''), 0);
-  const suma = sumar(7);
+  const suma = sumar(3);
   expect(suma).toBe(1770);
   const cifra = within(container.querySelector('[data-kpi="total"]') as HTMLElement).getAllByText(/1,770\.00/)[0].textContent ?? '';
   expect(importe(cifra)).toBe(suma);
   const subtotales = within(container.querySelector('[data-kpi="total"]') as HTMLElement).getByText(/Base sin notas/).textContent ?? '';
   const valores = [...subtotales.matchAll(/S\/\s*([\d,]+\.\d{2})/g)].map((m) => importe(m[1]));
-  expect(valores).toEqual([sumar(4), sumar(5)]);
+  expect(valores).toEqual([sumar(5), sumar(6)]);
 });

@@ -1,3 +1,4 @@
+import { confirmarRevisionSiAbierta } from '../../../fixtures/invoiceEmissionProduct';
 import { seleccionarProductoPrueba } from '../../../fixtures/invoiceEmissionProduct';
 import { hoyEnLima } from '@/modules/invoices/lib/invoiceFecha';
 import { beforeEach as billingBeforeEach } from 'vitest';
@@ -15,6 +16,7 @@ import { construir } from '@/modules/invoices/data/invoiceDemoTypes';
 import { admiteNota, comprobantesElegibles } from '@/modules/invoices/lib/invoiceNotaOrigen';
 import type { ReactNode } from 'react';
 
+vi.mock('@/lib/axios',()=>({apiClient:{get:vi.fn(async (url:string)=>({data:url==='/invoices/config'?{series:seriesConfiguradasPrueba}:[]}))}}));
 vi.mock('@/modules/invoices/services/invoicesApi', () => ({ invoicesApi: { getSaldoNota: vi.fn(), getInvoiceById: vi.fn(), emitirComprobante: vi.fn() } }));
 vi.mock('@/modules/invoices/services/inventoryProductsApi', () => ({ cargarProductosAlmacen: vi.fn(async () => [{sku:'SERV',descripcion:'Servicio',unidad:'NIU',valorUnitario:100,precioUnitario:118,afectacion:'10',stock:100,vendible:true}]) }));
 vi.mock('@/modules/invoices/components/RetencionMaestro', () => ({ RetencionMaestro: () => null }));
@@ -85,6 +87,7 @@ it.each(['modal', 'pagina'])('F7 limpia un intento fallido al corregir el formul
   fireEvent.change(screen.getByLabelText('Razón social / nombre'), { target: { value: 'Cliente' } });
   await seleccionarProductoPrueba();
   fireEvent.click(screen.getByRole('button', { name: tipo === 'modal' ? 'Emitir Factura' : 'Emitir comprobante' }));
+  confirmarRevisionSiAbierta();
   await screen.findByText('No se emitió');
   fireEvent.change(screen.getByLabelText('Cantidad de la línea 1'), { target: { value: '2' } });
   await waitFor(() => expect(screen.queryByText('No se emitió')).toBeNull());

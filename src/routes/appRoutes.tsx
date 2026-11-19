@@ -41,7 +41,7 @@ const CustomsLiquidationPage = React.lazy(() => import('@/modules/customs/pages/
 const LandedCostSheetPage = React.lazy(() => import('@/modules/customs/pages/LandedCostSheetPage'));
 const CustomsAccountingPage = React.lazy(() => import('@/modules/customs/pages/CustomsAccountingPage'));
 const ForeignSuppliersPage = React.lazy(() => import('@/modules/customs/pages/ForeignSuppliersPage'));
-const PartnersPage = React.lazy(() => import('@/modules/customs/pages/PartnersPage'));
+const InvoiceClientsPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceClientsPage'));
 const MasterDataPage = React.lazy(() => import('@/modules/customs/pages/MasterDataPage'));
 
 const DuaCalculatorPage = React.lazy(() => import('@/modules/customs/pages/DuaCalculatorPage'));
@@ -173,7 +173,7 @@ export const AppRoutes = () => {
             />
             <Route path="/invoices/clientes" element={
               <RoleProtectedRoute >
-                <PartnersPage key="billing" context="billing" />
+                <InvoiceClientsPage />
               </RoleProtectedRoute>
             } />
             <Route
