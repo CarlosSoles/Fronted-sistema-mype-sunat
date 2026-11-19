@@ -26,7 +26,7 @@ import { getRucFeedback } from '@/modules/sire/validators/sireSchema';
  * Decolecta para autocompletar los datos; el guardado usa el contrato real del
  * backend (`businessName`/`tradeName`) sin enviar el RUC, que sale de la sesión.
  */
-export const DatosEmpresaForm = () => {
+export const DatosEmpresaForm = ({ companyId }: { companyId?: string }) => {
   const {
     isLoadingCompany,
     isSavingCompany,
@@ -55,7 +55,7 @@ export const DatosEmpresaForm = () => {
 
   useEffect(() => {
     let active = true;
-    void loadCompany().then((company) => {
+    void loadCompany(companyId).then((company) => {
       if (!active || !company) return;
       setRuc(company.ruc);
       setRazonSocial(company.razonSocial);
@@ -68,7 +68,7 @@ export const DatosEmpresaForm = () => {
     return () => {
       active = false;
     };
-  }, [loadCompany]);
+  }, [companyId, loadCompany]);
 
   const updateRuc = (value: string) => {
     setRuc(value.replace(/\D/g, '').slice(0, 11));
@@ -127,7 +127,7 @@ export const DatosEmpresaForm = () => {
       estado: estado.trim() || undefined,
       condicion: condicion.trim() || undefined,
       series: normalizeSeries(seriesText.split(',')),
-    });
+    }, companyId);
     if (!saved) return;
 
     if (activeCompany) {

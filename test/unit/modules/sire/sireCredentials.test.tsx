@@ -57,7 +57,7 @@ describe('SireCredentialsPage', () => {
         clientSecret: 'secret-456',
         solUser: 'MODDATOS',
         solPassword: 'moddatos123',
-      });
+      }, undefined);
     });
 
     expect(await screen.findByText('Credenciales guardadas exitosamente.')).toBeInTheDocument();

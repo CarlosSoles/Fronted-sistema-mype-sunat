@@ -184,6 +184,12 @@ export const accountingApi = {
     });
   },
 
+  /** Catálogo PCGE desde el endpoint en español que publica el backend. */
+  getPlanCuentas: async (): Promise<AccountingAccount[]> => {
+    const response = await apiClient.get<AccountingAccount[]>('/contabilidad/plan-cuentas');
+    return response.data;
+  },
+
   getPeriods: async (): Promise<AccountingPeriod[]> => {
     return cachedGet('accounting-periods', async () => {
       const response = await apiClient.get<AccountingPeriod[]>('/accounting/periods');

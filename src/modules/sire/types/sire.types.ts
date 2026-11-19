@@ -40,6 +40,43 @@ export interface ImportSireProposalResponse {
   errors: { line: number; reason: string }[];
 }
 
+/** Empresa del selector Multi-RUC (`GET /empresa/listar`). */
+export interface EmpresaResumen {
+  id: string;
+  ruc: string;
+  razonSocial: string;
+  nombreComercial: string | null;
+  activa: boolean;
+}
+
+/** Respuesta 202 de `POST /sire/importar`. */
+export interface SireImportacionRespuesta {
+  messageId: string;
+  importacionId: string;
+  periodo: string;
+  libro: SireBookType;
+  nombreArchivo: string;
+  estado: SireJobStatus;
+  rutaArchivo: string;
+  backendAlmacen: string;
+  hashArchivo: string;
+  bytes: number;
+  createdAt: string;
+}
+
+/** Respuesta de `GET /sire/importar/estado/:messageId`. */
+export interface SireImportacionEstado {
+  messageId: string;
+  estado: SireJobStatus;
+  periodo: string;
+  libro: SireBookType;
+  createdAt: string;
+  completedAt: string | null;
+  errorCode: string | null;
+  message: string | null;
+  ticket?: string | null;
+}
+
 export interface SireComprobante {
   tipoComprobante: TipoComprobante;
   serie: string;

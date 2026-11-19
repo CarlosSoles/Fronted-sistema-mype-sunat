@@ -1,6 +1,7 @@
 import type {
   EmpresaConfiguracionActual,
   EmpresaConfiguracionPayload,
+  EmpresaResumen,
   EmpresaRucValidacion,
 } from '../types/sire.types';
 import { requestSireApi, SireApiError } from './sireApiHttp';
@@ -187,6 +188,43 @@ const extractEmpresaData = (
 
 export const empresaApi = {
   /**
+   * Empresas disponibles para el selector Multi-RUC (`GET /empresa/listar`).
+   *
+   * El backend solo permite esta consulta al rol ADMIN.
+   */
+  async listarEmpresas(): Promise<EmpresaResumen[]> {
+    try {
+      const response = await requestSireApi<unknown>('/empresa/listar', {
+        method: 'GET',
+      });
+      if (!Array.isArray(response)) {
+        throw new SireApiError(
+          'El servidor devolvió una lista de empresas con formato inválido.',
+          null,
+        );
+      }
+      return response
+        .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
+        .map((item) => ({
+          id: String(item.id ?? ''),
+          ruc: String(item.ruc ?? ''),
+          razonSocial: String(item.razonSocial ?? ''),
+          nombreComercial:
+            typeof item.nombreComercial === 'string' ? item.nombreComercial : null,
+          activa: item.activa !== false,
+        }))
+        .filter((item) => item.id && item.ruc);
+    } catch (cause) {
+      const status = cause instanceof SireApiError ? cause.status : null;
+      const message = cause instanceof Error ? cause.message : '';
+      throw new SireApiError(
+        message || 'No se pudieron cargar las empresas.',
+        status,
+      );
+    }
+  },
+
+  /**
    * Valida un RUC contra la API de Decolecta (`GET /empresa/validar-ruc/:ruc`).
    *
    * Devuelve los datos del contribuyente para autocompletar la configuración de
@@ -222,10 +260,13 @@ export const empresaApi = {
    * El backend devuelve `businessName`/`tradeName`; la UI trabaja con
    * `razonSocial`/`nombreComercial`, así que aquí se normaliza la respuesta.
    */
-  async getConfiguracion(): Promise<EmpresaConfiguracionActual> {
+  async getConfiguracion(companyId?: string): Promise<EmpresaConfiguracionActual> {
     try {
+      const query = companyId
+        ? `?companyId=${encodeURIComponent(companyId)}`
+        : '';
       const response = await requestSireApi<Record<string, unknown>>(
-        '/empresa/configuracion',
+        `/empresa/configuracion${query}`,
         { method: 'GET' },
       );
       const text = (value: unknown): string => (typeof value === 'string' ? value : '');
@@ -260,10 +301,14 @@ export const empresaApi = {
    * (`businessName`/`tradeName`) y los campos vacíos se omiten para no borrar
    * datos ya configurados.
    */
-  async saveConfiguracion(payload: EmpresaConfiguracionPayload): Promise<void> {
+  async saveConfiguracion(
+    payload: EmpresaConfiguracionPayload,
+    companyId?: string,
+  ): Promise<void> {
     const body: Record<string, unknown> = {
       series: normalizeSeries(payload.series ?? []),
     };
+    if (companyId) body.companyId = companyId;
     const addField = (key: string, value: string | undefined) => {
       const trimmed = value?.trim();
       if (trimmed) body[key] = trimmed;

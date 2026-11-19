@@ -61,7 +61,7 @@ export interface UseSireMapeoContable {
  * esté guardado. `POST /sire/mapeo-contable` reemplaza el mapeo completo con el
  * arreglo de las cuatro operaciones.
  */
-export const useSireMapeoContable = (): UseSireMapeoContable => {
+export const useSireMapeoContable = (companyId?: string): UseSireMapeoContable => {
   const [values, setValues] = useState<SireMapeoForm>(emptyForm);
   const [accounts, setAccounts] = useState<AccountingAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -76,7 +76,7 @@ export const useSireMapeoContable = (): UseSireMapeoContable => {
     let active = true;
 
     accountingApi
-      .getAccounts()
+      .getPlanCuentas()
       .then((result) => {
         if (!active) return;
         setAccounts(
@@ -107,7 +107,7 @@ export const useSireMapeoContable = (): UseSireMapeoContable => {
     let active = true;
 
     sireApi
-      .getMapeoContable()
+      .getMapeoContable(companyId)
       .then((mapeos) => {
         if (active) setValues(fromMapeos(mapeos));
       })
@@ -127,7 +127,7 @@ export const useSireMapeoContable = (): UseSireMapeoContable => {
     return () => {
       active = false;
     };
-  }, []);
+  }, [companyId]);
 
   const setCuenta = useCallback((tipo: SireMapeoTipoOperacion, value: string) => {
     setValues((current) => ({ ...current, [tipo]: value }));
@@ -152,6 +152,7 @@ export const useSireMapeoContable = (): UseSireMapeoContable => {
           tipoOperacion: tipo,
           cuentaContable: values[tipo].trim(),
         })),
+        companyId,
       );
       setSuccessMessage('Mapeo contable guardado exitosamente.');
       return true;
@@ -165,7 +166,7 @@ export const useSireMapeoContable = (): UseSireMapeoContable => {
     } finally {
       setIsSaving(false);
     }
-  }, [values]);
+  }, [companyId, values]);
 
   const resetMessages = useCallback(() => {
     setSaveError(null);

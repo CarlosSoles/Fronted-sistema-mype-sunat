@@ -20,8 +20,12 @@ import {
   TableRow,
 } from '@/components/ui';
 import { CheckCircle2, LoaderCircle, Save, TableProperties } from 'lucide-react';
+import { EmpresaSelector } from '@/modules/company/components/EmpresaSelector';
+import { useEmpresasAdmin } from '@/modules/company/hooks/useEmpresasAdmin';
+import { useSireCredentials } from '../hooks/useSireCredentials';
 import { useSireMapeoContable } from '../hooks/useSireMapeoContable';
 import { SIRE_MAPEO_TIPOS, type SireMapeoTipoOperacion } from '../types/sire.types';
+import { useAuthStore } from '@/stores/authStore';
 
 const TIPO_LABELS: Record<SireMapeoTipoOperacion, string> = {
   VENTAS: 'VENTAS',
@@ -34,11 +38,44 @@ const TIPO_LABELS: Record<SireMapeoTipoOperacion, string> = {
 /**
  * Pantalla de Mapeo Contable SIRE.
  *
- * Relaciona cada tipo de operación con una cuenta real del Plan de Cuentas
- * (PCGE). Al montar carga las cuentas y los mapeos guardados; al guardar envía
- * el arreglo completo a `POST /sire/mapeo-contable`.
+ * Un ADMIN puede elegir la empresa (Multi-RUC). Las cuentas se cargan del
+ * catálogo PCGE real y el mapeo se guarda completo para la empresa elegida.
  */
 export default function SireMapeoContablePage() {
+  const {
+    isAdmin,
+    empresas,
+    isLoading: isLoadingEmpresas,
+    error: empresasError,
+    selectedCompanyId,
+    setSelectedCompanyId,
+  } = useEmpresasAdmin();
+  const activeCompanyId = useAuthStore((state) => state.activeCompany?.tenantId);
+  const companyId = selectedCompanyId || activeCompanyId || undefined;
+
+  return (
+    <Page>
+      <PageHeader
+        title="Mapeo Contable SIRE"
+        description="Asigna cada operación SIRE a una cuenta real del Plan de Cuentas (PCGE). Los cambios reemplazan el mapeo completo de la empresa."
+      />
+
+      {isAdmin && (
+        <EmpresaSelector
+          empresas={empresas}
+          value={selectedCompanyId}
+          isLoading={isLoadingEmpresas}
+          error={empresasError}
+          onChange={setSelectedCompanyId}
+        />
+      )}
+
+      <MapeoContableContent key={companyId ?? 'session'} companyId={companyId} />
+    </Page>
+  );
+}
+
+const MapeoContableContent = ({ companyId }: { companyId?: string }) => {
   const {
     isLoading,
     isSaving,
@@ -52,7 +89,12 @@ export default function SireMapeoContablePage() {
     setCuenta,
     save,
     resetMessages,
-  } = useSireMapeoContable();
+  } = useSireMapeoContable(companyId);
+  const {
+    isLoading: isLoadingStatus,
+    configured,
+    error: statusError,
+  } = useSireCredentials(companyId);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -62,11 +104,17 @@ export default function SireMapeoContablePage() {
   const cargando = isLoading || isLoadingAccounts;
 
   return (
-    <Page>
-      <PageHeader
-        title="Mapeo Contable SIRE"
-        description="Asigna cada operación SIRE a una cuenta real del Plan de Cuentas (PCGE). Los cambios reemplazan el mapeo completo de la empresa."
-      />
+    <>
+      {!isLoadingStatus && !statusError && (
+        <PageText
+          variant="caption"
+          className={configured ? 'text-green-600' : 'text-muted-foreground'}
+        >
+          {configured
+            ? 'Credenciales SIRE configuradas para la empresa seleccionada.'
+            : 'La empresa seleccionada aún no tiene credenciales SIRE completas.'}
+        </PageText>
+      )}
 
       {error && (
         <Alert variant="destructive">
@@ -175,6 +223,6 @@ export default function SireMapeoContablePage() {
           </form>
         </CardContent>
       </Card>
-    </Page>
+    </>
   );
-}
+};

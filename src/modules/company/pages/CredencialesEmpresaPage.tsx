@@ -17,6 +17,8 @@ import {
 } from '@/components/ui';
 import { CheckCircle2, Eye, EyeOff, KeyRound, LoaderCircle, Save } from 'lucide-react';
 import { DatosEmpresaForm } from '@/modules/company/components/DatosEmpresaForm';
+import { EmpresaSelector } from '@/modules/company/components/EmpresaSelector';
+import { useEmpresasAdmin } from '@/modules/company/hooks/useEmpresasAdmin';
 import { useSireCredentials } from '@/modules/sire/hooks/useSireCredentials';
 import {
   getClientIdFeedback,
@@ -24,6 +26,7 @@ import {
   getSolPasswordFeedback,
   getSolUserFeedback,
 } from '@/modules/sire/validators/sireSchema';
+import { useAuthStore } from '@/stores/authStore';
 
 interface FormValues {
   clientId: string;
@@ -42,11 +45,50 @@ const EMPTY_FORM: FormValues = {
 /**
  * Credenciales globales de la empresa para SUNAT.
  *
- * Usa la misma configuración cifrada del backend (`POST /sire/configuracion`)
- * que consumen SIRE y los demás procesos tributarios. Al montar consulta el
- * estado (`GET /sire/configuracion/status`) sin exponer los valores guardados.
+ * Un ADMIN puede elegir la empresa (Multi-RUC); el estado y el guardado se
+ * resuelven con `companyId`. El backend cifra las credenciales y las usa en
+ * SIRE y en las consultas tributarias.
  */
 export default function CredencialesEmpresaPage() {
+  const {
+    isAdmin,
+    empresas,
+    isLoading: isLoadingEmpresas,
+    error: empresasError,
+    selectedCompanyId,
+    setSelectedCompanyId,
+  } = useEmpresasAdmin();
+  const activeCompanyId = useAuthStore((state) => state.activeCompany?.tenantId);
+  const companyId = selectedCompanyId || activeCompanyId || undefined;
+
+  return (
+    <Page>
+      <PageHeader
+        title="Credenciales de Empresa"
+        description="Registra los accesos globales a SUNAT de la empresa. El backend los cifra y los usa automáticamente en SIRE y en las consultas tributarias."
+      />
+
+      {isAdmin && (
+        <EmpresaSelector
+          empresas={empresas}
+          value={selectedCompanyId}
+          isLoading={isLoadingEmpresas}
+          error={empresasError}
+          onChange={setSelectedCompanyId}
+        />
+      )}
+
+      <CredencialesEmpresaContent
+        key={companyId ?? 'session'}
+        companyId={companyId}
+      />
+
+      <DatosEmpresaForm key={`datos-${companyId ?? 'session'}`} companyId={companyId} />
+    </Page>
+  );
+}
+
+const CredencialesEmpresaContent = ({ companyId }: { companyId?: string }) => {
   const {
     isLoading,
     isSaving,
@@ -56,7 +98,7 @@ export default function CredencialesEmpresaPage() {
     successMessage,
     save,
     resetMessages,
-  } = useSireCredentials();
+  } = useSireCredentials(companyId);
 
   const [values, setValues] = useState<FormValues>(EMPTY_FORM);
   const [showClientSecret, setShowClientSecret] = useState(false);
@@ -99,12 +141,7 @@ export default function CredencialesEmpresaPage() {
   };
 
   return (
-    <Page>
-      <PageHeader
-        title="Credenciales de Empresa"
-        description="Registra los accesos globales a SUNAT de la empresa. El backend los cifra y los usa automáticamente en SIRE y en las consultas tributarias."
-      />
-
+    <>
       {isLoading && (
         <PageText variant="caption" className="flex items-center gap-2 text-muted-foreground">
           <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -261,8 +298,6 @@ export default function CredencialesEmpresaPage() {
           </form>
         </CardContent>
       </Card>
-
-      <DatosEmpresaForm />
-    </Page>
+    </>
   );
-}
+};

@@ -170,7 +170,7 @@ describe('SireConfiguracionPage', () => {
         estado: 'ACTIVO',
         condicion: 'HABIDO',
         series: ['F001', 'F002'],
-      });
+      }, undefined);
     });
 
     expect(await screen.findByText('Datos de la empresa guardados exitosamente.')).toBeInTheDocument();

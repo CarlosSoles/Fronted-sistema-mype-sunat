@@ -76,8 +76,11 @@ export const assertValidPeriod = (period: string) => {
 };
 
 export const assertAllowedProposalFile = (file: File) => {
-  if (!/\.txt$/i.test(file.name) || file.size === 0 || file.size > 5 * 1024 * 1024) {
-    throw new SireApiError('Selecciona un archivo TXT no vacío de máximo 5 MiB.', 400);
+  if (!/\.(txt|zip)$/i.test(file.name) || file.size === 0 || file.size > 5 * 1024 * 1024) {
+    throw new SireApiError(
+      'Selecciona un archivo .txt o .zip no vacío de máximo 5 MiB.',
+      400,
+    );
   }
 };
 

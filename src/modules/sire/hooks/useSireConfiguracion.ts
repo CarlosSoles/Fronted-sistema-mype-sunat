@@ -8,11 +8,11 @@ import type {
 } from '../types/sire.types';
 
 export interface UseSireConfiguracion {
-  /** EstÃ¡ cargando los datos actuales de la empresa (`GET /empresa/configuracion`). */
+  /** Está cargando los datos actuales de la empresa (`GET /empresa/configuracion`). */
   isLoadingCompany: boolean;
-  /** EstÃ¡ guardando los datos globales de la empresa (`PUT /empresa/configuracion`). */
+  /** Está guardando los datos globales de la empresa (`PUT /empresa/configuracion`). */
   isSavingCompany: boolean;
-  /** EstÃ¡ validando el RUC contra Decolecta (`GET /empresa/validar-ruc/:ruc`). */
+  /** Está validando el RUC contra Decolecta (`GET /empresa/validar-ruc/:ruc`). */
   isValidatingRuc: boolean;
   /** Error al cargar los datos de la empresa. */
   companyLoadError: string | null;
@@ -20,22 +20,22 @@ export interface UseSireConfiguracion {
   companyError: string | null;
   /** Error al validar el RUC de la empresa. */
   rucError: string | null;
-  /** ConfirmaciÃ³n del guardado de los datos de la empresa. */
+  /** Confirmación del guardado de los datos de la empresa. */
   companySuccessMessage: string | null;
-  /** Carga la configuraciÃ³n actual de la empresa. */
-  loadCompany: () => Promise<EmpresaConfiguracionActual | null>;
+  /** Carga la configuración actual de la empresa. */
+  loadCompany: (companyId?: string) => Promise<EmpresaConfiguracionActual | null>;
   /** Guarda los datos globales de la empresa. */
-  saveCompany: (payload: EmpresaConfiguracionPayload) => Promise<boolean>;
-  /** Valida el RUC y devuelve la razÃ³n social, o `null` si falla. */
+  saveCompany: (payload: EmpresaConfiguracionPayload, companyId?: string) => Promise<boolean>;
+  /** Valida el RUC y devuelve la razón social, o `null` si falla. */
   validateRuc: (ruc: string) => Promise<EmpresaRucValidacion | null>;
   /** Limpia los mensajes de resultado. */
   resetMessages: () => void;
 }
 
 /**
- * Estado de los datos globales de la empresa para la configuraciÃ³n SIRE.
+ * Estado de los datos globales de la empresa para la configuración SIRE.
  *
- * El guardado va a `PUT /empresa/configuracion` y la validaciÃ³n del RUC a
+ * El guardado va a `PUT /empresa/configuracion` y la validación del RUC a
  * `GET /empresa/validar-ruc/:ruc`. Las credenciales SIRE/SUNAT se administran
  * en su propia pantalla.
  */
@@ -48,11 +48,11 @@ export const useSireConfiguracion = (): UseSireConfiguracion => {
   const [rucError, setRucError] = useState<string | null>(null);
   const [companySuccessMessage, setCompanySuccessMessage] = useState<string | null>(null);
 
-  const loadCompany = useCallback(async (): Promise<EmpresaConfiguracionActual | null> => {
+  const loadCompany = useCallback(async (companyId?: string): Promise<EmpresaConfiguracionActual | null> => {
     setIsLoadingCompany(true);
     setCompanyLoadError(null);
     try {
-      return await empresaApi.getConfiguracion();
+      return await empresaApi.getConfiguracion(companyId);
     } catch (cause) {
       setCompanyLoadError(
         cause instanceof Error
@@ -65,12 +65,12 @@ export const useSireConfiguracion = (): UseSireConfiguracion => {
     }
   }, []);
 
-  const saveCompany = useCallback(async (payload: EmpresaConfiguracionPayload) => {
+  const saveCompany = useCallback(async (payload: EmpresaConfiguracionPayload, companyId?: string) => {
     setIsSavingCompany(true);
     setCompanyError(null);
     setCompanySuccessMessage(null);
     try {
-      await empresaApi.saveConfiguracion(payload);
+      await empresaApi.saveConfiguracion(payload, companyId);
       setCompanySuccessMessage('Datos de la empresa guardados exitosamente.');
       return true;
     } catch (cause) {
@@ -95,8 +95,8 @@ export const useSireConfiguracion = (): UseSireConfiguracion => {
       const message = cause instanceof Error ? cause.message : '';
       setRucError(
         status !== null && [400, 404, 422].includes(status)
-          ? 'RUC no vÃ¡lido o no encontrado.'
-          : message || 'RUC no vÃ¡lido o no encontrado.',
+          ? 'RUC no válido o no encontrado.'
+          : message || 'RUC no válido o no encontrado.',
       );
       return null;
     } finally {

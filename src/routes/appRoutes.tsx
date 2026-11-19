@@ -70,7 +70,7 @@ const SireConfiguracionPage = React.lazy(() => import('@/modules/sire/pages/Sire
 const SireCredentialsPage = React.lazy(() => import('@/modules/sire/pages/SireCredentialsPage'));
 const SireMapeoContablePage = React.lazy(() => import('@/modules/sire/pages/SireMapeoContablePage'));
 const SireReconciliationPage = React.lazy(() => import('@/modules/sire/pages/SireReconciliationPage'));
-const SireImportPage = React.lazy(() => import('@/modules/sire/pages/SireImportPage'));
+const SireImportarPropuestaPage = React.lazy(() => import('@/modules/sire/pages/SireImportarPropuestaPage'));
 const SirePeriodosPage = React.lazy(() => import('@/modules/sire/pages/SirePeriodosPage'));
 const SireClosurePage = React.lazy(() => import('@/modules/sire/pages/SireClosurePage'));
 const SireHistoryPage = React.lazy(() => import('@/modules/sire/pages/SireHistoryPage'));
@@ -129,7 +129,7 @@ export const AppRoutes = () => {
             <Route
               path="/credenciales-empresa"
               element={
-                <RoleProtectedRoute>
+                <RoleProtectedRoute roles={['ADMIN']}>
                   <CredencialesEmpresaPage />
                 </RoleProtectedRoute>
               }
@@ -577,7 +577,7 @@ export const AppRoutes = () => {
             <Route
               path="/sire/mapeo-contable"
               element={
-                <RoleProtectedRoute >
+                <RoleProtectedRoute roles={['ADMIN']}>
                   <SireMapeoContablePage />
                 </RoleProtectedRoute>
               }
@@ -585,15 +585,15 @@ export const AppRoutes = () => {
             <Route
               path="/sire/importar"
               element={
-                <RoleProtectedRoute >
-                  <SireImportPage />
+                <RoleProtectedRoute roles={['ADMIN', 'CONTADOR', 'FACTURADOR']}>
+                  <SireImportarPropuestaPage />
                 </RoleProtectedRoute>
               }
             />
             <Route
               path="/sire/periodos"
               element={
-                <RoleProtectedRoute >
+                <RoleProtectedRoute roles={['ADMIN', 'CONTADOR', 'FACTURADOR']}>
                   <SirePeriodosPage />
                 </RoleProtectedRoute>
               }
@@ -619,7 +619,7 @@ export const AppRoutes = () => {
             <Route
               path="/sire/historial"
               element={
-                <RoleProtectedRoute >
+                <RoleProtectedRoute roles={['ADMIN', 'CONTADOR', 'FACTURADOR']}>
                   <SireHistoryPage />
                 </RoleProtectedRoute>
               }

@@ -208,7 +208,7 @@ export const NAV_ITEMS: NavItem[] = [
 
     subItems: [
       { title: 'Credenciales SUNAT', path: '/sire/credenciales', icon: KeyRound },
-      { title: 'Mapeo Contable SIRE', path: '/sire/mapeo-contable', icon: ListChecks },
+      { title: 'Mapeo Contable SIRE', path: '/sire/mapeo-contable', icon: ListChecks, adminOnly: true },
       { title: 'Importar Propuesta', path: '/sire/importar', icon: FileUp },
       { title: 'Consulta de periodos', path: '/sire/periodos', icon: Search },
       { title: 'Conciliación y Cruce', path: '/sire/conciliacion', icon: GitCompareArrows },

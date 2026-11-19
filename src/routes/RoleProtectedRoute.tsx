@@ -20,7 +20,19 @@ const RUTAS_ADELANTADAS: ReadonlyArray<{ path: string; moduleCode: string }> = [
   { path: '/credenciales-empresa', moduleCode: 'M3' },
 ];
 
-export const RoleProtectedRoute = ({ children }: { children?: ReactNode }) => {
+const normalizarRol = (role: string): string =>
+  role === 'OPERADOR_FACTURACION' ? 'FACTURADOR' : role;
+
+interface RoleProtectedRouteProps {
+  children?: ReactNode;
+  /** Roles permitidos; si se omite se usa solo el catálogo del servidor. */
+  roles?: readonly string[];
+}
+
+export const RoleProtectedRoute = ({
+  children,
+  roles,
+}: RoleProtectedRouteProps) => {
   const p = useServerPermissions();
   const { pathname } = useLocation();
   if (p.isLoading) return <p role="status">Consultando accesos…</p>;
@@ -47,10 +59,12 @@ export const RoleProtectedRoute = ({ children }: { children?: ReactNode }) => {
   const adelanto = RUTAS_ADELANTADAS.find((ruta) => ruta.path === pathname);
   const elServidorLoConoce = (p.snapshot?.menus ?? []).some((menu) => menu.path === pathname);
   const permitidoPorAdelanto = Boolean(adelanto) && !elServidorLoConoce && p.canView(adelanto!.moduleCode);
-  const rutaSoloAdmin = pathname === '/credenciales-empresa';
-  const sinPermisoAdmin = rutaSoloAdmin && p.snapshot?.role.code !== 'ADMIN';
+  const rolActual = normalizarRol(p.snapshot?.role.code ?? '');
+  const sinPermisoRol =
+    Boolean(roles?.length) &&
+    !(roles ?? []).map(normalizarRol).includes(rolActual);
 
-  if ((!p.canNavigate(pathname) && !permitidoPorAdelanto) || sinPermisoAdmin) {
+  if ((!p.canNavigate(pathname) && !permitidoPorAdelanto) || sinPermisoRol) {
     return (
       <div id="forbidden-403-container" role="alert">
         <span>Código 403</span>

@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { sireApi } from '../services/sireApi';
-import type { ImportSireProposalResponse, SireBookType } from '../types/sire.types';
+import type { SireBookType, SireImportacionRespuesta } from '../types/sire.types';
 
 const currentPeriod = () => {
   const now = new Date();
@@ -13,7 +13,7 @@ export const useSireProposalImport = () => {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<ImportSireProposalResponse | null>(null);
+  const [result, setResult] = useState<SireImportacionRespuesta | null>(null);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -25,11 +25,11 @@ export const useSireProposalImport = () => {
       return;
     }
     if (!file) {
-      setError('Selecciona el archivo TXT de la propuesta.');
+      setError('Selecciona el archivo de la propuesta SIRE.');
       return;
     }
-    if (!/\.txt$/i.test(file.name)) {
-      setError('Solo se permiten archivos .txt.');
+    if (!/\.(txt|zip)$/i.test(file.name)) {
+      setError('Solo se permiten archivos .txt o .zip.');
       return;
     }
     if (file.size === 0) {
@@ -45,9 +45,11 @@ export const useSireProposalImport = () => {
     try {
       setResult(await sireApi.importProposal(period, bookType, file));
     } catch (cause) {
-      setError(cause instanceof Error
-        ? cause.message
-        : 'Ocurrió un error inesperado al importar la propuesta.');
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : 'Ocurrió un error inesperado al importar la propuesta.',
+      );
     } finally {
       setLoading(false);
     }

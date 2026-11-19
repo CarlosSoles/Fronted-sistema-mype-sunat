@@ -2,7 +2,6 @@ import { useAuthStore } from '@/stores/authStore';
 import { getRucFeedback } from '../validators/sireSchema';
 import {
   SIRE_MAPEO_TIPOS,
-  type ImportSireProposalResponse,
   type CloseSirePeriodResponse,
   type ReconcileRequest,
   type ReconcileResponse,
@@ -11,6 +10,8 @@ import {
   type SireConfiguracionPayload,
   type SireConfiguracionStatus,
   type SireHistoryResponse,
+  type SireImportacionEstado,
+  type SireImportacionRespuesta,
   type SireMapeoContable,
   type SireMapeoTipoOperacion,
   type SirePeriodosAcceptedResponse,
@@ -29,7 +30,6 @@ import {
 import {
   isBackendReconciliation,
   isConfiguracionStatusResponse,
-  isImportResponse,
   isPeriodosAcceptedResponse,
   isPeriodosStatusResponse,
   isProposalResponse,
@@ -57,8 +57,14 @@ export const sireApi = {
    * ni parte de ellas, por eso la pantalla puede mostrar "Ya configurado"
    * sin exponer ningún secreto.
    */
-  async getConfiguracionStatus(): Promise<SireConfiguracionStatus> {
-    const response = await requestSireApi<unknown>('/sire/configuracion/status', { method: 'GET' });
+  async getConfiguracionStatus(companyId?: string): Promise<SireConfiguracionStatus> {
+    const query = companyId
+      ? `?companyId=${encodeURIComponent(companyId)}`
+      : '';
+    const response = await requestSireApi<unknown>(
+      `/sire/configuracion/status${query}`,
+      { method: 'GET' },
+    );
     if (!isConfiguracionStatusResponse(response)) {
       throw new SireApiError(
         'El servidor devolvió el estado de la configuración SIRE con un formato inválido.',
@@ -75,14 +81,18 @@ export const sireApi = {
    * así que se puede enviar solo lo que cambió. El RUC nunca se envía: la
    * empresa sale de la sesión.
    */
-  async saveConfiguracion(payload: SireConfiguracionPayload): Promise<SireConfiguracionStatus> {
+  async saveConfiguracion(
+    payload: SireConfiguracionPayload,
+    companyId?: string,
+  ): Promise<SireConfiguracionStatus> {
     const body: Record<string, string> = {};
+    if (companyId) body.companyId = companyId;
     if (payload.clientId !== undefined) body.clientId = payload.clientId;
     if (payload.clientSecret !== undefined) body.clientSecret = payload.clientSecret;
     if (payload.solUser !== undefined) body.solUser = payload.solUser;
     if (payload.solPassword !== undefined) body.solPassword = payload.solPassword;
 
-    if (Object.keys(body).length === 0) {
+    if (!payload.clientId && !payload.clientSecret && !payload.solUser && !payload.solPassword) {
       throw new SireApiError('No se recibió ninguna credencial SIRE para guardar.', 400);
     }
 
@@ -244,19 +254,34 @@ export const sireApi = {
     period: string,
     bookType: SireBookType,
     file: File,
-  ): Promise<ImportSireProposalResponse> {
+  ): Promise<SireImportacionRespuesta> {
     assertValidPeriod(period);
     assertAllowedProposalFile(file);
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('period', period);
-    formData.append('bookType', bookType);
-    const response = await requestSireApi<unknown>('/sire/import', {
+    formData.append('periodo', period);
+    formData.append('libro', bookType);
+    const response = await requestSireApi<unknown>('/sire/importar', {
       method: 'POST',
       body: formData,
     });
-    if (!isImportResponse(response)) {
+    if (!isImportacionResponse(response)) {
       throw new SireApiError('El servidor devolvió un resultado de importación con formato inválido.', null);
+    }
+    return response;
+  },
+
+  /** Estado del trabajo asíncrono de importación. */
+  async getImportacionEstado(messageId: string): Promise<SireImportacionEstado> {
+    const response = await requestSireApi<unknown>(
+      `/sire/importar/estado/${encodeURIComponent(messageId)}`,
+      { method: 'GET' },
+    );
+    if (!isImportacionEstado(response)) {
+      throw new SireApiError(
+        'El servidor devolvió el estado de importación con formato inválido.',
+        null,
+      );
     }
     return response;
   },
@@ -317,8 +342,14 @@ export const sireApi = {
   },
 
   /** Carga los mapeos contables guardados para la empresa de la sesión. */
-  async getMapeoContable(): Promise<SireMapeoContable[]> {
-    const response = await requestSireApi<unknown>('/sire/mapeo-contable', { method: 'GET' });
+  async getMapeoContable(companyId?: string): Promise<SireMapeoContable[]> {
+    const query = companyId
+      ? `?companyId=${encodeURIComponent(companyId)}`
+      : '';
+    const response = await requestSireApi<unknown>(
+      `/sire/mapeo-contable${query}`,
+      { method: 'GET' },
+    );
     return extractMapeoItems(response)
       .map(mapMapeoContable)
       .filter((item): item is SireMapeoContable => item !== null);
@@ -330,7 +361,10 @@ export const sireApi = {
    * El backend recibe un arreglo con las cuatro operaciones y guarda la última
    * versión enviada.
    */
-  async saveMapeoContable(mapeos: SireMapeoContable[]): Promise<void> {
+  async saveMapeoContable(
+    mapeos: SireMapeoContable[],
+    companyId?: string,
+  ): Promise<void> {
     const normalized = mapeos.map((item) => ({
       tipoOperacion: item.tipoOperacion,
       cuentaContable: item.cuentaContable.trim(),
@@ -338,9 +372,12 @@ export const sireApi = {
     if (normalized.some((item) => !item.cuentaContable)) {
       throw new SireApiError('Completa la cuenta contable de todas las operaciones.', 400);
     }
+    const body = companyId
+      ? { companyId, mappings: normalized }
+      : normalized;
     await requestSireApi<unknown>('/sire/mapeo-contable', {
       method: 'POST',
-      body: JSON.stringify(normalized),
+      body: JSON.stringify(body),
     });
   },
 };
@@ -442,5 +479,30 @@ const isSireHistoryItem = (value: unknown): value is SireHistoryResponse['items'
     typeof totals === 'object' &&
     totals !== null &&
     scenarios.every((scenario) => typeof (totals as Record<string, unknown>)[scenario] === 'number')
+  );
+};
+
+const isImportacionResponse = (value: unknown): value is SireImportacionRespuesta => {
+  if (typeof value !== 'object' || value === null) return false;
+  const item = value as Record<string, unknown>;
+  return (
+    typeof item.messageId === 'string' &&
+    typeof item.importacionId === 'string' &&
+    typeof item.periodo === 'string' &&
+    (item.libro === 'RVIE_VENTAS' || item.libro === 'RCE_COMPRAS') &&
+    typeof item.nombreArchivo === 'string' &&
+    typeof item.estado === 'string' &&
+    typeof item.createdAt === 'string'
+  );
+};
+
+const isImportacionEstado = (value: unknown): value is SireImportacionEstado => {
+  if (typeof value !== 'object' || value === null) return false;
+  const item = value as Record<string, unknown>;
+  return (
+    typeof item.messageId === 'string' &&
+    typeof item.estado === 'string' &&
+    typeof item.periodo === 'string' &&
+    (item.libro === 'RVIE_VENTAS' || item.libro === 'RCE_COMPRAS')
   );
 };
