@@ -1,3 +1,4 @@
+import { useState } from 'react';
 /**
  * Grilla enriquecida de comprobantes (M1) con 10 columnas tributarias.
  *
@@ -6,6 +7,7 @@
  */
 import {
   Card,
+  Button,
   Table,
   TableBody,
   TableCell,
@@ -28,13 +30,13 @@ interface InvoiceTableProps {
 
 const COLUMNAS = [
   'Comprobante',
-  'Cliente',
   'Fecha Emisión',
+  'Cliente',
+  'Total Neto',
   'Moneda',
   'Base sin IGV',
   'IGV (18%)',
   'Detracción / Retención',
-  'Total Neto',
   'Estado CDR',
   'Acciones',
 ] as const;
@@ -58,9 +60,18 @@ export const InvoiceTable = ({
   onDescargarPdf,
   onReintentarCdr,
 }: InvoiceTableProps) => {
+  const [pagina, setPagina] = useState(1);
+  const [orden, setOrden] = useState('fecha-desc');
+  const ordenados = [...comprobantes].sort((a,b) => orden === 'total-desc' ? b.totalNeto-a.totalNeto : orden === 'numero' ? `${a.serie}-${a.correlativo}`.localeCompare(`${b.serie}-${b.correlativo}`, 'es', {numeric:true}) : orden === 'fecha-asc' ? a.fechaEmision.localeCompare(b.fechaEmision) : b.fechaEmision.localeCompare(a.fechaEmision));
+  const paginas = Math.ceil(ordenados.length / 25);
+  const actual = Math.min(pagina, Math.max(1, paginas));
   return (
     <Card flush>
+      <div className="flex flex-wrap items-center justify-between gap-2 p-3"><p>Comprobantes: fecha, cliente, importes y estado ante SUNAT</p>
+        <label>Ordenar <select aria-label="Ordenar comprobantes" value={orden} onChange={e => { setOrden(e.target.value); setPagina(1); }} className="rounded border p-1"><option value="fecha-desc">Más recientes</option><option value="fecha-asc">Más antiguos</option><option value="total-desc">Mayor importe</option><option value="numero">Serie y número</option></select></label>
+      </div>
       <Table>
+        <caption className="sr-only">Comprobantes electrónicos y su estado ante SUNAT</caption>
         <TableHeader>
           <TableRow>
             {COLUMNAS.map((columna) => (
@@ -75,7 +86,7 @@ export const InvoiceTable = ({
         </TableHeader>
         <TableBody>
           {comprobantes.length > 0 ? (
-            comprobantes.map((comprobante) => (
+            ordenados.slice((actual-1)*25, actual*25).map((comprobante) => (
               <InvoiceTableRow
                 key={comprobante.id}
                 comprobante={comprobante}
@@ -94,6 +105,11 @@ export const InvoiceTable = ({
           )}
         </TableBody>
       </Table>
+      {paginas > 1 && <nav aria-label="Paginación de comprobantes" className="flex flex-wrap items-center justify-end gap-3 p-3">
+        <Button variant="outline" size="sm" disabled={actual===1} onClick={() => setPagina(actual-1)}>Anterior</Button>
+        <span>Página {actual} de {paginas}</span>
+        <Button variant="outline" size="sm" disabled={actual===paginas} onClick={() => setPagina(actual+1)}>Siguiente</Button>
+      </nav>}
     </Card>
   );
 };
