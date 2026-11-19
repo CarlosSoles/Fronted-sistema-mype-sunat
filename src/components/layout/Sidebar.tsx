@@ -31,6 +31,7 @@ import {
   History,
   Settings,
   ShoppingCart,
+  CalendarClock,
   RotateCcw,
   Banknote,
   Ship,
@@ -180,6 +181,7 @@ export const NAV_ITEMS: NavItem[] = [
       { title: 'Cuentas por pagar', path: '/purchases/payables', icon: WalletCards },
       { title: 'Proveedores', path: '/invoices/clientes', icon: Building2 },
       { title: 'Gastos', path: '/purchases/expenses', icon: Receipt },
+      { title: 'Programación de pagos', path: '/purchases/payment-schedule', icon: CalendarClock },
     ],
   },
   {
