@@ -16,6 +16,15 @@ beforeEach(() => {
       razonSocial: 'Empresa fixture',
     },
   });
+  vi.spyOn(empresaApi, 'getConfiguracion').mockResolvedValue({
+    ruc: '',
+    razonSocial: '',
+    nombreComercial: '',
+    direccion: '',
+    estado: '',
+    condicion: '',
+    series: [],
+  });
 });
 
 afterEach(() => {
@@ -56,6 +65,9 @@ describe('SireConfiguracionPage', () => {
 
     render(<SireConfiguracionPage />);
 
+    await waitFor(() =>
+      expect(screen.getByLabelText('RUC de la Empresa')).not.toBeDisabled(),
+    );
     const rucInput = screen.getByLabelText('RUC de la Empresa');
     expect(rucInput).not.toHaveAttribute('readonly');
 
@@ -84,12 +96,39 @@ describe('SireConfiguracionPage', () => {
 
     render(<SireConfiguracionPage />);
 
+    await waitFor(() =>
+      expect(screen.getByLabelText('RUC de la Empresa')).not.toBeDisabled(),
+    );
     fireEvent.change(screen.getByLabelText('RUC de la Empresa'), {
       target: { value: '20100047218' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Validar' }));
 
     expect(await screen.findByText('RUC no válido o no encontrado.')).toBeInTheDocument();
+  });
+
+  it('carga los datos guardados desde GET /empresa/configuracion', async () => {
+    vi.spyOn(empresaApi, 'getConfiguracion').mockResolvedValue({
+      ruc: '20614142503',
+      razonSocial: 'SYNC-SUNAT DEMO MYPE S.A.C.',
+      nombreComercial: 'DEMO MYPE',
+      direccion: 'Domicilio ficticio 123',
+      estado: 'ACTIVO',
+      condicion: 'HABIDO',
+      series: ['F001', 'B001'],
+    });
+
+    render(<SireConfiguracionPage />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('RUC de la Empresa')).toHaveValue('20614142503');
+      expect(screen.getByLabelText('Razón Social')).toHaveValue('SYNC-SUNAT DEMO MYPE S.A.C.');
+      expect(screen.getByLabelText('Nombre Comercial')).toHaveValue('DEMO MYPE');
+      expect(screen.getByLabelText('Dirección Fiscal')).toHaveValue('Domicilio ficticio 123');
+      expect(screen.getByLabelText('Estado SUNAT')).toHaveValue('ACTIVO');
+      expect(screen.getByLabelText('Condición')).toHaveValue('HABIDO');
+      expect(screen.getByLabelText('Series')).toHaveValue('F001, B001');
+    });
   });
 
   it('guarda los datos de la empresa con el PUT de configuración', async () => {
@@ -106,6 +145,9 @@ describe('SireConfiguracionPage', () => {
 
     render(<SireConfiguracionPage />);
 
+    await waitFor(() =>
+      expect(screen.getByLabelText('RUC de la Empresa')).not.toBeDisabled(),
+    );
     fireEvent.change(screen.getByLabelText('RUC de la Empresa'), {
       target: { value: '20100070970' },
     });
@@ -122,7 +164,6 @@ describe('SireConfiguracionPage', () => {
 
     await waitFor(() => {
       expect(saveMock).toHaveBeenCalledWith({
-        ruc: '20100070970',
         razonSocial: 'EMPRESA NUEVA SAC',
         nombreComercial: 'EMPRESA NUEVA',
         direccion: 'AV. PRINCIPAL 123',

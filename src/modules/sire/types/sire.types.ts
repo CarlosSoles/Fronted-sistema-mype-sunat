@@ -159,7 +159,6 @@ export interface SireConfiguracionStatus {
  * datos ya configurados en el backend.
  */
 export interface EmpresaConfiguracionPayload {
-  ruc?: string;
   razonSocial?: string;
   nombreComercial?: string;
   direccion?: string;
@@ -167,6 +166,23 @@ export interface EmpresaConfiguracionPayload {
   condicion?: string;
   /** Series de comprobantes autorizadas para la empresa. */
   series?: string[];
+}
+
+/**
+ * Configuración actual de la empresa devuelta por
+ * `GET /api/v1/empresa/configuracion`.
+ *
+ * El backend identifica la empresa por la sesión y usa `businessName` /
+ * `tradeName`; aquí se normalizan a los nombres que consume la UI.
+ */
+export interface EmpresaConfiguracionActual {
+  ruc: string;
+  razonSocial: string;
+  nombreComercial: string;
+  direccion: string;
+  estado: string;
+  condicion: string;
+  series: string[];
 }
 
 /** Datos de la empresa obtenidos al validar el RUC contra Decolecta. */

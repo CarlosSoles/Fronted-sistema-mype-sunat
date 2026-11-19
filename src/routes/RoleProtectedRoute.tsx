@@ -17,7 +17,7 @@ import { getPermissionHome } from './roleNavigation';
 const RUTAS_ADELANTADAS: ReadonlyArray<{ path: string; moduleCode: string }> = [
   { path: '/accounting/guia', moduleCode: 'M4' },
   { path: '/customs/quotations', moduleCode: 'M2' },
-  { path: '/credenciales-empresa', moduleCode: 'M4' },
+  { path: '/credenciales-empresa', moduleCode: 'M3' },
 ];
 
 export const RoleProtectedRoute = ({ children }: { children?: ReactNode }) => {
@@ -47,8 +47,10 @@ export const RoleProtectedRoute = ({ children }: { children?: ReactNode }) => {
   const adelanto = RUTAS_ADELANTADAS.find((ruta) => ruta.path === pathname);
   const elServidorLoConoce = (p.snapshot?.menus ?? []).some((menu) => menu.path === pathname);
   const permitidoPorAdelanto = Boolean(adelanto) && !elServidorLoConoce && p.canView(adelanto!.moduleCode);
+  const rutaSoloAdmin = pathname === '/credenciales-empresa';
+  const sinPermisoAdmin = rutaSoloAdmin && p.snapshot?.role.code !== 'ADMIN';
 
-  if (!p.canNavigate(pathname) && !permitidoPorAdelanto) {
+  if ((!p.canNavigate(pathname) && !permitidoPorAdelanto) || sinPermisoAdmin) {
     return (
       <div id="forbidden-403-container" role="alert">
         <span>Código 403</span>

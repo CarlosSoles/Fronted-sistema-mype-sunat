@@ -1,4 +1,8 @@
-import type { EmpresaConfiguracionPayload, EmpresaRucValidacion } from '../types/sire.types';
+import type {
+  EmpresaConfiguracionActual,
+  EmpresaConfiguracionPayload,
+  EmpresaRucValidacion,
+} from '../types/sire.types';
 import { requestSireApi, SireApiError } from './sireApiHttp';
 
 const NESTED_DATA_KEYS = [
@@ -213,23 +217,60 @@ export const empresaApi = {
   },
 
   /**
+   * Datos actuales de la empresa (`GET /empresa/configuracion`).
+   *
+   * El backend devuelve `businessName`/`tradeName`; la UI trabaja con
+   * `razonSocial`/`nombreComercial`, así que aquí se normaliza la respuesta.
+   */
+  async getConfiguracion(): Promise<EmpresaConfiguracionActual> {
+    try {
+      const response = await requestSireApi<Record<string, unknown>>(
+        '/empresa/configuracion',
+        { method: 'GET' },
+      );
+      const text = (value: unknown): string => (typeof value === 'string' ? value : '');
+      const series = Array.isArray(response.series)
+        ? response.series.filter((value): value is string => typeof value === 'string')
+        : [];
+
+      return {
+        ruc: text(response.ruc),
+        razonSocial: text(response.businessName),
+        nombreComercial: text(response.tradeName),
+        direccion: text(response.direccion),
+        estado: text(response.estado),
+        condicion: text(response.condicion),
+        series,
+      };
+    } catch (cause) {
+      const status = cause instanceof SireApiError ? cause.status : null;
+      const message = cause instanceof Error ? cause.message : '';
+      throw new SireApiError(
+        message || 'No se pudieron cargar los datos de la empresa.',
+        status,
+      );
+    }
+  },
+
+  /**
    * Guarda los datos globales de la empresa (`PUT /empresa/configuracion`).
    *
-   * La empresa se identifica por la sesión autenticada. El resto de campos se
-   * omite si quedó vacío para no borrar datos ya configurados en el backend.
+   * El backend identifica la empresa por la sesión autenticada: el RUC no se
+   * envía. Los nombres de la UI se traducen al contrato del backend
+   * (`businessName`/`tradeName`) y los campos vacíos se omiten para no borrar
+   * datos ya configurados.
    */
   async saveConfiguracion(payload: EmpresaConfiguracionPayload): Promise<void> {
     const body: Record<string, unknown> = {
       series: normalizeSeries(payload.series ?? []),
     };
-    const addField = (key: keyof EmpresaConfiguracionPayload, value: string | undefined) => {
+    const addField = (key: string, value: string | undefined) => {
       const trimmed = value?.trim();
       if (trimmed) body[key] = trimmed;
     };
 
-    addField('ruc', payload.ruc);
-    addField('razonSocial', payload.razonSocial);
-    addField('nombreComercial', payload.nombreComercial);
+    addField('businessName', payload.razonSocial);
+    addField('tradeName', payload.nombreComercial);
     addField('direccion', payload.direccion);
     addField('estado', payload.estado);
     addField('condicion', payload.condicion);

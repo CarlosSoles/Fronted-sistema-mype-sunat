@@ -45,6 +45,8 @@ export interface SubNavItem {
   icon: React.ComponentType<{ className?: string }>;
   /** Agrupador visual dentro del módulo (ej. Registros / Reportes). */
   group?: string;
+  /** Configuración reservada al rol ADMIN (credenciales globales). */
+  adminOnly?: boolean;
   /**
    * El submódulo es nuevo y el servidor todavía no lo conoce en su catálogo de
    * menús. Se muestra si el usuario puede ver el módulo, sin esperar a que el
@@ -62,11 +64,31 @@ export interface NavItem {
   developer: string;
   /** Mismo criterio que `SubNavItem.adelanto`, aplicado al módulo completo. */
   adelanto?: { moduleCode: string };
+  /** Configuración reservada al rol ADMIN (credenciales globales). */
+  adminOnly?: boolean;
 
   subItems?: SubNavItem[];
 }
 
 export const NAV_ITEMS: NavItem[] = [
+  {
+    title: 'Configuración Global',
+    path: '/configuracion-global',
+    icon: Settings,
+    developer: 'Diego Toledo',
+    adelanto: { moduleCode: 'M3' },
+    adminOnly: true,
+
+    subItems: [
+      {
+        title: 'Credenciales de Empresa',
+        path: '/credenciales-empresa',
+        icon: KeyRound,
+        adelanto: { moduleCode: 'M3' },
+        adminOnly: true,
+      },
+    ],
+  },
   {
     title: 'Ventas',
     path: '/sales',
@@ -184,7 +206,6 @@ export const NAV_ITEMS: NavItem[] = [
 
     subItems: [
       { title: 'Credenciales SUNAT', path: '/sire/credenciales', icon: KeyRound },
-      { title: 'Datos de la Empresa', path: '/sire/configuracion', icon: Settings },
       { title: 'Mapeo Contable SIRE', path: '/sire/mapeo-contable', icon: ListChecks },
       { title: 'Importar Propuesta', path: '/sire/importar', icon: FileUp },
       { title: 'Consulta de periodos', path: '/sire/periodos', icon: Search },
@@ -211,22 +232,6 @@ export const NAV_ITEMS: NavItem[] = [
       { title: 'Estado de Resultados', path: '/accounting/income-statement', icon: FileText, group: 'Reportes' },
       { title: 'Balance General', path: '/accounting/balance-sheet', icon: ClipboardCheck, group: 'Reportes' },
       { title: 'Libros Electrónicos (PLE/SIRE)', path: '/accounting/ple', icon: FileCheck2, group: 'Reportes' },
-    ],
-  },
-  {
-    title: 'Configuración Global',
-    path: '/configuracion-global',
-    icon: Settings,
-    developer: 'Diego Toledo',
-    adelanto: { moduleCode: 'M4' },
-
-    subItems: [
-      {
-        title: 'Credenciales de Empresa',
-        path: '/credenciales-empresa',
-        icon: KeyRound,
-        adelanto: { moduleCode: 'M4' },
-      },
     ],
   },
 ];
@@ -293,8 +298,10 @@ export const Sidebar = () => {
    * frontend y el usuario puede ver su módulo. Así una pantalla nueva no queda
    * invisible hasta que el backend se redespliegue.
    */
+  const esAdmin = permissions.snapshot?.role?.code === 'ADMIN';
   const puedeVerSubItem = (sub: SubNavItem): boolean => {
-    if (permissions.snapshot?.role.code === 'ADMIN') return true;
+    if (sub.adminOnly && !esAdmin) return false;
+    if (esAdmin) return true;
     if (permissions.canNavigate(sub.path)) return true;
     if (!sub.adelanto) return false;
     const menus = permissions.snapshot?.menus ?? [];
@@ -303,6 +310,7 @@ export const Sidebar = () => {
   };
   const subItemsVisibles = (item: NavItem): SubNavItem[] => (item.subItems ?? []).filter(puedeVerSubItem);
   const puedeVerItem = (item: NavItem): boolean => {
+    if (item.adminOnly && !esAdmin) return false;
     if (permissions.canNavigate(item.path)) return true;
     if (!item.adelanto) return false;
     const menus = permissions.snapshot?.menus ?? [];

@@ -16,6 +16,7 @@ import {
   PageText,
 } from '@/components/ui';
 import { CheckCircle2, Eye, EyeOff, KeyRound, LoaderCircle, Save } from 'lucide-react';
+import { DatosEmpresaForm } from '@/modules/company/components/DatosEmpresaForm';
 import { useSireCredentials } from '@/modules/sire/hooks/useSireCredentials';
 import {
   getClientIdFeedback,
@@ -260,6 +261,8 @@ export default function CredencialesEmpresaPage() {
           </form>
         </CardContent>
       </Card>
+
+      <DatosEmpresaForm />
     </Page>
   );
 }
