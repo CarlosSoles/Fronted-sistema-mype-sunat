@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 import { flushOutbox, startOutboxSync } from './lib/outbox';
 import './index.css';
@@ -105,22 +105,7 @@ if (sesionDemo) {
   if (useAuthStore.persist?.hasHydrated?.()) aplicarSesionDemo();
 }
 
-// Configuración global del cliente de caché de TanStack Query
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutos de caché fresca
-      retry: (failureCount, error) => {
-        const status = (error as { response?: { status?: number } })?.response?.status;
-        if (status && status >= 400 && status < 500) {
-          return false;
-        }
-        return failureCount < 1;
-      },
-      refetchOnWindowFocus: false, // Evitar refetch innecesario al cambiar de pestaña
-    },
-  },
-});
+import { queryClient } from '@/lib/queryClient';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

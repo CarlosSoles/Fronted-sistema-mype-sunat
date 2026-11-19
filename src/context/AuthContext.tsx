@@ -8,6 +8,7 @@ import {
   type RegisterPayload,
 } from '@/modules/auth/types/auth.types';
 import { useAuthStore } from '@/stores/authStore';
+import { queryClient } from '@/lib/queryClient';
 
 export interface AuthContextType {
   user: AuthUser | null;
@@ -136,6 +137,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setAccessToken(null);
       setUser(null);
       useAuthStore.getState().logout();
+      queryClient.clear();
     }
   };
 
