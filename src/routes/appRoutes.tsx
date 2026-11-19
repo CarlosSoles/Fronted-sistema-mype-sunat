@@ -30,6 +30,7 @@ const InvoiceMonitorPage = React.lazy(() => import('@/modules/invoices/pages/Inv
 const SalesReportPage = React.lazy(() => import('@/modules/invoices/pages/SalesReportPage'));
 const InvoiceDetractionsPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceDetractionsPage'));
 const CustomsDashboardPage = React.lazy(() => import('@/modules/customs/pages/CustomsDashboardPage'));
+const ImportQuotationsPage = React.lazy(() => import('@/modules/customs/pages/ImportQuotationsPage'));
 const ImportOrdersPage = React.lazy(() => import('@/modules/customs/pages/ImportOrdersPage'));
 const ShipmentsListPage = React.lazy(() => import('@/modules/customs/pages/ShipmentsListPage'));
 const ShipmentDetailPage = React.lazy(() => import('@/modules/customs/pages/ShipmentDetailPage'));
@@ -250,6 +251,16 @@ export const AppRoutes = () => {
 
                 >
                   <CustomsDashboardPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/customs/quotations"
+              element={
+                <RoleProtectedRoute
+
+                >
+                  <ImportQuotationsPage />
                 </RoleProtectedRoute>
               }
             />

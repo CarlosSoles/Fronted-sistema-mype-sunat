@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Dialog,
   DialogContent,
@@ -8,7 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { AUTHORIZED_BANKS } from '../services/catalogsApi';
+import { catalogsApi } from '../services/catalogsApi';
 import { type CustomsSettlementRecord, type PaySettlementPayload } from '../types';
 import { formatCurrency } from '@/lib/formatters';
 import { inventoryPurchasesApi } from '@/modules/inventory/services/inventoryPurchasesApi';
@@ -40,6 +41,11 @@ export const PaySettlementModal: React.FC<PaySettlementModalProps> = ({
   const [paidAt, setPaidAt] = useState(new Date().toISOString().slice(0, 16));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successNote, setSuccessNote] = useState<string | null>(null);
+
+  const { data: banks = [] } = useQuery({
+    queryKey: ['customs', 'catalogs', 'banks'],
+    queryFn: catalogsApi.getAuthorizedBanks,
+  });
 
   if (!settlement) return null;
 
@@ -195,7 +201,7 @@ export const PaySettlementModal: React.FC<PaySettlementModalProps> = ({
                 onChange={(e) => setBankCode(e.target.value)}
                 className="w-full h-8 px-2 text-xs rounded-md border border-input bg-background"
               >
-                {AUTHORIZED_BANKS.map((b) => (
+                {banks.map((b) => (
                   <option key={b.code} value={b.code}>
                     {b.code} - {b.name}
                   </option>

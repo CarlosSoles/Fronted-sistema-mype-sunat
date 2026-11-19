@@ -10,37 +10,17 @@ import {
   type ShipmentFilters,
 } from '../types';
 
-export const DEFAULT_DEMO_SHIPMENT: CustomsShipmentSummary = {
-  id: 'EXP-2026-00042',
-  company_id: 'demo-company',
-  shipment_number: 'EXP-2026-00042',
-  supplier_id: 'a0000000-0000-0000-0000-000000000001',
-  supplier_name: 'Shenzhen Tech Ltd (China)',
-  incoterm: 'FOB',
-  currency_code: 'USD',
-  transport_mode: 'MARITIMO',
-  origin_country_code: 'CN',
-  destination_customs: '118 - Callao',
-  eta_date: '2026-10-31',
-  etd_date: '2026-10-15',
-  status: 'CON_LEVANTE',
-  is_observed: false,
-  declarations_count: 1,
-  created_at: '2026-10-20T10:00:00Z',
-  updated_at: '2026-10-20T10:00:00Z',
-};
-
 export const getStoredCustomsShipments = (): CustomsShipmentSummary[] => {
   try {
     const raw = typeof window !== 'undefined' ? localStorage.getItem('customs_shipments_cache') : null;
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) return parsed;
     }
   } catch {
     // fallback
   }
-  return [DEFAULT_DEMO_SHIPMENT];
+  return [];
 };
 
 export const saveStoredCustomsShipment = (shipment: CustomsShipmentSummary): void => {
@@ -55,38 +35,30 @@ export const saveStoredCustomsShipment = (shipment: CustomsShipmentSummary): voi
   }
 };
 
-import { getDemoShipmentDetail } from './shipmentDemoDetail';
+
 
 export const customsShipmentsApi = {
   /**
-   * Obtiene la lista de expedientes de importación con filtros y paginación.
+   * Obtiene la lista de expedientes de importación con filtros y paginación desde el backend.
    */
   getShipments: async (filters?: ShipmentFilters): Promise<CustomsShipmentSummary[]> => {
-    try {
-      const response = await apiClient.get<CustomsShipmentSummary[] | { data: CustomsShipmentSummary[] }>('/customs/shipments', {
-        params: filters,
-      });
-      const resData = response.data;
-      if (Array.isArray(resData)) return resData;
-      if (resData && typeof resData === 'object' && 'data' in resData && Array.isArray(resData.data)) {
-        return resData.data;
-      }
-      return [];
-    } catch {
-      return getStoredCustomsShipments();
+    const response = await apiClient.get<CustomsShipmentSummary[] | { data: CustomsShipmentSummary[] }>('/customs/shipments', {
+      params: filters,
+    });
+    const resData = response.data;
+    if (Array.isArray(resData)) return resData;
+    if (resData && typeof resData === 'object' && 'data' in resData && Array.isArray(resData.data)) {
+      return resData.data;
     }
+    return [];
   },
 
   /**
-   * Obtiene la vista 360° del expediente de importación y sus relaciones.
+   * Obtiene la vista 360° del expediente de importación y sus relaciones desde el backend.
    */
   getShipmentById: async (id: string): Promise<CustomsShipmentDetail> => {
-    try {
-      const response = await apiClient.get<CustomsShipmentDetail>(`/customs/shipments/${id}`);
-      return response.data;
-    } catch {
-      return getDemoShipmentDetail(id);
-    }
+    const response = await apiClient.get<CustomsShipmentDetail>(`/customs/shipments/${id}`);
+    return response.data;
   },
 
   /**
