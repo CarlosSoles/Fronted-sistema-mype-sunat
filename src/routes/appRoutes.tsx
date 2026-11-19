@@ -49,6 +49,7 @@ const InventoryStocksPage = React.lazy(() => import('@/modules/inventory/pages/I
 const InventoryDashboardPage = React.lazy(() => import('@/modules/inventory/pages/InventoryDashboardPage'));
 const PurchasesPage = React.lazy(() => import('@/modules/purchases/pages/PurchasesPage'));
 const PurchaseOrdersPage = React.lazy(() => import('@/modules/purchases/pages/PurchaseOrdersPage'));
+const PaymentSchedulePage = React.lazy(() => import('@/modules/purchases/pages/PaymentSchedulePage'));
 const PurchasesDashboardPage = React.lazy(() => import('@/modules/purchases/pages/PurchasesDashboardPage'));
 const PurchasesPayablesPage = React.lazy(() => import('@/modules/inventory/pages/PurchasesPayablesPage'));
 const InventoryAdjustmentsPage = React.lazy(() => import('@/modules/inventory/pages/InventoryAdjustmentsPage'));
@@ -445,6 +446,14 @@ export const AppRoutes = () => {
               element={
                 <RoleProtectedRoute >
                   <PurchaseOrdersPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/purchases/payment-schedule"
+              element={
+                <RoleProtectedRoute>
+                  <PaymentSchedulePage />
                 </RoleProtectedRoute>
               }
             />
