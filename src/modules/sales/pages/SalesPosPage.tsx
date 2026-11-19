@@ -36,6 +36,7 @@ export default function SalesPosPage() {
   const [medioPago, setMedioPago] = useState('EFECTIVO');
   const [error, setError] = useState('');
   const [documentoAviso, setDocumentoAviso] = useState('');
+  const [credito, setCredito] = useState<{ hasCredit: boolean; creditLimit: number | null; used: number; available: number | null } | null>(null);
   const errorDocumento = tipoDoc === '0' ? '' : documento.trim() === '' ? 'Indique el documento del cliente.' : documentoTerceroValido(tipoDoc, documento.trim()) ? '' : tipoDoc === '6' ? 'RUC inválido: 11 dígitos y módulo 11.' : 'DNI inválido: 8 dígitos.';
   const [venta, setVenta] = useState<{ numero: string; total: number; cobroPendiente?: string; credito?: boolean; fecha: string; cliente: string; documento: string; tipo: string; serie: string; medioPago: string; formaPago: string; items: Array<{ descripcion: string; cantidad: number; precio: number; total: number }> } | null>(null);
   const [ticketAbierto, setTicketAbierto] = useState(false);
@@ -56,6 +57,14 @@ export default function SalesPosPage() {
   const [searchParams] = useSearchParams();
   const quoteId = searchParams.get('quote');
   const [vencimiento, setVencimiento] = useState(enDias(30));
+
+  const consultarCredito = async (doc: string, tipo: string) => {
+    if (!doc.trim()) { setCredito(null); return; }
+    try {
+      const { data } = await apiClient.get<{ hasCredit: boolean; creditLimit: number | null; used: number; available: number | null }>('/invoices/customers/credit', { params: { documentType: tipo, documentNumber: doc.trim() } });
+      setCredito(data);
+    } catch { setCredito(null); }
+  };
 
   useEffect(() => {
     void apiClient.get('/invoices/warehouses').then(({ data }) => {
@@ -220,6 +229,7 @@ export default function SalesPosPage() {
             <Input aria-label="Documento del cliente" inputMode="numeric" maxLength={tipoDoc === '6' ? 11 : tipoDoc === '1' ? 8 : 20} placeholder={tipoDoc === '6' ? 'RUC de 11 dígitos' : tipoDoc === '1' ? 'DNI de 8 dígitos' : 'Sin documento'} value={documento} onChange={(e) => { const v = tipoDoc === '0' ? e.target.value : e.target.value.replace(/\D/g, '').slice(0, tipoDoc === '6' ? 11 : 8); setDocumento(v); setDocumentoAviso(''); }} onBlur={() => {
                   if (errorDocumento || !documento.trim()) return;
                   const doc = documento.trim();
+                  void consultarCredito(doc, tipoDoc);
                   const desdeMaestro = () => invoicesApi.buscarClientes(doc).then((lista) => {
                     const match = lista.find((c) => c.numeroDocumento === doc);
                     if (match?.razonSocial) setCliente(match.razonSocial);
@@ -239,6 +249,7 @@ export default function SalesPosPage() {
           </div>
           {documentoAviso ? <p className="mb-2 text-[11px] text-amber-600">{documentoAviso}</p> : null}
           <Input aria-label="Nombre del cliente" className="mb-1" placeholder="Razón social / nombre" value={cliente} onChange={(e) => setCliente(e.target.value)} />
+          {credito?.hasCredit ? <div className="mb-2 rounded border bg-muted/30 p-2 text-[11px]"><p>Crédito: límite {credito.creditLimit == null ? 'sin límite' : money(credito.creditLimit)} · usado {money(credito.used)}</p><p className={credito.available != null && credito.available < total ? 'text-destructive' : 'text-emerald-600'}>Disponible: {credito.available == null ? 'sin límite' : money(credito.available)}</p>{credito.available != null && credito.available < total ? <p className="text-destructive">La venta supera el cupo disponible.</p> : null}</div> : null}
           {errorDocumento ? <p className="mb-3 text-[11px] text-destructive">{errorDocumento}</p> : <div className="mb-3" />}
           <div className="mb-3 space-y-2">
             {carrito.map((l) => (
