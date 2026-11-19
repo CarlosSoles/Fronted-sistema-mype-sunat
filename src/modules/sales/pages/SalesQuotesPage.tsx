@@ -6,6 +6,7 @@ import { Badge, Button, Card, Dialog, DialogContent, DialogDescription, DialogFo
 import { extractApiErrorMessage } from '@/lib/apiErrors';
 import { salesQuotesApi, type QuoteStatus, type SalesQuote } from '../services/salesQuotesApi';
 import { documentoTerceroValido } from '@/modules/customs/libPartnerValidation';
+import { useRucAutofill } from '@/modules/invoices/hooks/useRucAutofill';
 
 const money = (n: number) => `S/ ${n.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const estadoColor: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = { ACEPTADA: 'default', CONVERTIDA: 'default', ENVIADA: 'secondary', RECHAZADA: 'destructive' };
@@ -21,6 +22,7 @@ export default function SalesQuotesPage() {
   const [error, setError] = useState('');
   const [cliente, setCliente] = useState('');
   const [tipoDoc, setTipoDoc] = useState('6');
+  const autofill = useRucAutofill((datos) => setCliente(datos.razonSocial));
   const [documento, setDocumento] = useState('');
   const [validez, setValidez] = useState('');
   const [notas, setNotas] = useState('');
@@ -76,8 +78,8 @@ export default function SalesQuotesPage() {
           <div className="space-y-3 text-xs">
             <div className="grid gap-2 sm:grid-cols-4">
               <label>Cliente<Input value={cliente} onChange={(e) => setCliente(e.target.value)} /></label>
-              <label>Tipo documento<select className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-xs" value={tipoDoc} onChange={(e) => { setTipoDoc(e.target.value); setDocumento(''); }}><option value="6">RUC</option><option value="1">DNI</option><option value="0">Sin documento</option></select></label>
-              <label>Documento<Input inputMode="numeric" maxLength={tipoDoc === '6' ? 11 : tipoDoc === '1' ? 8 : 20} placeholder={tipoDoc === '6' ? '11 dígitos' : tipoDoc === '1' ? '8 dígitos' : 'Sin documento'} value={documento} onChange={(e) => setDocumento(tipoDoc === '0' ? '' : e.target.value.replace(/\D/g, '').slice(0, tipoDoc === '6' ? 11 : 8))} />{errorDocumento ? <span className="text-[10px] text-destructive">{errorDocumento}</span> : null}</label>
+              <label>Tipo documento<select className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-xs" value={tipoDoc} onChange={(e) => { autofill.cancelar(); setTipoDoc(e.target.value); setDocumento(''); }}><option value="6">RUC</option><option value="1">DNI</option><option value="0">Sin documento</option></select></label>
+              <label>Documento<Input inputMode="numeric" maxLength={tipoDoc === '6' ? 11 : tipoDoc === '1' ? 8 : 20} placeholder={tipoDoc === '6' ? '11 dígitos' : tipoDoc === '1' ? '8 dígitos' : 'Sin documento'} value={documento} onChange={(e) => setDocumento(tipoDoc === '0' ? '' : e.target.value.replace(/\D/g, '').slice(0, tipoDoc === '6' ? 11 : 8))} onBlur={() => { if (tipoDoc !== '0' && documento.trim()) autofill.consultar(documento.trim()); }} />{autofill.aviso ? <span className="text-[10px] text-muted-foreground">{autofill.aviso}</span> : null}{errorDocumento ? <span className="text-[10px] text-destructive">{errorDocumento}</span> : null}</label>
               <label>Válida hasta<Input type="date" value={validez} onChange={(e) => setValidez(e.target.value)} /></label>
             </div>
             <label className="block">Observaciones<Input value={notas} onChange={(e) => setNotas(e.target.value)} /></label>
