@@ -94,7 +94,7 @@ export const InvoiceItemsGrid = ({
   const revision = revisarGrilla(items, productos, { nota: esNota, estado: catalogoEstado });
 
   return (
-    <div ref={grillaRef} className="min-w-0 space-y-2 sm:col-span-2">
+    <div ref={grillaRef} className="@container/items min-w-0 space-y-2 sm:col-span-2">
       {duplicado.dialogo}
       <div className="flex items-center justify-between">
         <PageText variant="label">Detalle del comprobante</PageText>
@@ -130,9 +130,9 @@ export const InvoiceItemsGrid = ({
       ) : null}
 
       <div className="max-w-full overflow-x-hidden rounded-lg" role="region" aria-label="Líneas del comprobante" tabIndex={0}>
-        <table className="block w-full text-xs lg:table lg:table-auto">
-          <thead className="sr-only lg:not-sr-only lg:table-header-group lg:border-b lg:bg-muted/40 lg:text-[11px] lg:text-muted-foreground">
-            <tr className="lg:table-row">
+        <table className="block w-full text-xs @min-[1024px]/items:table @min-[1024px]/items:table-auto">
+          <thead className="sr-only @min-[1024px]/items:not-sr-only @min-[1024px]/items:table-header-group @min-[1024px]/items:border-b @min-[1024px]/items:bg-muted/40 @min-[1024px]/items:text-[11px] @min-[1024px]/items:text-muted-foreground">
+            <tr className="@min-[1024px]/items:table-row">
               <th className="px-1.5 py-1.5 text-left font-medium whitespace-nowrap">Código</th>
               <th className="px-1.5 py-1.5 text-left font-medium min-w-[110px]">Descripción</th>
               <th className="px-1 py-1.5 text-left font-medium whitespace-nowrap">Und.</th>
@@ -145,7 +145,7 @@ export const InvoiceItemsGrid = ({
               <th className="px-1 py-1.5 w-8" aria-label="Acciones" />
             </tr>
           </thead>
-          <tbody className="block space-y-2 lg:table-row-group lg:space-y-0 lg:divide-y">
+          <tbody className="block space-y-2 @min-[1024px]/items:table-row-group @min-[1024px]/items:space-y-0 @min-[1024px]/items:divide-y">
             {items.map((item, i) => {
               const errores = erroresCamposLinea(item, esNota);
               const codigoAfectacion = item.codigoAfectacion || ({ GRAVADA: '10', EXONERADA: '20', INAFECTA: '30' } as Record<string, string>)[item.afectacion];
@@ -158,12 +158,12 @@ export const InvoiceItemsGrid = ({
                 <Fragment key={item.clave}>
                 <tr
                   onChangeCapture={e => marcarCampo(item.clave, e.target)} onBlurCapture={e => marcarCampo(item.clave, e.target)}
-                  className={`flex flex-wrap items-start gap-2 rounded-lg border p-2.5 lg:table-row lg:rounded-none lg:border-0 lg:p-0 ${
+                  className={`flex flex-wrap items-start gap-2 rounded-lg border p-2.5 @min-[1024px]/items:table-row @min-[1024px]/items:rounded-none @min-[1024px]/items:border-0 @min-[1024px]/items:p-0 ${
                     conError ? 'bg-destructive/5' : ''
                   }`}
                 >
                   {/* Cabecera compacta en <1024px: CÓDIGO · Descripción · Unidad · V.U. x */}
-                  <td className="order-1 min-w-0 basis-full border-b pb-1.5 text-xs lg:hidden">
+                  <td className="order-1 min-w-0 basis-full border-b pb-1.5 text-xs @min-[1024px]/items:hidden">
                     <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
                       <span className="font-mono font-semibold text-foreground">{item.codigo || '—'}</span>
                       <span className="text-muted-foreground">·</span>
@@ -179,7 +179,7 @@ export const InvoiceItemsGrid = ({
                     </div>
                   </td>
 
-                  <td className="hidden min-w-0 px-2 py-1.5 align-top lg:table-cell">
+                  <td className="hidden min-w-0 px-2 py-1.5 align-top @min-[1024px]/items:table-cell">
                     <span
                       aria-label={`Código de la línea ${i + 1}`}
                       title="Para cambiar el SKU, quite la línea o elija otro producto del catálogo."
@@ -189,7 +189,7 @@ export const InvoiceItemsGrid = ({
                     </span>
                   </td>
 
-                  <td className="hidden min-w-0 px-2 py-1.5 align-top lg:table-cell">
+                  <td className="hidden min-w-0 px-2 py-1.5 align-top @min-[1024px]/items:table-cell">
                     <span
                       aria-label={`Descripción de la línea ${i + 1}`}
                       aria-invalid={visible('descripcion')}
@@ -208,14 +208,14 @@ export const InvoiceItemsGrid = ({
                     )}
                   </td>
 
-                  <td className="hidden min-w-0 px-2 py-1.5 align-top lg:table-cell">
+                  <td className="hidden min-w-0 px-2 py-1.5 align-top @min-[1024px]/items:table-cell">
                     <span aria-label={`Unidad de la línea ${i + 1}`} title="Unidad registrada del producto" className="block truncate text-muted-foreground">
                       {item.unidad}
                     </span>
                   </td>
 
-                  <td className="order-2 min-w-0 flex-1 basis-[72px] lg:table-cell lg:px-1.5 lg:py-1.5 lg:align-top">
-                    <span className="mb-0.5 block text-[10px] font-medium text-muted-foreground lg:hidden">Cant.</span>
+                  <td className="order-2 min-w-0 flex-1 basis-[72px] @min-[1024px]/items:table-cell @min-[1024px]/items:px-1.5 @min-[1024px]/items:py-1.5 @min-[1024px]/items:align-top">
+                    <span className="mb-0.5 block text-[10px] font-medium text-muted-foreground @min-[1024px]/items:hidden">Cant.</span>
                     {!esNota && unidadDiscreta(item.unidad) ? <InvoiceIntegerInput
                       aria-label={`Cantidad de la línea ${i + 1}`} data-line-field="cantidad" data-line-invalid={Boolean(errores.cantidad)}
                       aria-describedby={visible('cantidad') ? `${item.clave}-cantidad-error` : undefined}
@@ -247,7 +247,7 @@ export const InvoiceItemsGrid = ({
                     {cantidadesMaximas !== undefined && item.cantidad > cantidadesMaximas[i] && <p role="alert" className="text-[11px] text-destructive">Supera las unidades disponibles del origen (máximo {cantidadesMaximas[i]}).</p>}
                   </td>
 
-                  <td className="hidden min-w-0 px-2 py-1.5 text-right align-top lg:table-cell">
+                  <td className="hidden min-w-0 px-2 py-1.5 text-right align-top @min-[1024px]/items:table-cell">
                     <span
                       aria-label={`Valor unitario de la línea ${i + 1}`}
                       aria-invalid={visible('valorUnitario')}
@@ -261,8 +261,8 @@ export const InvoiceItemsGrid = ({
                     {visible('valorUnitario') && <p id={`${item.clave}-valorUnitario-error`} role="alert" className="text-[11px] text-destructive">{errores.valorUnitario}</p>}
                   </td>
 
-                  <td className="order-3 min-w-0 flex-1 basis-[110px] space-y-1 lg:table-cell lg:px-1.5 lg:py-1.5 lg:align-top">
-                    <span className="mb-0.5 block text-[10px] font-medium text-muted-foreground lg:hidden">Desc. Cat. 53</span>
+                  <td className="order-3 min-w-0 flex-1 basis-[110px] space-y-1 @min-[1024px]/items:table-cell @min-[1024px]/items:px-1.5 @min-[1024px]/items:py-1.5 @min-[1024px]/items:align-top">
+                    <span className="mb-0.5 block text-[10px] font-medium text-muted-foreground @min-[1024px]/items:hidden">Desc. Cat. 53</span>
                     <select aria-label={`Tipo de descuento de la línea ${i + 1}`} className={CLASE_CELDA}
                       disabled={!admiteDescuento || Boolean(item.descuentoHeredado)}
                       value={item.descuento?.codigo ?? ''}
@@ -281,8 +281,8 @@ export const InvoiceItemsGrid = ({
                     {item.descuento?.codigo === '01' && <p className="text-[10px] leading-tight text-amber-700">El asiento automático utiliza la cuenta 74. Podría quedar pendiente de revisión si la cuenta no está activa en el plan de la empresa o los importes no concuerdan.</p>}
                   </td>
 
-                  <td className="order-4 min-w-0 flex-1 basis-[68px] lg:table-cell lg:px-1.5 lg:py-1.5 lg:align-top">
-                    <span className="mb-0.5 block text-[10px] font-medium text-muted-foreground lg:hidden">Bolsas</span>
+                  <td className="order-4 min-w-0 flex-1 basis-[68px] @min-[1024px]/items:table-cell @min-[1024px]/items:px-1.5 @min-[1024px]/items:py-1.5 @min-[1024px]/items:align-top">
+                    <span className="mb-0.5 block text-[10px] font-medium text-muted-foreground @min-[1024px]/items:hidden">Bolsas</span>
                     <InvoiceIntegerInput
                       disabled={bolsasBloqueadas}
                       data-invoice-bags aria-label={`ICBPER de la línea ${i + 1}`}
@@ -295,8 +295,8 @@ export const InvoiceItemsGrid = ({
                     {errorBolsas(item) && <p role="alert" className="text-[11px] text-destructive">{errorBolsas(item)}</p>}
                   </td>
 
-                  <td className="order-5 min-w-0 flex-1 basis-[130px] space-y-1 lg:table-cell lg:px-1.5 lg:py-1.5 lg:align-top">
-                    <span className="mb-0.5 block text-[10px] font-medium text-muted-foreground lg:hidden">Afectación</span>
+                  <td className="order-5 min-w-0 flex-1 basis-[130px] space-y-1 @min-[1024px]/items:table-cell @min-[1024px]/items:px-1.5 @min-[1024px]/items:py-1.5 @min-[1024px]/items:align-top">
+                    <span className="mb-0.5 block text-[10px] font-medium text-muted-foreground @min-[1024px]/items:hidden">Afectación</span>
                     <div className="flex flex-wrap items-center gap-1.5">
                       {!esNota && <label className="inline-flex items-center gap-1 text-[11px]"><input type="checkbox" aria-label={`Gratuita de la línea ${i + 1}`} checked={item.afectacion === 'GRATUITA'} disabled={item.afectacion === 'GRATUITA' && !item.origenOneroso} onChange={e => {
                         if (e.target.checked) onCambiar(i, { origenOneroso: { afectacion: item.afectacion, codigoAfectacion: item.codigoAfectacion, precioUnitario: item.precioUnitario, valorUnitario: item.valorUnitario }, afectacion: 'GRATUITA', codigoAfectacion: '', precioUnitario: 0, valorUnitario: item.valorUnitario, descuento: null });
@@ -334,12 +334,12 @@ export const InvoiceItemsGrid = ({
                     )}
                   </td>
 
-                  <td className="order-6 ml-auto flex items-center gap-1 self-end lg:table-cell lg:px-2 lg:py-1.5 lg:text-right lg:align-top">
-                    <span className="text-[10px] font-medium text-muted-foreground lg:hidden">Total</span>
+                  <td className="order-6 ml-auto flex items-center gap-1 self-end @min-[1024px]/items:table-cell @min-[1024px]/items:px-2 @min-[1024px]/items:py-1.5 @min-[1024px]/items:text-right @min-[1024px]/items:align-top">
+                    <span className="text-[10px] font-medium text-muted-foreground @min-[1024px]/items:hidden">Total</span>
                     <span className="font-semibold tabular-nums text-foreground">{totales.total.toFixed(2)}</span>
                   </td>
 
-                  <td className="order-7 self-end lg:table-cell lg:px-1 lg:py-1 lg:text-center lg:align-top">
+                  <td className="order-7 self-end @min-[1024px]/items:table-cell @min-[1024px]/items:px-1 @min-[1024px]/items:py-1 @min-[1024px]/items:text-center @min-[1024px]/items:align-top">
                     <Button
                       type="button"
                       variant="ghost"
@@ -353,7 +353,7 @@ export const InvoiceItemsGrid = ({
                 </tr>
                 {item.valorUnitario === 0 && !esNota && item.afectacion !== 'GRATUITA' && !visible('valorUnitario') && (
                   <tr className={conError ? 'bg-destructive/5' : ''}>
-                    <td colSpan={10} className="block px-2 pb-1.5 lg:table-cell">
+                    <td colSpan={10} className="block px-2 pb-1.5 @min-[1024px]/items:table-cell">
                       <p className="text-[11px] text-amber-700">El valor unitario de una línea onerosa debe ser mayor que cero.</p>
                     </td>
                   </tr>
