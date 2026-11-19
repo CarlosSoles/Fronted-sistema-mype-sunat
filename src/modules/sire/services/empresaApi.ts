@@ -18,11 +18,18 @@ const EMPRESA_FIELD_KEYS = {
     'razon_social',
     'nombreORazonSocial',
     'nombre_o_razon_social',
-    'nombreComercial',
-    'nombre_comercial',
     'businessName',
     'companyName',
     'nombre',
+  ],
+  nombreComercial: [
+    'nombreComercial',
+    'nombre_comercial',
+    'comercial',
+    'nombreDeFantasia',
+    'nombre_de_fantasia',
+    'tradeName',
+    'fantasyName',
   ],
   direccion: [
     'direccion',
@@ -59,6 +66,14 @@ const EMPRESA_FIELD_KEYS = {
   ],
 } as const;
 
+const SERIES_KEYS = [
+  'series',
+  'seriesList',
+  'series_list',
+  'seriesAutorizadas',
+  'series_autorizadas',
+] as const;
+
 type EmpresaField = keyof typeof EMPRESA_FIELD_KEYS;
 
 const collectRecords = (
@@ -94,18 +109,75 @@ const extractField = (
   return undefined;
 };
 
+/**
+ * Normaliza las series escritas por el usuario como "F001, B001".
+ *
+ * Se recortan los espacios, se pasan a mayúsculas y se eliminan los duplicados
+ * y las entradas vacías para no guardar series repetidas en el backend.
+ */
+export const normalizeSeries = (series: readonly string[]): string[] => {
+  const normalized: string[] = [];
+  const seen = new Set<string>();
+  for (const value of series) {
+    for (const part of value.split(',')) {
+      const serie = part.trim().toUpperCase();
+      if (!serie || seen.has(serie)) continue;
+      seen.add(serie);
+      normalized.push(serie);
+    }
+  }
+  return normalized;
+};
+
+const normalizeSeriesValue = (value: unknown): string[] => {
+  if (Array.isArray(value)) {
+    return normalizeSeries(
+      value.flatMap((item) => {
+        if (typeof item === 'string' || typeof item === 'number') return String(item);
+        if (typeof item !== 'object' || item === null) return [];
+        const record = item as Record<string, unknown>;
+        const candidate = record.series ?? record.serie ?? record.value ?? record.name;
+        return typeof candidate === 'string' || typeof candidate === 'number'
+          ? String(candidate)
+          : [];
+      }),
+    );
+  }
+  if (typeof value === 'string' || typeof value === 'number') {
+    return normalizeSeries([String(value)]);
+  }
+  return [];
+};
+
+const extractSeries = (records: Record<string, unknown>[]): string[] | undefined => {
+  for (const record of records) {
+    for (const key of SERIES_KEYS) {
+      if (!(key in record)) continue;
+      const series = normalizeSeriesValue(record[key]);
+      if (series.length) return series;
+    }
+  }
+  return undefined;
+};
+
 const extractEmpresaData = (
   value: unknown,
-): Pick<EmpresaRucValidacion, 'razonSocial' | 'direccion' | 'estado' | 'condicion'> | null => {
+): Pick<
+  EmpresaRucValidacion,
+  'razonSocial' | 'nombreComercial' | 'direccion' | 'estado' | 'condicion' | 'series'
+> | null => {
   const records = collectRecords(value);
   const razonSocial = extractField(records, 'razonSocial');
-  if (!razonSocial) return null;
+  const nombreComercial = extractField(records, 'nombreComercial');
+  if (!razonSocial && !nombreComercial) return null;
 
   return {
-    razonSocial,
+    razonSocial: razonSocial ?? nombreComercial ?? '',
+    nombreComercial,
     direccion: extractField(records, 'direccion'),
     estado: extractField(records, 'estado'),
     condicion: extractField(records, 'condicion'),
+    series: extractSeries(records),
   };
 };
 
@@ -147,7 +219,9 @@ export const empresaApi = {
    * omite si quedó vacío para no borrar datos ya configurados en el backend.
    */
   async saveConfiguracion(payload: EmpresaConfiguracionPayload): Promise<void> {
-    const body: Record<string, unknown> = {};
+    const body: Record<string, unknown> = {
+      series: normalizeSeries(payload.series ?? []),
+    };
     const addField = (key: keyof EmpresaConfiguracionPayload, value: string | undefined) => {
       const trimmed = value?.trim();
       if (trimmed) body[key] = trimmed;
@@ -155,6 +229,7 @@ export const empresaApi = {
 
     addField('ruc', payload.ruc);
     addField('razonSocial', payload.razonSocial);
+    addField('nombreComercial', payload.nombreComercial);
     addField('direccion', payload.direccion);
     addField('estado', payload.estado);
     addField('condicion', payload.condicion);

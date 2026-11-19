@@ -161,18 +161,24 @@ export interface SireConfiguracionStatus {
 export interface EmpresaConfiguracionPayload {
   ruc?: string;
   razonSocial?: string;
+  nombreComercial?: string;
   direccion?: string;
   estado?: string;
   condicion?: string;
+  /** Series de comprobantes autorizadas para la empresa. */
+  series?: string[];
 }
 
 /** Datos de la empresa obtenidos al validar el RUC contra Decolecta. */
 export interface EmpresaRucValidacion {
   ruc: string;
   razonSocial: string;
+  nombreComercial?: string;
   direccion?: string;
   estado?: string;
   condicion?: string;
+  /** Series autocompletadas por el backend, si las informa. */
+  series?: string[];
 }
 
 /**

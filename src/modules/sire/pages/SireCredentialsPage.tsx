@@ -58,6 +58,7 @@ export default function SireCredentialsPage() {
   } = useSireCredentials();
 
   const [values, setValues] = useState<FormValues>(EMPTY_FORM);
+  const [showClientSecret, setShowClientSecret] = useState(false);
   const [showSolPassword, setShowSolPassword] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -91,6 +92,7 @@ export default function SireCredentialsPage() {
 
     if (saved) {
       setValues(EMPTY_FORM);
+      setShowClientSecret(false);
       setShowSolPassword(false);
     }
   };
@@ -172,17 +174,32 @@ export default function SireCredentialsPage() {
               </PageField>
 
               <PageField label="Client Secret" htmlFor="sire-credentials-client-secret">
-                <Input
-                  id="sire-credentials-client-secret"
-                  aria-label="Client Secret"
-                  autoComplete="off"
-                  type="password"
-                  maxLength={400}
-                  placeholder="Client Secret de la aplicación SIRE"
-                  value={values.clientSecret}
-                  disabled={isSaving}
-                  onChange={(event) => updateValue('clientSecret', event.target.value)}
-                />
+                <div className="relative">
+                  <Input
+                    id="sire-credentials-client-secret"
+                    aria-label="Client Secret"
+                    autoComplete="off"
+                    type={showClientSecret ? 'text' : 'password'}
+                    maxLength={400}
+                    placeholder="Client Secret de la aplicación SIRE"
+                    className="pr-10"
+                    value={values.clientSecret}
+                    disabled={isSaving}
+                    onChange={(event) => updateValue('clientSecret', event.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowClientSecret((current) => !current)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label={showClientSecret ? 'Ocultar Client Secret' : 'Mostrar Client Secret'}
+                  >
+                    {showClientSecret ? (
+                      <EyeOff className="h-4 w-4" aria-hidden="true" />
+                    ) : (
+                      <Eye className="h-4 w-4" aria-hidden="true" />
+                    )}
+                  </button>
+                </div>
               </PageField>
 
               <PageField label="Usuario SOL" htmlFor="sire-credentials-sol-user">
