@@ -12,6 +12,9 @@ export const useLogin = () => {
 
   return useMutation({
     mutationFn: (credentials: LoginCredentials) => authApi.login(credentials),
+    // Un login fallido no debe reintentarse automáticamente: cada reintento
+    // cuenta para el rate limit del servidor (429).
+    retry: false,
     onSuccess: async (data) => {
       const token = data.accessToken || data.token || '';
       setSession(token, data.user);

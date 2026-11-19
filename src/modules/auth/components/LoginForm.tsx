@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link } from 'react-router-dom';
@@ -15,13 +15,26 @@ import {
   PageText,
 } from '@/components/ui';
 import { Eye, EyeOff, Loader2, LogIn } from 'lucide-react';
-import { extractApiErrorMessage, getApiErrorStatus } from '@/lib/apiErrors';
+import {
+  extractApiErrorMessage,
+  getApiErrorStatus,
+  LOGIN_RATE_LIMIT_MESSAGE,
+} from '@/lib/apiErrors';
 
 const CREDENTIALS_MESSAGE = 'Credenciales de acceso incorrectas o cuenta inactiva. Verifica tus datos.';
 
 export const LoginForm = () => {
   const { mutate: login, isPending, error } = useLogin();
   const [showPassword, setShowPassword] = useState(false);
+  /**
+   * Bloqueo síncrono del envío.
+   *
+   * `isPending` deshabilita el botón en el siguiente render, pero un doble clic
+   * puede ejecutar dos veces el submit antes de que React repinte. Este ref se
+   * activa en el primer clic y evita que el segundo dispare otra petición de
+   * login (origen de los 429 por ráfaga).
+   */
+  const submittingRef = useRef(false);
 
   const {
     register,
@@ -36,8 +49,16 @@ export const LoginForm = () => {
     },
   });
 
-  const onSubmit = (data: LoginFormData) => {
-    login(data);
+  const submitLogin = (event: FormEvent<HTMLFormElement>) => {
+    void handleSubmit((data: LoginFormData) => {
+      if (submittingRef.current || isPending) return;
+      submittingRef.current = true;
+      login(data, {
+        onSettled: () => {
+          submittingRef.current = false;
+        },
+      });
+    })(event);
   };
 
   const handleSelectDemo = (email: string, pass: string) => {
@@ -46,11 +67,15 @@ export const LoginForm = () => {
   };
 
   return (
-    <PageForm onSubmit={handleSubmit(onSubmit)}>
+    <PageForm onSubmit={submitLogin}>
       {error && (
         <Alert variant="destructive">
           <AlertDescription>
-            {getApiErrorStatus(error) === 401 ? CREDENTIALS_MESSAGE : extractApiErrorMessage(error, CREDENTIALS_MESSAGE)}
+            {getApiErrorStatus(error) === 429
+              ? LOGIN_RATE_LIMIT_MESSAGE
+              : getApiErrorStatus(error) === 401
+                ? CREDENTIALS_MESSAGE
+                : extractApiErrorMessage(error, CREDENTIALS_MESSAGE)}
           </AlertDescription>
         </Alert>
       )}
@@ -100,7 +125,7 @@ export const LoginForm = () => {
         )}
       </PageField>
 
-      <Button type="submit" fullWidth disabled={isPending}>
+      <Button type="submit" fullWidth disabled={isPending} aria-busy={isPending}>
         {isPending ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin mr-2" />

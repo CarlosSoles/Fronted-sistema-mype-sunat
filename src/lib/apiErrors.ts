@@ -4,6 +4,10 @@
  */
 export const RATE_LIMIT_MESSAGE = 'Demasiados intentos, espera un momento e inténtalo de nuevo';
 
+/** Aviso específico del formulario de login cuando el servidor limita intentos. */
+export const LOGIN_RATE_LIMIT_MESSAGE =
+  'Has intentado iniciar sesión demasiadas veces. Por favor, espera unos minutos e intenta de nuevo.';
+
 export function getApiErrorStatus(error: unknown): number | undefined {
   const status = (error as { response?: { status?: unknown } } | null)?.response?.status;
   return typeof status === 'number' ? status : undefined;

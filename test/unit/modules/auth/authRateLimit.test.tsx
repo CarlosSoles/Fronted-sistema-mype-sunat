@@ -10,7 +10,7 @@ import { permissionsApi } from '@/modules/auth/services/permissionsApi';
 import { useServerPermissions } from '@/modules/auth/hooks/useServerPermissions';
 import { RoleProtectedRoute } from '@/routes/RoleProtectedRoute';
 import { useAuthStore } from '@/stores/authStore';
-import { RATE_LIMIT_MESSAGE } from '@/lib/apiErrors';
+import { LOGIN_RATE_LIMIT_MESSAGE, RATE_LIMIT_MESSAGE } from '@/lib/apiErrors';
 import { serverSnapshot } from '../../../fixtures/permissionsServer';
 
 const clients: QueryClient[] = [];
@@ -40,12 +40,39 @@ it.each([429, 401])('login HTTP %s muestra el mensaje correspondiente', async st
   fireEvent.click(screen.getByRole('button', { name: 'Iniciar Sesión' }));
   await waitFor(() => expect(login).toHaveBeenCalledTimes(1));
   if (status === 429) {
-    expect(await screen.findByText(RATE_LIMIT_MESSAGE)).toBeInTheDocument();
+    expect(await screen.findByText(LOGIN_RATE_LIMIT_MESSAGE)).toBeInTheDocument();
     expect(screen.queryByText(/Credenciales de acceso incorrectas/)).toBeNull();
   } else {
     expect(await screen.findByText('Credenciales de acceso incorrectas o cuenta inactiva. Verifica tus datos.')).toBeInTheDocument();
-    expect(screen.queryByText(RATE_LIMIT_MESSAGE)).toBeNull();
+    expect(screen.queryByText(LOGIN_RATE_LIMIT_MESSAGE)).toBeNull();
   }
+});
+it('bloquea el botón y no duplica el login mientras la petición está pendiente', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  let resolveLogin!: (value: {
+    accessToken: string;
+    user: { id: string; companyId: string; email: string; fullName: string; role: string };
+  }) => void;
+  const login = vi.spyOn(authApi, 'login').mockImplementation(
+    () => new Promise((resolve) => { resolveLogin = resolve; }),
+  );
+  const { Wrapper } = provider(); render(<LoginForm />, { wrapper: Wrapper });
+  fireEvent.change(screen.getByLabelText('Correo Corporativo'), { target: { value: 'actor@example.invalid' } });
+  fireEvent.change(screen.getByLabelText('Contraseña'), { target: { value: 'Password123!#' } });
+  const button = screen.getByRole('button', { name: 'Iniciar Sesión' });
+  fireEvent.click(button);
+  fireEvent.click(button);
+  fireEvent.click(button);
+  await waitFor(() => expect(login).toHaveBeenCalledTimes(1));
+  expect(button).toBeDisabled();
+  expect(button).toHaveAttribute('aria-busy', 'true');
+  await act(async () => {
+    resolveLogin({
+      accessToken: 'session-after-login',
+      user: { id: 'actor', companyId: 'company', email: 'actor@example.invalid', fullName: 'Actor', role: 'ADMIN' },
+    });
+  });
+  expect(login).toHaveBeenCalledTimes(1);
 });
 it('permisos 429 muestra el aviso honesto sin atribuirlo al despertar del servidor', async () => {
   vi.mocked(permissionsApi.mine).mockRejectedValue(limited());
