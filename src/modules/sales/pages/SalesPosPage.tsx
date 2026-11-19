@@ -35,6 +35,7 @@ export default function SalesPosPage() {
   const [tipoDoc, setTipoDoc] = useState('6');
   const [medioPago, setMedioPago] = useState('EFECTIVO');
   const [error, setError] = useState('');
+  const [documentoAviso, setDocumentoAviso] = useState('');
   const errorDocumento = tipoDoc === '0' ? '' : documento.trim() === '' ? 'Indique el documento del cliente.' : documentoTerceroValido(tipoDoc, documento.trim()) ? '' : tipoDoc === '6' ? 'RUC inválido: 11 dígitos y módulo 11.' : 'DNI inválido: 8 dígitos.';
   const [venta, setVenta] = useState<{ numero: string; total: number; cobroPendiente?: string; credito?: boolean; fecha: string; cliente: string; documento: string; tipo: string; serie: string; medioPago: string; formaPago: string; items: Array<{ descripcion: string; cantidad: number; precio: number; total: number }> } | null>(null);
   const [ticketAbierto, setTicketAbierto] = useState(false);
@@ -216,7 +217,7 @@ export default function SalesPosPage() {
             <select aria-label="Tipo de documento" className="h-9 rounded-md border bg-background px-2 text-xs" value={tipoDoc} onChange={(e) => setTipoDoc(e.target.value)}>
               <option value="6">RUC</option><option value="1">DNI</option><option value="0">Sin doc.</option>
             </select>
-            <Input aria-label="Documento del cliente" inputMode="numeric" maxLength={tipoDoc === '6' ? 11 : tipoDoc === '1' ? 8 : 20} placeholder={tipoDoc === '6' ? 'RUC de 11 dígitos' : tipoDoc === '1' ? 'DNI de 8 dígitos' : 'Sin documento'} value={documento} onChange={(e) => { const v = tipoDoc === '0' ? e.target.value : e.target.value.replace(/\D/g, '').slice(0, tipoDoc === '6' ? 11 : 8); setDocumento(v); }} onBlur={() => {
+            <Input aria-label="Documento del cliente" inputMode="numeric" maxLength={tipoDoc === '6' ? 11 : tipoDoc === '1' ? 8 : 20} placeholder={tipoDoc === '6' ? 'RUC de 11 dígitos' : tipoDoc === '1' ? 'DNI de 8 dígitos' : 'Sin documento'} value={documento} onChange={(e) => { const v = tipoDoc === '0' ? e.target.value : e.target.value.replace(/\D/g, '').slice(0, tipoDoc === '6' ? 11 : 8); setDocumento(v); setDocumentoAviso(''); }} onBlur={() => {
                   if (errorDocumento || !documento.trim()) return;
                   const doc = documento.trim();
                   const desdeMaestro = () => invoicesApi.buscarClientes(doc).then((lista) => {
@@ -229,13 +230,14 @@ export default function SalesPosPage() {
                       .catch(() => desdeMaestro());
                   } else if (tipoDoc === '1') {
                     void apiClient.get<{ nombreCompleto?: string }>(`/sunat/dni/${doc}`)
-                      .then(({ data }) => { if (data.nombreCompleto) setCliente(data.nombreCompleto); else return desdeMaestro(); })
-                      .catch(() => desdeMaestro());
+                      .then(({ data }) => { if (data.nombreCompleto) { setCliente(data.nombreCompleto); setDocumentoAviso(''); } else return desdeMaestro(); })
+                      .catch((e) => { setDocumentoAviso(extractApiErrorMessage(e, 'No se pudo consultar el DNI en Decolecta.')); return desdeMaestro(); });
                   } else {
                     void desdeMaestro();
                   }
                 }} />
           </div>
+          {documentoAviso ? <p className="mb-2 text-[11px] text-amber-600">{documentoAviso}</p> : null}
           <Input aria-label="Nombre del cliente" className="mb-1" placeholder="Razón social / nombre" value={cliente} onChange={(e) => setCliente(e.target.value)} />
           {errorDocumento ? <p className="mb-3 text-[11px] text-destructive">{errorDocumento}</p> : <div className="mb-3" />}
           <div className="mb-3 space-y-2">
