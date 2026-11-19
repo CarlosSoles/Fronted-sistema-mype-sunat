@@ -59,6 +59,8 @@ export interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   badge?: string;
   developer: string;
+  /** Mismo criterio que `SubNavItem.adelanto`, aplicado al módulo completo. */
+  adelanto?: { moduleCode: string };
 
   subItems?: SubNavItem[];
 }
@@ -181,7 +183,7 @@ export const NAV_ITEMS: NavItem[] = [
     subItems: [
       { title: 'Credenciales SUNAT', path: '/sire/credenciales', icon: KeyRound },
       { title: 'Datos de la Empresa', path: '/sire/configuracion', icon: Settings },
-      { title: 'Mapeo Contable', path: '/sire/mapeo-contable', icon: ListChecks },
+      { title: 'Mapeo Contable SIRE', path: '/sire/mapeo-contable', icon: ListChecks },
       { title: 'Importar Propuesta', path: '/sire/importar', icon: FileUp },
       { title: 'Consulta de periodos', path: '/sire/periodos', icon: Search },
       { title: 'Conciliación y Cruce', path: '/sire/conciliacion', icon: GitCompareArrows },
@@ -207,6 +209,22 @@ export const NAV_ITEMS: NavItem[] = [
       { title: 'Estado de Resultados', path: '/accounting/income-statement', icon: FileText, group: 'Reportes' },
       { title: 'Balance General', path: '/accounting/balance-sheet', icon: ClipboardCheck, group: 'Reportes' },
       { title: 'Libros Electrónicos (PLE/SIRE)', path: '/accounting/ple', icon: FileCheck2, group: 'Reportes' },
+    ],
+  },
+  {
+    title: 'Configuración Global',
+    path: '/configuracion-global',
+    icon: Settings,
+    developer: 'Diego Toledo',
+    adelanto: { moduleCode: 'M4' },
+
+    subItems: [
+      {
+        title: 'Credenciales de Empresa',
+        path: '/credenciales-empresa',
+        icon: KeyRound,
+        adelanto: { moduleCode: 'M4' },
+      },
     ],
   },
 ];
@@ -281,7 +299,14 @@ export const Sidebar = () => {
     return !loConoceElServidor && permissions.canView(sub.adelanto.moduleCode);
   };
   const subItemsVisibles = (item: NavItem): SubNavItem[] => (item.subItems ?? []).filter(puedeVerSubItem);
-  const visibleNavItems = NAV_ITEMS.filter(item => permissions.canNavigate(item.path));
+  const puedeVerItem = (item: NavItem): boolean => {
+    if (permissions.canNavigate(item.path)) return true;
+    if (!item.adelanto) return false;
+    const menus = permissions.snapshot?.menus ?? [];
+    const loConoceElServidor = menus.some(menu => menu.path === item.path);
+    return !loConoceElServidor && permissions.canView(item.adelanto.moduleCode);
+  };
+  const visibleNavItems = NAV_ITEMS.filter(puedeVerItem);
   const terminoMenu = menuQuery.trim().toLowerCase();
   const filteredNavItems = visibleNavItems.flatMap((item) => {
     if (!terminoMenu) return [item];

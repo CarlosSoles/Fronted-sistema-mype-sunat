@@ -192,8 +192,14 @@ export interface SireAsientoPreview {
   descripcion: string;
 }
 
-/** Tipos de operación que se asignan a una cuenta contable. */
-export const SIRE_MAPEO_TIPOS = ['VENTAS', 'COMPRAS', 'IGV', 'BASE'] as const;
+/** Tipos de operación que se asignan a una cuenta contable del PCGE. */
+export const SIRE_MAPEO_TIPOS = [
+  'VENTAS',
+  'COMPRAS',
+  'IGV_VENTAS',
+  'IGV_COMPRAS',
+  'BASE',
+] as const;
 
 export type SireMapeoTipoOperacion = (typeof SIRE_MAPEO_TIPOS)[number];
 

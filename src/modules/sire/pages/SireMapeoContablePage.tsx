@@ -9,7 +9,6 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  Input,
   Page,
   PageHeader,
   PageText,
@@ -27,22 +26,26 @@ import { SIRE_MAPEO_TIPOS, type SireMapeoTipoOperacion } from '../types/sire.typ
 const TIPO_LABELS: Record<SireMapeoTipoOperacion, string> = {
   VENTAS: 'VENTAS',
   COMPRAS: 'COMPRAS',
-  IGV: 'IGV',
+  IGV_VENTAS: 'IGV VENTAS',
+  IGV_COMPRAS: 'IGV COMPRAS',
   BASE: 'BASE',
 };
 
 /**
  * Pantalla de Mapeo Contable SIRE.
  *
- * Relaciona cada tipo de operación (VENTAS, COMPRAS, IGV y BASE) con su cuenta
- * contable. Al montar carga el mapeo guardado y al guardar envía el arreglo
- * completo a `POST /sire/mapeo-contable`.
+ * Relaciona cada tipo de operación con una cuenta real del Plan de Cuentas
+ * (PCGE). Al montar carga las cuentas y los mapeos guardados; al guardar envía
+ * el arreglo completo a `POST /sire/mapeo-contable`.
  */
 export default function SireMapeoContablePage() {
   const {
     isLoading,
     isSaving,
     values,
+    accounts,
+    isLoadingAccounts,
+    accountsError,
     error,
     saveError,
     successMessage,
@@ -56,17 +59,26 @@ export default function SireMapeoContablePage() {
     await save();
   };
 
+  const cargando = isLoading || isLoadingAccounts;
+
   return (
     <Page>
       <PageHeader
-        title="Mapeo Contable"
-        description="Asigna una cuenta contable a cada tipo de operación SIRE. Los cambios reemplazan el mapeo completo de la empresa."
+        title="Mapeo Contable SIRE"
+        description="Asigna cada operación SIRE a una cuenta real del Plan de Cuentas (PCGE). Los cambios reemplazan el mapeo completo de la empresa."
       />
 
       {error && (
         <Alert variant="destructive">
           <AlertTitle>No se pudo cargar el mapeo contable</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {accountsError && (
+        <Alert variant="destructive">
+          <AlertTitle>No se pudo cargar el Plan de Cuentas (PCGE)</AlertTitle>
+          <AlertDescription>{accountsError}</AlertDescription>
         </Alert>
       )}
 
@@ -86,7 +98,8 @@ export default function SireMapeoContablePage() {
             Cuentas contables por operación
           </CardTitle>
           <CardDescription>
-            Escribe el código de cuenta contable (PCGE) que corresponde a cada operación.
+            Selecciona la cuenta del PCGE que corresponde a cada operación. Solo se muestran
+            cuentas activas del Plan de Cuentas.
           </CardDescription>
         </CardHeader>
         <CardContent className="px-0">
@@ -95,39 +108,51 @@ export default function SireMapeoContablePage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Tipo de Operación</TableHead>
-                  <TableHead>Cuenta Contable</TableHead>
+                  <TableHead>Cuenta Contable (PCGE)</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {isLoading ? (
+                {cargando ? (
                   <TableRow>
                     <TableCell colSpan={2} align="center">
                       <span className="inline-flex items-center gap-2">
                         <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-                        Cargando mapeo contable…
+                        Cargando cuentas y mapeo contable…
                       </span>
                     </TableCell>
                   </TableRow>
                 ) : (
-                  SIRE_MAPEO_TIPOS.map((tipo) => (
-                    <TableRow key={tipo}>
-                      <TableCell className="font-medium">{TIPO_LABELS[tipo]}</TableCell>
-                      <TableCell>
-                        <Input
-                          aria-label={`Cuenta contable de ${TIPO_LABELS[tipo]}`}
-                          autoComplete="off"
-                          maxLength={20}
-                          placeholder="Ej. 121"
-                          value={values[tipo]}
-                          disabled={isSaving}
-                          onChange={(event) => {
-                            resetMessages();
-                            setCuenta(tipo, event.target.value);
-                          }}
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  SIRE_MAPEO_TIPOS.map((tipo) => {
+                    const seleccionada = values[tipo];
+                    const existeEnCatalogo = accounts.some((account) => account.code === seleccionada);
+                    return (
+                      <TableRow key={tipo}>
+                        <TableCell className="font-medium">{TIPO_LABELS[tipo]}</TableCell>
+                        <TableCell>
+                          <select
+                            aria-label={`Cuenta contable de ${TIPO_LABELS[tipo]}`}
+                            className="h-9 w-full rounded-lg border border-input bg-background px-3 text-xs"
+                            value={seleccionada}
+                            disabled={isSaving}
+                            onChange={(event) => {
+                              resetMessages();
+                              setCuenta(tipo, event.target.value);
+                            }}
+                          >
+                            <option value="">Selecciona una cuenta…</option>
+                            {seleccionada && !existeEnCatalogo && (
+                              <option value={seleccionada}>{seleccionada} · Cuenta guardada</option>
+                            )}
+                            {accounts.map((account) => (
+                              <option key={account.code} value={account.code}>
+                                {account.code} - {account.name}
+                              </option>
+                            ))}
+                          </select>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
@@ -135,7 +160,7 @@ export default function SireMapeoContablePage() {
             {saveError && <PageText variant="error">{saveError}</PageText>}
 
             <div className="flex flex-wrap items-center gap-3 px-4">
-              <Button type="submit" disabled={isLoading || isSaving} className="gap-2">
+              <Button type="submit" disabled={cargando || isSaving} className="gap-2">
                 {isSaving ? (
                   <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
                 ) : (
@@ -144,7 +169,7 @@ export default function SireMapeoContablePage() {
                 {isSaving ? 'Guardando…' : 'Guardar Mapeo'}
               </Button>
               <PageText variant="caption" className="text-muted-foreground">
-                Se guardan las cuatro operaciones a la vez.
+                Se guardan las cinco operaciones a la vez.
               </PageText>
             </div>
           </form>

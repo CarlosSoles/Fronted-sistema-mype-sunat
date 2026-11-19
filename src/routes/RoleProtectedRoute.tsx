@@ -16,6 +16,7 @@ import { getPermissionHome } from './roleNavigation';
  */
 const RUTAS_ADELANTADAS: ReadonlyArray<{ path: string; moduleCode: string }> = [
   { path: '/accounting/guia', moduleCode: 'M4' },
+  { path: '/credenciales-empresa', moduleCode: 'M4' },
 ];
 
 export const RoleProtectedRoute = ({ children }: { children?: ReactNode }) => {

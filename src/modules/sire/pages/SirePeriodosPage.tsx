@@ -104,7 +104,7 @@ export default function SirePeriodosPage() {
     <Page>
       <PageHeader
         title="Consulta de periodos SIRE"
-        description="Consulta a SUNAT los periodos de un libro. El backend procesa la solicitud en segundo plano y el frontend sigue su avance hasta que concluye."
+        description="Consulta a SUNAT los periodos de un libro con las credenciales globales de la empresa. El backend procesa la solicitud en segundo plano y el frontend sigue su avance hasta que concluye."
       />
       <Card>
         <CardHeader>

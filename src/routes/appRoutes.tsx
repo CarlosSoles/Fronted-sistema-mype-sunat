@@ -13,6 +13,7 @@ const LoginPage = React.lazy(() => import('@/modules/auth/pages/LoginPage'));
 const RegisterPage = React.lazy(() => import('@/modules/auth/pages/RegisterPage'));
 const ProfilePage = React.lazy(() => import('@/modules/auth/pages/ProfilePage'));
 const SecurityPage = React.lazy(() => import('@/modules/auth/pages/SecurityPage'));
+const CredencialesEmpresaPage = React.lazy(() => import('@/modules/company/pages/CredencialesEmpresaPage'));
 
 // La bandeja oficial es InvoiceList: en dev la rehizo Oliver para que la
 // grilla se alimente del backend (GET /invoices), con reintento de CDR desde
@@ -123,6 +124,14 @@ export const AppRoutes = () => {
             {/* Módulo de Identidad & Perfil */}
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/settings/security" element={<SecurityPage />} />
+            <Route
+              path="/credenciales-empresa"
+              element={
+                <RoleProtectedRoute>
+                  <CredencialesEmpresaPage />
+                </RoleProtectedRoute>
+              }
+            />
 
             {/* [M1: Facturación] ADMIN, OPERADOR_FACTURACION, CONTADOR, AUDITOR */}
             <Route path="/invoices" element={<Navigate to="/invoices/dashboard" replace />} />

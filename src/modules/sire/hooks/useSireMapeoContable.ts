@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
+import { accountingApi } from '@/modules/accounting/services/accountingApi';
+import type { AccountingAccount } from '@/modules/accounting/types/accounting.types';
 import { sireApi } from '../services/sireApi';
 import {
   SIRE_MAPEO_TIPOS,
@@ -12,7 +14,8 @@ export type SireMapeoForm = Record<SireMapeoTipoOperacion, string>;
 const emptyForm = (): SireMapeoForm => ({
   VENTAS: '',
   COMPRAS: '',
-  IGV: '',
+  IGV_VENTAS: '',
+  IGV_COMPRAS: '',
   BASE: '',
 });
 
@@ -31,6 +34,12 @@ export interface UseSireMapeoContable {
   isSaving: boolean;
   /** Cuenta contable escrita por tipo de operación. */
   values: SireMapeoForm;
+  /** Cuentas reales del Plan de Cuentas (PCGE) habilitadas para asignar. */
+  accounts: AccountingAccount[];
+  /** Está cargando las cuentas del PCGE. */
+  isLoadingAccounts: boolean;
+  /** Error al cargar las cuentas del PCGE. */
+  accountsError: string | null;
   /** Error al cargar los mapeos existentes. */
   error: string | null;
   /** Error al guardar los mapeos. */
@@ -54,11 +63,45 @@ export interface UseSireMapeoContable {
  */
 export const useSireMapeoContable = (): UseSireMapeoContable => {
   const [values, setValues] = useState<SireMapeoForm>(emptyForm);
+  const [accounts, setAccounts] = useState<AccountingAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingAccounts, setIsLoadingAccounts] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [accountsError, setAccountsError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    accountingApi
+      .getAccounts()
+      .then((result) => {
+        if (!active) return;
+        setAccounts(
+          [...result]
+            .filter((account) => account.isActive)
+            .sort((a, b) => a.code.localeCompare(b.code, 'es', { numeric: true })),
+        );
+      })
+      .catch((cause: unknown) => {
+        if (active) {
+          setAccountsError(
+            cause instanceof Error
+              ? cause.message
+              : 'No se pudo cargar el Plan de Cuentas (PCGE).',
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setIsLoadingAccounts(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -133,6 +176,9 @@ export const useSireMapeoContable = (): UseSireMapeoContable => {
     isLoading,
     isSaving,
     values,
+    accounts,
+    isLoadingAccounts,
+    accountsError,
     error,
     saveError,
     successMessage,

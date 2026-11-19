@@ -23,7 +23,7 @@ export default function SireImportPage() {
     <Page>
       <PageHeader
         title="Importar propuesta SIRE"
-        description="Importa una propuesta en el formato interno provisional y continúa con la conciliación."
+        description="Importa una propuesta en el formato interno provisional y continúa con la conciliación. Las consultas tributarias usan las credenciales globales de la empresa."
       />
       <Alert variant="warning">
         <AlertTitle>Formato interno provisional — no oficial SUNAT</AlertTitle>

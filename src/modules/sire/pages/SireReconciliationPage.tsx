@@ -9,7 +9,6 @@ import { SireVouchersTable } from '../components/SireVouchersTable';
 import { SireProposalPanel } from '../components/SireProposalPanel';
 import { SireRceKardexReconciliation } from '../components/SireRceKardexReconciliation';
 import { SireHealthDashboard } from '../components/SireHealthDashboard';
-import { SireAsientosPreview } from '../components/SireAsientosPreview';
 import { useSireReconciliation } from '../hooks/useSireReconciliation';
 import { useSireReconciliationStore } from '../stores/sireReconciliationStore';
 import type { ComprobanteDraft, SireBookType } from '../types/sire.types';
@@ -111,7 +110,6 @@ export default function SireReconciliationPage() {
         <p className="text-xs text-muted-foreground">
           RUC de sesión: <span>{companyRuc}</span>
         </p>
-        <SireAsientosPreview period={period} />
       </div>
 
       {/* Selector de Libro y Modo de Conciliación */}
