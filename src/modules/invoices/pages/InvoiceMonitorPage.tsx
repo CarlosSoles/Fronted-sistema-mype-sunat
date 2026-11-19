@@ -1,3 +1,9 @@
+import { ETIQUETAS_ALERTA } from '../lib/invoiceAlertas';
+import { InvoicePriorityNotice } from '../components/InvoicePriorityNotice';
+import { InvoiceStatusBadge } from '../components/InvoiceStatusBadge';
+import { InvoiceIssueGuidance } from '../components/InvoiceIssueGuidance';
+import { InvoiceWait } from '../components/InvoiceWait';
+import { InvoiceUxPage as Page } from '../components/InvoiceUxPage';
 import { useActionPermissions } from '@/modules/auth/hooks/useActionPermissions';
 import { useInvoiceWritePermission } from '../hooks/useInvoiceWritePermission';
 import { InvoiceLastUpdated } from '../components/InvoiceLastUpdated';
@@ -32,16 +38,12 @@ import { InvoiceAggregateMonitor } from '../components/InvoiceAggregateMonitor';
  */
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
   Badge,
   Button,
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-  Page,
   PageGrid,
   PageHeader,
   PageText,
@@ -184,9 +186,8 @@ export default function InvoiceMonitorPage() {
   return (
     <Page>
       {avisoPuente && <p role="status">{avisoPuente}</p>}
-      <InvoiceAggregateMonitor />
       <PageHeader
-        title="Monitor Outbox y Auditoría CDR"
+        title="Monitor de envíos y Constancia de Recepción (CDR)"
         description="Cola de envío, reintentos y salud del certificado de firma"
       >
         <Button
@@ -203,21 +204,12 @@ export default function InvoiceMonitorPage() {
 
       <InvoiceBatchRetry onComplete={() => void cargar()} />
 
-      {avisoReintento && (
-        <Alert variant={avisoReintento.encolado ? 'success' : 'destructive'}>
-          <AlertTitle>
-            {avisoReintento.encolado ? 'Comprobante reencolado' : 'Comprobante no reencolado'}
-          </AlertTitle>
-          <AlertDescription>{avisoReintento.mensaje}</AlertDescription>
-        </Alert>
-      )}
-
-      {error && (
-        <Alert variant="destructive">
-          <AlertTitle>No se pudo consultar la cola</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
+      <InvoicePriorityNotice notices={[
+        error ? {priority:100,title:'No se pudo consultar la cola',text:error}:null,
+        alertas?.dlq.pendientes ? {priority:95,title:'Envíos que requieren revisión',text:alertas.dlq.mensaje}:null,
+        avisoReintento ? {priority:avisoReintento.encolado?30:90,title:avisoReintento.encolado?'Comprobante reencolado':'Comprobante no reencolado',text:avisoReintento.mensaje}:null,
+        alertas?.certificado.gravedad==='CRITICO'?{priority:85,title:'Certificado digital',text:alertas.certificado.mensaje}:null,
+      ]}/>
 
       {alertas ? (<>
       {/*
@@ -236,7 +228,7 @@ export default function InvoiceMonitorPage() {
                 ]
               }
             >
-              {alertas?.certificado.gravedad ?? 'SIN_DATOS'}
+              {ETIQUETAS_ALERTA[alertas?.certificado.gravedad ?? 'SIN_DATOS']}
             </Badge>
           </CardHeader>
           <CardContent>
@@ -252,13 +244,13 @@ export default function InvoiceMonitorPage() {
 
         <Card size="sm">
           <CardHeader>
-            <CardTitle>Cola de muertos (DLQ)</CardTitle>
+            <CardTitle>Envíos pendientes de revisión (DLQ)</CardTitle>
             <Badge
               variant={
                 VARIANTE_POR_GRAVEDAD[alertas?.dlq.gravedad ?? 'SIN_DATOS']
               }
             >
-              {alertas?.dlq.gravedad ?? 'SIN_DATOS'}
+              {ETIQUETAS_ALERTA[alertas?.dlq.gravedad ?? 'SIN_DATOS']}
             </Badge>
           </CardHeader>
           <CardContent>
@@ -274,7 +266,7 @@ export default function InvoiceMonitorPage() {
       </PageGrid>
 
       {alertas.antiguedad && <InvoiceSendAgeAlert alerta={alertas.antiguedad} />}
-      </>) : !error ? <div role="status">Cargando estado del monitor…</div> : null}
+      </>) : !error ? <InvoiceWait label="Cargando estado del monitor…" skeleton /> : null}
 
       {alertas && <Card flush className="min-w-0">
         <CardHeader>
@@ -304,7 +296,7 @@ export default function InvoiceMonitorPage() {
                 <TableCell colSpan={4} align="center">
                   {cargando
                     ? 'Consultando la cola de envío…'
-                    : filtroEstado !== 'TODOS' ? 'No hay comprobantes con ese estado.' : 'No hay comprobantes esperando en la cola. Todo lo emitido ya tiene respuesta de SUNAT.'}
+                    : filtroEstado !== 'TODOS' ? 'No hay comprobantes con ese estado.' : 'No hay comprobantes en esta cola. Puede revisar la bandeja o actualizar la consulta.'}
                 </TableCell>
               </TableRow>
             ) : (
@@ -320,16 +312,9 @@ export default function InvoiceMonitorPage() {
                     </PageText>
                   </TableCell>
                   <TableCell>
-                    <Badge
-                      className="h-auto min-h-5 max-w-full whitespace-normal [overflow-wrap:anywhere]"
-                      variant={
-                        (estadoDeMonitor(inv) === 'ERROR_RED' || estadoDeMonitor(inv) === 'DLQ')
-                          ? 'destructive'
-                          : 'outline'
-                      }
-                    >
-                      {['ERROR_RED', 'INCERTIDUMBRE_TRANSPORTE'].includes(estadoDeMonitor(inv)) ? 'Incertidumbre de transporte' : estadoDeMonitor(inv) === 'PREPARACION_LOCAL' ? 'Bloqueado en preparación local' : estadoDeMonitor(inv) === 'PUENTE_PENDIENTE' ? `${inv.estadoBackend} con puente pendiente` : estadoDeMonitor(inv)}
-                    </Badge>
+                    <InvoiceStatusBadge estado={inv.cdrStatus==='ACEPTADO_SUNAT'?'ACEPTADO':inv.cdrStatus==='RECHAZADO_SUNAT'?'RECHAZADO':'EN_COLA'} estadoBackend={inv.estadoBackend} resultado={inv.resultadoPresentacion} codigo={inv.cdrCodigo}/>
+                    {inv.enDlq && <p className="text-sm font-semibold">Requiere revisión de envío (DLQ)</p>}
+                    {(inv.enDlq || ['ERROR_RED','RECHAZADO'].includes(inv.estadoBackend??'')) && <InvoiceIssueGuidance codigo={inv.resultadoPresentacion?.codigo??inv.ultimoErrorCodigo??inv.cdrCodigo} motivo={inv.resultadoPresentacion?.motivo??inv.ultimoErrorMensaje??inv.cdrMensaje}/>}
                     {['TRANSPORTE_INCIERTO', 'PREPARACION_LOCAL', 'BRIDGE_PENDING'].includes(inv.resultadoPresentacion?.origen ?? '') && <p className="text-xs text-muted-foreground">{inv.resultadoPresentacion?.motivo}</p>}
                   </TableCell>
                   <TableCell align="center">
@@ -349,7 +334,7 @@ export default function InvoiceMonitorPage() {
                         onClick={() => void reintentar(inv.id)}
                       >
                         <RotateCw aria-hidden="true" className="mr-1 h-3 w-3" />
-                        {reintentando === inv.id ? '…' : 'Reintentar'}
+                        {reintentando === inv.id ? 'Reintentando…' : 'Reintentar'}
                       </InvoiceWriteButton>
                     )}
                   </TableCell>
@@ -359,6 +344,7 @@ export default function InvoiceMonitorPage() {
           </TableBody>
         </Table>
       </Card>}
+      <InvoiceAggregateMonitor />
       <InvoiceRvieSection />
     </Page>
   );

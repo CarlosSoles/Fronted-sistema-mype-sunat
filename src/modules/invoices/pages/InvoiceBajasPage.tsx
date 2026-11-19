@@ -1,3 +1,5 @@
+import { InvoiceStatusBadge } from '../components/InvoiceStatusBadge';
+import { InvoiceUxPage as Page } from '../components/InvoiceUxPage';
 import { InvoiceWriteButton } from '../components/InvoiceWriteButton';
 import { EnviarBajaPanel } from '../components/EnviarBajaPanel';
 /**
@@ -31,7 +33,6 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  Page,
   PageHeader,
   PageText,
   Table,
@@ -47,7 +48,6 @@ import { hoyEnLima } from '../lib/invoiceFecha';
 import { EnviarResumenDiarioBoton } from '../components/EnviarResumenDiarioBoton';
 import {
   esLineaReenviable,
-  ETIQUETA_ESTADO_SUNAT,
   ETIQUETA_TIPO,
   resumirVista,
   type LineaResumen,
@@ -277,9 +277,7 @@ export default function InvoiceBajasPage() {
                           {ETIQUETA_TIPO[l.tipoComprobante] ?? l.tipoComprobante}
                         </TableCell>
                         <TableCell>
-                          <Badge variant={l.estado === 'ACEPTADO' || l.estado === 'OBSERVADO' ? 'secondary' : 'outline'}>
-                            {ETIQUETA_ESTADO_SUNAT[l.estado] ?? l.estado}
-                          </Badge>
+                          <InvoiceStatusBadge estado={l.estado} estadoBackend={l.estado} />
                         </TableCell>
                         <TableCell>{l.fechaEmision}</TableCell>
                         <TableCell align="right">

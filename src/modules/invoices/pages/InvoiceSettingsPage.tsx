@@ -1,3 +1,4 @@
+import { InvoiceUxPage as Page } from '../components/InvoiceUxPage';
 import { ConfigurationHub } from '../components/ConfigurationHub';
 import { SunatConnectionTest } from '../components/SunatConnectionTest';
 import { InvoiceCommercialDefaults } from '../components/InvoiceCommercialDefaults';
@@ -7,7 +8,6 @@ import {
   Alert,
   AlertDescription,
   AlertTitle,
-  Page,
   PageHeader,
   PageText,
 } from '@/components/ui';
@@ -46,7 +46,7 @@ export default function InvoiceSettingsPage() {
   return (
     <Page>
       <PageHeader
-        title="Configuración de Facturación Electrónica"
+        title="Configuración de facturación"
         description="Entorno de SUNAT, series con correlativo propio y estado de las credenciales para emitir"
       >
         <PageText variant="caption" className="text-muted-foreground">
