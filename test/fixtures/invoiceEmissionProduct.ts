@@ -13,3 +13,9 @@ export async function seleccionarProductoPrueba(sku = 'SERV') {
   fireEvent.change(buscador, { target: { value: sku } });
   fireEvent.click(await screen.findByRole('button', { name: new RegExp(sku + ' ·') }));
 }
+
+/** Paso de revisión visible introducido en la ventanilla; las aserciones del payload siguen siendo las mismas. */
+export function confirmarRevisionSiAbierta() {
+  const confirmar = screen.queryByRole('button', { name: 'Confirmar emisión' });
+  if (confirmar) fireEvent.click(confirmar);
+}
