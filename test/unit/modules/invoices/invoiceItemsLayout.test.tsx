@@ -9,15 +9,15 @@ afterEach(cleanup);
 const props = () => ({ onCambiar: vi.fn(), onEliminar: vi.fn(), onAgregar: vi.fn(), onAgregarBolsa: vi.fn() });
 
 describe('presentación del detalle de líneas', () => {
-  it('distribuye los campos en tabla compacta >=1024px y tarjeta densa <1024px', () => {
+  it('distribuye los campos en tabla compacta con panel >=1024px y tarjeta densa con panel <1024px', () => {
     render(<InvoiceItemsGrid items={[itemVacio('a')]} {...props()} />);
     const region = screen.getByRole('region', { name: 'Líneas del comprobante' });
     const table = screen.getByRole('table');
     expect(region.contains(table)).toBe(true);
     expect(region.className).toContain('overflow-x-hidden');
     expect(region.tabIndex).toBe(0);
-    expect(table.className).toContain('lg:table');
-    expect(screen.getByLabelText('Cantidad de la línea 1').closest('tr')?.className).toContain('lg:table-row');
+    expect(table.className).toContain('@min-[1024px]/items:table');
+    expect(screen.getByLabelText('Cantidad de la línea 1').closest('tr')?.className).toContain('@min-[1024px]/items:table-row');
     expect(table.querySelectorAll('thead')).toHaveLength(1);
     expect(table.querySelectorAll('tbody')).toHaveLength(1);
     expect(screen.getByLabelText('Valor unitario de la línea 1').tagName).toBe('SPAN');
