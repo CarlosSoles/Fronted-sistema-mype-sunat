@@ -39,7 +39,7 @@ it.each([
  expect(screen.getByLabelText(ETIQUETAS_BANDEJA[categoria])).toBeTruthy();
 });
 it.each([undefined,'0','9999'])('badge conserva código útil %s',(codigo)=>{
- render(<InvoiceStatusBadge estado="ACEPTADO" codigo={codigo}/>);expect(screen.getByText(codigo==='9999'?'Aceptado · 9999':'Aceptado')).toBeTruthy();
+ render(<InvoiceStatusBadge estado="ACEPTADO" codigo={codigo}/>);expect(screen.getByText(codigo==='9999'?'Aceptada · 9999':'Aceptada')).toBeTruthy();
 });
 it('tarjeta hace visible ICBPER verificado y la igualdad al céntimo',()=>{
  const comprobante={...c,baseImponible:100,igv:18,totalNeto:118.5,importesBandeja:{base:100,igv:18,icbper:.5,total:118.5,verificado:true}};

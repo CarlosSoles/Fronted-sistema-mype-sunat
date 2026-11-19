@@ -1,3 +1,4 @@
+import { confirmarRevisionSiAbierta } from '../../../fixtures/invoiceEmissionProduct';
 import { beforeEach as billingBeforeEach } from 'vitest';
 import { useAuthStore as billingAuth } from '@/stores/authStore';
 import {afterEach,expect,it,vi} from 'vitest';
@@ -26,7 +27,7 @@ it('Alt+C/P/L funciona desde body y por code, sin duplicarse dentro del formular
 it('Ctrl+Enter fuera del form abre revisión y confirmar ejecuta las validaciones y un solo POST',async()=>{
  await montar();fireEvent.change(document.getElementById('doc-cliente')!,{target:{value:'20100070970'}});fireEvent.change(screen.getByLabelText('Razón social / nombre'),{target:{value:'Cliente'}});fireEvent.change(screen.getByLabelText('Buscar producto'),{target:{value:'CEM'}});fireEvent.click(screen.getByRole('button',{name:/CEM · Cemento/}));
  fireEvent.keyDown(document.body,{ctrlKey:true,key:'Enter',code:'Enter'});expect(screen.getByRole('dialog')).toBeTruthy();expect(invoicesApi.emitirComprobante).not.toHaveBeenCalled();
- fireEvent.click(screen.getByRole('button',{name:'Confirmar emisión revisada'}));await waitFor(()=>expect(invoicesApi.emitirComprobante).toHaveBeenCalledTimes(1));
+ fireEvent.click(screen.getByRole('button',{name:'Confirmar emisión revisada'})); confirmarRevisionSiAbierta();await waitFor(()=>expect(invoicesApi.emitirComprobante).toHaveBeenCalledTimes(1));
 });
 it('no captura los atajos de otro diálogo y elimina el listener al desmontar',async()=>{
  await montar();const dialog=document.createElement('div');dialog.setAttribute('role','dialog');document.body.append(dialog);

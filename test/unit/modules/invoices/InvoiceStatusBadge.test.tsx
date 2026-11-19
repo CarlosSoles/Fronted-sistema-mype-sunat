@@ -18,7 +18,7 @@ describe('InvoiceStatusBadge', () => {
   it('rotula un fallo de envío como "Sin confirmar"', () => {
     render(<InvoiceStatusBadge estado="SIN_CONFIRMAR" />);
 
-    expect(screen.getByText('Incertidumbre de transporte')).toBeDefined();
+    expect(screen.getByText('Sin confirmación')).toBeDefined();
   });
 
   it('NO confunde un fallo de envío con un rechazo', () => {
@@ -37,15 +37,15 @@ describe('InvoiceStatusBadge', () => {
     const { container } = render(<InvoiceStatusBadge estado="SIN_CONFIRMAR" />);
     const clases = container.firstElementChild?.className ?? '';
 
-    expect(clases).toContain('text-amber-700');
+    expect(clases).toContain('text-amber-900');
     expect(clases).not.toContain('text-destructive');
   });
 
   it('un rechazo real de SUNAT sigue diciendo "Rechazado"', () => {
     // La condición del pedido: el caso contrario no puede cambiar.
-    render(<InvoiceStatusBadge estado="RECHAZADO" codigo="2992" />);
+    render(<InvoiceStatusBadge estado="RECHAZADO" codigo="2992" resultado={{origen:'SUNAT',codigo:'2992',motivo:'Rechazo real'}} />);
 
-    expect(screen.getByText(/Rechazado/)).toBeDefined();
+    expect(screen.getByText(/Rechazada/)).toBeDefined();
     expect(screen.getByText(/2992/)).toBeDefined();
   });
 
@@ -53,7 +53,7 @@ describe('InvoiceStatusBadge', () => {
     const { container } = render(<InvoiceStatusBadge estado="SIN_CONFIRMAR" />);
 
     expect(container.firstElementChild?.getAttribute('aria-label')).toContain(
-      'Incertidumbre de transporte',
+      'Sin confirmación',
     );
   });
 

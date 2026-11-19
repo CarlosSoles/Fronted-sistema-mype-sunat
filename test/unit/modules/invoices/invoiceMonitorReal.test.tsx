@@ -43,7 +43,7 @@ afterEach(()=>{cleanup();vi.resetAllMocks();});
 it('API sin historial: documentos únicos DLQ, estados finales, páginas y trabajos separados',async()=>{
  render(<InvoiceMonitorPage/>);
  await screen.findByText(local.numero);
- const card=within(screen.getByText('Cola de muertos (DLQ)').closest('[data-slot="card"]') as HTMLElement);
+ const card=within(screen.getByText('Envíos pendientes de revisión (DLQ)').closest('[data-slot="card"]') as HTMLElement);
  expect(card.getByText('3')).toBeTruthy();expect(card.getByText('4 trabajos en DLQ · 3 documentos únicos')).toBeTruthy();
  fireEvent.change(screen.getByLabelText('Filtrar estado del monitor'),{target:{value:'DLQ'}});
  expect(screen.getByText('Comprobantes en vuelo (3)')).toBeTruthy();
@@ -110,7 +110,7 @@ it('resuelve la DLQ del aceptado con CDR por acción explícita y actualiza la t
   expect(await screen.findByText('2 trabajos de DLQ resueltos. El comprobante fiscal conserva su estado.')).toBeTruthy();
   await waitFor(() => expect(screen.queryByText(final.numero)).toBeNull());
   expect(apiClient.post).toHaveBeenCalledExactlyOnceWith('/invoices/80/resolver-dlq');
-  const card = within(screen.getByText('Cola de muertos (DLQ)').closest('[data-slot="card"]') as HTMLElement);
+  const card = within(screen.getByText('Envíos pendientes de revisión (DLQ)').closest('[data-slot="card"]') as HTMLElement);
   expect(card.getByText('2')).toBeTruthy();
 });
 it('el aceptado sin CDR no ofrece resolución de DLQ', async () => {

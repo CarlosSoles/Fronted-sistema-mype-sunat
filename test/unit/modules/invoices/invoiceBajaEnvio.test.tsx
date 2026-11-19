@@ -1,3 +1,4 @@
+import '@testing-library/jest-dom/vitest';
 // Este flujo aísla los permisos; invoiceServerPermissions prueba los hooks reales y la API.
 vi.mock('@/modules/invoices/hooks/useInvoiceWritePermission', async () => {
  const { useAuthStore } = await import('@/stores/authStore');
@@ -17,7 +18,7 @@ import { EnviarBajaPanel } from '@/modules/invoices/components/EnviarBajaPanel';
 import { InvoiceAggregateMonitor } from '@/modules/invoices/components/InvoiceAggregateMonitor';
 import { invoicesApi } from '@/modules/invoices/services/invoicesApi';
 import type { VistaPreviaResumen } from '@/modules/invoices/lib/invoiceResumenes';
-vi.mock('@/modules/invoices/services/invoicesApi', () => ({ invoicesApi: { previsualizarBaja: vi.fn(), enviarBaja: vi.fn(), previsualizarAnulacionNotas: vi.fn(), enviarAnulacionNotas: vi.fn(), getAgregados: vi.fn(), consultarAgregado: vi.fn() } }));
+vi.mock('@/modules/invoices/services/invoicesApi', () => ({ invoicesApi: { getInvoiceById: vi.fn(), previsualizarBaja: vi.fn(), enviarBaja: vi.fn(), previsualizarAnulacionNotas: vi.fn(), enviarAnulacionNotas: vi.fn(), getAgregados: vi.fn(), consultarAgregado: vi.fn() } }));
 const vista: VistaPreviaResumen = { envio: { identificador: 'RA-20261109-001', tipo: 'COMUNICACION_BAJA', fechaReferencia: '2026-11-09', correlativo: 1, lineas: 1 }, errores: [], xml: '<VoidedDocuments/>', lineas: [
   { id: 'i', serie: 'F001', correlativo: 62, tipoComprobante: '01', fechaEmision: '2026-11-09', estado: 'ACEPTADO', incluido: true, total: 118, dias: 0, motivoExclusion: '' },
   { id: 'nc', serie: 'F001', correlativo: 61, tipoComprobante: '01', fechaEmision: '2026-11-09', estado: 'ACEPTADO', incluido: false, total: 118, dias: 0, motivoExclusion: 'Neutralizado por nota de crédito de saldo completo.' },
@@ -38,7 +39,7 @@ it('selección y motivo se previsualizan y envían solo tras confirmación', asy
   fireEvent.click(screen.getByRole('button', { name: 'Ver XML de selección' }));
   expect(await screen.findByText('XML de los documentos seleccionados')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Enviar baja a SUNAT' })); expect(invoicesApi.enviarBaja).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('button', { name: 'Confirmar baja en SUNAT' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Anular factura' }));
   expect((await screen.findByRole('status')).textContent).toContain('RA-20261109-002');
   expect(invoicesApi.enviarBaja).toHaveBeenCalledExactlyOnceWith('2026-11-09', [{ id: 'i', motivo: 'Error de operación' }]); expect(refresh).toHaveBeenCalledTimes(1); expect((screen.getByRole('button', { name: 'Enviar baja a SUNAT' }) as HTMLButtonElement).disabled).toBe(true);
 });
@@ -50,7 +51,7 @@ it('editar el motivo invalida el XML previo y obliga a actualizarlo', async () =
 });
 it('presenta motivo de rechazo a la preparación sin afirmar aceptación', async () => {
   vi.mocked(invoicesApi.previsualizarBaja).mockResolvedValue(vista); vi.mocked(invoicesApi.enviarBaja).mockResolvedValue({ enviado: false, identificador: 'RA-20261109-001', jobId: null, incluidos: 1, motivo: 'Validación XSD bloqueada' });
-  render(<EnviarBajaPanel fecha="2026-11-09" vista={vista} onEnviado={vi.fn()} />); fireEvent.click(screen.getByLabelText('Dar de baja F001-00000062')); fireEvent.click(screen.getByRole('button', { name: 'Ver XML de selección' })); await screen.findByText('XML de los documentos seleccionados'); fireEvent.click(screen.getByRole('button', { name: 'Enviar baja a SUNAT' })); fireEvent.click(screen.getByRole('button', { name: 'Confirmar baja en SUNAT' }));
+  render(<EnviarBajaPanel fecha="2026-11-09" vista={vista} onEnviado={vi.fn()} />); fireEvent.click(screen.getByLabelText('Dar de baja F001-00000062')); fireEvent.click(screen.getByRole('button', { name: 'Ver XML de selección' })); await screen.findByText('XML de los documentos seleccionados'); fireEvent.click(screen.getByRole('button', { name: 'Enviar baja a SUNAT' })); fireEvent.click(screen.getByRole('button', { name: 'Anular factura' }));
   expect((await screen.findByRole('status')).textContent).toContain('Validación XSD bloqueada');
 });
 it.each(['RA', 'RC'] as const)('Monitor muestra %s, ticket, causa y consulta sin reenvío', async kind => {
@@ -137,8 +138,15 @@ it('anula BC/BD por RC solo con selección, XML y confirmación de no otorgamien
   fireEvent.click(screen.getByLabelText('Confirmo que estas notas no fueron otorgadas al receptor.'));
   fireEvent.click(screen.getByRole('button', { name: 'Enviar anulación RC a SUNAT' }));
   expect(invoicesApi.enviarAnulacionNotas).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('button', { name: 'Confirmar anulación RC en SUNAT' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Anular comprobantes' }));
   await screen.findByRole('status');
   expect(invoicesApi.enviarAnulacionNotas).toHaveBeenCalledExactlyOnceWith('2026-11-09', [{ id: 'BC01', motivo: 'Anulación de la operación' }, { id: 'BD01', motivo: 'Anulación de la operación' }]);
   expect(invoicesApi.enviarBaja).not.toHaveBeenCalled();
+});
+
+it('confirmación identifica documento, cliente, importe y consecuencia con foco seguro',async()=>{
+ vi.mocked(invoicesApi.previsualizarBaja).mockResolvedValue(vista);vi.mocked(invoicesApi.getInvoiceById).mockResolvedValue({clienteRazonSocial:'Cliente identificado'} as never);
+ render(<EnviarBajaPanel fecha="2026-11-09" vista={vista} onEnviado={vi.fn()}/>);
+ fireEvent.click(screen.getByLabelText('Dar de baja F001-00000062'));fireEvent.click(screen.getByRole('button',{name:'Ver XML de selección'}));await screen.findByText('XML de los documentos seleccionados');fireEvent.click(screen.getByRole('button',{name:'Enviar baja a SUNAT'}));
+ expect(await screen.findByText(/F001-00000062 · Cliente identificado/)).toBeVisible();expect(screen.getByText(/SUNAT registrará la baja cuando la acepte y no podrás revertirla/)).toBeVisible();expect(screen.getByRole('button',{name:'Cancelar'})).toHaveFocus();expect(screen.getByRole('button',{name:'Anular factura'})).not.toHaveFocus();expect(invoicesApi.enviarBaja).not.toHaveBeenCalled();
 });

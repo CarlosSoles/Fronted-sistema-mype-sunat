@@ -1,3 +1,4 @@
+import { confirmarRevisionSiAbierta } from '../../../fixtures/invoiceEmissionProduct';
 import { beforeEach as billingBeforeEach } from 'vitest';
 import { useAuthStore as billingAuth } from '@/stores/authStore';
 import {afterEach,beforeEach,expect,it,vi} from 'vitest';
@@ -23,7 +24,7 @@ it.each(['modal','pagina'])('%s entrega dos bolsas con el producto registrado y 
  expect(screen.queryByRole('button',{name:/Bolsa plástica/})).toBeNull();
  fireEvent.change(screen.getByLabelText('ICBPER de la línea 1'),{target:{value:'2'}});
  expect(screen.queryByLabelText('Cantidad de la línea 2')).toBeNull();
- if(via==='modal')fireEvent.click(screen.getByRole('button',{name:'Emitir Factura'}));else fireEvent.submit(document.querySelector('form')!);
+ if(via==='modal')fireEvent.click(screen.getByRole('button',{name:'Emitir Factura'}));else fireEvent.submit(document.querySelector('form')!); confirmarRevisionSiAbierta();
  await waitFor(()=>expect(invoicesApi.emitirComprobante).toHaveBeenCalledWith(expect.objectContaining({items:[expect.objectContaining({codigo:'CEM-001',cantidad:1,cantidadBolsas:2,icbper:1,precioUnitario:118})]}),expect.anything()));
 });
 it.each([-1,1.5,NaN,Infinity])('rechaza bolsas inválidas %s sin truncarlas',cantidadBolsas=>{

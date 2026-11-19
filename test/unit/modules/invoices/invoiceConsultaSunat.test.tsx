@@ -29,7 +29,7 @@ it('detalle consulta solo por acción explícita y muestra estado, código y men
   expect(apiClient.post).not.toHaveBeenCalled();
   fireEvent.click(await screen.findByRole('button', { name: 'Consultar SUNAT' }));
   expect(await screen.findByText('Mensaje: Factura aceptada por SUNAT')).toBeTruthy();
-  expect(screen.getByText('Estado: ACEPTADO')).toBeTruthy(); expect(screen.getByText('Código: 0')).toBeTruthy();
+  expect(screen.getByText('Estado: Aceptada')).toBeTruthy(); expect(screen.getByText('Código: 0')).toBeTruthy();
   expect(apiClient.post).toHaveBeenCalledExactlyOnceWith(`/invoices/${comprobante.id}/consultar-sunat`);
   expect(onCerrar).not.toHaveBeenCalled(); expect(screen.getByRole('dialog')).toBeTruthy();
 });
@@ -52,7 +52,7 @@ it('deshabilita consultas simultáneas y no dispara ninguna acción de cola', as
   const button = screen.getByRole('button', { name: 'Consultando SUNAT…' }) as HTMLButtonElement;
   expect(button.disabled).toBe(true); fireEvent.click(button); expect(apiClient.post).toHaveBeenCalledTimes(1);
   resolver({ data: recuperado });
-  expect(await screen.findByText('Estado: ACEPTADO')).toBeTruthy();
+  expect(await screen.findByText('Estado: Aceptada')).toBeTruthy();
 });
 it('muestra fallo de consulta dentro de la vista y permite intentarlo otra vez', async () => {
   vi.mocked(apiClient.post).mockRejectedValue(new Error('red caída'));

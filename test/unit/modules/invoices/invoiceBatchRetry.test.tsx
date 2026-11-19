@@ -42,7 +42,7 @@ it.each(['AUDITOR','OPERADOR_FACTURACION','CONTADOR'] as const)('%s no tiene acc
 it('el Monitor real muestra vista previa de la API, confirma y conserva los conteos reales tras actualizar',async()=>{
  vi.spyOn(invoicesApi,'getAgregados').mockResolvedValue([]);const alertas=vi.spyOn(invoicesApi,'getAlertas').mockResolvedValue(ALERTAS_VACIAS);
  vi.spyOn(invoicesApi,'getInvoices').mockResolvedValue({data:[],total:0,page:1,pageSize:100,totalPages:1});
- render(<InvoiceMonitorPage />);const user=userEvent.setup();await screen.findByText('Monitor Outbox y Auditoría CDR');
+ render(<InvoiceMonitorPage />);const user=userEvent.setup();await screen.findByText('Monitor de envíos y Constancia de Recepción (CDR)');
  expect(apiClient.get).not.toHaveBeenCalled();await user.click(screen.getByRole('button',{name:'Reenviar encolados'}));
  const dialog=await screen.findByRole('dialog',{name:'Confirmar reenvío masivo'});
  await within(dialog).findByText('Elegibles para intentar: 2');expect(within(dialog).getByText('Omitidos por incertidumbre: 1')).toBeTruthy();

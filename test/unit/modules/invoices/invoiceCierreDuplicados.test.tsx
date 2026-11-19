@@ -27,5 +27,6 @@ it('6C selección repetida pide decisión y valida stock agregado al fusionar', 
  fireEvent.change(screen.getByLabelText('Buscar producto'), { target: { value: 'ARE' } }); fireEvent.click(screen.getByRole('button', { name: /ARE · Arena/ }));
  expect(screen.getByRole('dialog')).toBeTruthy(); fireEvent.click(screen.getByRole('button', { name: 'Fusionar cantidades' }));
  expect((screen.getByLabelText('Cantidad de la línea 1') as HTMLInputElement).value).toBe('3');
+ fireEvent.blur(screen.getByLabelText('Cantidad de la línea 1'));
  expect(screen.getAllByText(/stock|disponible/i).length).toBeGreaterThan(0);
 });

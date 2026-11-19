@@ -23,7 +23,7 @@ it('C5 informa contador agotado y mantiene consulta manual; C4 no oculta aceptac
  expect(screen.getByRole('button',{name:'Consultar ticket RA-1'})).toBeTruthy();
  expect(screen.getByText(/Transporte incierto/)).toBeTruthy();
  expect(screen.getByText(/ANULADO con reversión pendiente/)).toBeTruthy();
- expect(screen.getByText(/RA-2 · ACCEPTED/)).toBeTruthy();
+ expect(screen.getByText(/RA-2 ·/)).toBeTruthy();expect(screen.getByLabelText('Aceptada')).toBeTruthy();
 });
 it('C5 muestra consulta en curso y falta de historial sin inventar un contador reiniciado',async()=>{
  vi.mocked(invoicesApi.getAgregados).mockResolvedValue([{id:'p',kind:'RC',identifier:'RC-1',reference_date:'2026-11-11',state:'POLLING',ticket:'T',transport_uncertain:false,error:null,result:null,polling:{attempts:8,nextAt:null,exhausted:false,historyUnknown:true,inProgress:false}}]);
