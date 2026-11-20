@@ -6,21 +6,21 @@ import { clasificarBandeja } from './invoiceBandejaState';
  */
 import type { ComprobanteDemo } from '../data/invoiceDemoSchema';
 import {
-  INVOICE_TABS,
-  type InvoiceTabId,
-} from '../components/InvoiceTabsNav';
+  INVOICE_SECTION_TYPES,
+  type InvoiceSectionId,
+} from './invoiceSections';
 import type { InvoiceFiltros } from '../components/InvoiceFiltersBar';
 
 /** Devuelve los comprobantes que pertenecen al apartado activo. */
 export const porApartado = (
   comprobantes: readonly ComprobanteDemo[],
-  tab: InvoiceTabId,
+  apartado: InvoiceSectionId,
 ): ComprobanteDemo[] => {
-  const definicion = INVOICE_TABS.find((t) => t.id === tab);
+  const tipos = INVOICE_SECTION_TYPES[apartado];
 
-  if (!definicion || tab === 'monitor') return [...comprobantes];
+  if (!tipos || apartado === 'monitor') return [...comprobantes];
 
-  return comprobantes.filter((c) => definicion.tipos.includes(c.tipo));
+  return comprobantes.filter((c) => tipos.includes(c.tipo));
 };
 
 const normalizar = (s:string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();

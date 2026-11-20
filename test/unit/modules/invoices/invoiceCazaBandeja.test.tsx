@@ -35,14 +35,14 @@ it('F3 Error de red selecciona solo filas ERROR_RED tras el mapper real', () => 
   expect(opcion).toBeTruthy();
   expect(aplicarFiltros(filas.map(aComprobanteDemo), { busqueda: '', estado: opcion.value, desde: '', hasta: '' }).map((c) => c.id)).toEqual(['2']);
 });
-it('F4 la pestaña y la lista usan el mismo conjunto al buscar', async () => {
+it('F4 la lista filtra el conjunto sin la franja de pestañas', async () => {
   const q = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } }); queries.push(q);
   render(<QueryClientProvider client={q}><MemoryRouter initialEntries={['/invoices']}><InvoiceList /></MemoryRouter></QueryClientProvider>);
   await screen.findByText('Cliente uno');
-  const tab = screen.getByRole('tab', { name: /Facturas y Boletas/ });
-  expect(within(tab).getByText('2')).toBeTruthy();
+  expect(screen.queryByRole('tablist', { name: 'Apartados del módulo de facturación' })).toBeNull();
+  expect(screen.getAllByRole('row')).toHaveLength(3);
   fireEvent.change(screen.getByLabelText('Buscar comprobantes'), { target: { value: 'Cliente dos' } });
-  expect(within(tab).getByText('1')).toBeTruthy();
+  expect(screen.getAllByRole('row')).toHaveLength(2);
   expect(screen.queryByText('Cliente uno')).toBeNull();
   expect(screen.getByText('Cliente dos')).toBeTruthy();
 });
@@ -61,11 +61,12 @@ it.each([false, true])('F5 CDR disponible=%s controla la descarga y extrae el mo
 it('F5 usa un fallback legible cuando HTTP no trae motivo', () => {
   expect(extractApiErrorMessage(new Error('Request failed with status code 404'), 'No se pudo descargar.')).toBe('No se pudo descargar.');
 });
-it('Parte 9 descarga el PDF oficial desde la fila', async () => {
+it('Parte 9 descarga el PDF oficial desde el detalle de la fila', async () => {
  const q = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } }); queries.push(q);
  vi.mocked(descargarDesdeBackend).mockResolvedValue(undefined);
  render(<QueryClientProvider client={q}><MemoryRouter><InvoiceList /></MemoryRouter></QueryClientProvider>);
- const buttons=await screen.findAllByRole('button',{name:/Descargar PDF de/});fireEvent.click(buttons[0]);
+ const row=(await screen.findByText('Cliente uno')).closest('tr')!;fireEvent.click(row);
+ fireEvent.click(await screen.findByRole('button',{name:'Descargar PDF Homologado'}));
  await waitFor(()=>expect(descargarDesdeBackend).toHaveBeenCalledWith('1','pdf'));
 });
 it('Bandeja deriva F001-52 exonerada y agrega ICBPER por el recorrido real de lista y detalle',async()=>{
@@ -88,13 +89,14 @@ it('primera emisión ofrece una salida y los filtros vacíos se pueden limpiar',
  render(<QueryClientProvider client={q}><MemoryRouter initialEntries={['/invoices/facturas?m1=1&busqueda=SinCoincidencia']}><InvoiceList/></MemoryRouter></QueryClientProvider>);
  expect(await screen.findByText('No hay comprobantes para los filtros elegidos')).toBeTruthy();fireEvent.click(screen.getByRole('button',{name:'Limpiar filtros'}));expect(await screen.findByText('Cliente uno')).toBeTruthy();
 });
-it('el detalle lateral no bloquea la bandeja y conserva las descargas',async()=>{
+it('la fila abre el detalle modal y conserva sus descargas',async()=>{
  vi.mocked(invoicesApi.getInvoiceById).mockResolvedValue({...filas[0],tieneCdr:true,historial:[]});
  const q=new QueryClient({defaultOptions:{queries:{retry:false,gcTime:0}}});queries.push(q);
  render(<QueryClientProvider client={q}><MemoryRouter><InvoiceList/></MemoryRouter></QueryClientProvider>);
- await screen.findByText('Cliente uno');const ver=screen.getAllByRole('button',{name:'Ver'})[0];const tabla=ver.closest<HTMLElement>('[data-slot=table-container]')!;tabla.scrollLeft=500;ver.focus();fireEvent.click(ver);
- const panel=screen.getByRole('region',{name:/F001-00000001/});await waitFor(()=>expect(tabla.scrollLeft).toBe(0));expect(screen.queryByRole('dialog')).toBeNull();expect(screen.getByLabelText('Buscar comprobantes')).toBeVisible();expect(within(panel).getByRole('button',{name:'Descargar XML Oficial'})).toBeTruthy();
- fireEvent.keyDown(panel,{key:'Escape'});expect(screen.queryByRole('region',{name:/F001-00000001/})).toBeNull();
+ const row=(await screen.findByText('Cliente uno')).closest('tr')!;row.focus();fireEvent.keyDown(row,{key:'Enter'});
+ const modal=await screen.findByRole('dialog',{name:/F001-00000001/});
+ expect(screen.queryByRole('region',{name:/F001-00000001/})).toBeNull();expect(within(modal).getByRole('button',{name:'Descargar XML Oficial'})).toBeTruthy();
+ fireEvent.click(within(modal).getByRole('button',{name:'Cerrar'}));await waitFor(()=>expect(screen.queryByRole('dialog')).toBeNull());await waitFor(()=>expect(row).toHaveFocus());
 });
 it('el enlace de indicadores incluye notas sin mezclar estados y permite quitar el alcance ampliado',async()=>{
  const q=new QueryClient({defaultOptions:{queries:{retry:false,gcTime:0}}});queries.push(q);
@@ -109,6 +111,6 @@ it('la lectura real del detalle actualiza el estado persistente de su fila sin o
  const q=new QueryClient({defaultOptions:{queries:{retry:false,gcTime:0}}});queries.push(q);
  render(<QueryClientProvider client={q}><MemoryRouter><InvoiceList/></MemoryRouter></QueryClientProvider>);
  const row=(await screen.findByText('Cliente dos')).closest('tr')!;expect(within(row).getByLabelText('Interrumpida por conexión')).toBeTruthy();
- fireEvent.click(within(row).getByRole('button',{name:'Ver'}));await waitFor(()=>expect(within(row).getByLabelText('Aceptada')).toBeTruthy());
+ fireEvent.click(row);await waitFor(()=>expect(row.querySelector('[aria-label="Aceptada"]')).toBeTruthy());
  expect(invoicesApi.getInvoices).toHaveBeenCalledTimes(1);
 });

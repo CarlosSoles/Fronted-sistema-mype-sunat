@@ -30,6 +30,7 @@ const TIPO_LABEL: Record<ComprobanteDemo['tipo'], string> = {
 
 interface InvoiceTableRowProps {
   comprobante: ComprobanteDemo;
+  sinAcciones?: boolean;
   onVerXml: (c: ComprobanteDemo) => void;
   onVerCdr: (c: ComprobanteDemo) => void;
   onDescargarPdf: (c: ComprobanteDemo) => void;
@@ -38,6 +39,7 @@ interface InvoiceTableRowProps {
 
 export const InvoiceTableRow = ({
   comprobante: c,
+  sinAcciones = false,
   onVerXml,
   onVerCdr,
   onDescargarPdf,
@@ -49,8 +51,9 @@ export const InvoiceTableRow = ({
     <TableRow
       className="cursor-pointer focus-visible:outline-2"
       tabIndex={0}
+      data-invoice-id={sinAcciones ? c.id : undefined}
       aria-label={`Ver detalle XML de ${numeroVisible(c.serie, c.correlativo)}`}
-      onClick={() => onVerXml(c)}
+      onClick={(e) => { if (sinAcciones) e.currentTarget.focus(); onVerXml(c); }}
       onKeyDown={(e) => {
         if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
           e.preventDefault();
@@ -132,7 +135,7 @@ export const InvoiceTableRow = ({
         {c.estado === 'RECHAZADO' && <InvoiceIssueGuidance codigo={c.resultadoPresentacion?.codigo ?? c.ultimoErrorCodigo ?? c.cdrCodigo} motivo={c.resultadoPresentacion?.motivo ?? c.ultimoErrorMensaje ?? c.cdrDescripcion} />}
       </TableCell>
 
-      <TableCell align="right" onClick={(e) => e.stopPropagation()}>
+      {!sinAcciones && <TableCell align="right" onClick={(e) => e.stopPropagation()}>
         <div className="flex flex-wrap justify-end gap-1">
           <Button size="sm" variant="outline" onClick={() => onVerXml(c)}>Ver</Button>
           <details className="relative"><summary className="min-h-8 cursor-pointer rounded border px-2 py-1 text-sm">Más acciones</summary><div className="flex flex-col items-stretch gap-1 p-2">
@@ -176,7 +179,7 @@ export const InvoiceTableRow = ({
           )}
           </div></details>
         </div>
-      </TableCell>
+      </TableCell>}
     </TableRow>
   );
 };

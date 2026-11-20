@@ -1,3 +1,4 @@
+import { InvoiceWriteButton } from './InvoiceWriteButton';
 import { clasificarBandeja } from '../lib/invoiceBandejaState';
 import { InvoiceIssueGuidance } from './InvoiceIssueGuidance';
 import { useInvoiceDetailRefresh } from '../hooks/useInvoiceDetailRefresh';
@@ -52,6 +53,8 @@ interface InvoiceCdrModalProps {
   onCerrar: () => void;
   lateral?: boolean;
   onActualizado?: (detalle: Invoice) => void;
+  /** Acción de la fila trasladada al detalle de Facturas y Boletas. */
+  onReintentarCdr?: (comprobante: ComprobanteDemo) => void;
 }
 
 /** Modal de auditoría CDR con visor del XML UBL 2.1. */
@@ -60,6 +63,7 @@ export const InvoiceCdrModal = ({
   modoInicial = 'cdr',
   lateral = false,
   onActualizado,
+  onReintentarCdr,
   onCerrar,
 }: InvoiceCdrModalProps) => {
   const emisor = useIdentidadEmisora();
@@ -200,7 +204,7 @@ export const InvoiceCdrModal = ({
   const contenido = (<>
 
         <DialogHeader className="pr-8">
-          <Titulo tabIndex={-1} id="m1-detalle-titulo" className="flex flex-wrap items-center gap-2">
+          <Titulo tabIndex={-1} {...(lateral ? { id: 'm1-detalle-titulo' } : {})} className="flex flex-wrap items-center gap-2">
             <span>
               {numeroSerie} · {c.clienteRazonSocial}
             </span>
@@ -391,6 +395,11 @@ export const InvoiceCdrModal = ({
         )}
 
         <DialogFooter>
+          {onReintentarCdr && (c.transporteAcreditado ?? comprobante.transporteAcreditado) === true && ['RECHAZADO', 'EN_COLA', 'SIN_CONFIRMAR'].includes(c.estado) && (
+            <InvoiceWriteButton variant="outline" size="sm" onClick={() => onReintentarCdr(c)}>
+              Reintentar CDR
+            </InvoiceWriteButton>
+          )}
           {/*
             Se descarga el documento DEL BACKEND, no una reconstrucción local.
             Antes se llamaba a `descargarXmlComprobante(c)`, que armaba el XML en
@@ -432,6 +441,6 @@ export const InvoiceCdrModal = ({
   if (lateral) return <aside className="m1-ux m1-detail fixed inset-y-4 right-0 z-40 w-full max-w-[min(720px,100vw)] overflow-y-auto rounded-l-xl border bg-background p-5 shadow-xl sm:w-[55vw]" role="region" aria-labelledby="m1-detalle-titulo" onKeyDown={e=>{if(e.key==='Escape'){e.stopPropagation();onCerrar();}}}>
     {contenido}
   </aside>;
-  return <Dialog open onOpenChange={abierto => { if (!abierto) onCerrar(); }}><DialogContent className="m1-ux min-w-0 max-h-[85vh] overflow-x-hidden overflow-y-auto sm:max-w-3xl [overflow-wrap:anywhere]">{contenido}</DialogContent></Dialog>;
+  return <Dialog open onOpenChange={abierto => { if (!abierto) onCerrar(); }}><DialogContent aria-describedby={undefined} className="m1-ux min-w-0 max-h-[85vh] overflow-x-hidden overflow-y-auto sm:max-w-3xl [overflow-wrap:anywhere]">{contenido}</DialogContent></Dialog>;
 
 };
