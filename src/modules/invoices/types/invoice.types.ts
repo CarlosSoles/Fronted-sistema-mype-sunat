@@ -96,6 +96,8 @@ export interface Invoice {
    * lugar de mostrar un valor inventado.
    */
   hashCpe?: string;
+  /** Almacén con el que se emitió; la devolución reingresa allí. */
+  almacen?: string;
   items?: InvoiceItem[];
   /**
    * Tipo del Catálogo 01 (01 Factura, 03 Boleta, 07 NC, 08 ND).
