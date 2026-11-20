@@ -274,7 +274,7 @@ export default function SalesPosPage() {
           <Button fullWidth disabled={cobrar.isPending || !carrito.length || !cliente.trim() || !serie || Boolean(errorDocumento)} onClick={() => cobrar.mutate()}><CreditCard className="mr-2 h-4 w-4" />{cobrar.isPending ? 'Registrando…' : formaPago === 'Credito' ? 'Emitir al crédito' : 'Cobrar y emitir'}</Button>
         </Card>
       </div>
-      {registrandoCliente ? <PartnerFormDialog enableRucLookup initialRole="CLIENTE" requiredRole="CLIENTE" initialDocument={documento} initialName={cliente} onClose={() => setRegistrandoCliente(false)} onSaved={(p) => { setDocumento(p.doc_number); setTipoDoc(p.doc_number.length === 11 ? '6' : '1'); setCliente(p.legal_name); setRegistrandoCliente(false); void consultarCredito(p.doc_number, p.doc_number.length === 11 ? '6' : '1'); }} /> : null}
+      {registrandoCliente ? <PartnerFormDialog enableRucLookup initialRole="CLIENTE" requiredRole="CLIENTE" initialDocument={documento} initialName={cliente} onClose={() => setRegistrandoCliente(false)} onSaved={(p) => { setDocumento(p.doc_number); setTipoDoc(p.doc_type === '6' ? '6' : '1'); setCliente(p.legal_name); setRegistrandoCliente(false); void consultarCredito(p.doc_number, p.doc_type === '6' ? '6' : '1'); }} /> : null}
       {venta && ticketAbierto ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div id="ticket-print" className="max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-lg bg-white p-5 text-black shadow-xl">
