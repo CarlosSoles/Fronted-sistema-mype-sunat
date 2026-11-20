@@ -32,7 +32,7 @@ export default function SalesReturnsPage() {
       const lineas = seleccion.lineas.filter((l) => l.incluir && l.cantidad > 0);
       if (!lineas.length) throw new Error('Seleccione al menos un ítem para devolver.');
       const resultado = await invoicesApi.emitirComprobante({
-        tipo_comprobante: '07', serie: serieNota, almacen: 'ALM-01',
+        tipo_comprobante: '07', serie: serieNota, almacen: seleccion.venta.almacen ?? 'ALM-01',
         customer_identity_type: /^\d{11}$/.test(seleccion.venta.clienteRuc) ? '6' : '1',
         customer_identity_number: seleccion.venta.clienteRuc,
         customer_legal_name: seleccion.venta.clienteRazonSocial,
