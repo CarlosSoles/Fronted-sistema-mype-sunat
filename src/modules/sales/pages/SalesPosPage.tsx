@@ -14,6 +14,7 @@ import type { ProductoBuscado } from '@/modules/invoices/lib/invoiceSearch';
 import { collectionsApi } from '@/modules/collections/services/collectionsApi';
 import { salesQuotesApi } from '../services/salesQuotesApi';
 import { documentoTerceroValido } from '@/modules/customs/libPartnerValidation';
+import { PartnerFormDialog } from '@/modules/customs/components/PartnerFormDialog';
 
 interface Serie { document_type: string; series: string; is_active: boolean }
 interface Linea { producto: ProductoBuscado; cantidad: number }
@@ -36,6 +37,7 @@ export default function SalesPosPage() {
   const [medioPago, setMedioPago] = useState('EFECTIVO');
   const [error, setError] = useState('');
   const [documentoAviso, setDocumentoAviso] = useState('');
+  const [registrandoCliente, setRegistrandoCliente] = useState(false);
   const [credito, setCredito] = useState<{ hasCredit: boolean; creditLimit: number | null; used: number; available: number | null } | null>(null);
   const errorDocumento = tipoDoc === '0' ? '' : documento.trim() === '' ? 'Indique el documento del cliente.' : documentoTerceroValido(tipoDoc, documento.trim()) ? '' : tipoDoc === '6' ? 'RUC inválido: 11 dígitos y módulo 11.' : 'DNI inválido: 8 dígitos.';
   const [venta, setVenta] = useState<{ numero: string; total: number; cobroPendiente?: string; credito?: boolean; fecha: string; cliente: string; documento: string; tipo: string; serie: string; medioPago: string; formaPago: string; items: Array<{ descripcion: string; cantidad: number; precio: number; total: number }> } | null>(null);
@@ -250,7 +252,9 @@ export default function SalesPosPage() {
           {documentoAviso ? <p className="mb-2 text-[11px] text-amber-600">{documentoAviso}</p> : null}
           <Input aria-label="Nombre del cliente" className="mb-1" placeholder="Razón social / nombre" value={cliente} onChange={(e) => setCliente(e.target.value)} />
           {credito?.hasCredit ? <div className="mb-2 rounded border bg-muted/30 p-2 text-[11px]"><p>Crédito: límite {credito.creditLimit == null ? 'sin límite' : money(credito.creditLimit)} · usado {money(credito.used)}</p><p className={credito.available != null && credito.available < total ? 'text-destructive' : 'text-emerald-600'}>Disponible: {credito.available == null ? 'sin límite' : money(credito.available)}</p>{credito.available != null && credito.available < total ? <p className="text-destructive">La venta supera el cupo disponible.</p> : null}</div> : null}
-          {errorDocumento ? <p className="mb-3 text-[11px] text-destructive">{errorDocumento}</p> : <div className="mb-3" />}
+          {errorDocumento ? <p className="mb-2 text-[11px] text-destructive">{errorDocumento}</p> : null}
+          <Button type="button" size="sm" variant="outline" className="mb-3 h-7 text-[11px]" onClick={() => setRegistrandoCliente(true)}>Registrar cliente</Button>
+          {!errorDocumento ? <div className="mb-1" /> : null}
           <div className="mb-3 space-y-2">
             {carrito.map((l) => (
               <div key={l.producto.sku} className="flex items-center gap-2 rounded border p-2 text-xs">
@@ -270,6 +274,7 @@ export default function SalesPosPage() {
           <Button fullWidth disabled={cobrar.isPending || !carrito.length || !cliente.trim() || !serie || Boolean(errorDocumento)} onClick={() => cobrar.mutate()}><CreditCard className="mr-2 h-4 w-4" />{cobrar.isPending ? 'Registrando…' : formaPago === 'Credito' ? 'Emitir al crédito' : 'Cobrar y emitir'}</Button>
         </Card>
       </div>
+      {registrandoCliente ? <PartnerFormDialog enableRucLookup initialRole="CLIENTE" requiredRole="CLIENTE" initialDocument={documento} initialName={cliente} onClose={() => setRegistrandoCliente(false)} onSaved={(p) => { setDocumento(p.doc_number); setTipoDoc(p.doc_type === '6' ? '6' : '1'); setCliente(p.legal_name); setRegistrandoCliente(false); void consultarCredito(p.doc_number, p.doc_type === '6' ? '6' : '1'); }} /> : null}
       {venta && ticketAbierto ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div id="ticket-print" className="max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-lg bg-white p-5 text-black shadow-xl">
