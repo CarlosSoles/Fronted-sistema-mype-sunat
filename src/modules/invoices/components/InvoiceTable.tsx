@@ -20,6 +20,8 @@ import { InvoiceTableRow } from './InvoiceTableRow';
 
 interface InvoiceTableProps {
   comprobantes: readonly ComprobanteDemo[];
+  /** Presentación de Facturas y Boletas y de Notas, sin acciones por fila. */
+  sinAcciones?: boolean;
   /** Mensaje mostrado cuando el filtro no devuelve resultados. */
   mensajeVacio?: string;
   onVerXml: (c: ComprobanteDemo) => void;
@@ -54,12 +56,14 @@ const ALINEACION: Record<string, 'right' | 'center'> = {
 
 export const InvoiceTable = ({
   comprobantes,
+  sinAcciones = false,
   mensajeVacio = 'No se encontraron comprobantes con los filtros aplicados.',
   onVerXml,
   onVerCdr,
   onDescargarPdf,
   onReintentarCdr,
 }: InvoiceTableProps) => {
+  const columnas = sinAcciones ? COLUMNAS.slice(0, -1) : COLUMNAS;
   const [pagina, setPagina] = useState(1);
   const [orden, setOrden] = useState('fecha-desc');
   const ordenados = [...comprobantes].sort((a,b) => orden === 'total-desc' ? b.totalNeto-a.totalNeto : orden === 'numero' ? `${a.serie}-${a.correlativo}`.localeCompare(`${b.serie}-${b.correlativo}`, 'es', {numeric:true}) : orden === 'fecha-asc' ? a.fechaEmision.localeCompare(b.fechaEmision) : b.fechaEmision.localeCompare(a.fechaEmision));
@@ -74,7 +78,7 @@ export const InvoiceTable = ({
         <caption className="sr-only">Comprobantes electrónicos y su estado ante SUNAT</caption>
         <TableHeader>
           <TableRow>
-            {COLUMNAS.map((columna) => (
+            {columnas.map((columna) => (
               <TableHead
                 key={columna}
                 align={ALINEACION[columna] ?? 'left'}
@@ -90,6 +94,7 @@ export const InvoiceTable = ({
               <InvoiceTableRow
                 key={comprobante.id}
                 comprobante={comprobante}
+                sinAcciones={sinAcciones}
                 onVerXml={onVerXml}
                 onVerCdr={onVerCdr}
                 onDescargarPdf={onDescargarPdf}
@@ -98,7 +103,7 @@ export const InvoiceTable = ({
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={COLUMNAS.length} align="center">
+              <TableCell colSpan={columnas.length} align="center">
                 {mensajeVacio}
               </TableCell>
             </TableRow>
