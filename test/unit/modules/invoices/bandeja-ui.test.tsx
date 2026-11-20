@@ -12,14 +12,12 @@ vi.mock('@/modules/invoices/hooks/useInvoiceDatePermission', () => ({ useInvoice
 import { invoiceDetailFromDemo } from '../../../fixtures/invoiceDetailFromDemo';
 import { porApartado } from '@/modules/invoices/lib/invoiceFilters';
 import {afterEach,expect,it,vi} from 'vitest';
-import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
-import {MemoryRouter} from 'react-router-dom';
+import {cleanup,render,screen,waitFor} from '@testing-library/react';
 import {InvoiceStatusBadge} from '@/modules/invoices/components/InvoiceStatusBadge';
 import {InvoiceKpiCards} from '@/modules/invoices/components/InvoiceKpiCards';
 import {InvoiceTableRow} from '@/modules/invoices/components/InvoiceTableRow';
 import {InvoiceCdrModal} from '@/modules/invoices/components/InvoiceCdrModal';
-import {InvoiceTabsNav,contarPorTab,RUTA_POR_TAB} from '@/modules/invoices/components/InvoiceTabsNav';
-import {Tabs} from '@/components/ui';
+import { INVOICE_SECTION_ROUTES, sectionFromPath } from '@/modules/invoices/lib/invoiceSections';
 import {calcularResumenFiscal} from '@/modules/invoices/lib/invoiceMetrics';
 import {construir} from '@/modules/invoices/data/invoiceDemoTypes';
 import {clasificarBandeja,ETIQUETAS_BANDEJA} from '@/modules/invoices/lib/invoiceBandejaState';
@@ -63,10 +61,9 @@ it.each([['ERROR_RED','TRANSPORTE_INCIERTO',false,true],['ERROR_RED',undefined,f
  expect(screen.queryByText('Consulta SUNAT disponible')).toBeNull();
  await screen.findByText('No hay eventos de auditoría registrados.');await waitFor(()=>expect(Boolean(screen.queryByText('Consulta SUNAT disponible'))).toBe(visible));
 });
-it('Notas tiene conteo de 15 y conserva la ruta existente',()=>{
- const rows=Array.from({length:15},(_,i)=>({...c,id:String(i),tipo:(i%2?'07':'08') as '07'|'08'}));const navegar=vi.fn();
- render(<MemoryRouter><Tabs defaultValue="comprobantes" onValueChange={x=>navegar(RUTA_POR_TAB[x as keyof typeof RUTA_POR_TAB])}><InvoiceTabsNav conteo={contarPorTab(rows)}/></Tabs></MemoryRouter>);
- const tab=screen.getByRole('tab',{name:/Notas de Crédito y Débito.*15/});fireEvent.mouseDown(tab,{button:0,ctrlKey:false});fireEvent.click(tab);expect(navegar).toHaveBeenCalledWith('/invoices/notas');
+it('Notas conserva su ruta y la agrupación de 15 documentos sin depender de pestañas',()=>{
+ const rows=Array.from({length:15},(_,i)=>({...c,id:String(i),tipo:(i%2?'07':'08') as '07'|'08'}));
+ expect(INVOICE_SECTION_ROUTES.notas).toBe('/invoices/notas');expect(sectionFromPath('/invoices/notas')).toBe('notas');expect(porApartado(rows,'notas')).toHaveLength(15);
 });
 it('tarjeta admite el contrato anterior sin los campos opcionales nuevos',()=>{
  const r={...calcularResumenFiscal([]),icbper:undefined,incertidumbre:undefined,bloqueadosLocalmente:undefined,rechazosSunat:undefined,rechazosSinOrigen:undefined};render(<InvoiceKpiCards resumen={r}/>);expect(screen.queryByText(/ICBPER/)).toBeNull();
