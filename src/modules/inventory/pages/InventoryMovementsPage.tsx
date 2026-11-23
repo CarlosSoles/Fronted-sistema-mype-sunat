@@ -256,47 +256,26 @@ export default function InventoryMovementsPage() {
   return (
     <div className="space-y-6">
       {/* Cabecera Principal */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 pb-1">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
             <ArrowLeftRight className="h-7 w-7 text-primary" />
             Movimientos y Kardex de Inventario
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground mt-0.5">
             Asientos inmutables de entradas, salidas, traslados entre almacenes y ajustes valorizados según Tabla 12 SUNAT.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            size="sm"
-            onClick={() => setIsTransferModalOpen(true)}
-            className="gap-1.5 font-medium shadow-sm"
-            title="Realizar traslado físico de mercadería entre almacenes origen y destino con asiento doble en Kardex"
-          >
-            <ArrowLeftRight className="h-4 w-4" />
-            Nueva Transferencia entre Almacenes
-          </Button>
-
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setIsModalOpen(true)}
-            className="gap-1.5 font-medium"
-            title="Registrar entradas o salidas internas en un almacén (mermas, desmedros, ajustes físicos sobrantes/faltantes)"
-          >
-            <PlusCircle className="h-4 w-4 text-primary" />
-            Nuevo Movimiento Interno
-          </Button>
-
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
           <Button
             variant="outline"
             size="sm"
             onClick={handleExportCsv}
-            className="gap-1.5"
+            className="gap-1.5 text-xs font-medium"
             title="Descargar historial de movimientos en CSV"
           >
-            <Download className="h-4 w-4" />
+            <Download className="h-3.5 w-3.5 text-muted-foreground" />
             Exportar CSV
           </Button>
 
@@ -305,24 +284,46 @@ export default function InventoryMovementsPage() {
             size="sm"
             onClick={handleRefresh}
             disabled={refreshState === 'loading'}
-            className="gap-1.5 transition-all"
+            className="gap-1.5 text-xs font-medium transition-all"
+            title="Recargar movimientos"
           >
             {refreshState === 'loading' ? (
               <>
-                <RefreshCw className="h-4 w-4 animate-spin text-primary" />
+                <RefreshCw className="h-3.5 w-3.5 animate-spin text-primary" />
                 <span>Actualizando...</span>
               </>
             ) : refreshState === 'success' ? (
               <>
-                <CheckCircle2 className="h-4 w-4 text-emerald-500 animate-in zoom-in-50" />
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 animate-in zoom-in-50" />
                 <span className="text-emerald-500 font-medium">Actualizado</span>
               </>
             ) : (
               <>
-                <RefreshCw className="h-4 w-4" />
+                <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
                 <span>Actualizar</span>
               </>
             )}
+          </Button>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setIsModalOpen(true)}
+            className="gap-1.5 text-xs font-medium"
+            title="Registrar entradas o salidas internas en un almacén (mermas, desmedros, ajustes físicos sobrantes/faltantes)"
+          >
+            <PlusCircle className="h-3.5 w-3.5 text-primary" />
+            Movimiento Interno
+          </Button>
+
+          <Button
+            size="sm"
+            onClick={() => setIsTransferModalOpen(true)}
+            className="gap-1.5 text-xs font-medium shadow-sm"
+            title="Realizar traslado físico de mercadería entre almacenes origen y destino con asiento doble en Kardex"
+          >
+            <ArrowLeftRight className="h-3.5 w-3.5" />
+            Nueva Transferencia
           </Button>
         </div>
       </div>

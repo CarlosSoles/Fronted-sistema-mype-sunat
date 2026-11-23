@@ -214,6 +214,21 @@ export default function InventoryOpeningPage() {
         }
 
         if (newItems.length > 0) {
+          const catalogSkus = new Set(catalogProducts.map((p) => p.sku.toUpperCase()));
+          if (catalogSkus.size > 0) {
+            const missingSkus = newItems
+              .map((item) => item.sku)
+              .filter((sku) => !catalogSkus.has(sku));
+            if (missingSkus.length > 0) {
+              const uniqueMissing = Array.from(new Set(missingSkus));
+              const preview = uniqueMissing.slice(0, 5).join(', ');
+              const extra = uniqueMissing.length > 5 ? ` y ${uniqueMissing.length - 5} más` : '';
+              setError(
+                `Atención: Los siguientes SKUs no están registrados en el catálogo de existencias: ${preview}${extra}. Regístrelos primero en el catálogo antes de asentar el saldo inicial.`
+              );
+              return;
+            }
+          }
           setItems(newItems);
           setError(null);
           setSuccess(`Se cargaron ${newItems.length} registros del archivo CSV.`);

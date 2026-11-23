@@ -51,7 +51,7 @@ const PurchasesPage = React.lazy(() => import('@/modules/purchases/pages/Purchas
 const PurchaseOrdersPage = React.lazy(() => import('@/modules/purchases/pages/PurchaseOrdersPage'));
 const PaymentSchedulePage = React.lazy(() => import('@/modules/purchases/pages/PaymentSchedulePage'));
 const PurchasesDashboardPage = React.lazy(() => import('@/modules/purchases/pages/PurchasesDashboardPage'));
-const PurchasesPayablesPage = React.lazy(() => import('@/modules/inventory/pages/PurchasesPayablesPage'));
+const PurchasesPayablesPage = React.lazy(() => import('@/modules/purchases/pages/PurchasesPayablesPage'));
 const InventoryAdjustmentsPage = React.lazy(() => import('@/modules/inventory/pages/InventoryAdjustmentsPage'));
 const InventoryConfigPage = React.lazy(() => import('@/modules/inventory/pages/InventoryConfigPage'));
 const UserWarehousesPage = React.lazy(() => import('@/modules/auth/pages/UserWarehousesPage'));

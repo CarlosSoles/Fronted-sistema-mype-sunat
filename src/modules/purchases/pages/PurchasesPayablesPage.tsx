@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Badge, Button, Card, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Input, Page, PageHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
-import { inventoryPurchasesApi } from '../services/inventoryPurchasesApi';
+import { inventoryPurchasesApi } from '@/modules/inventory/services/inventoryPurchasesApi';
 import { masterDataApi } from '@/modules/customs/services/masterDataApi';
 import { PartnerFormDialog } from '@/modules/customs/components/PartnerFormDialog';
 import { extractApiErrorMessage } from '@/lib/apiErrors';
