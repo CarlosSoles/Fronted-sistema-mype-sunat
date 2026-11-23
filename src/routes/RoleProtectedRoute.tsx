@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useServerPermissions } from '@/modules/auth/hooks/useServerPermissions';
+import { normalizeRoleCode } from '@/modules/auth/lib/roleCode';
 import { RATE_LIMIT_MESSAGE } from '@/lib/apiErrors';
 import { getPermissionHome } from './roleNavigation';
 
@@ -20,8 +21,10 @@ const RUTAS_ADELANTADAS: ReadonlyArray<{ path: string; moduleCode: string }> = [
   { path: '/credenciales-empresa', moduleCode: 'M3' },
 ];
 
-const normalizarRol = (role: string): string =>
-  role === 'OPERADOR_FACTURACION' ? 'FACTURADOR' : role;
+const normalizarRol = (role: string): string => {
+  const code = normalizeRoleCode(role);
+  return code === 'OPERADOR_FACTURACION' ? 'FACTURADOR' : code;
+};
 
 interface RoleProtectedRouteProps {
   children?: ReactNode;

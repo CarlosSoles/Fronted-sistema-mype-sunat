@@ -27,8 +27,15 @@ describe('empresaApi empresa/configuracion', () => {
         {
           id: 'company-1',
           ruc: '20614142503',
-          razonSocial: 'DEMO SAC',
-          nombreComercial: 'DEMO',
+          legalName: 'DEMO SAC',
+          tradeName: 'DEMO',
+          activa: true,
+        },
+        {
+          id: 'company-2',
+          ruc: '20100070970',
+          razonSocial: 'EMPRESA DOS SAC',
+          nombreComercial: 'EMPRESA DOS',
           activa: true,
         },
       ]),
@@ -41,6 +48,13 @@ describe('empresaApi empresa/configuracion', () => {
         ruc: '20614142503',
         razonSocial: 'DEMO SAC',
         nombreComercial: 'DEMO',
+        activa: true,
+      },
+      {
+        id: 'company-2',
+        ruc: '20100070970',
+        razonSocial: 'EMPRESA DOS SAC',
+        nombreComercial: 'EMPRESA DOS',
         activa: true,
       },
     ]);

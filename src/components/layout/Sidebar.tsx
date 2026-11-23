@@ -1,4 +1,5 @@
 import { useServerPermissions } from '@/modules/auth/hooks/useServerPermissions';
+import { normalizeRoleCode } from '@/modules/auth/lib/roleCode';
 import { Fragment, useState, useEffect, useRef } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useUiStore } from '@/stores/uiStore';
@@ -300,7 +301,7 @@ export const Sidebar = () => {
    * frontend y el usuario puede ver su módulo. Así una pantalla nueva no queda
    * invisible hasta que el backend se redespliegue.
    */
-  const esAdmin = permissions.snapshot?.role?.code === 'ADMIN';
+  const esAdmin = normalizeRoleCode(permissions.snapshot?.role?.code ?? '') === 'ADMIN';
   const puedeVerSubItem = (sub: SubNavItem): boolean => {
     if (sub.adminOnly && !esAdmin) return false;
     if (esAdmin) return true;

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { normalizeRoleCode } from '@/modules/auth/lib/roleCode';
 import { empresaApi } from '@/modules/sire/services/empresaApi';
 import type { EmpresaResumen } from '@/modules/sire/types/sire.types';
 import { useAuthStore } from '@/stores/authStore';
@@ -22,7 +23,7 @@ export interface UseEmpresasAdmin {
 export const useEmpresasAdmin = (): UseEmpresasAdmin => {
   const role = useAuthStore((state) => state.user?.role);
   const activeCompany = useAuthStore((state) => state.activeCompany);
-  const isAdmin = role === 'ADMIN';
+  const isAdmin = normalizeRoleCode(role ?? '') === 'ADMIN';
 
   const [empresas, setEmpresas] = useState<EmpresaResumen[]>([]);
   const [isLoading, setIsLoading] = useState(isAdmin);

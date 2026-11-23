@@ -203,14 +203,25 @@ export const empresaApi = {
           null,
         );
       }
+      const texto = (value: unknown): string =>
+        typeof value === 'string' ? value.trim() : '';
       return response
         .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
         .map((item) => ({
-          id: String(item.id ?? ''),
-          ruc: String(item.ruc ?? ''),
-          razonSocial: String(item.razonSocial ?? ''),
+          id: texto(item.id),
+          ruc: texto(item.ruc),
+          razonSocial:
+            texto(item.legalName) ||
+            texto(item.razonSocial) ||
+            texto(item.legal_name) ||
+            texto(item.razon_social) ||
+            texto(item.businessName),
           nombreComercial:
-            typeof item.nombreComercial === 'string' ? item.nombreComercial : null,
+            texto(item.nombreComercial) ||
+            texto(item.nombre_comercial) ||
+            texto(item.tradeName) ||
+            texto(item.trade_name) ||
+            null,
           activa: item.activa !== false,
         }))
         .filter((item) => item.id && item.ruc);

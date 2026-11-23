@@ -60,7 +60,15 @@ export const useAuthStore = create<AuthState>()(
 
       updateUser: (userUpdates) =>
         set((state) => ({
-          user: state.user ? { ...state.user, ...userUpdates } : null,
+          user: state.user
+            ? {
+                ...state.user,
+                ...userUpdates,
+                ...(userUpdates.role
+                  ? { role: normalizeRoleCode(userUpdates.role) }
+                  : {}),
+              }
+            : null,
         })),
 
       setActiveCompany: (activeCompany) =>
