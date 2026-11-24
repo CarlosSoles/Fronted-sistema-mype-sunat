@@ -568,7 +568,7 @@ export const AppRoutes = () => {
             <Route
               path="/sire/credenciales"
               element={
-                <RoleProtectedRoute >
+                <RoleProtectedRoute roles={['ADMIN']}>
                   <SireCredentialsPage />
                 </RoleProtectedRoute>
               }
