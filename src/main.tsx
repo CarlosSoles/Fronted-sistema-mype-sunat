@@ -172,8 +172,12 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 })();
 
 
-// La sincronización de la outbox no bloquea el primer render.
-void import('./lib/outbox').then(({ flushOutbox, startOutboxSync }) => {
-  void flushOutbox();
-  startOutboxSync();
-});
+// La sincronización de la outbox se difiere para no competir con la primera carga.
+window.addEventListener('load', () => {
+  window.setTimeout(() => {
+    void import('./lib/outbox').then(({ flushOutbox, startOutboxSync }) => {
+      void flushOutbox();
+      startOutboxSync();
+    });
+  }, 1500);
+}, { once: true });

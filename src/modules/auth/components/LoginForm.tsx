@@ -5,15 +5,10 @@ import { Link } from 'react-router-dom';
 import { loginSchema, type LoginFormData } from '../validators/authSchema';
 import { useLogin } from '../hooks/useLogin';
 import { DemoCredentialsBox } from './DemoCredentialsBox';
-import {
-  Alert,
-  AlertDescription,
-  Button,
-  Input,
-  PageField,
-  PageForm,
-  PageText,
-} from '@/components/ui';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { PageField, PageForm, PageText } from '@/components/ui/page';
 import { Eye, EyeOff, Loader2, LogIn } from 'lucide-react';
 import {
   extractApiErrorMessage,
