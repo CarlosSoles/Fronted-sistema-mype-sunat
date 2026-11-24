@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
-import { flushOutbox, startOutboxSync } from './lib/outbox';
 import './index.css';
 import { useAuthStore } from './stores/authStore';
 import {
@@ -173,6 +172,8 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 })();
 
 
-// Sincroniza asientos pendientes al volver la red.
-void flushOutbox();
-startOutboxSync();
+// La sincronización de la outbox no bloquea el primer render.
+void import('./lib/outbox').then(({ flushOutbox, startOutboxSync }) => {
+  void flushOutbox();
+  startOutboxSync();
+});

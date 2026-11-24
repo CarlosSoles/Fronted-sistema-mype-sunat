@@ -1,7 +1,6 @@
 import { RATE_LIMIT_MESSAGE } from '@/lib/apiErrors';
 import React, { Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { AppLayout } from '@/components/layout/AppLayout';
 import { ProtectedRoute } from './ProtectedRoute';
 import { RoleProtectedRoute } from './RoleProtectedRoute';
 import { getPermissionHome } from './roleNavigation';
@@ -9,6 +8,11 @@ import { useServerPermissions } from '@/modules/auth/hooks/useServerPermissions'
 import { Loader2 } from 'lucide-react';
 
 // Carga perezosa (Route-based Code Splitting)
+const AppLayout = React.lazy(() =>
+  import('@/components/layout/AppLayout').then((module) => ({
+    default: module.AppLayout,
+  })),
+);
 const LoginPage = React.lazy(() => import('@/modules/auth/pages/LoginPage'));
 const RegisterPage = React.lazy(() => import('@/modules/auth/pages/RegisterPage'));
 const ProfilePage = React.lazy(() => import('@/modules/auth/pages/ProfilePage'));
