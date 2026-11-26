@@ -20,6 +20,7 @@ const RUTAS_ADELANTADAS: ReadonlyArray<{ path: string; moduleCode: string }> = [
   { path: '/customs/quotations', moduleCode: 'M2' },
   { path: '/credenciales-empresa', moduleCode: 'M3' },
   { path: '/sire/credenciales', moduleCode: 'M3' },
+  { path: '/sire/mapeo-contable', moduleCode: 'M3' },
 ];
 
 const normalizarRol = (role: string): string => {
@@ -67,8 +68,15 @@ export const RoleProtectedRoute = ({
   const sinPermisoRol =
     Boolean(roles?.length) &&
     !(roles ?? []).map(normalizarRol).includes(rolActual);
+  // Un ADMIN (o su alias ADMINISTRADOR) puede abrir las rutas que declaran
+  // roles explícitos aunque el catálogo de menús del servidor todavía no
+  // publique la pantalla. El Sidebar ya aplica la misma regla.
+  const permitidoPorAdmin = rolActual === 'ADMIN' && Boolean(roles?.length);
 
-  if ((!p.canNavigate(pathname) && !permitidoPorAdelanto) || sinPermisoRol) {
+  if (
+    (!p.canNavigate(pathname) && !permitidoPorAdelanto && !permitidoPorAdmin) ||
+    sinPermisoRol
+  ) {
     return (
       <div id="forbidden-403-container" role="alert">
         <span>Código 403</span>

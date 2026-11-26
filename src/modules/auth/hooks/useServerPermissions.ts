@@ -4,6 +4,7 @@ import { permissionsApi } from '../services/permissionsApi';
 import { usePermissionsIdentity } from './usePermissionsIdentity';
 import { useAuthStore } from '@/stores/authStore';
 import { getApiErrorStatus, getApiRetryAfterMs } from '@/lib/apiErrors';
+import { normalizeRoleCode } from '../lib/roleCode';
 
 // La pausa pertenece a la consulta: se comparte entre observadores y se
 // libera junto con su caché, sin mezclar usuarios ni empresas.
@@ -37,7 +38,11 @@ export function useServerPermissions(){
  const valid=Boolean(data&&typeof data.role?.code==='string'&&typeof data.role?.name==='string'&&Array.isArray(data.modules)&&data.modules.every(m=>m&&typeof m.canView==='boolean'&&typeof m.canWrite==='boolean')&&Array.isArray(data.actions)&&data.actions.every(a=>a&&typeof a.actionCode==='string'&&typeof a.allowed==='boolean')&&Array.isArray(data.menus)&&data.menus.every(m=>m&&typeof m.path==='string'&&typeof m.canView==='boolean'));
  const ready=Boolean(user)&&query.isSuccess&&valid;
  useEffect(()=>{
-  if(ready&&data&&user&&(user.role!==data.role.code||user.roleName!==data.role.name))useAuthStore.getState().updateUser({role:data.role.code,roleName:data.role.name});
+  if(!ready||!data||!user)return;
+  const rolServidor=normalizeRoleCode(data.role.code);
+  if(normalizeRoleCode(user.role)!==rolServidor||user.roleName!==data.role.name){
+   useAuthStore.getState().updateUser({role:rolServidor,roleName:data.role.name});
+  }
  },[ready,data,user]);
  const canNavigate=useCallback((path:string)=>{
   if(!ready||!data)return false;const target=cleanPath(path);
