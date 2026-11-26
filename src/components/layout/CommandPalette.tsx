@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, CornerDownLeft } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui';
-import { useAuth } from '@/hooks/useAuth';
+import { useServerPermissions } from '@/modules/auth/hooks/useServerPermissions';
 import { NAV_ITEMS } from './Sidebar';
 
 interface Comando { title: string; section: string; path: string }
@@ -14,19 +14,18 @@ export function CommandPalette() {
   const inputRef = useRef<HTMLInputElement>(null);
   const listaRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const role = user?.role;
+  const permissions=useServerPermissions();
 
   const comandos = useMemo<Comando[]>(() => {
     return NAV_ITEMS
-      .filter((item) => !role || role === 'ADMIN' || item.allowedRoles.includes(role as never))
+      .filter((item) => permissions.canNavigate(item.path))
       .flatMap((item) => {
         if (!item.subItems?.length) return [{ title: item.title, section: item.title, path: item.path }];
         return item.subItems
-          .filter((sub) => !role || role === 'ADMIN' || !sub.allowedRoles || sub.allowedRoles.includes(role as never))
+          .filter((sub) => permissions.canNavigate(sub.path))
           .map((sub) => ({ title: sub.title, section: item.title, path: sub.path }));
       });
-  }, [role]);
+  }, [permissions.canNavigate]);
 
   const filtrados = useMemo(() => {
     const q = busqueda.trim().toLowerCase();

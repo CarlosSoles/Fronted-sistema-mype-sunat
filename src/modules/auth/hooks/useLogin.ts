@@ -1,17 +1,20 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { authApi } from '../services/authApi';
 import { cargarEmpresaActiva } from '../lib/empresaActiva';
 import { useAuthStore } from '@/stores/authStore';
 import { type LoginCredentials } from '../types/auth.types';
-import { getDefaultRouteForRole } from '@/routes/roleNavigation';
 
 export const useLogin = () => {
   const navigate = useNavigate();
+  const queryClient=useQueryClient();
   const { setSession, setActiveCompany } = useAuthStore();
 
   return useMutation({
     mutationFn: (credentials: LoginCredentials) => authApi.login(credentials),
+    // Un login fallido no debe reintentarse automáticamente: cada reintento
+    // cuenta para el rate limit del servidor (429).
+    retry: false,
     onSuccess: async (data) => {
       const token = data.accessToken || data.token || '';
       setSession(token, data.user);
@@ -32,8 +35,8 @@ export const useLogin = () => {
       if (!data.user.companyId) {
         await cargarEmpresaActiva(true);
       }
-      const defaultPath = getDefaultRouteForRole(data.user?.role);
-      navigate(defaultPath);
+      queryClient.removeQueries({queryKey:['permissions-me']});
+      navigate('/');
     },
     onError: (error) => {
       console.error('Error al iniciar sesión:', error);

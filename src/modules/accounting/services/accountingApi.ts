@@ -2,6 +2,8 @@ import { apiClient } from '@/lib/axios';
 import { cachedGet } from '@/lib/offlineCache';
 import {
   type AccountingAccount,
+  type UpdateAccountResponse,
+  type ClosingPreview,
   type AccountingEntry,
   type AccountingPeriod,
   type CreateAccountingEntryInput,
@@ -160,11 +162,32 @@ export const accountingApi = {
     return response.data;
   },
 
-  getAccounts: async (): Promise<AccountingAccount[]> => {
-    return cachedGet('accounting-accounts', async () => {
-      const response = await apiClient.get<AccountingAccount[]>('/accounting/accounts');
+  /** Cambia el nombre, el tipo y/o el estado de una cuenta del catálogo. */
+  updateAccount: async (
+    code: string,
+    cambios: { name?: string; element?: string; isActive?: boolean },
+  ): Promise<UpdateAccountResponse> => {
+    const response = await apiClient.patch<UpdateAccountResponse>(
+      `/accounting/accounts/${encodeURIComponent(code)}`,
+      cambios,
+    );
+    return response.data;
+  },
+
+  getAccounts: async (opciones?: { includeInactive?: boolean }): Promise<AccountingAccount[]> => {
+    const key = opciones?.includeInactive ? 'accounting-accounts-all' : 'accounting-accounts';
+    return cachedGet(key, async () => {
+      const response = await apiClient.get<AccountingAccount[]>('/accounting/accounts', {
+        params: opciones?.includeInactive ? { includeInactive: 'true' } : undefined,
+      });
       return response.data;
     });
+  },
+
+  /** Catálogo PCGE desde el endpoint en español que publica el backend. */
+  getPlanCuentas: async (): Promise<AccountingAccount[]> => {
+    const response = await apiClient.get<AccountingAccount[]>('/contabilidad/plan-cuentas');
+    return response.data;
   },
 
   getPeriods: async (): Promise<AccountingPeriod[]> => {
@@ -176,6 +199,14 @@ export const accountingApi = {
 
   openPeriod: async (year: number, month: number): Promise<AccountingPeriod> => {
     const response = await apiClient.post<AccountingPeriod>('/accounting/periods', { year, month });
+    return response.data;
+  },
+
+  /** Borra un período sin asientos. El backend rechaza los que tienen movimientos. */
+  deletePeriod: async (period: string): Promise<{ period: string; deleted: boolean }> => {
+    const response = await apiClient.delete<{ period: string; deleted: boolean }>(
+      `/accounting/periods/${encodeURIComponent(period)}`,
+    );
     return response.data;
   },
 
@@ -194,6 +225,12 @@ export const accountingApi = {
     return data;
   },
 
+  /** Vista previa del cierre: ingresos, gastos y resultado del ejercicio. */
+  getClosingPreview: async (year: number): Promise<ClosingPreview> => {
+    const response = await apiClient.get<ClosingPreview>(`/accounting/closing-preview/${year}`);
+    return response.data;
+  },
+
   closeFiscalYear: async (year: number): Promise<AccountingPeriod[]> => {
     const response = await apiClient.post<AccountingPeriod[]>(`/accounting/periods/year/${year}/close`);
     return response.data;
@@ -204,13 +241,50 @@ export const accountingApi = {
     return response.data;
   },
 
-  getLedger: async (period: string, accountCode: string): Promise<LedgerResponse> => {
-    return cachedGet(`accounting-ledger:${period}:${accountCode}`, async () => {
+  /**
+   * Reabre un período cerrado. El motivo es obligatorio y queda auditado en el
+   * backend; devuelve advertencias sobre períodos posteriores.
+   */
+  reopenPeriod: async (
+    period: string,
+    motivo: string,
+    opciones: { anularCierre?: boolean } = {},
+  ): Promise<{ period: AccountingPeriod; advertencias: string[] }> => {
+    const response = await apiClient.post<{ period: AccountingPeriod; advertencias: string[] }>(
+      `/accounting/periods/${period}/reopen`,
+      { motivo, ...(opciones.anularCierre ? { anularCierre: true } : {}) },
+    );
+    return response.data;
+  },
+
+  getLedger: async (
+    period: string,
+    accountCode: string,
+    opciones: { soloDirectos?: boolean; desde?: string; hasta?: string } = {},
+  ): Promise<LedgerResponse> => {
+    const soloDirectos = opciones.soloDirectos === true;
+    const desde = opciones.desde?.trim() ?? '';
+    const hasta = opciones.hasta?.trim() ?? '';
+    const clave = `accounting-ledger:${period}:${accountCode}:${soloDirectos}:${desde}:${hasta}`;
+    return cachedGet(clave, async () => {
       const response = await apiClient.get<LedgerResponse>('/accounting/ledger', {
-        params: { period, accountCode },
+        params: {
+          period,
+          accountCode,
+          ...(soloDirectos ? { soloDirectos: 'true' } : {}),
+          ...(desde && hasta ? { desde, hasta } : {}),
+        },
       });
       return response.data;
     });
+  },
+
+  /** Códigos de cuenta con movimientos en el período. */
+  getAccountsWithMovements: async (period: string): Promise<string[]> => {
+    const response = await apiClient.get<string[]>('/accounting/accounts/with-movements', {
+      params: { period },
+    });
+    return response.data;
   },
 
   getIgvReconciliation: async (period: string) => {
@@ -305,6 +379,9 @@ export interface AccountingRule {
   base_calculation: string;
   description?: string | null;
   is_active: boolean;
+  /** Auditoría de la última modificación (si existe). */
+  updated_at?: string | null;
+  updated_by?: string | null;
 }
 
 export interface AccountingRuleInput {

@@ -18,6 +18,7 @@ export interface CreatePurchasePayload {
   currencyCode?: string;
   responsible?: string;
   notes?: string;
+  shipmentId?: string;
   items: PurchaseItemPayload[];
 }
 
@@ -50,9 +51,11 @@ export interface PurchaseRecord {
   igvAmount: number;
   totalAmount: number;
   paidAmount: number;
+  creditAmount?: number;
   pendingAmount: number;
   status: 'PENDIENTE' | 'PAGO_PARCIAL' | 'PAGADA' | 'ANULADA';
   receptionStatus?: 'PENDIENTE' | 'PARCIAL' | 'RECIBIDA';
+  hasDifferences?: boolean;
   notes?: string | null;
   responsible?: string | null;
   itemsCount: number;

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Button } from '@/components/ui';
+import { Button } from '@/components/ui';
 import { extractApiErrorMessage } from '@/lib/apiErrors';
 import { InvoiceOutboxMonitor } from './InvoiceOutboxMonitor';
 import { cargarPaginasMonitor } from '../lib/invoiceMonitorData';
@@ -26,7 +26,7 @@ export function InvoiceRvieSection() {
   return <section aria-label="Propuesta RVIE">
     <h2>Propuesta RVIE · comprobantes registrados</h2>
     <Button variant="outline" onClick={() => setRevision(r => r + 1)}>Actualizar propuesta RVIE</Button>
-    {error && <Alert variant="destructive" role="alert">{error}</Alert>}
+    {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     {documentos ? <InvoiceOutboxMonitor comprobantes={documentos} resumen={calcularResumenFiscal(documentos)} onExportarSire={exportarReporteSireCsv} /> : !error && <p role="status">Cargando propuesta RVIE…</p>}
   </section>;
 }

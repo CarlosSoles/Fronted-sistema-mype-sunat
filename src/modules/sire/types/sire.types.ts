@@ -40,6 +40,43 @@ export interface ImportSireProposalResponse {
   errors: { line: number; reason: string }[];
 }
 
+/** Empresa del selector Multi-RUC (`GET /empresa/listar`). */
+export interface EmpresaResumen {
+  id: string;
+  ruc: string;
+  razonSocial: string;
+  nombreComercial: string | null;
+  activa: boolean;
+}
+
+/** Respuesta 202 de `POST /sire/importar`. */
+export interface SireImportacionRespuesta {
+  messageId: string;
+  importacionId: string;
+  periodo: string;
+  libro: SireBookType;
+  nombreArchivo: string;
+  estado: SireJobStatus;
+  rutaArchivo: string;
+  backendAlmacen: string;
+  hashArchivo: string;
+  bytes: number;
+  createdAt: string;
+}
+
+/** Respuesta de `GET /sire/importar/estado/:messageId`. */
+export interface SireImportacionEstado {
+  messageId: string;
+  estado: SireJobStatus;
+  periodo: string;
+  libro: SireBookType;
+  createdAt: string;
+  completedAt: string | null;
+  errorCode: string | null;
+  message: string | null;
+  ticket?: string | null;
+}
+
 export interface SireComprobante {
   tipoComprobante: TipoComprobante;
   serie: string;
@@ -115,10 +152,114 @@ export const SIRE_BOOK_CODE_LABELS: Record<SireBookCode, string> = {
   '080000': '080000 · Registro de Compras Electrónico (RCE)',
 };
 
+/**
+ * Consulta de periodos a SUNAT.
+ *
+ * El backend resuelve las credenciales SOL desde la configuración SIRE de la
+ * empresa (`POST /api/v1/sire/configuracion`), así que el frontend ya no
+ * envía usuario ni clave SOL: solo el libro consultado.
+ */
 export interface SirePeriodosRequest {
   bookCode: SireBookCode;
-  solUser: string;
-  solPassword: string;
+}
+
+/**
+ * Credenciales SIRE/SUNAT de la empresa.
+ *
+ * Los cuatro campos son opcionales: el backend conserva tal como estaban las
+ * credenciales que no se envían, de modo que se puede guardar solo lo que
+ * cambió. Nunca se envía el RUC: sale de la empresa autenticada.
+ */
+export interface SireConfiguracionPayload {
+  clientId?: string;
+  clientSecret?: string;
+  solUser?: string;
+  solPassword?: string;
+}
+
+/**
+ * Estado de la configuración SIRE de la empresa.
+ *
+ * `configured` es `true` cuando la empresa tiene las cuatro credenciales
+ * (`clientId`, `clientSecret`, `solUser`, `solPassword`) presentes y no vacías.
+ * El backend nunca devuelve los valores: solo este indicador.
+ */
+export interface SireConfiguracionStatus {
+  configured: boolean;
+}
+
+/**
+ * Datos globales de la empresa editables desde la configuración SIRE.
+ *
+ * Se guardan con `PUT /empresa/configuracion`. La empresa se identifica por la
+ * sesión autenticada y solo se envían los campos informados para no borrar
+ * datos ya configurados en el backend.
+ */
+export interface EmpresaConfiguracionPayload {
+  razonSocial?: string;
+  nombreComercial?: string;
+  direccion?: string;
+  estado?: string;
+  condicion?: string;
+  /** Series de comprobantes autorizadas para la empresa. */
+  series?: string[];
+}
+
+/**
+ * Configuración actual de la empresa devuelta por
+ * `GET /api/v1/empresa/configuracion`.
+ *
+ * El backend identifica la empresa por la sesión y usa `businessName` /
+ * `tradeName`; aquí se normalizan a los nombres que consume la UI.
+ */
+export interface EmpresaConfiguracionActual {
+  ruc: string;
+  razonSocial: string;
+  nombreComercial: string;
+  direccion: string;
+  estado: string;
+  condicion: string;
+  series: string[];
+}
+
+/** Datos de la empresa obtenidos al validar el RUC contra Decolecta. */
+export interface EmpresaRucValidacion {
+  ruc: string;
+  razonSocial: string;
+  nombreComercial?: string;
+  direccion?: string;
+  estado?: string;
+  condicion?: string;
+  /** Series autocompletadas por el backend, si las informa. */
+  series?: string[];
+}
+
+/**
+ * Línea de asiento contable que el backend propone para un periodo SIRE.
+ * Se muestra solo como previsualización: no crea asientos ni afecta contabilidad.
+ */
+export interface SireAsientoPreview {
+  cuentaContable: string;
+  debe: number;
+  haber: number;
+  descripcion: string;
+}
+
+/** Tipos de operación que se asignan a una cuenta contable del PCGE. */
+export const SIRE_MAPEO_TIPOS = [
+  'VENTAS',
+  'COMPRAS',
+  'IGV_VENTAS',
+  'IGV_COMPRAS',
+  'BASE',
+] as const;
+
+export type SireMapeoTipoOperacion = (typeof SIRE_MAPEO_TIPOS)[number];
+
+/** Par tipo de operación → cuenta contable del mapeo SIRE. */
+export interface SireMapeoContable {
+  tipoOperacion: SireMapeoTipoOperacion;
+  cuentaContable: string;
 }
 
 /**

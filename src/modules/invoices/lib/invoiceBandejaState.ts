@@ -14,7 +14,10 @@ export function clasificarBandeja(c: Evidencia): EstadoBandeja {
  return estado==='SIN_CONFIRMAR' ? 'SIN_CONFIRMAR' : 'EN_COLA';
 }
 export const ETIQUETAS_BANDEJA: Record<EstadoBandeja,string> = {
- ACEPTADO:'Aceptado',OBSERVADO:'Observado',RECHAZADO:'Rechazado por SUNAT',PREPARACION_LOCAL:'Bloqueado en preparación local',SIN_CONFIRMAR:'Incertidumbre de transporte',ERROR_RED:'Error de red',EN_COLA:'En cola / Enviado',ANULADO:'Anulado',NO_DETERMINADO:'Rechazado (origen no confirmado)',
+ ACEPTADO:'Aceptada', OBSERVADO:'Aceptada con observación', RECHAZADO:'Rechazada',
+ PREPARACION_LOCAL:'Bloqueada en preparación local', SIN_CONFIRMAR:'Sin confirmación',
+ ERROR_RED:'Interrumpida por conexión', EN_COLA:'En proceso', ANULADO:'Anulada',
+ NO_DETERMINADO:'Sin resultado confirmado',
 };
 export function consultarSunatAporta(c: Evidencia & {serie:string;tieneCdr?:boolean}): boolean {
  return !c.serie.toUpperCase().startsWith('B') && c.tieneCdr===false && ['SIN_CONFIRMAR','ERROR_RED','EN_COLA'].includes(clasificarBandeja(c)) && (clasificarBandeja(c)!=='EN_COLA' || (c.estadoBackend ?? c.estado)==='ENVIADO');

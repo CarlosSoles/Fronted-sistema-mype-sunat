@@ -1,3 +1,4 @@
+import { normalizeRoleCode } from '@/modules/auth/lib/roleCode';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { type AuthUser, type Role } from '@/modules/auth/types/auth.types';
@@ -44,6 +45,7 @@ export const useAuthStore = create<AuthState>()(
           token,
           user: {
             ...user,
+            role: normalizeRoleCode(user.role),
             fullName: user.fullName || user.name || '',
             name: user.name || user.fullName || '',
           },
@@ -58,7 +60,15 @@ export const useAuthStore = create<AuthState>()(
 
       updateUser: (userUpdates) =>
         set((state) => ({
-          user: state.user ? { ...state.user, ...userUpdates } : null,
+          user: state.user
+            ? {
+                ...state.user,
+                ...userUpdates,
+                ...(userUpdates.role
+                  ? { role: normalizeRoleCode(userUpdates.role) }
+                  : {}),
+              }
+            : null,
         })),
 
       setActiveCompany: (activeCompany) =>
@@ -76,6 +86,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'sync-sunat-auth',
+      merge: (persisted, current) => { const saved=persisted as Partial<AuthState>; return {...current,...saved,user:saved.user?{...saved.user,role:normalizeRoleCode(saved.user.role)}:null}; },
     }
   )
 );

@@ -1,10 +1,13 @@
+import { InvoiceUxPage as Page } from '../components/InvoiceUxPage';
+import { ConfigurationHub } from '../components/ConfigurationHub';
+import { SunatConnectionTest } from '../components/SunatConnectionTest';
+import { InvoiceCommercialDefaults } from '../components/InvoiceCommercialDefaults';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   Alert,
   AlertDescription,
   AlertTitle,
-  Page,
   PageHeader,
   PageText,
 } from '@/components/ui';
@@ -43,13 +46,15 @@ export default function InvoiceSettingsPage() {
   return (
     <Page>
       <PageHeader
-        title="Configuración de Facturación Electrónica"
+        title="Configuración de facturación"
         description="Entorno de SUNAT, series con correlativo propio y estado de las credenciales para emitir"
       >
         <PageText variant="caption" className="text-muted-foreground">
           {cargando ? 'Consultando configuración…' : `Empresa ${ruc || 'sin RUC en sesión'}`}
         </PageText>
       </PageHeader>
+
+      <ConfigurationHub />
 
       {/*
         Si el backend no responde, se dice. Mostrar el formulario vacío haría
@@ -76,6 +81,8 @@ export default function InvoiceSettingsPage() {
 
       <Link to="/invoices/configuracion/precios">Precios de venta</Link>
       <InvoiceStorageNote aceptados={aceptados} />
+      <div id="facturacion"><InvoiceCommercialDefaults /></div>
+      <SunatConnectionTest />
 
       <InvoiceSettingsTab
         ruc={ruc}

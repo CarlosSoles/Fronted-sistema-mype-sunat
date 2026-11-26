@@ -200,56 +200,98 @@ export default function InventoryStocksPage() {
       )}
 
       {/* Header & Acciones */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 pb-1">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
             <Boxes className="h-7 w-7 text-primary" />
             Existencias y Catálogo de Almacén
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground mt-0.5">
             Control de inventario físico permanente, fichas técnicas y valorización en soles (PEN).
           </p>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsCatalogsModalOpen(true)}
-            className="gap-1.5"
-            title="Administrar tablas de Marcas, Modelos, Categorías, Fabricantes, Unidades SUNAT y Tags"
-          >
-            <Layers className="h-4 w-4 text-primary" /> Mantenedores
-          </Button>
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full xl:w-auto justify-start xl:justify-end">
+          {/* Grupo de utilitarios */}
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsCatalogsModalOpen(true)}
+              className="gap-1.5 text-xs font-medium"
+              title="Administrar tablas de Marcas, Modelos, Categorías, Fabricantes, Unidades SUNAT y Tags"
+            >
+              <Layers className="h-3.5 w-3.5 text-muted-foreground" />
+              Mantenedores
+            </Button>
 
-          <Button variant="outline" size="sm" onClick={handleExportCsv} className="gap-1.5" title="Descargar inventario valorizado en formato CSV">
-            <Download className="h-4 w-4" /> Exportar CSV
-          </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportCsv}
+              className="gap-1.5 text-xs font-medium"
+              title="Descargar inventario valorizado en formato CSV"
+            >
+              <Download className="h-3.5 w-3.5 text-muted-foreground" />
+              Exportar CSV
+            </Button>
 
-          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshState === 'loading'} className="gap-1.5">
-            {refreshState === 'loading' ? (
-              <><RefreshCw className="h-4 w-4 animate-spin text-primary" /><span>Actualizando...</span></>
-            ) : refreshState === 'success' ? (
-              <><CheckCircle2 className="h-4 w-4 text-emerald-500" /><span className="text-emerald-500 font-medium">Actualizado</span></>
-            ) : (
-              <><RefreshCw className="h-4 w-4" /><span>Actualizar</span></>
-            )}
-          </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={refreshState === 'loading'}
+              className="gap-1.5 text-xs font-medium"
+              title="Recargar existencias"
+            >
+              {refreshState === 'loading' ? (
+                <>
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin text-primary" />
+                  <span className="hidden sm:inline">Actualizando...</span>
+                </>
+              ) : refreshState === 'success' ? (
+                <>
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                  <span className="text-emerald-500 font-medium hidden sm:inline">Actualizado</span>
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="hidden sm:inline">Actualizar</span>
+                </>
+              )}
+            </Button>
+          </div>
 
-          <Button size="sm" variant="secondary" onClick={() => setIsMovementModalOpen(true)} className="gap-1">
-            <ArrowLeftRight className="h-4 w-4" /> Movimiento Manual
-          </Button>
+          {/* Separador vertical estético */}
+          <div className="hidden sm:block h-6 w-px bg-border/80 mx-0.5" />
 
-          <Button
-            size="sm"
-            onClick={() => {
-              setEditingProduct(null);
-              setIsProductModalOpen(true);
-            }}
-            className="gap-1 font-bold shadow-xs"
-          >
-            <PlusCircle className="h-4 w-4" /> + Nuevo Producto (Ficha Técnica)
-          </Button>
+          {/* Grupo de acciones operativas */}
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIsMovementModalOpen(true)}
+              className="gap-1.5 text-xs font-medium"
+              title="Registrar una entrada o salida manual en almacén"
+            >
+              <ArrowLeftRight className="h-3.5 w-3.5 text-primary" />
+              Movimiento Manual
+            </Button>
+
+            <Button
+              size="sm"
+              onClick={() => {
+                setEditingProduct(null);
+                setIsProductModalOpen(true);
+              }}
+              className="gap-1.5 text-xs font-semibold shadow-xs"
+              title="Crear un nuevo producto o servicio en el catálogo"
+            >
+              <PlusCircle className="h-4 w-4" />
+              Nuevo Producto (Ficha Técnica)
+            </Button>
+          </div>
         </div>
       </div>
 

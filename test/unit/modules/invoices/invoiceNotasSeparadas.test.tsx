@@ -46,8 +46,8 @@ describe('notas separadas en la bandeja real', () => {
     expect(debitos.getByText('Total de notas de débito: S/ 59.00')).toBeTruthy();
     expect(creditos.getByRole('table')).toBeTruthy();
     expect(debitos.getByRole('table')).toBeTruthy();
-    expect(screen.getByRole('tab', { name: /^Notas/ })).toBeTruthy();
-    expect(screen.getAllByRole('tab')).toHaveLength(4);
+    expect(screen.queryByRole('tablist', { name: 'Apartados del módulo de facturación' })).toBeNull();
+    expect(screen.queryAllByRole('tab')).toHaveLength(0);
   });
 
   it('conserva la sección de débito vacía con conteo e importe cero', () => {
@@ -90,7 +90,7 @@ describe('notas separadas en la bandeja real', () => {
   it('filtra por estado sin mezclar crédito rechazado con débito aceptado', () => {
     montar();
     fireEvent.keyDown(screen.getByLabelText('Filtrar por estado CDR'), { key: 'ArrowDown' });
-    fireEvent.click(screen.getByRole('option', { name: 'Rechazado (SUNAT)' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Rechazada' }));
     expect(seccion('Notas de crédito').getByText('credito rechazado')).toBeTruthy();
     expect(seccion('Notas de crédito').getByText('1 documento')).toBeTruthy();
     expect(seccion('Notas de crédito').queryByText('cliente credito')).toBeNull();

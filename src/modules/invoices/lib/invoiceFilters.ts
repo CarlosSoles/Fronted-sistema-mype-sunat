@@ -6,21 +6,21 @@ import { clasificarBandeja } from './invoiceBandejaState';
  */
 import type { ComprobanteDemo } from '../data/invoiceDemoSchema';
 import {
-  INVOICE_TABS,
-  type InvoiceTabId,
-} from '../components/InvoiceTabsNav';
+  INVOICE_SECTION_TYPES,
+  type InvoiceSectionId,
+} from './invoiceSections';
 import type { InvoiceFiltros } from '../components/InvoiceFiltersBar';
 
 /** Devuelve los comprobantes que pertenecen al apartado activo. */
 export const porApartado = (
   comprobantes: readonly ComprobanteDemo[],
-  tab: InvoiceTabId,
+  apartado: InvoiceSectionId,
 ): ComprobanteDemo[] => {
-  const definicion = INVOICE_TABS.find((t) => t.id === tab);
+  const tipos = INVOICE_SECTION_TYPES[apartado];
 
-  if (!definicion || tab === 'monitor') return [...comprobantes];
+  if (!tipos || apartado === 'monitor') return [...comprobantes];
 
-  return comprobantes.filter((c) => definicion.tipos.includes(c.tipo));
+  return comprobantes.filter((c) => tipos.includes(c.tipo));
 };
 
 const normalizar = (s:string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -41,7 +41,8 @@ export const aplicarFiltros = (
     const coincideTexto = /^\d{1,8}$/.test(termino)
       ? String(c.correlativo) === correlativoNumerico || (termino.length===8 && c.clienteRuc===termino)
       : !termino || normalizar(`${documento} ${c.clienteRuc} ${c.clienteRazonSocial}`).includes(termino) || normalizar(documento).includes(terminoNumero);
-    const coincideEstado = filtros.estado === 'TODOS' || clasificarBandeja(c) === filtros.estado;
+    const categoria = clasificarBandeja(c);
+    const coincideEstado = filtros.estado === 'TODOS' || (filtros.estado === 'ACEPTADAS' ? ['ACEPTADO','OBSERVADO'].includes(categoria) : filtros.estado === 'PENDIENTES' ? !['ACEPTADO','OBSERVADO','RECHAZADO','ANULADO'].includes(categoria) : categoria === filtros.estado);
 
     const coincideDesde = !filtros.desde || c.fechaEmision >= filtros.desde;
     const coincideHasta = !filtros.hasta || c.fechaEmision <= filtros.hasta;

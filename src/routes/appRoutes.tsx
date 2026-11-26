@@ -1,17 +1,23 @@
+import { RATE_LIMIT_MESSAGE } from '@/lib/apiErrors';
 import React, { Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { AppLayout } from '@/components/layout/AppLayout';
 import { ProtectedRoute } from './ProtectedRoute';
 import { RoleProtectedRoute } from './RoleProtectedRoute';
-import { useAuth } from '@/hooks/useAuth';
-import { getDefaultRouteForRole } from './roleNavigation';
+import { getPermissionHome } from './roleNavigation';
+import { useServerPermissions } from '@/modules/auth/hooks/useServerPermissions';
 import { Loader2 } from 'lucide-react';
 
 // Carga perezosa (Route-based Code Splitting)
+const AppLayout = React.lazy(() =>
+  import('@/components/layout/AppLayout').then((module) => ({
+    default: module.AppLayout,
+  })),
+);
 const LoginPage = React.lazy(() => import('@/modules/auth/pages/LoginPage'));
 const RegisterPage = React.lazy(() => import('@/modules/auth/pages/RegisterPage'));
 const ProfilePage = React.lazy(() => import('@/modules/auth/pages/ProfilePage'));
 const SecurityPage = React.lazy(() => import('@/modules/auth/pages/SecurityPage'));
+const CredencialesEmpresaPage = React.lazy(() => import('@/modules/company/pages/CredencialesEmpresaPage'));
 
 // La bandeja oficial es InvoiceList: en dev la rehizo Oliver para que la
 // grilla se alimente del backend (GET /invoices), con reintento de CDR desde
@@ -29,6 +35,7 @@ const InvoiceMonitorPage = React.lazy(() => import('@/modules/invoices/pages/Inv
 const SalesReportPage = React.lazy(() => import('@/modules/invoices/pages/SalesReportPage'));
 const InvoiceDetractionsPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceDetractionsPage'));
 const CustomsDashboardPage = React.lazy(() => import('@/modules/customs/pages/CustomsDashboardPage'));
+const ImportQuotationsPage = React.lazy(() => import('@/modules/customs/pages/ImportQuotationsPage'));
 const ImportOrdersPage = React.lazy(() => import('@/modules/customs/pages/ImportOrdersPage'));
 const ShipmentsListPage = React.lazy(() => import('@/modules/customs/pages/ShipmentsListPage'));
 const ShipmentDetailPage = React.lazy(() => import('@/modules/customs/pages/ShipmentDetailPage'));
@@ -36,22 +43,26 @@ const DeclarationsListPage = React.lazy(() => import('@/modules/customs/pages/De
 const DuaRegistrationWizardPage = React.lazy(() => import('@/modules/customs/pages/DuaRegistrationWizardPage'));
 const CustomsLiquidationPage = React.lazy(() => import('@/modules/customs/pages/CustomsLiquidationPage'));
 const LandedCostSheetPage = React.lazy(() => import('@/modules/customs/pages/LandedCostSheetPage'));
+const CustomsAccountingPage = React.lazy(() => import('@/modules/customs/pages/CustomsAccountingPage'));
 const ForeignSuppliersPage = React.lazy(() => import('@/modules/customs/pages/ForeignSuppliersPage'));
-const PartnersPage = React.lazy(() => import('@/modules/customs/pages/PartnersPage'));
+const InvoiceClientsPage = React.lazy(() => import('@/modules/invoices/pages/InvoiceClientsPage'));
 const MasterDataPage = React.lazy(() => import('@/modules/customs/pages/MasterDataPage'));
 
 const DuaCalculatorPage = React.lazy(() => import('@/modules/customs/pages/DuaCalculatorPage'));
 const InventoryStocksPage = React.lazy(() => import('@/modules/inventory/pages/InventoryStocksPage'));
 const InventoryDashboardPage = React.lazy(() => import('@/modules/inventory/pages/InventoryDashboardPage'));
 const PurchasesPage = React.lazy(() => import('@/modules/purchases/pages/PurchasesPage'));
+const PurchaseOrdersPage = React.lazy(() => import('@/modules/purchases/pages/PurchaseOrdersPage'));
+const PaymentSchedulePage = React.lazy(() => import('@/modules/purchases/pages/PaymentSchedulePage'));
 const PurchasesDashboardPage = React.lazy(() => import('@/modules/purchases/pages/PurchasesDashboardPage'));
-const PurchasesPayablesPage = React.lazy(() => import('@/modules/inventory/pages/PurchasesPayablesPage'));
-const InventoryTransfersPage = React.lazy(() => import('@/modules/inventory/pages/InventoryTransfersPage'));
+const PurchasesPayablesPage = React.lazy(() => import('@/modules/purchases/pages/PurchasesPayablesPage'));
 const InventoryAdjustmentsPage = React.lazy(() => import('@/modules/inventory/pages/InventoryAdjustmentsPage'));
 const InventoryConfigPage = React.lazy(() => import('@/modules/inventory/pages/InventoryConfigPage'));
 const UserWarehousesPage = React.lazy(() => import('@/modules/auth/pages/UserWarehousesPage'));
+const RolePermissionsPage = React.lazy(() => import('@/modules/auth/pages/RolePermissionsPage'));
 const SalesPosPage = React.lazy(() => import('@/modules/sales/pages/SalesPosPage'));
 const SalesHistoryPage = React.lazy(() => import('@/modules/sales/pages/SalesHistoryPage'));
+const SalesReturnsPage = React.lazy(() => import('@/modules/sales/pages/SalesReturnsPage'));
 const SalesQuotesPage = React.lazy(() => import('@/modules/sales/pages/SalesQuotesPage'));
 const SalesOrdersPage = React.lazy(() => import('@/modules/sales/pages/SalesQuotesPage'));
 const CashClosurePage = React.lazy(() => import('@/modules/sales/pages/CashClosurePage'));
@@ -59,8 +70,11 @@ const InventoryKardexPage = React.lazy(() => import('@/modules/inventory/pages/I
 const InventoryOpeningPage = React.lazy(() => import('@/modules/inventory/pages/InventoryOpeningPage'));
 const InventoryMovementsPage = React.lazy(() => import('@/modules/inventory/pages/InventoryMovementsPage'));
 const ProductKardexPage = React.lazy(() => import('@/modules/inventory/pages/ProductKardexPage'));
+const SireConfiguracionPage = React.lazy(() => import('@/modules/sire/pages/SireConfiguracionPage'));
+const SireCredentialsPage = React.lazy(() => import('@/modules/sire/pages/SireCredentialsPage'));
+const SireMapeoContablePage = React.lazy(() => import('@/modules/sire/pages/SireMapeoContablePage'));
 const SireReconciliationPage = React.lazy(() => import('@/modules/sire/pages/SireReconciliationPage'));
-const SireImportPage = React.lazy(() => import('@/modules/sire/pages/SireImportPage'));
+const SireImportarPropuestaPage = React.lazy(() => import('@/modules/sire/pages/SireImportarPropuestaPage'));
 const SirePeriodosPage = React.lazy(() => import('@/modules/sire/pages/SirePeriodosPage'));
 const SireClosurePage = React.lazy(() => import('@/modules/sire/pages/SireClosurePage'));
 const SireHistoryPage = React.lazy(() => import('@/modules/sire/pages/SireHistoryPage'));
@@ -73,6 +87,7 @@ const ExpensesPage = React.lazy(() => import('@/modules/expenses/pages/ExpensesP
 const CollectionsPage = React.lazy(() => import('@/modules/collections/pages/CollectionsPage'));
 const AccountingTaxBooksPage = React.lazy(() => import('@/modules/accounting/pages/AccountingTaxBooksPage'));
 const AccountingPlanCuentasPage = React.lazy(() => import('@/modules/accounting/pages/AccountingPlanCuentasPage'));
+const AccountingGuidePage = React.lazy(() => import('@/modules/accounting/pages/AccountingGuidePage'));
 const AccountingPlePage = React.lazy(() => import('@/modules/accounting/pages/AccountingPlePage'));
 const AccountingPeriodsPage = React.lazy(() => import('@/modules/accounting/pages/AccountingPeriodsPage'));
 const AccountingLedgerPage = React.lazy(() => import('@/modules/accounting/pages/AccountingLedgerPage'));
@@ -91,8 +106,10 @@ const PageLoadingFallback = () => (
 
 // Redirección dinámica al módulo correspondiente según la Matriz RBAC del rol activo
 const RoleHomeRedirect = () => {
-  const { user } = useAuth();
-  const target = getDefaultRouteForRole(user?.role);
+  const p = useServerPermissions();
+  if (p.isLoading) return <PageLoadingFallback />;
+  if (p.isError) return <p role='alert'>{p.errorStatus === 429 ? RATE_LIMIT_MESSAGE : 'No se pudieron consultar los permisos.'}</p>;
+  const target = getPermissionHome(p.homePath);
   return <Navigate to={target} replace />;
 };
 
@@ -108,17 +125,26 @@ export const AppRoutes = () => {
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
             <Route index element={<RoleHomeRedirect />} />
+            <Route path="/sin-accesos" element={<p role="status">No tiene accesos asignados.</p>} />
 
             {/* Módulo de Identidad & Perfil */}
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/settings/security" element={<SecurityPage />} />
+            <Route
+              path="/credenciales-empresa"
+              element={
+                <RoleProtectedRoute roles={['ADMIN']}>
+                  <CredencialesEmpresaPage />
+                </RoleProtectedRoute>
+              }
+            />
 
             {/* [M1: Facturación] ADMIN, OPERADOR_FACTURACION, CONTADOR, AUDITOR */}
             <Route path="/invoices" element={<Navigate to="/invoices/dashboard" replace />} />
             <Route
               path="/invoices/dashboard"
               element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT']}>
+                <RoleProtectedRoute >
                   <InvoicesDashboardPage />
                 </RoleProtectedRoute>
               }
@@ -126,7 +152,7 @@ export const AppRoutes = () => {
             <Route
               path="/invoices/detracciones"
               element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                <RoleProtectedRoute >
                   <InvoiceDetractionsPage />
                 </RoleProtectedRoute>
               }
@@ -134,7 +160,7 @@ export const AppRoutes = () => {
             <Route
               path="/invoices/reportes/ventas"
               element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                <RoleProtectedRoute >
                   <SalesReportPage />
                 </RoleProtectedRoute>
               }
@@ -143,22 +169,22 @@ export const AppRoutes = () => {
               path="/invoices/facturas"
               element={
                 <RoleProtectedRoute
-                  allowedRoles={['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT']}
+
                 >
                   <InvoicesListPage />
                 </RoleProtectedRoute>
               }
             />
             <Route path="/invoices/clientes" element={
-              <RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT']}>
-                <PartnersPage key="billing" context="billing" />
+              <RoleProtectedRoute >
+                <InvoiceClientsPage />
               </RoleProtectedRoute>
             } />
             <Route
               path="/invoices/emision"
               element={
                 <RoleProtectedRoute
-                  allowedRoles={['ADMIN', 'OPERADOR_FACTURACION', 'OPERATOR']}
+
                 >
                   <InvoiceEmissionPage />
                 </RoleProtectedRoute>
@@ -168,7 +194,7 @@ export const AppRoutes = () => {
               path="/invoices/notas"
               element={
                 <RoleProtectedRoute
-                  allowedRoles={['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT']}
+
                 >
                   <InvoicesListPage />
                 </RoleProtectedRoute>
@@ -178,7 +204,7 @@ export const AppRoutes = () => {
               path="/invoices/bajas"
               element={
                 <RoleProtectedRoute
-                  allowedRoles={['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT']}
+
                 >
                   <InvoiceBajasPage />
                 </RoleProtectedRoute>
@@ -188,7 +214,7 @@ export const AppRoutes = () => {
               path="/invoices/monitor"
               element={
                 <RoleProtectedRoute
-                  allowedRoles={['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT']}
+
                 >
                   <InvoiceMonitorPage />
                 </RoleProtectedRoute>
@@ -203,28 +229,30 @@ export const AppRoutes = () => {
             <Route
               path="/invoices/configuracion"
               element={
-                <RoleProtectedRoute allowedRoles={['ADMIN']}>
+                <RoleProtectedRoute >
                   <InvoiceSettingsPage />
                 </RoleProtectedRoute>
               }
             />
 
-            <Route path="/invoices/configuracion/precios" element={<RoleProtectedRoute allowedRoles={['ADMIN']}><InvoicePricesPage /></RoleProtectedRoute>} />
-            <Route path="/usuarios/almacenes" element={<RoleProtectedRoute allowedRoles={['ADMIN']}><UserWarehousesPage /></RoleProtectedRoute>} />
-            <Route path="/sales" element={<RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_FACTURACION']}><SalesPosPage /></RoleProtectedRoute>} />
-            <Route path="/sales/pos" element={<RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_FACTURACION']}><SalesPosPage /></RoleProtectedRoute>} />
-            <Route path="/sales/historial" element={<RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_FACTURACION', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}><SalesHistoryPage /></RoleProtectedRoute>} />
-            <Route path="/sales/cotizaciones" element={<RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_FACTURACION']}><SalesQuotesPage /></RoleProtectedRoute>} />
-            <Route path="/sales/pedidos" element={<RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_FACTURACION']}><SalesOrdersPage /></RoleProtectedRoute>} />
-            <Route path="/sales/caja" element={<RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_FACTURACION']}><CashClosurePage /></RoleProtectedRoute>} />
-            <Route path="/sales/reportes" element={<RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}><SalesReportPage /></RoleProtectedRoute>} />
+            <Route path="/invoices/configuracion/precios" element={<RoleProtectedRoute ><InvoicePricesPage /></RoleProtectedRoute>} />
+            <Route path="/usuarios/almacenes" element={<RoleProtectedRoute ><UserWarehousesPage /></RoleProtectedRoute>} />
+            <Route path="/usuarios/permisos" element={<RoleProtectedRoute ><RolePermissionsPage /></RoleProtectedRoute>} />
+            <Route path="/sales" element={<RoleProtectedRoute ><SalesPosPage /></RoleProtectedRoute>} />
+            <Route path="/sales/pos" element={<RoleProtectedRoute ><SalesPosPage /></RoleProtectedRoute>} />
+            <Route path="/sales/historial" element={<RoleProtectedRoute ><SalesHistoryPage /></RoleProtectedRoute>} />
+            <Route path="/sales/devoluciones" element={<RoleProtectedRoute ><SalesReturnsPage /></RoleProtectedRoute>} />
+            <Route path="/sales/cotizaciones" element={<RoleProtectedRoute ><SalesQuotesPage /></RoleProtectedRoute>} />
+            <Route path="/sales/pedidos" element={<RoleProtectedRoute ><SalesOrdersPage /></RoleProtectedRoute>} />
+            <Route path="/sales/caja" element={<RoleProtectedRoute ><CashClosurePage /></RoleProtectedRoute>} />
+            <Route path="/sales/reportes" element={<RoleProtectedRoute ><SalesReportPage /></RoleProtectedRoute>} />
 
             {/* [M3: Suite Aduanera e Inventarios] ADMIN, OPERADOR_ADUANAS, CONTADOR, AUDITOR */}
             <Route
               path="/customs"
               element={
                 <RoleProtectedRoute
-                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
+
                 >
                   <CustomsDashboardPage />
                 </RoleProtectedRoute>
@@ -234,9 +262,19 @@ export const AppRoutes = () => {
               path="/customs/dashboard"
               element={
                 <RoleProtectedRoute
-                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
+
                 >
                   <CustomsDashboardPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/customs/quotations"
+              element={
+                <RoleProtectedRoute
+
+                >
+                  <ImportQuotationsPage />
                 </RoleProtectedRoute>
               }
             />
@@ -244,7 +282,7 @@ export const AppRoutes = () => {
               path="/customs/orders"
               element={
                 <RoleProtectedRoute
-                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
+
                 >
                   <ImportOrdersPage />
                 </RoleProtectedRoute>
@@ -254,7 +292,7 @@ export const AppRoutes = () => {
               path="/customs/suppliers"
               element={
                 <RoleProtectedRoute
-                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
+
                 >
                   <ForeignSuppliersPage />
                 </RoleProtectedRoute>
@@ -263,7 +301,7 @@ export const AppRoutes = () => {
             <Route
               path="/customs/partners"
               element={
-                <RoleProtectedRoute allowedRoles={['ADMIN']}>
+                <RoleProtectedRoute >
                   <Navigate to="/invoices/clientes" replace />
                 </RoleProtectedRoute>
               }
@@ -271,7 +309,7 @@ export const AppRoutes = () => {
             <Route
               path="/customs/config"
               element={
-                <RoleProtectedRoute allowedRoles={['ADMIN']}>
+                <RoleProtectedRoute >
                   <MasterDataPage />
                 </RoleProtectedRoute>
               }
@@ -280,7 +318,7 @@ export const AppRoutes = () => {
               path="/customs/shipments"
               element={
                 <RoleProtectedRoute
-                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
+
                 >
                   <ShipmentsListPage />
                 </RoleProtectedRoute>
@@ -290,7 +328,7 @@ export const AppRoutes = () => {
               path="/customs/shipments/:id"
               element={
                 <RoleProtectedRoute
-                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
+
                 >
                   <ShipmentDetailPage />
                 </RoleProtectedRoute>
@@ -300,7 +338,7 @@ export const AppRoutes = () => {
               path="/customs/declarations"
               element={
                 <RoleProtectedRoute
-                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
+
                 >
                   <DeclarationsListPage />
                 </RoleProtectedRoute>
@@ -310,7 +348,7 @@ export const AppRoutes = () => {
               path="/customs/declarations/new"
               element={
                 <RoleProtectedRoute
-                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
+
                 >
                   <DuaRegistrationWizardPage />
                 </RoleProtectedRoute>
@@ -320,7 +358,7 @@ export const AppRoutes = () => {
               path="/customs/settlements"
               element={
                 <RoleProtectedRoute
-                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
+
                 >
                   <CustomsLiquidationPage />
                 </RoleProtectedRoute>
@@ -330,7 +368,7 @@ export const AppRoutes = () => {
               path="/customs/landed-cost"
               element={
                 <RoleProtectedRoute
-                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
+
                 >
                   <LandedCostSheetPage />
                 </RoleProtectedRoute>
@@ -340,9 +378,19 @@ export const AppRoutes = () => {
               path="/customs/shipments/:id/landed-cost"
               element={
                 <RoleProtectedRoute
-                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
+
                 >
                   <LandedCostSheetPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/customs/accounting"
+              element={
+                <RoleProtectedRoute
+
+                >
+                  <CustomsAccountingPage />
                 </RoleProtectedRoute>
               }
             />
@@ -350,7 +398,7 @@ export const AppRoutes = () => {
               path="/customs/inventory/kardex"
               element={
                 <RoleProtectedRoute
-                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
+
                 >
                   <Navigate to="/inventory/kardex" replace />
                 </RoleProtectedRoute>
@@ -363,7 +411,7 @@ export const AppRoutes = () => {
               path="/customs/legacy"
               element={
                 <RoleProtectedRoute
-                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
+
                 >
                   <DuaCalculatorPage />
                 </RoleProtectedRoute>
@@ -374,7 +422,7 @@ export const AppRoutes = () => {
             <Route
               path="/purchases/dashboard"
               element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                <RoleProtectedRoute >
                   <PurchasesDashboardPage />
                 </RoleProtectedRoute>
               }
@@ -382,7 +430,7 @@ export const AppRoutes = () => {
             <Route
               path="/purchases/payables"
               element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                <RoleProtectedRoute >
                   <PurchasesPayablesPage />
                 </RoleProtectedRoute>
               }
@@ -391,9 +439,25 @@ export const AppRoutes = () => {
               path="/purchases"
               element={
                 <RoleProtectedRoute
-                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}
+
                 >
                   <PurchasesPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/purchases/orders"
+              element={
+                <RoleProtectedRoute >
+                  <PurchaseOrdersPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/purchases/payment-schedule"
+              element={
+                <RoleProtectedRoute>
+                  <PaymentSchedulePage />
                 </RoleProtectedRoute>
               }
             />
@@ -403,7 +467,7 @@ export const AppRoutes = () => {
             <Route
               path="/inventory/dashboard"
               element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                <RoleProtectedRoute >
                   <InventoryDashboardPage />
                 </RoleProtectedRoute>
               }
@@ -414,7 +478,7 @@ export const AppRoutes = () => {
               path="/inventory/stocks"
               element={
                 <RoleProtectedRoute
-                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT']}
+
                 >
                   <InventoryStocksPage />
                 </RoleProtectedRoute>
@@ -426,7 +490,7 @@ export const AppRoutes = () => {
               path="/inventory/movements"
               element={
                 <RoleProtectedRoute
-                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT']}
+
                 >
                   <InventoryMovementsPage />
                 </RoleProtectedRoute>
@@ -434,16 +498,12 @@ export const AppRoutes = () => {
             />
             <Route
               path="/inventory/transfers"
-              element={
-                <RoleProtectedRoute allowedRoles={['ADMIN']}>
-                  <InventoryTransfersPage />
-                </RoleProtectedRoute>
-              }
+              element={<Navigate to="/inventory/movements?tab=transfers" replace />}
             />
             <Route
               path="/inventory/adjustments"
               element={
-                <RoleProtectedRoute allowedRoles={['ADMIN']}>
+                <RoleProtectedRoute >
                   <InventoryAdjustmentsPage />
                 </RoleProtectedRoute>
               }
@@ -451,7 +511,7 @@ export const AppRoutes = () => {
             <Route
               path="/inventory/opening"
               element={
-                <RoleProtectedRoute allowedRoles={['ADMIN']}>
+                <RoleProtectedRoute >
                   <InventoryOpeningPage />
                 </RoleProtectedRoute>
               }
@@ -459,7 +519,7 @@ export const AppRoutes = () => {
             <Route
               path="/inventory/config"
               element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'ACCOUNTANT']}>
+                <RoleProtectedRoute >
                   <InventoryConfigPage />
                 </RoleProtectedRoute>
               }
@@ -477,7 +537,7 @@ export const AppRoutes = () => {
               path="/kardex/general"
               element={
                 <RoleProtectedRoute
-                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT']}
+
                 >
                   <InventoryKardexPage />
                 </RoleProtectedRoute>
@@ -487,7 +547,7 @@ export const AppRoutes = () => {
               path="/kardex/producto"
               element={
                 <RoleProtectedRoute
-                  allowedRoles={['ADMIN', 'OPERADOR_ADUANAS', 'CONTADOR', 'AUDITOR', 'OPERATOR', 'ACCOUNTANT']}
+
                 >
                   <ProductKardexPage />
                 </RoleProtectedRoute>
@@ -502,17 +562,42 @@ export const AppRoutes = () => {
               element={<Navigate to="/sire/conciliacion" replace />}
             />
             <Route
+              path="/sire/configuracion"
+              element={
+                <RoleProtectedRoute >
+                  <SireConfiguracionPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/sire/credenciales"
+              element={
+                <RoleProtectedRoute roles={['ADMIN']}>
+                  <SireCredentialsPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route path="/sire/config" element={<Navigate to="/sire/configuracion" replace />} />
+            <Route
+              path="/sire/mapeo-contable"
+              element={
+                <RoleProtectedRoute roles={['ADMIN']}>
+                  <SireMapeoContablePage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
               path="/sire/importar"
               element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
-                  <SireImportPage />
+                <RoleProtectedRoute roles={['ADMIN', 'CONTADOR', 'FACTURADOR']}>
+                  <SireImportarPropuestaPage />
                 </RoleProtectedRoute>
               }
             />
             <Route
               path="/sire/periodos"
               element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                <RoleProtectedRoute roles={['ADMIN', 'CONTADOR', 'FACTURADOR']}>
                   <SirePeriodosPage />
                 </RoleProtectedRoute>
               }
@@ -522,7 +607,7 @@ export const AppRoutes = () => {
             <Route
               path="/sire/conciliacion"
               element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                <RoleProtectedRoute >
                   <SireReconciliationPage />
                 </RoleProtectedRoute>
               }
@@ -530,7 +615,7 @@ export const AppRoutes = () => {
             <Route
               path="/sire/cierre"
               element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                <RoleProtectedRoute >
                   <SireClosurePage />
                 </RoleProtectedRoute>
               }
@@ -538,7 +623,7 @@ export const AppRoutes = () => {
             <Route
               path="/sire/historial"
               element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                <RoleProtectedRoute roles={['ADMIN', 'CONTADOR', 'FACTURADOR']}>
                   <SireHistoryPage />
                 </RoleProtectedRoute>
               }
@@ -548,7 +633,7 @@ export const AppRoutes = () => {
             <Route
               path="/accounting/dashboard"
               element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                <RoleProtectedRoute >
                   <AccountingDashboardPage />
                 </RoleProtectedRoute>
               }
@@ -556,7 +641,7 @@ export const AppRoutes = () => {
             <Route
               path="/accounting"
               element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                <RoleProtectedRoute >
                   <AccountingEntriesPage />
                 </RoleProtectedRoute>
               }
@@ -564,7 +649,7 @@ export const AppRoutes = () => {
             <Route
               path="/accounting/ledger"
               element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                <RoleProtectedRoute >
                   <AccountingLedgerPage />
                 </RoleProtectedRoute>
               }
@@ -572,7 +657,7 @@ export const AppRoutes = () => {
             <Route
               path="/accounting/income-statement"
               element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                <RoleProtectedRoute >
                   <AccountingIncomeStatementPage />
                 </RoleProtectedRoute>
               }
@@ -580,7 +665,7 @@ export const AppRoutes = () => {
             <Route
               path="/accounting/trial-balance"
               element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                <RoleProtectedRoute >
                   <AccountingTrialBalancePage />
                 </RoleProtectedRoute>
               }
@@ -588,7 +673,7 @@ export const AppRoutes = () => {
             <Route
               path="/accounting/balance-sheet"
               element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                <RoleProtectedRoute >
                   <AccountingBalanceSheetPage />
                 </RoleProtectedRoute>
               }
@@ -596,7 +681,7 @@ export const AppRoutes = () => {
             <Route
               path="/accounting/auditoria"
               element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                <RoleProtectedRoute >
                   <AccountingAuditPage />
                 </RoleProtectedRoute>
               }
@@ -604,7 +689,7 @@ export const AppRoutes = () => {
             <Route
               path="/sales/cobranzas"
               element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                <RoleProtectedRoute >
                   <CollectionsPage />
                 </RoleProtectedRoute>
               }
@@ -612,7 +697,7 @@ export const AppRoutes = () => {
             <Route
               path="/collections"
               element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                <RoleProtectedRoute >
                   <CollectionsPage />
                 </RoleProtectedRoute>
               }
@@ -620,7 +705,7 @@ export const AppRoutes = () => {
             <Route
               path="/purchases/expenses"
               element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                <RoleProtectedRoute >
                   <ExpensesPage />
                 </RoleProtectedRoute>
               }
@@ -628,7 +713,7 @@ export const AppRoutes = () => {
             <Route
               path="/expenses"
               element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                <RoleProtectedRoute >
                   <ExpensesPage />
                 </RoleProtectedRoute>
               }
@@ -636,15 +721,23 @@ export const AppRoutes = () => {
             <Route
               path="/accounting/rules"
               element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                <RoleProtectedRoute >
                   <AccountingRulesPage />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/accounting/guia"
+              element={
+                <RoleProtectedRoute >
+                  <AccountingGuidePage />
                 </RoleProtectedRoute>
               }
             />
             <Route
               path="/accounting/plan-cuentas"
               element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                <RoleProtectedRoute >
                   <AccountingPlanCuentasPage />
                 </RoleProtectedRoute>
               }
@@ -652,7 +745,7 @@ export const AppRoutes = () => {
             <Route
               path="/accounting/periods"
               element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                <RoleProtectedRoute >
                   <AccountingPeriodsPage />
                 </RoleProtectedRoute>
               }
@@ -660,7 +753,7 @@ export const AppRoutes = () => {
             <Route
               path="/accounting/tax-books"
               element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                <RoleProtectedRoute >
                   <AccountingTaxBooksPage />
                 </RoleProtectedRoute>
               }
@@ -668,7 +761,7 @@ export const AppRoutes = () => {
             <Route
               path="/accounting/ple"
               element={
-                <RoleProtectedRoute allowedRoles={['ADMIN', 'CONTADOR', 'AUDITOR', 'ACCOUNTANT']}>
+                <RoleProtectedRoute >
                   <AccountingPlePage />
                 </RoleProtectedRoute>
               }

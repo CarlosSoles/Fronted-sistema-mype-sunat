@@ -1,71 +1,83 @@
-import { type ReactNode } from 'react';
-import { Link, Outlet } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
-import { type Role } from '@/modules/auth/types/auth.types';
-import { getDefaultRouteForRole } from './roleNavigation';
-import { ShieldAlert, ArrowLeft } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-
-interface RoleProtectedRouteProps {
-  allowedRoles: Role[];
-  children?: ReactNode;
-}
+import type { ReactNode } from 'react';
+import { Link, Outlet, useLocation } from 'react-router-dom';
+import { useServerPermissions } from '@/modules/auth/hooks/useServerPermissions';
+import { normalizeRoleCode } from '@/modules/auth/lib/roleCode';
+import { RATE_LIMIT_MESSAGE } from '@/lib/apiErrors';
+import { getPermissionHome } from './roleNavigation';
 
 /**
- * RoleProtectedRoute: Guardian de rutas que valida los privilegios del usuario (RBAC).
- * Si el rol no está autorizado, renderiza una vista amigable de 403 Forbidden
- * con opción para retornar a un módulo permitido.
+ * Rutas que el frontend publica antes que el backend.
+ *
+ * El catálogo de menús vive en el servidor. Mientras una pantalla nueva no
+ * esté ahí, `canNavigate` la niega y el usuario ve un 403 aunque la ruta y la
+ * página existan. Para no bloquear el desarrollo, estas rutas se permiten si
+ * el usuario puede ver su módulo.
+ *
+ * Cuando el backend publique la ruta, la condición del servidor manda.
  */
-export const RoleProtectedRoute = ({ allowedRoles, children }: RoleProtectedRouteProps) => {
-  const { user } = useAuth();
-  const currentRole = user?.role;
+const RUTAS_ADELANTADAS: ReadonlyArray<{ path: string; moduleCode: string }> = [
+  { path: '/accounting/guia', moduleCode: 'M4' },
+  { path: '/customs/quotations', moduleCode: 'M2' },
+  { path: '/credenciales-empresa', moduleCode: 'M3' },
+  { path: '/sire/credenciales', moduleCode: 'M3' },
+];
 
-  // El ADMIN siempre tiene acceso a todos los módulos
-  const isAuthorized =
-    currentRole === 'ADMIN' || (currentRole && allowedRoles.includes(currentRole));
+const normalizarRol = (role: string): string => {
+  const code = normalizeRoleCode(role);
+  return code === 'OPERADOR_FACTURACION' ? 'FACTURADOR' : code;
+};
 
-  if (!isAuthorized) {
+interface RoleProtectedRouteProps {
+  children?: ReactNode;
+  /** Roles permitidos; si se omite se usa solo el catálogo del servidor. */
+  roles?: readonly string[];
+}
+
+export const RoleProtectedRoute = ({
+  children,
+  roles,
+}: RoleProtectedRouteProps) => {
+  const p = useServerPermissions();
+  const { pathname } = useLocation();
+  if (p.isLoading) return <p role="status">Consultando accesos…</p>;
+  if (p.isError) {
     return (
-      <div
-        id="forbidden-403-container"
-        role="alert"
-        aria-live="assertive"
-        className="flex flex-col items-center justify-center min-h-[60vh] px-4 text-center"
-      >
-        <div className="h-16 w-16 rounded-2xl bg-destructive/10 text-destructive flex items-center justify-center mb-4 shadow-inner">
-          <ShieldAlert className="h-8 w-8" />
-        </div>
-
-        <div className="flex items-center gap-2 mb-2">
-          <Badge variant="outline" className="text-xs uppercase font-mono tracking-wider">
-            Código 403
-          </Badge>
-          {currentRole && (
-            <Badge variant="secondary" className="text-xs">
-              Tu rol: {currentRole}
-            </Badge>
-          )}
-        </div>
-
-        <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl mb-2">
-          Módulo Restringido
-        </h1>
-
-        <p className="text-sm text-muted-foreground max-w-md mb-6 leading-relaxed">
-          No tienes permisos autorizados en la Matriz RBAC para ingresar a esta sección.
-          Si requieres acceso, solicita una elevación de privilegios al Administrador de tu MYPE.
-        </p>
-
-        <Button asChild variant="default" className="gap-2">
-          <Link to={getDefaultRouteForRole(currentRole)}>
-            <ArrowLeft className="h-4 w-4" />
-            Volver a mi Módulo Principal
-          </Link>
-        </Button>
+      <div role="alert" className="mx-auto max-w-md space-y-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm">
+        <p className="font-medium text-destructive">{p.errorStatus === 429 ? RATE_LIMIT_MESSAGE : 'No se pudieron consultar los permisos.'}</p>
+        {p.errorStatus !== 429 && <p className="text-muted-foreground">
+          Puede que el servidor esté despertando. La aplicación reintenta sola; si el problema
+          continúa, pulsa el botón.
+        </p>}
+        <button
+          type="button"
+          className="rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+          disabled={p.errorStatus === 429}
+          onClick={() => void p.refetch()}
+        >
+          Reintentar
+        </button>
       </div>
     );
   }
 
+  const adelanto = RUTAS_ADELANTADAS.find((ruta) => ruta.path === pathname);
+  const elServidorLoConoce = (p.snapshot?.menus ?? []).some((menu) => menu.path === pathname);
+  const permitidoPorAdelanto = Boolean(adelanto) && !elServidorLoConoce && p.canView(adelanto!.moduleCode);
+  const rolActual = normalizarRol(p.snapshot?.role.code ?? '');
+  const sinPermisoRol =
+    Boolean(roles?.length) &&
+    !(roles ?? []).map(normalizarRol).includes(rolActual);
+
+  if ((!p.canNavigate(pathname) && !permitidoPorAdelanto) || sinPermisoRol) {
+    return (
+      <div id="forbidden-403-container" role="alert">
+        <span>Código 403</span>
+        <h1>Módulo Restringido</h1>
+        <p>Rol: {p.snapshot?.role.code}</p>
+        <p>No tiene permiso para consultar esta sección.</p>
+        <Link to={getPermissionHome(p.homePath)}>Volver a una sección permitida</Link>
+      </div>
+    );
+  }
   return children ? <>{children}</> : <Outlet />;
 };

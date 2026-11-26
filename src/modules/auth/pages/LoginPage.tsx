@@ -4,9 +4,8 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  PageCenter,
-  PageTitle,
-} from '@/components/ui';
+} from '@/components/ui/card';
+import { PageCenter, PageTitle } from '@/components/ui/page';
 import { Building2 } from 'lucide-react';
 
 export default function LoginPage() {

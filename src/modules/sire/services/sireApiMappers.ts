@@ -1,10 +1,10 @@
 import { SireApiError } from './sireApiHttp';
 import type {
   DuplicateSource,
-  ImportSireProposalResponse,
   ReconcileResponse,
   ReconcileScenario,
   SireBookType,
+  SireConfiguracionStatus,
   SirePeriodo,
   SirePeriodosAcceptedResponse,
   SirePeriodosStatus,
@@ -27,8 +27,8 @@ const isOptionalString = (value: unknown): value is string | undefined =>
 
 /**
  * Periodo de SUNAT ya normalizado. El payload crudo del backend es el que
- * devolvió SUNAT y puede venir como arreglo plano, como objeto con una lista
- * interna o con nombres de campo en español; por eso se normaliza en un solo
+ * devolviÃ³ SUNAT y puede venir como arreglo plano, como objeto con una lista
+ * interna o con nombres de campo en espaÃ±ol; por eso se normaliza en un solo
  * punto en lugar de asumir una forma fija.
  */
 const PERIOD_CODE_KEYS = [
@@ -101,7 +101,7 @@ const mapPeriodItem = (item: unknown): SirePeriodo | null => {
  * - `[{ codigoPeriodo: '202601', ... }]`
  * - `{ periodos: [...] }` / `{ periods: [...] }` / `{ data: [...] }`
  *
- * Un payload que no se reconoce devuelve una lista vacía: la pantalla lo dice
+ * Un payload que no se reconoce devuelve una lista vacÃ­a: la pantalla lo dice
  * en vez de inventar datos.
  */
 export const normalizeSirePeriods = (raw: unknown): SirePeriodo[] => {
@@ -124,7 +124,7 @@ export const normalizeSirePeriods = (raw: unknown): SirePeriodo[] => {
 
 /**
  * Contrato del POST /sire/periodos (HTTP 202).
- * El backend responde `PENDING` cuando encoló el trabajo y `FAILED` cuando la
+ * El backend responde `PENDING` cuando encolÃ³ el trabajo y `FAILED` cuando la
  * cola no pudo publicarlo: en ambos casos llega un `messageId`.
  */
 export const isPeriodosAcceptedResponse = (value: unknown): value is SirePeriodosAcceptedResponse =>
@@ -139,9 +139,9 @@ export const isPeriodosAcceptedResponse = (value: unknown): value is SirePeriodo
 /**
  * Contrato del GET /sire/periodos/status/:messageId.
  *
- * `periods` llega como el payload crudo de SUNAT: no se valida su forma aquí
+ * `periods` llega como el payload crudo de SUNAT: no se valida su forma aquÃ­
  * (la normaliza `normalizeSirePeriods`) porque un dato inesperado no debe
- * convertir una consulta válida en un error de contrato.
+ * convertir una consulta vÃ¡lida en un error de contrato.
  */
 export const isPeriodosStatusResponse = (value: unknown): value is SirePeriodosStatusResponse =>
   isRecord(value) &&
@@ -169,6 +169,15 @@ export const mapPeriodosStatus = (response: SirePeriodosStatusResponse): SirePer
 });
 
 
+/**
+ * Contrato de `GET /sire/configuracion/status` y `POST /sire/configuracion`.
+ *
+ * El backend solo devuelve el indicador de configuraciÃ³n: nunca las
+ * credenciales ni parte de ellas.
+ */
+export const isConfiguracionStatusResponse = (value: unknown): value is SireConfiguracionStatus =>
+  isRecord(value) && typeof value.configured === 'boolean';
+
 const isNullableNumber = (value: unknown): value is number | null =>
   value === null || isNumber(value);
 
@@ -194,22 +203,6 @@ export const isProposalResponse = (value: unknown): value is SireProposalRespons
   (value.bookType === 'RVIE' || value.bookType === 'RCE' || value.bookType === 'RVIE_VENTAS' || value.bookType === 'RCE_COMPRAS') &&
   Array.isArray(value.proposals) &&
   value.proposals.every(isProposal);
-
-export const isImportResponse = (value: unknown): value is ImportSireProposalResponse =>
-  isRecord(value) &&
-  typeof value.imported === 'number' &&
-  Number.isInteger(value.imported) &&
-  value.imported >= 0 &&
-  typeof value.rejected === 'number' &&
-  Number.isInteger(value.rejected) &&
-  value.rejected >= 0 &&
-  Array.isArray(value.errors) &&
-  value.errors.every(
-    (item) =>
-      isRecord(item) &&
-      typeof item.line === 'number' &&
-      typeof item.reason === 'string',
-  );
 
 interface BackendReconciliation {
   period: string;
@@ -273,7 +266,7 @@ const toTipoComprobante = (documentType: string): TipoComprobante => {
   if (documentType === '01' || documentType === '03' || documentType === '07' || documentType === '08') {
     return documentType;
   }
-  throw new SireApiError('El servidor devolvió un tipo de comprobante desconocido.', null);
+  throw new SireApiError('El servidor devolviÃ³ un tipo de comprobante desconocido.', null);
 };
 
 export const mapReconciliation = (response: BackendReconciliation): ReconcileResponse => {

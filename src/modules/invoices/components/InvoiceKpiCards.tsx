@@ -39,7 +39,7 @@ export const InvoiceKpiCards = ({
     <PageGrid columns={4}>
       <Card size="sm" data-kpi="total">
         <CardHeader>
-          <CardTitle>Total Facturado del Periodo</CardTitle>
+          <CardTitle>Total facturado del periodo</CardTitle>
           <CardAction>
             <Badge variant="outline" className="text-[10px]">
               {filtrado ? 'Vista filtrada' : 'Bruto aceptado'}
@@ -62,10 +62,10 @@ export const InvoiceKpiCards = ({
 
       <Card size="sm" data-kpi="aceptados">
         <CardHeader>
-          <CardTitle>Aceptados SUNAT</CardTitle>
+          <CardTitle>Aceptadas por SUNAT</CardTitle>
           <CardAction>
             <Badge className="border-emerald-500/40 bg-emerald-500/10 text-[10px] text-emerald-700">
-              Verde
+              Aceptadas
             </Badge>
           </CardAction>
         </CardHeader>
@@ -75,17 +75,17 @@ export const InvoiceKpiCards = ({
             Tasa de éxito en facturas y boletas {resumen.tasaExito}%
           </PageText>
           <PageText variant="caption">
-            Observados 4xxx: {resumen.observados}
+            Aceptadas con observación: {resumen.observados}
           </PageText>
         </CardContent>
       </Card>
 
       <Card size="sm" data-kpi="en-cola">
         <CardHeader>
-          <CardTitle>En Cola Outbox</CardTitle>
+          <CardTitle>En proceso de envío</CardTitle>
           <CardAction>
             <Badge className="border-blue-500/40 bg-blue-500/10 text-[10px] text-blue-700">
-              Azul
+              En proceso
             </Badge>
           </CardAction>
         </CardHeader>
@@ -100,7 +100,7 @@ export const InvoiceKpiCards = ({
           <CardTitle>Rechazos / Sin confirmar</CardTitle>
           <CardAction>
             <Badge variant="destructive" className="text-[10px]">
-              Rojo
+              Requieren revisión
             </Badge>
           </CardAction>
         </CardHeader>

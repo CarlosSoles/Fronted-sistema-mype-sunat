@@ -1,3 +1,4 @@
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { InvoiceTable } from '@/modules/invoices/components/InvoiceTable';
@@ -14,16 +15,16 @@ function Filtros() {
 describe('detalles de bandeja', () => {
   it('recupera las fechas tras desmontar y separa empresas', () => {
     useAuthStore.setState({ activeCompany: { tenantId: 'a', ruc: '1', razonSocial: 'A' } });
-    const vista = render(<Filtros />);
+    const vista = render(<MemoryRouter><Filtros /></MemoryRouter>);
     fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-10-01' } });
     fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-10-31' } });
     vista.unmount();
-    render(<Filtros />);
+    render(<MemoryRouter><Filtros /></MemoryRouter>);
     expect((screen.getByLabelText('Desde') as HTMLInputElement).value).toBe('2026-10-01');
     expect((screen.getByLabelText('Hasta') as HTMLInputElement).value).toBe('2026-10-31');
     cleanup();
     useAuthStore.setState({ activeCompany: { tenantId: 'b', ruc: '2', razonSocial: 'B' } });
-    render(<Filtros />);
+    render(<MemoryRouter><Filtros /></MemoryRouter>);
     expect((screen.getByLabelText('Desde') as HTMLInputElement).value).toBe('');
   });
   it('abre XML al pulsar la fila o Enter, sin interferir con CDR ni PDF', () => {

@@ -1,3 +1,14 @@
+// Este flujo aísla los permisos; invoiceServerPermissions prueba los hooks reales y la API.
+vi.mock('@/modules/invoices/hooks/useInvoiceWritePermission', async () => {
+ const { useAuthStore } = await import('@/stores/authStore');
+ const { serverSnapshot } = await import('../../../fixtures/permissionsServer');
+ return { INVOICE_WRITE_DENIED: 'Su rol no permite emitir ni operar envíos de facturación.', useInvoiceWritePermission: () => { useAuthStore(s=>s.user); const p=serverSnapshot();return p.modules.some(m=>m.moduleCode==='M1'&&m.canWrite)&&p.actions.some(a=>a.actionCode==='INVOICE_EMIT'&&a.allowed); } };
+});
+vi.mock('@/modules/auth/hooks/useActionPermissions', async () => {
+ const { useAuthStore }=await import('@/stores/authStore');const {serverSnapshot}=await import('../../../fixtures/permissionsServer');
+ return {useActionPermissions:()=>{useAuthStore(s=>s.user);const p=serverSnapshot();return {can:(code:string)=>p.actions.some(a=>a.actionCode===code&&a.allowed),canShow:(code:string)=>p.actions.some(a=>a.actionCode===code&&a.available),ready:true,isLoading:false,isError:false};}};
+});
+vi.mock('@/modules/invoices/hooks/useInvoiceDatePermission', () => ({ useInvoiceDatePermission: () => ({ canEditDate: true, explanation: undefined }) }));
 import '@testing-library/jest-dom/vitest';
 import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -31,7 +42,7 @@ it.each(['AUDITOR','OPERADOR_FACTURACION','CONTADOR'] as const)('%s no tiene acc
 it('el Monitor real muestra vista previa de la API, confirma y conserva los conteos reales tras actualizar',async()=>{
  vi.spyOn(invoicesApi,'getAgregados').mockResolvedValue([]);const alertas=vi.spyOn(invoicesApi,'getAlertas').mockResolvedValue(ALERTAS_VACIAS);
  vi.spyOn(invoicesApi,'getInvoices').mockResolvedValue({data:[],total:0,page:1,pageSize:100,totalPages:1});
- render(<InvoiceMonitorPage />);const user=userEvent.setup();await screen.findByText('Monitor Outbox y Auditoría CDR');
+ render(<InvoiceMonitorPage />);const user=userEvent.setup();await screen.findByText('Monitor de envíos y Constancia de Recepción (CDR)');
  expect(apiClient.get).not.toHaveBeenCalled();await user.click(screen.getByRole('button',{name:'Reenviar encolados'}));
  const dialog=await screen.findByRole('dialog',{name:'Confirmar reenvío masivo'});
  await within(dialog).findByText('Elegibles para intentar: 2');expect(within(dialog).getByText('Omitidos por incertidumbre: 1')).toBeTruthy();

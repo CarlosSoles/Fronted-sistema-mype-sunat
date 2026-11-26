@@ -1,6 +1,8 @@
+import { QueryClient,QueryClientProvider } from '@tanstack/react-query';
+import type {ReactNode} from 'react';
 import '@testing-library/jest-dom/vitest';
 import { afterEach, beforeEach, expect, it } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render as rtlRender, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { KeyboardShortcuts } from '@/components/layout/KeyboardShortcuts';
 import { useAuthStore } from '@/stores/authStore';
@@ -23,3 +25,6 @@ it('no abre la ayuda mientras se escribe', () => {
   fireEvent.keyDown(input, { key: '?', code: 'Slash', shiftKey: true });
   expect(screen.queryByText('Atajos de teclado')).toBeNull();
 });
+
+const permissionClients:QueryClient[]=[];function render(ui:ReactNode){const q=new QueryClient({defaultOptions:{queries:{retry:false,gcTime:0}}});permissionClients.push(q);return rtlRender(<QueryClientProvider client={q}>{ui}</QueryClientProvider>);}
+afterEach(()=>permissionClients.splice(0).forEach(q=>q.clear()));

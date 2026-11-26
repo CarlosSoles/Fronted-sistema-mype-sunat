@@ -14,7 +14,7 @@ it('el panel distingue total registrado de aceptados y explica el criterio del n
   render(<QueryClientProvider client={q}><MemoryRouter><InvoicesDashboardPage /></MemoryRouter></QueryClientProvider>);
   await screen.findByText('8');
   expect(screen.getByText('Comprobantes registrados (total)')).toBeTruthy();
-  expect(screen.getByText(/neto solo de aceptados\/observados/)).toBeTruthy();
+  expect(screen.getByText(/El neto considera facturas y boletas aceptadas/)).toBeTruthy();
   expect(screen.queryByText('Comprobantes emitidos')).toBeNull(); q.clear();
 });
 it('transporta el total explícito y no inventa un total para un contrato antiguo', () => {
@@ -26,6 +26,6 @@ it('6c-3 texto completo y contador rotulado sin cambiar su cifra', async () => {
  const q = new QueryClient({defaultOptions:{queries:{retry:false,gcTime:0}}});
  render(<QueryClientProvider client={q}><MemoryRouter><InvoicesDashboardPage/></MemoryRouter></QueryClientProvider>);
  await screen.findByText('8');
- expect(screen.getByText(/menos NC más notas de débito \(ND\)/)).toBeTruthy();
- expect(screen.getByText('Sin confirmación SUNAT (incluye cola)').parentElement?.parentElement?.textContent).toContain('2');q.clear();
+ expect(screen.getByText(/resta notas de crédito y suma notas de débito/)).toBeTruthy();
+ expect(screen.getByText('Sin respuesta definitiva').parentElement?.parentElement?.textContent).toContain('2');q.clear();
 });

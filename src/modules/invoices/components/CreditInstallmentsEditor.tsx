@@ -1,3 +1,4 @@
+import { InlineInvoiceError } from './InvoiceFormFeedback';
 /**
  * Editor del cronograma de cuotas al crédito (TA-64).
  *
@@ -23,6 +24,7 @@ const CLASE_CELDA =
   'h-8 w-full rounded border bg-background px-2 text-xs text-foreground';
 
 interface CreditInstallmentsEditorProps {
+  mostrarErrores?: boolean;
   cuotas: readonly CuotaBorrador[];
   netoPendiente: number;
   fechaEmision: string;
@@ -59,10 +61,13 @@ const ImporteEditable = ({ monto, etiqueta, onChange }: { monto: number; etiquet
 /** Tabla editable de cuotas con la comprobación de la regla 3319 al pie. */
 export const CreditInstallmentsEditor = ({
   cuotas,
+  mostrarErrores = false,
   netoPendiente,
   fechaEmision,
   onCambiar,
 }: CreditInstallmentsEditorProps) => {
+  const [revisado,setRevisado]=useState(false);
+  const [editando,setEditando]=useState(false);
   const resultado = validarCronograma(cuotas, netoPendiente, fechaEmision);
 
   /** Vuelve a repartir el neto en el número de cuotas indicado. */
@@ -83,7 +88,7 @@ export const CreditInstallmentsEditor = ({
   };
 
   return (
-    <div className="space-y-2 sm:col-span-2">
+    <div className="space-y-2 sm:col-span-2" onFocusCapture={()=>setEditando(true)} onBlurCapture={()=>{setEditando(false);setRevisado(true);}}>
       <PageText variant="caption">Pago a crédito en {cuotas.length} {cuotas.length === 1 ? 'cuota' : 'cuotas'} · Neto pendiente S/ {netoPendiente.toFixed(2)}</PageText>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <PageText variant="label">Cronograma de cuotas</PageText>
@@ -152,11 +157,7 @@ export const CreditInstallmentsEditor = ({
           El cronograma cuadra al céntimo con el neto pendiente.
         </PageText>
       ) : (
-        resultado.errores.map((error) => (
-          <PageText key={error} variant="error">
-            · {error}
-          </PageText>
-        ))
+        !editando && (mostrarErrores||revisado) && resultado.errores.map((error) => <InlineInvoiceError key={error} mensaje={error}/>)
       )}
     </div>
   );

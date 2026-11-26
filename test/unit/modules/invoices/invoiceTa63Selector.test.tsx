@@ -1,3 +1,4 @@
+import { confirmarRevisionSiAbierta } from '../../../fixtures/invoiceEmissionProduct';
 import { seleccionarProductoPrueba } from '../../../fixtures/invoiceEmissionProduct';
 import { beforeEach as billingBeforeEach } from 'vitest';
 import { useAuthStore as billingAuth } from '@/stores/authStore';
@@ -40,10 +41,10 @@ it.each(['modal', 'pagina'])('%s: solo aparece con detracción, bloquea vacío y
   expect(selector.value).toBe('');
   expect(selector.options).toHaveLength(3);
   const emitir = screen.getByRole('button', { name: /Emitir.*factura|Emitir comprobante|Emitir Factura|Emitir a SUNAT/i });
-  fireEvent.click(emitir);
+  fireEvent.click(emitir); confirmarRevisionSiAbierta();
   expect(invoicesApi.emitirComprobante).not.toHaveBeenCalled();
   fireEvent.change(selector, { target: { value: '003' } });
-  fireEvent.click(emitir);
+  fireEvent.click(emitir); confirmarRevisionSiAbierta();
   await waitFor(() => expect(invoicesApi.emitirComprobante).toHaveBeenCalledWith(expect.objectContaining({ medio_pago_detraccion: '003' }), expect.stringMatching(/^[A-Za-z0-9_-]{16,128}$/)));
   fireEvent.change(screen.getByLabelText('Detracción de la línea 1'), { target: { value: '' } });
   expect(screen.queryByLabelText('Medio de pago de la detracción')).toBeNull();

@@ -56,21 +56,42 @@ function ProductPredictiveInput({
         (b) =>
           b.sku.toLowerCase().includes(search.toLowerCase()) ||
           b.description.toLowerCase().includes(search.toLowerCase()) ||
+          (b.barcode && b.barcode.toLowerCase().includes(search.toLowerCase())) ||
           (b.brand && b.brand.toLowerCase().includes(search.toLowerCase()))
       )
     : balances;
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const query = search.trim().toLowerCase();
+      const exact =
+        balances.find(
+          (b) =>
+            (b.barcode && b.barcode.toLowerCase() === query) ||
+            b.sku.toLowerCase() === query
+        ) || filtered[0];
+
+      if (exact) {
+        setSearch(exact.sku);
+        setIsOpen(false);
+        onSelect(exact);
+      }
+    }
+  };
 
   return (
     <div className="relative">
       <div className="relative">
         <Input
-          placeholder="🔍 Escriba SKU o nombre del producto..."
+          placeholder="🔍 Pistolear código de barras, escribir SKU o nombre del producto (Presione Enter)..."
           value={search}
           onFocus={() => setIsOpen(true)}
           onChange={(e) => {
             setSearch(e.target.value);
             setIsOpen(true);
           }}
+          onKeyDown={handleKeyDown}
           className="h-8 text-xs font-mono font-semibold pl-2 pr-7"
         />
         {search && (
@@ -104,13 +125,20 @@ function ProductPredictiveInput({
               className="w-full text-left p-1.5 rounded hover:bg-accent flex items-center justify-between gap-2 border-b last:border-b-0 transition-colors"
             >
               <div>
-                <span className="font-mono font-bold text-primary">{b.sku}</span>
-                <p className="font-medium text-foreground text-[11px] truncate max-w-[280px]">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="font-mono font-bold text-primary">{b.sku}</span>
+                  {b.barcode && (
+                    <Badge variant="secondary" className="font-mono text-[9px] py-0 px-1 border">
+                      📷 Barcode: {b.barcode}
+                    </Badge>
+                  )}
+                </div>
+                <p className="font-medium text-foreground text-[11px] truncate max-w-[320px]">
                   {b.description}
                 </p>
               </div>
               <div className="text-right whitespace-nowrap">
-                <span className="text-[10px] text-muted-foreground block">Stock:</span>
+                <span className="text-[10px] text-muted-foreground block">Stock Libros:</span>
                 <Badge variant="outline" className="font-mono text-[10px] py-0 px-1 bg-background font-bold text-primary">
                   {b.currentStock} {b.sunatUnitCode || 'NIU'}
                 </Badge>
@@ -141,6 +169,34 @@ const COMMON_REASONS = [
   'Error de digitación en guía o comprobante anterior',
 ];
 
+interface ItemRowState {
+  sku: string;
+  systemStock: number;
+  countedStock: number;
+  quantity: number;
+  difference: number;
+  unitCost: number;
+  barcode?: string;
+  description?: string;
+}
+
+const AUTHORIZED_ROLES = [
+  'ADMIN',
+  'ADMINISTRADOR',
+  'SUPERVISOR',
+  'SUPERVISOR_ALMACEN',
+  'GERENTE',
+  'JEFE_ALMACEN',
+  'AUDITOR',
+  'CONTADOR',
+];
+
+const isAuthorizedRole = (role?: string) => {
+  if (!role) return false;
+  const upper = role.toUpperCase();
+  return AUTHORIZED_ROLES.some((r) => upper.includes(r));
+};
+
 export default function InventoryAdjustmentsPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -153,8 +209,9 @@ export default function InventoryAdjustmentsPage() {
   const [warehouseFilter, setWarehouseFilter] = useState('ALL');
   const [typeFilter, setTypeFilter] = useState<'ALL' | 'ENTRADA' | 'SALIDA'>('ALL');
 
-  const defaultUserResponsible = user?.fullName
-    ? `${user.fullName} (${user.role || 'OPERADOR'})`
+  const userIsAuthorized = isAuthorizedRole(user?.role);
+  const defaultUserResponsible = userIsAuthorized && user?.fullName
+    ? `${user.fullName} (${user.role || 'ADMIN'})`
     : '';
 
   const [form, setForm] = useState({
@@ -165,7 +222,17 @@ export default function InventoryAdjustmentsPage() {
     responsible: defaultUserResponsible,
     notes: '',
   });
-  const [items, setItems] = useState([{ sku: '', quantity: 1, unitCost: 0 }]);
+
+  const [items, setItems] = useState<ItemRowState[]>([
+    {
+      sku: '',
+      systemStock: 0,
+      countedStock: 0,
+      quantity: 0,
+      difference: 0,
+      unitCost: 0,
+    },
+  ]);
 
   const adjustments = useQuery({
     queryKey: ['inventory', 'adjustments'],
@@ -187,20 +254,31 @@ export default function InventoryAdjustmentsPage() {
     queryFn: inventoryApi.getAuthorizedResponsibles,
   });
 
+  const authorizedResponsibles = (responsiblesQuery.data?.users ?? []).filter((u) =>
+    isAuthorizedRole(u.role)
+  );
+
   const createMutation = useMutation({
     mutationFn: () => {
       if (!form.responsible.trim()) {
-        throw new Error('Debe asignar un responsable autorizado para ejecutar el ajuste físico.');
+        throw new Error('Debe asignar un responsable con autorización (ADMIN, SUPERVISOR o GERENCIA) para ejecutar el ajuste físico.');
       }
+
+      const itemsWithDifference = items.filter(
+        (i) => i.sku.trim() && Math.abs(i.difference) > 0
+      );
+
+      if (itemsWithDifference.length === 0) {
+        throw new Error('No se han registrado diferencias físicas entre el conteo real y el stock en libros para regularizar.');
+      }
+
       return inventoryLedgerApi.createAdjustment({
         ...form,
-        items: items
-          .filter((i) => i.sku.trim() && i.quantity > 0)
-          .map((i) => ({
-            sku: i.sku.trim().toUpperCase(),
-            quantity: Number(i.quantity),
-            unitCost: form.type === 'ENTRADA' ? Number(i.unitCost || 0) : undefined,
-          })),
+        items: itemsWithDifference.map((i) => ({
+          sku: i.sku.trim().toUpperCase(),
+          quantity: Math.abs(i.difference),
+          unitCost: form.type === 'ENTRADA' ? Number(i.unitCost || 0) : undefined,
+        })),
       });
     },
     onSuccess: () => {
@@ -209,12 +287,21 @@ export default function InventoryAdjustmentsPage() {
       queryClient.invalidateQueries({ queryKey: ['inventory', 'movements'] });
       setIsOpen(false);
       setError(null);
-      setItems([{ sku: '', quantity: 1, unitCost: 0 }]);
+      setItems([
+        {
+          sku: '',
+          systemStock: 0,
+          countedStock: 0,
+          quantity: 0,
+          difference: 0,
+          unitCost: 0,
+        },
+      ]);
     },
     onError: (e) => setError(apiError(e)),
   });
 
-  const updateItem = (index: number, patch: Partial<{ sku: string; quantity: number; unitCost: number }>) => {
+  const updateItem = (index: number, patch: Partial<ItemRowState>) => {
     setItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
   };
 
@@ -700,22 +787,25 @@ export default function InventoryAdjustmentsPage() {
 
       {/* Modal Nuevo Ajuste */}
       <Dialog open={isOpen} onOpenChange={(open) => !open && setIsOpen(false)}>
-        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+        <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto text-xs">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ClipboardCheck className="h-4 w-4 text-primary" />
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <ClipboardCheck className="h-5 w-5 text-primary" />
               Nuevo ajuste de inventario / Toma física
             </DialogTitle>
+            <p className="text-xs text-muted-foreground">
+              Ajuste auditado por diferencias de conteo físico (Art. 37 LIR / Op. 28 SUNAT). El ajuste genera un movimiento formal en Kardex sin alterar datos históricos en duro.
+            </p>
           </DialogHeader>
 
           {error && (
-            <div className="rounded-md border border-destructive/30 bg-destructive/10 p-2 text-xs text-destructive">
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive font-medium">
               {error}
             </div>
           )}
 
-          {/* SECCIÓN 1: IDENTIFICACIÓN Y UBICACIÓN DEL CONTEO (Obs 20) */}
-          <div className="space-y-2 p-3 rounded-lg border bg-muted/20">
+          {/* SECCIÓN 1: IDENTIFICACIÓN Y UBICACIÓN DEL CONTEO */}
+          <div className="space-y-2.5 p-3 rounded-lg border bg-muted/20">
             <h3 className="font-bold text-xs uppercase tracking-wide text-foreground flex items-center gap-1.5">
               <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[11px] font-bold">
                 1
@@ -728,7 +818,30 @@ export default function InventoryAdjustmentsPage() {
                 <select
                   className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring font-medium"
                   value={form.warehouseCode}
-                  onChange={(e) => setForm({ ...form, warehouseCode: e.target.value })}
+                  onChange={(e) => {
+                    const newWh = e.target.value;
+                    setForm({ ...form, warehouseCode: newWh });
+                    // Actualizar stocks de libros de los ítems existentes
+                    const updatedBalances = (stocks.data?.balances ?? []).filter(
+                      (b) => b.warehouseCode === newWh
+                    );
+                    setItems((prev) =>
+                      prev.map((it) => {
+                        const bal = updatedBalances.find(
+                          (b) => b.sku.toLowerCase() === it.sku.toLowerCase()
+                        );
+                        const curStock = Number(bal?.currentStock ?? 0);
+                        const diff = it.countedStock - curStock;
+                        return {
+                          ...it,
+                          systemStock: curStock,
+                          difference: diff,
+                          quantity: Math.abs(diff),
+                          unitCost: Number(bal?.averageUnitCost ?? it.unitCost),
+                        };
+                      })
+                    );
+                  }}
                 >
                   {warehouseList.map((w) => (
                     <option key={w.warehouse_code} value={w.warehouse_code}>
@@ -739,7 +852,7 @@ export default function InventoryAdjustmentsPage() {
               </div>
 
               <div>
-                <p className="mb-1 font-semibold uppercase text-muted-foreground text-[10px]">Sentido de Regularización *</p>
+                <p className="mb-1 font-semibold uppercase text-muted-foreground text-[10px]">Sentido de Regularización Predominante *</p>
                 <select
                   className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring font-semibold"
                   value={form.type}
@@ -760,25 +873,39 @@ export default function InventoryAdjustmentsPage() {
               </div>
 
               <div>
-                <p className="mb-1 font-semibold uppercase text-muted-foreground text-[10px]">Responsable Autorizado * (Obs 20)</p>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="font-semibold uppercase text-muted-foreground text-[10px]">
+                    Responsable Autorizado * (Requiere Rol Autorizado)
+                  </p>
+                  <Badge variant="outline" className="text-[9px] py-0 px-1 font-semibold text-emerald-600">
+                    Solo Admin / Supervisión
+                  </Badge>
+                </div>
                 <select
                   className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring font-medium"
                   value={form.responsible}
                   onChange={(e) => setForm({ ...form, responsible: e.target.value })}
+                  required
                 >
-                  <option value="">(Seleccione operador autorizado)</option>
-                  {defaultUserResponsible && (
+                  <option value="">-- Seleccione Supervisor / Admin Autorizado --</option>
+                  {userIsAuthorized && defaultUserResponsible && (
                     <option value={defaultUserResponsible}>
-                      ⭐ Mi Usuario: {defaultUserResponsible}
+                      ⭐ Mi Usuario: {defaultUserResponsible} (Autorizado)
                     </option>
                   )}
-                  {(responsiblesQuery.data?.users ?? [])
+                  {authorizedResponsibles
                     .filter((u) => `${u.name} (${u.role})` !== defaultUserResponsible)
                     .map((u) => (
                       <option key={u.id} value={`${u.name} (${u.role})`}>
-                        👤 {u.name} — Rol: {u.role}
+                        🛡️ {u.name} — Rol: {u.role} (Autorizado)
                       </option>
                     ))}
+                  {/* Si no hay otros usuarios en lista, garantizar que ADMIN esté seleccionable */}
+                  {!userIsAuthorized && authorizedResponsibles.length === 0 && (
+                    <option value="Administrador General (ADMIN)">
+                      🛡️ Administrador General (ADMIN)
+                    </option>
+                  )}
                 </select>
               </div>
             </div>
@@ -820,22 +947,40 @@ export default function InventoryAdjustmentsPage() {
             </div>
           </div>
 
-          {/* SECCIÓN 3: DETALLE DE ÍTEMS CON BÚSQUEDA PREDICTIVA Y STOCK RESALTADO */}
-          <div className="space-y-3 p-3 rounded-lg border bg-muted/20">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-xs uppercase tracking-wide text-foreground flex items-center gap-1.5">
-                <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[11px] font-bold">
-                  3
-                </span>
-                Conteo Físico Real vs Stock en Libros (Kardex)
-              </h3>
+          {/* SECCIÓN 3: CONTEO FÍSICO REAL VS STOCK EN LIBROS */}
+          <div className="space-y-3 p-3.5 rounded-lg border bg-muted/20">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h3 className="font-bold text-xs uppercase tracking-wide text-foreground flex items-center gap-1.5">
+                  <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[11px] font-bold">
+                    3
+                  </span>
+                  Conteo Físico Real vs Stock en Libros (Kardex)
+                </h3>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  El stock en libros del sistema es <b>no editable</b>. Digita el conteo físico real o pistola el código de barra para regularizar mediante movimiento de Kardex.
+                </p>
+              </div>
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => setItems([...items, { sku: '', quantity: 1, unitCost: 0 }])}
-                className="h-7 text-xs gap-1 font-medium border-primary/30 text-primary hover:bg-primary/5"
+                type="button"
+                onClick={() =>
+                  setItems([
+                    ...items,
+                    {
+                      sku: '',
+                      systemStock: 0,
+                      countedStock: 0,
+                      quantity: 0,
+                      difference: 0,
+                      unitCost: 0,
+                    },
+                  ])
+                }
+                className="h-7 text-xs gap-1 font-semibold border-primary/30 text-primary hover:bg-primary/5 self-start sm:self-auto"
               >
-                <Plus className="h-3 w-3" /> Agregar producto
+                <Plus className="h-3.5 w-3.5" /> Agregar producto
               </Button>
             </div>
 
@@ -845,83 +990,138 @@ export default function InventoryAdjustmentsPage() {
               );
 
               return (
-                <div key={index} className="space-y-2 p-3 rounded-md border bg-background shadow-2xs">
-                  {/* Búsqueda predictiva de producto (Obs 20) */}
+                <div key={index} className="space-y-2.5 p-3 rounded-md border bg-background shadow-2xs">
+                  {/* Búsqueda predictiva con escáner de código de barras */}
                   <div>
-                    <label className="text-[10px] uppercase font-semibold text-muted-foreground block mb-1">
-                      Buscar y Seleccionar Producto (Escribir SKU o Descripción) *
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[10px] uppercase font-bold text-muted-foreground block">
+                        Producto a Comparar (Pistolear Código de Barras, SKU o Nombre) *
+                      </label>
+                      {item.barcode && (
+                        <Badge variant="secondary" className="font-mono text-[9px] py-0 px-1 border">
+                          📷 Barcode: {item.barcode}
+                        </Badge>
+                      )}
+                    </div>
                     <ProductPredictiveInput
                       value={item.sku}
                       balances={availableWarehouseStock}
                       onSelect={(bal) => {
+                        const curStock = Number(bal.currentStock ?? 0);
                         updateItem(index, {
                           sku: bal.sku,
-                          unitCost: bal.averageUnitCost,
+                          description: bal.description,
+                          barcode: bal.barcode || undefined,
+                          systemStock: curStock,
+                          countedStock: curStock, // Inicia igual al sistema
+                          quantity: 0,
+                          difference: 0,
+                          unitCost: Number(bal.averageUnitCost ?? 0),
                         });
                       }}
                     />
                   </div>
 
-                  {/* Fila de Comparación: Stock Sistema Resaltado vs Conteo y Costo Bloqueado */}
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 items-end pt-1">
-                    {/* Stock Actual Resaltado (Obs 20: Moverlo a un lugar destacado) */}
-                    <div className="p-2 rounded-md bg-blue-500/10 border border-blue-500/30 text-blue-900 dark:text-blue-200">
+                  {/* Fila de Comparación: Stock en Libros (Bloqueado) vs Conteo Físico Real (Editable) vs Diferencia */}
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end pt-1">
+                    {/* 1. Stock en Libros (Sistema) - NO EDITABLE */}
+                    <div className="sm:col-span-3 p-2 rounded-md bg-blue-500/10 border border-blue-500/30">
                       <span className="text-[9px] uppercase font-bold tracking-wider block text-blue-700 dark:text-blue-300">
                         📦 Stock en Libros ({form.warehouseCode})
                       </span>
-                      <p className="text-sm font-mono font-extrabold mt-0.5">
-                        {matchedBalance ? matchedBalance.currentStock : 0} {matchedBalance?.sunatUnitCode || 'NIU'}
+                      <p className="text-sm font-mono font-extrabold mt-0.5 text-blue-900 dark:text-blue-100">
+                        {item.systemStock} {matchedBalance?.sunatUnitCode || 'NIU'}
                       </p>
+                      <span className="text-[9px] text-muted-foreground block italic font-medium">
+                        (Bloqueado / No editable)
+                      </span>
                     </div>
 
-                    {/* Cantidad a Regularizar */}
-                    <div>
-                      <label className="text-[10px] uppercase font-semibold text-muted-foreground block mb-1">
-                        Cantidad a Regularizar *
+                    {/* 2. Conteo Físico Real - EDITABLE */}
+                    <div className="sm:col-span-3">
+                      <label className="text-[10px] uppercase font-bold text-foreground block mb-1">
+                        Conteo Físico Real *
                       </label>
                       <Input
                         type="number"
-                        step="0.0001"
-                        min="0.0001"
-                        placeholder="Cantidad"
-                        value={item.quantity}
-                        onChange={(e) => updateItem(index, { quantity: Number(e.target.value) })}
-                        className="h-8 text-xs font-bold font-mono"
+                        step="any"
+                        min="0"
+                        value={item.countedStock}
+                        onChange={(e) => {
+                          const counted = parseFloat(e.target.value) || 0;
+                          const diff = counted - item.systemStock;
+                          updateItem(index, {
+                            countedStock: counted,
+                            difference: diff,
+                            quantity: Math.abs(diff),
+                          });
+                          // Si hay variación, sincronizar el tipo de ajuste
+                          if (diff < 0 && form.type !== 'SALIDA') {
+                            setForm((f) => ({ ...f, type: 'SALIDA' }));
+                          } else if (diff > 0 && form.type !== 'ENTRADA') {
+                            setForm((f) => ({ ...f, type: 'ENTRADA' }));
+                          }
+                        }}
+                        className="h-8 text-xs font-bold font-mono text-right"
+                        placeholder="Cantidad contada"
+                        required
                       />
+                      <span className="text-[9px] text-muted-foreground block mt-0.5">
+                        Físico contado en almacén
+                      </span>
                     </div>
 
-                    {/* Costo Unitario Bloqueado / No Editable (Obs 20) */}
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-[10px] uppercase font-semibold text-muted-foreground">
-                          Costo Unit. (Kardex)
-                        </label>
-                        <span className="text-[9px] text-muted-foreground italic">(Bloqueado)</span>
-                      </div>
+                    {/* 3. Diferencia Calculada */}
+                    <div className="sm:col-span-3">
+                      <span className="text-[10px] uppercase font-semibold text-muted-foreground block mb-1">
+                        Diferencia a Regularizar
+                      </span>
                       <div
-                        className="h-8 px-2 flex items-center bg-muted/60 rounded-md border text-xs font-mono text-muted-foreground cursor-not-allowed select-none"
-                        title="El costo lo determina el Kardex mediante Promedio Ponderado Móvil (NIC 2 / Art. 35 LIR). No editable."
+                        className={`h-8 px-2 flex items-center justify-between rounded-md border text-xs font-mono font-bold ${
+                          item.difference > 0
+                            ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30'
+                            : item.difference < 0
+                            ? 'bg-amber-500/10 text-amber-600 border-amber-500/30'
+                            : 'bg-muted/40 text-muted-foreground'
+                        }`}
                       >
-                        S/ {Number(matchedBalance ? matchedBalance.averageUnitCost : (item.unitCost || 0)).toFixed(4)}
-                      </div>
-                    </div>
-
-                    {/* Impacto Total y Eliminar */}
-                    <div className="flex items-center justify-between gap-1">
-                      <div className="text-right flex-1">
-                        <span className="text-[9px] uppercase text-muted-foreground block font-semibold">Impacto Valuado:</span>
-                        <span className={`text-xs font-mono font-bold ${form.type === 'ENTRADA' ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
-                          {form.type === 'ENTRADA' ? '+' : '-'}S/ {(item.quantity * Number(matchedBalance ? matchedBalance.averageUnitCost : (item.unitCost || 0))).toFixed(2)}
+                        <span>
+                          {item.difference > 0 ? `+${item.difference}` : item.difference}{' '}
+                          {matchedBalance?.sunatUnitCode || 'NIU'}
+                        </span>
+                        <span className="text-[10px] font-sans font-semibold">
+                          {item.difference > 0 ? 'Sobrante (+)' : item.difference < 0 ? 'Faltante (-)' : 'Conforme'}
                         </span>
                       </div>
+                      <span className="text-[9px] text-muted-foreground block mt-0.5 italic">
+                        (Cálculo automático)
+                      </span>
+                    </div>
+
+                    {/* 4. Impacto Valuado */}
+                    <div className="sm:col-span-2">
+                      <span className="text-[10px] uppercase font-semibold text-muted-foreground block mb-1">
+                        Impacto Valuado
+                      </span>
+                      <div className="h-8 px-2 flex items-center justify-end rounded-md bg-muted/30 border text-xs font-mono font-bold">
+                        {item.difference < 0 ? '-' : item.difference > 0 ? '+' : ''}S/{' '}
+                        {(item.quantity * Number(matchedBalance?.averageUnitCost ?? item.unitCost ?? 0)).toFixed(2)}
+                      </div>
+                      <span className="text-[9px] text-muted-foreground block mt-0.5 text-right font-mono">
+                        Costo: S/ {Number(matchedBalance?.averageUnitCost ?? item.unitCost ?? 0).toFixed(4)}
+                      </span>
+                    </div>
+
+                    {/* Eliminar fila */}
+                    <div className="sm:col-span-1 flex justify-center items-end pb-1">
                       <Button
+                        type="button"
                         variant="ghost"
-                        size="icon-sm"
+                        size="sm"
                         disabled={items.length === 1}
                         onClick={() => setItems(items.filter((_, i) => i !== index))}
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                        title="Quitar este ítem"
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                        title="Quitar este producto"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -933,10 +1133,11 @@ export default function InventoryAdjustmentsPage() {
           </div>
 
           <DialogFooter className="pt-2">
-            <Button variant="outline" size="sm" onClick={() => setIsOpen(false)}>
+            <Button type="button" variant="outline" size="sm" onClick={() => setIsOpen(false)}>
               Cancelar
             </Button>
             <Button
+              type="button"
               size="sm"
               onClick={() => createMutation.mutate()}
               disabled={
@@ -945,10 +1146,10 @@ export default function InventoryAdjustmentsPage() {
                 !form.responsible.trim() ||
                 items.every((i) => !i.sku.trim())
               }
-              className="gap-1.5"
+              className="gap-1.5 font-semibold"
             >
               <Save className="h-3.5 w-3.5" />
-              {createMutation.isPending ? 'Aplicando ajuste...' : 'Aplicar ajuste contable'}
+              {createMutation.isPending ? 'Aplicando ajuste...' : 'Aplicar ajuste contable y Kardex'}
             </Button>
           </DialogFooter>
         </DialogContent>

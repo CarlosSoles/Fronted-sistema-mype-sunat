@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button, PageText } from '@/components/ui';
-import { useRolePermissions } from '@/hooks/useRolePermissions';
+import { useActionPermissions } from '@/modules/auth/hooks/useActionPermissions';
+import { useInvoiceWritePermission } from '../hooks/useInvoiceWritePermission';
 import { extractApiErrorMessage } from '@/lib/apiErrors';
 import {
   invoicesApi,
@@ -15,16 +16,19 @@ export function InvoiceBridgeReprocess({
   id: string;
   estado: string;
 }) {
-  const { isAdmin } = useRolePermissions();
+
+ const actions = useActionPermissions();
+ const moduleWrite = useInvoiceWritePermission();
+ const allowed = moduleWrite && actions.can('INVOICE_REPROCESS_BRIDGE');
   const [procesando, setProcesando] = useState(false);
   const [resultado, setResultado] = useState<ResultadoReprocesoPuente | null>(
     null,
   );
   const [error, setError] = useState<string | null>(null);
-  if (!isAdmin || !['ACEPTADO', 'OBSERVADO'].includes(estado))
+  if (!(actions.canShow?.('INVOICE_REPROCESS_BRIDGE')??actions.can('INVOICE_REPROCESS_BRIDGE')) || !['ACEPTADO', 'OBSERVADO'].includes(estado))
     return null;
   async function reprocesar() {
-    if (procesando) return;
+    if (!allowed || procesando) return;
     setProcesando(true);
     setResultado(null);
     setError(null);
@@ -46,7 +50,7 @@ export function InvoiceBridgeReprocess({
       <Button
         variant="outline"
         size="sm"
-        disabled={procesando}
+        disabled={!allowed || procesando}
         onClick={() => void reprocesar()}
       >
         {procesando ? 'Reprocesando puente…' : 'Reprocesar puente'}

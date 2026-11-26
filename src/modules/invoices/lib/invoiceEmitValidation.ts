@@ -6,7 +6,7 @@
  *
  * Reglas del Catálogo 06 de SUNAT que se aplican aquí:
  *  - La Factura (01) solo puede emitirse a un RUC de 11 dígitos.
- *  - La Boleta (03) se emite a un DNI de 8 dígitos.
+ *  - La Boleta (03) admite DNI de 8 dígitos o RUC válido.
  *  - Las Notas (07 y 08) heredan el adquirente del documento que modifican.
  */
 
@@ -58,24 +58,22 @@ export const documentoClienteValido = (doc: string): boolean =>
 /**
  * Valida el documento del cliente según el tipo de comprobante.
  *
- * Una Boleta emitida a un RUC es un comprobante inexistente ante SUNAT, por eso
- * no basta con que el documento sea válido en abstracto: debe corresponder al
- * tipo. Las notas (07/08) aceptan RUC o DNI porque heredan el cliente del
- * documento que modifican.
+ * Factura exige RUC; boleta admite DNI o RUC, igual que el servidor.
+ * Las notas heredan la identidad del documento que modifican.
  */
 export const documentoValidoParaTipo = (
   tipo: TipoEmisible,
   doc: string,
 ): boolean => {
   if (tipo === '01') return rucValido(doc);
-  if (tipo === '03') return dniValido(doc);
+  if (tipo === '03') return documentoClienteValido(doc);
   return documentoClienteValido(doc);
 };
 
 /** Mensaje de error del documento del cliente según el tipo de comprobante. */
 export const mensajeErrorDocumento = (tipo: TipoEmisible): string => {
   if (tipo === '01') return 'La Factura exige un RUC válido (módulo 11)';
-  if (tipo === '03') return 'La Boleta exige un DNI válido de 8 dígitos';
+  if (tipo === '03') return 'La Boleta admite DNI válido de 8 dígitos o RUC válido (módulo 11)';
   return 'Documento inválido (RUC módulo 11 o DNI de 8 dígitos)';
 };
 

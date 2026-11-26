@@ -142,3 +142,6 @@ export const normalizarAlertas = (
       typeof crudo?.consultadoEl === 'string' ? crudo.consultadoEl : '',
   };
 };
+
+/** Etiquetas operativas; no son veredictos fiscales de SUNAT. */
+export const ETIQUETAS_ALERTA: Record<GravedadAlerta,string> = {OK:'Sin alertas',AVISO:'Requiere revisión',CRITICO:'Requiere atención',SIN_DATOS:'Sin evaluar'};

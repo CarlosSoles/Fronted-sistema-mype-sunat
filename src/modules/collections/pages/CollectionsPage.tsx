@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Card, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Input, Page, PageHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
+import { useRucAutofill } from '@/modules/invoices/hooks/useRucAutofill';
 import { collectionsApi } from '../services/collectionsApi';
 import { accountingApi } from '@/modules/accounting/services/accountingApi';
 import { AccountDistributionEditor, toDistributionPayload, type DistributionRow } from '@/modules/accounting/components/AccountDistributionEditor';
@@ -25,9 +26,10 @@ export default function CollectionsPage() {
   const estado = useQuery({ queryKey: ['collections-statement', docConsultado], queryFn: () => collectionsApi.statement(docConsultado), enabled: Boolean(docConsultado) });
   const factura = (cartera.data ?? []).find((f) => f.id === facturaId);
   const [form, setForm] = useState({ customerName: '', customerDoc: '', invoiceNumber: '', amount: '', date: new Date().toISOString().slice(0, 10), method: 'TRANSFERENCIA', bank: '', treasuryAccountId: '' });
+  const autofill = useRucAutofill((datos) => setForm((f) => ({ ...f, customerName: datos.razonSocial })));
   /** Reparto del cobro entre varias cuentas por cobrar (tarea 2). */
   const [dist, setDist] = useState<DistributionRow[]>([]);
-  const cuentas = useQuery({ queryKey: ['accounting-accounts'], queryFn: accountingApi.getAccounts });
+  const cuentas = useQuery({ queryKey: ['accounting-accounts'], queryFn: () => accountingApi.getAccounts() });
   const tesoreria = useQuery({ queryKey: ['treasury-accounts'], queryFn: accountingApi.getTreasuryAccounts });
   const filasDist = toDistributionPayload(dist);
   const repartido = filasDist.reduce((s, d) => s + (d.amount ?? 0), 0);
@@ -42,7 +44,7 @@ export default function CollectionsPage() {
     {error ? <Card className="p-4 mb-4 text-sm text-destructive">{error}</Card> : null}
     <Card className="p-4 mb-5"><div className="space-y-3"><label className="text-xs block">Factura por cobrar<select className="mt-1 h-9 w-full rounded border bg-background px-2" value={facturaId} onChange={(e) => { const id = e.target.value; setFacturaId(id); const f = (cartera.data ?? []).find((x) => x.id === id); if (f) setForm({ ...form, customerName: f.customerName, customerDoc: f.customerDoc, invoiceNumber: f.numero, amount: String(f.balance) }); }}><option value="">Seleccionar factura</option>{(cartera.data ?? []).map((f) => <option key={f.id} value={f.id}>{f.numero} · {f.customerName} · saldo S/ {f.balance.toFixed(2)}</option>)}</select></label>{factura ? <p className="text-xs text-muted-foreground">Total S/ {factura.total.toFixed(2)} · NC S/ {factura.credited.toFixed(2)} · cobrado S/ {factura.paid.toFixed(2)} · saldo S/ {factura.balance.toFixed(2)}</p> : null}<div className="grid gap-3 md:grid-cols-3">
       <label className="text-xs">Cliente<Input value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} /></label>
-      <label className="text-xs">RUC / DNI<Input value={form.customerDoc} onChange={(e) => setForm({ ...form, customerDoc: e.target.value.replace(/\D/g, '').slice(0, 11) })} /></label>
+      <label className="text-xs">RUC / DNI<Input value={form.customerDoc} onBlur={() => { if (form.customerDoc.trim()) autofill.consultar(form.customerDoc.trim()); }} onChange={(e) => setForm({ ...form, customerDoc: e.target.value.replace(/\D/g, '').slice(0, 11) })} />{autofill.aviso ? <span className="text-[10px] text-muted-foreground">{autofill.aviso}</span> : null}</label>
       <label className="text-xs">Comprobante<Input value={form.invoiceNumber} onChange={(e) => setForm({ ...form, invoiceNumber: e.target.value })} placeholder="F001-00000001" /></label>
       <label className="text-xs">Monto<Input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></label>
       <label className="text-xs">Fecha<Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></label>

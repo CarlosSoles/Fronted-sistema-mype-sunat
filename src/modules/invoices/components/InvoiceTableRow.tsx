@@ -1,3 +1,4 @@
+import { InvoiceIssueGuidance } from './InvoiceIssueGuidance';
 import { InvoiceWriteButton } from './InvoiceWriteButton';
 import { numeroVisible } from '../lib/invoiceVisibleNumber';
 /**
@@ -29,6 +30,7 @@ const TIPO_LABEL: Record<ComprobanteDemo['tipo'], string> = {
 
 interface InvoiceTableRowProps {
   comprobante: ComprobanteDemo;
+  sinAcciones?: boolean;
   onVerXml: (c: ComprobanteDemo) => void;
   onVerCdr: (c: ComprobanteDemo) => void;
   onDescargarPdf: (c: ComprobanteDemo) => void;
@@ -37,6 +39,7 @@ interface InvoiceTableRowProps {
 
 export const InvoiceTableRow = ({
   comprobante: c,
+  sinAcciones = false,
   onVerXml,
   onVerCdr,
   onDescargarPdf,
@@ -46,10 +49,11 @@ export const InvoiceTableRow = ({
 
   return (
     <TableRow
-      className="cursor-pointer"
+      className="cursor-pointer focus-visible:outline-2"
       tabIndex={0}
+      data-invoice-id={sinAcciones ? c.id : undefined}
       aria-label={`Ver detalle XML de ${numeroVisible(c.serie, c.correlativo)}`}
-      onClick={() => onVerXml(c)}
+      onClick={(e) => { if (sinAcciones) e.currentTarget.focus(); onVerXml(c); }}
       onKeyDown={(e) => {
         if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
           e.preventDefault();
@@ -58,10 +62,8 @@ export const InvoiceTableRow = ({
       }}
     >
       <TableCell>
-        <PageText variant="label">{TIPO_LABEL[c.tipo]}</PageText>
-        <PageText variant="caption">
-          {numeroVisible(c.serie, c.correlativo)}
-        </PageText>
+        <PageText variant="label">{numeroVisible(c.serie, c.correlativo)}</PageText>
+        <PageText variant="caption">{TIPO_LABEL[c.tipo]}</PageText>
         <PageText variant="caption">
           {c.formaPago === 'Credito'
             ? `Crédito (${c.cuotas.length} cuotas)`
@@ -86,12 +88,18 @@ export const InvoiceTableRow = ({
         )}
       </TableCell>
 
+      <TableCell>{formatDateToPeru(c.fechaEmision)}</TableCell>
+
       <TableCell>
         <PageText variant="label">{c.clienteRazonSocial}</PageText>
         <PageText variant="caption">RUC/DNI: {c.clienteRuc}</PageText>
       </TableCell>
-
-      <TableCell>{formatDateToPeru(c.fechaEmision)}</TableCell>
+      <TableCell align="right">
+        <PageText variant="label">
+          {formatCurrency(c.totalNeto, c.moneda)}
+          {c.importesBandeja?.verificado && c.importesBandeja.icbper>0 && <PageText variant="caption">ICBPER {formatCurrency(c.importesBandeja.icbper,c.moneda)}</PageText>}
+        </PageText>
+      </TableCell>
 
       <TableCell align="center">{c.moneda}</TableCell>
 
@@ -120,59 +128,58 @@ export const InvoiceTableRow = ({
         )}
       </TableCell>
 
-      <TableCell align="right">
-        <PageText variant="label">
-          {formatCurrency(c.totalNeto, c.moneda)}
-          {c.importesBandeja?.verificado && c.importesBandeja.icbper>0 && <PageText variant="caption">ICBPER {formatCurrency(c.importesBandeja.icbper,c.moneda)}</PageText>}
-        </PageText>
-      </TableCell>
+
 
       <TableCell align="center">
         <InvoiceStatusBadge estadoBackend={c.estadoBackend} estado={c.estado} codigo={c.cdrCodigo} resultado={c.resultadoPresentacion} />
+        {c.estado === 'RECHAZADO' && <InvoiceIssueGuidance codigo={c.resultadoPresentacion?.codigo ?? c.ultimoErrorCodigo ?? c.cdrCodigo} motivo={c.resultadoPresentacion?.motivo ?? c.ultimoErrorMensaje ?? c.cdrDescripcion} />}
       </TableCell>
 
-      <TableCell align="right" onClick={(e) => e.stopPropagation()}>
-        <div className="flex justify-end gap-1">
+      {!sinAcciones && <TableCell align="right" onClick={(e) => e.stopPropagation()}>
+        <div className="flex flex-wrap justify-end gap-1">
+          <Button size="sm" variant="outline" onClick={() => onVerXml(c)}>Ver</Button>
+          <details className="relative"><summary className="min-h-8 cursor-pointer rounded border px-2 py-1 text-sm">Más acciones</summary><div className="flex flex-col items-stretch gap-1 p-2">
           <Button
             variant="ghost"
-            size="icon-xs"
+            size="sm"
             aria-label={`Ver XML de ${numeroVisible(c.serie, c.correlativo)}`}
             title="Ver XML"
             onClick={() => onVerXml(c)}
           >
-            <FileCode2 aria-hidden="true" />
+            <FileCode2 aria-hidden="true" />Ver XML
           </Button>
           <Button
             variant="ghost"
-            size="icon-xs"
+            size="sm"
             aria-label={`Ver CDR de ${numeroVisible(c.serie, c.correlativo)}`}
             title="Ver CDR"
             onClick={() => onVerCdr(c)}
           >
-            <FileCheck2 aria-hidden="true" />
+            <FileCheck2 aria-hidden="true" />Ver CDR
           </Button>
           <Button
             variant="ghost"
-            size="icon-xs"
+            size="sm"
             aria-label={`Descargar PDF de ${numeroVisible(c.serie, c.correlativo)}`}
             title="Descargar PDF"
             onClick={() => onDescargarPdf(c)}
           >
-            <Download aria-hidden="true" />
+            <Download aria-hidden="true" />Descargar PDF
           </Button>
           {c.transporteAcreditado === true && (c.estado === 'RECHAZADO' || c.estado === 'EN_COLA' || c.estado === 'SIN_CONFIRMAR') && (
             <InvoiceWriteButton
               variant="ghost"
-              size="icon-xs"
+              size="sm"
               aria-label={`Reintentar CDR de ${numeroVisible(c.serie, c.correlativo)}`}
               title="Reintentar CDR (reencola el comprobante)"
               onClick={() => onReintentarCdr(c)}
             >
-              <RefreshCw aria-hidden="true" />
+              <RefreshCw aria-hidden="true" />Reintentar CDR
             </InvoiceWriteButton>
           )}
+          </div></details>
         </div>
-      </TableCell>
+      </TableCell>}
     </TableRow>
   );
 };

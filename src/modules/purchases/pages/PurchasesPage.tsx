@@ -9,6 +9,8 @@ import {
   History,
   AlertCircle,
   PackageCheck,
+  Ship,
+  XCircle,
 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
@@ -35,28 +37,48 @@ import { purchasesApi } from '../services/purchasesApi';
 import type { PurchaseRecord, PurchasePaymentRecord } from '../types/purchases.types';
 import { NationalPurchaseModal } from '../components/NationalPurchaseModal';
 import { PurchaseDetailModal } from '../components/PurchaseDetailModal';
+import { NewImportOrderModal } from '@/modules/customs/components/NewImportOrderModal';
 import { formatDateTimeToPeru } from '@/lib/formatters';
 
-const money = (n: number) =>
-  `S/ ${n.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const formatMoney = (n: number, currency = 'PEN') =>
+  `${currency === 'USD' ? '$' : 'S/'} ${Number(n || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const money = (n: number) => formatMoney(n, 'PEN');
 
 export default function PurchasesPage() {
   const queryClient = useQueryClient();
 
   // Estados de control de modales
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [detailPurchase, setDetailPurchase] = useState<PurchaseRecord | null>(null);
   const [paymentPurchase, setPaymentPurchase] = useState<PurchaseRecord | null>(null);
   const [paymentHistory, setPaymentHistory] = useState<PurchasePaymentRecord[] | null>(null);
   const [receiveTarget, setReceiveTarget] = useState<PurchaseRecord | null>(null);
+  const [creditTarget, setCreditTarget] = useState<PurchaseRecord | null>(null);
+  const [creditAmount, setCreditAmount] = useState('');
+  const [creditReason, setCreditReason] = useState('FALTANTE');
   const [receiveQty, setReceiveQty] = useState<Record<string, string>>({});
+  const [rejectQty, setRejectQty] = useState<Record<string, string>>({});
+  const [rejectReason, setRejectReason] = useState<Record<string, string>>({});
   const abrirRecepcion = (p: PurchaseRecord) => {
     setReceiveTarget(p);
     setReceiveQty(Object.fromEntries(p.items.map((i) => [i.id, String(Math.max(0, i.quantity - (i.receivedQuantity ?? 0)))])));
   };
+  const anular = useMutation({
+    mutationFn: (id: string) => purchasesApi.cancelPurchase(id),
+    onSuccess: () => { void refetch(); void queryClient.invalidateQueries({ queryKey: ['purchase-payables'] }); void queryClient.invalidateQueries({ queryKey: ['accounting-entries'] }); },
+    onError: (e: any) => setErrorMessage(e?.response?.data?.message ?? 'No se pudo anular la compra.'),
+  });
+
+  const notaCredito = useMutation({
+    mutationFn: () => purchasesApi.createCreditNote(creditTarget!.id, { amount: Number(creditAmount), reason: creditReason }),
+    onSuccess: async () => { setCreditTarget(null); setCreditAmount(''); void refetch(); void queryClient.invalidateQueries({ queryKey: ['accounting-entries'] }); },
+    onError: (e: any) => setErrorMessage(e?.response?.data?.message ?? 'No se pudo registrar la nota de crédito.'),
+  });
+
   const recepcion = useMutation({
-    mutationFn: () => purchasesApi.receivePurchase(receiveTarget!.id, { items: receiveTarget!.items.map((i) => ({ itemId: i.id, quantity: Number(receiveQty[i.id] ?? 0) })).filter((i) => i.quantity > 0) }),
-    onSuccess: () => { setReceiveTarget(null); void refetch(); void queryClient.invalidateQueries({ queryKey: ['purchase-payables'] }); void queryClient.invalidateQueries({ queryKey: ['inventory-stocks'] }); void queryClient.invalidateQueries({ queryKey: ['inventory-movements'] }); void queryClient.invalidateQueries({ queryKey: ['accounting-entries'] }); },
+    mutationFn: () => purchasesApi.receivePurchase(receiveTarget!.id, { items: receiveTarget!.items.map((i) => ({ itemId: i.id, quantity: Number(receiveQty[i.id] ?? 0), rejectedQuantity: Number(rejectQty[i.id] ?? 0), ...(Number(rejectQty[i.id] ?? 0) > 0 ? { reason: rejectReason[i.id] ?? 'NO_CONFORME' } : {}) })).filter((i) => i.quantity > 0 || (i.rejectedQuantity ?? 0) > 0) }),
+    onSuccess: () => { setReceiveTarget(null); setReceiveQty({}); setRejectQty({}); setRejectReason({}); void refetch(); void queryClient.invalidateQueries({ queryKey: ['purchase-payables'] }); void queryClient.invalidateQueries({ queryKey: ['inventory-stocks'] }); void queryClient.invalidateQueries({ queryKey: ['inventory-movements'] }); void queryClient.invalidateQueries({ queryKey: ['accounting-entries'] }); },
   });
 
   // Estados para formulario de pago
@@ -139,13 +161,23 @@ export default function PurchasesPage() {
         title="Módulo de Compras"
         description="Gestión integral de compras nacionales, comprobantes de proveedores, asientos contables de naturaleza/destino y cuentas por pagar"
       >
-        <Button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
-        >
-          <Plus className="h-4 w-4" />
-          + Nueva Compra Nacional
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+          >
+            <Plus className="h-4 w-4" />
+            + Nueva Compra Nacional
+          </Button>
+          <Button
+            onClick={() => setIsImportModalOpen(true)}
+            variant="outline"
+            className="gap-2 border-sky-600 text-sky-700 hover:bg-sky-50 dark:border-sky-400 dark:text-sky-300 dark:hover:bg-sky-950/40 shadow-xs"
+          >
+            <Ship className="h-4 w-4 text-sky-600 dark:text-sky-400" />
+            + Registrar Pedido al Exterior
+          </Button>
+        </div>
       </PageHeader>
 
       {(errorMessage || queryError) && (
@@ -218,20 +250,32 @@ export default function PurchasesPage() {
               </TableRow>
             )}
             {filteredPurchases.map((p) => {
+              const isImport = p.documentSerial === 'IMP' || p.purchaseNumber?.startsWith('OC-');
               const saldo = p.pendingAmount ?? p.totalAmount - (p.paidAmount ?? 0);
               return (
                 <TableRow key={p.id}>
                   <TableCell className="font-mono text-xs font-semibold text-emerald-600">
-                    {p.purchaseNumber}
+                    <div className="flex items-center gap-1.5">
+                      <span>{p.purchaseNumber}</span>
+                      {isImport && (
+                        <Badge variant="outline" className="text-[9px] bg-sky-50 text-sky-700 border-sky-300 dark:bg-sky-950 dark:text-sky-300 font-sans">
+                          EXTERIOR
+                        </Badge>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <div className="font-medium text-xs text-foreground">{p.supplierName}</div>
                     <div className="text-[11px] text-muted-foreground font-mono">
-                      RUC: {p.supplierDocNumber}
+                      {isImport ? 'Tax ID / País:' : 'RUC:'} {p.supplierDocNumber}
                     </div>
                   </TableCell>
                   <TableCell className="font-mono text-xs">
-                    {p.documentSerial}-{p.documentNumber}
+                    {isImport ? (
+                      <span className="text-sky-600 font-semibold">{p.purchaseNumber}</span>
+                    ) : (
+                      `${p.documentSerial}-${p.documentNumber}`
+                    )}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
                     {new Date(p.issueDate).toLocaleDateString('es-PE')}
@@ -239,10 +283,10 @@ export default function PurchasesPage() {
                   <TableCell className="text-xs font-mono">{p.warehouseCode}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">{p.createdAt ? formatDateTimeToPeru(p.createdAt) : '-'}</TableCell>
                   <TableCell align="right" className="font-mono text-xs font-semibold">
-                    {money(p.totalAmount)}
+                    {formatMoney(p.totalAmount, p.currencyCode)}
                   </TableCell>
                   <TableCell align="right" className="font-mono text-xs text-emerald-600">
-                    {money(p.paidAmount ?? 0)}
+                    {formatMoney(p.paidAmount ?? 0, p.currencyCode)}
                   </TableCell>
                   <TableCell
                     align="right"
@@ -250,12 +294,10 @@ export default function PurchasesPage() {
                       saldo > 0 ? 'text-amber-600' : 'text-muted-foreground'
                     }`}
                   >
-                    {money(saldo)}
+                    {formatMoney(saldo, p.currencyCode)}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={p.receptionStatus === 'RECIBIDA' ? 'default' : p.receptionStatus === 'PARCIAL' ? 'secondary' : 'outline'} className="text-[10px]">
-                      {p.receptionStatus ?? 'RECIBIDA'}
-                    </Badge>
+                    <div className="space-y-1"><Badge variant={p.receptionStatus === 'RECIBIDA' ? 'default' : p.receptionStatus === 'PARCIAL' ? 'secondary' : 'outline'} className="text-[10px]">{p.receptionStatus ?? 'RECIBIDA'}</Badge>{p.hasDifferences ? <Badge variant="outline" className="block w-fit text-[9px] text-amber-600">CON DIFERENCIAS</Badge> : null}</div>
                   </TableCell>
                   <TableCell>
                     <Badge
@@ -301,6 +343,12 @@ export default function PurchasesPage() {
                           Recibir
                         </Button>
                       )}
+                      {p.status !== 'ANULADA' && (p.pendingAmount ?? 0) > 0 ? (
+                        <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-amber-600" onClick={() => { setCreditTarget(p); setCreditAmount(String(p.pendingAmount ?? 0)); }}><Receipt className="h-3.5 w-3.5" />Nota crédito</Button>
+                      ) : null}
+                      {p.status !== 'ANULADA' && (p.paidAmount ?? 0) === 0 && p.receptionStatus === 'PENDIENTE' ? (
+                        <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-destructive" onClick={() => { if (window.confirm(`¿Anular la compra ${p.purchaseNumber}? Se revertirá el asiento de compra.`)) anular.mutate(p.id); }}><XCircle className="h-3.5 w-3.5" />Anular</Button>
+                      ) : null}
                       {p.status !== 'PAGADA' && p.status !== 'ANULADA' && (
                         <Button
                           size="sm"
@@ -351,17 +399,31 @@ export default function PurchasesPage() {
             <DialogDescription className="text-xs">{receiveTarget?.purchaseNumber} · {receiveTarget?.supplierName}. Puede recepcionar total o parcialmente.</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
+            <p className="text-[11px] text-muted-foreground">Recibida = ingresa al stock. Rechazada = queda registrada como diferencia y no ingresa.</p>
             {receiveTarget?.items.map((i) => (
-              <div key={i.id} className="grid grid-cols-[1fr_100px] items-center gap-2">
+              <div key={i.id} className="grid grid-cols-[1fr_90px_90px_120px] items-end gap-2 rounded border p-2">
                 <div><p className="font-medium">{i.sku}</p><p className="text-[10px] text-muted-foreground">{i.description} · Pedido {i.quantity} · Recibido {i.receivedQuantity ?? 0}</p></div>
-                <Input type="number" min="0" max={i.quantity - (i.receivedQuantity ?? 0)} step="0.0001" value={receiveQty[i.id] ?? ''} onChange={(e) => setReceiveQty({ ...receiveQty, [i.id]: e.target.value })} />
+                <label className="text-[10px]">Recibida<Input aria-label={`Recibida ${i.sku}`} type="number" min="0" max={i.quantity - (i.receivedQuantity ?? 0)} step="0.0001" value={receiveQty[i.id] ?? ''} onChange={(e) => setReceiveQty({ ...receiveQty, [i.id]: e.target.value })} /></label>
+                <label className="text-[10px]">Rechazada<Input aria-label={`Rechazada ${i.sku}`} type="number" min="0" max={i.quantity - (i.receivedQuantity ?? 0)} step="0.0001" value={rejectQty[i.id] ?? ''} onChange={(e) => setRejectQty({ ...rejectQty, [i.id]: e.target.value })} /></label>
+                <label className="text-[10px]">Motivo<select aria-label={`Motivo ${i.sku}`} className="h-9 w-full rounded-md border bg-background px-1 text-[11px]" value={rejectReason[i.id] ?? 'NO_CONFORME'} onChange={(e) => setRejectReason({ ...rejectReason, [i.id]: e.target.value })} disabled={!(Number(rejectQty[i.id] ?? 0) > 0)}><option value="FALTANTE">Faltante</option><option value="DANADO">Dañado</option><option value="NO_CONFORME">No conforme</option><option value="OTRO">Otro</option></select></label>
               </div>
             ))}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setReceiveTarget(null)}>Cancelar</Button>
-            <Button onClick={() => recepcion.mutate()} disabled={recepcion.isPending || Object.values(receiveQty).every((v) => !(Number(v) > 0))}>{recepcion.isPending ? 'Registrando…' : 'Registrar recepción'}</Button>
+            <Button onClick={() => recepcion.mutate()} disabled={recepcion.isPending || [...Object.values(receiveQty), ...Object.values(rejectQty)].every((v) => !(Number(v) > 0))}>{recepcion.isPending ? 'Registrando…' : 'Registrar recepción'}</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Nota de crédito proveedor */}
+      <Dialog open={creditTarget !== null} onOpenChange={(open) => { if (!open) setCreditTarget(null); }}>
+        <DialogContent className="text-xs">
+          <DialogHeader><DialogTitle className="text-base">Nota de crédito de proveedor</DialogTitle><DialogDescription>{creditTarget?.purchaseNumber} · {creditTarget?.supplierName}. Reduce la cuenta por pagar.</DialogDescription></DialogHeader>
+          <label className="text-xs">Importe<Input type="number" min="0.01" max={creditTarget?.pendingAmount ?? 0} step="0.01" value={creditAmount} onChange={(e) => setCreditAmount(e.target.value)} /></label>
+          <label className="mt-2 block text-xs">Motivo<select className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-xs" value={creditReason} onChange={(e) => setCreditReason(e.target.value)}><option value="FALTANTE">Faltante</option><option value="DANADO">Dañado</option><option value="DEVOLUCION">Devolución</option><option value="DESCUENTO">Descuento posterior</option><option value="OTRO">Otro</option></select></label>
+          <p className="mt-2 text-[11px] text-muted-foreground">Saldo disponible: S/ {Number(creditTarget?.pendingAmount ?? 0).toFixed(2)}</p>
+          <DialogFooter><Button variant="outline" onClick={() => setCreditTarget(null)}>Cancelar</Button><Button disabled={notaCredito.isPending || !(Number(creditAmount) > 0)} onClick={() => notaCredito.mutate()}>{notaCredito.isPending ? 'Registrando…' : 'Registrar nota'}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -523,6 +585,18 @@ export default function PurchasesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Modal de Registro de Pedido al Exterior (Dual Paso 1 / Compras) */}
+      {isImportModalOpen && (
+        <NewImportOrderModal
+          isOpen={isImportModalOpen}
+          onClose={() => setIsImportModalOpen(false)}
+          onSuccess={() => {
+            setIsImportModalOpen(false);
+            void refetch();
+            void queryClient.invalidateQueries({ queryKey: ['import-orders'] });
+          }}
+        />
+      )}
     </Page>
   );
 }

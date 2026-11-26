@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { customsShipmentsApi } from '../services/customsShipmentsApi';
-import { getDemoShipmentDetail } from '../services/shipmentDemoDetail';
 import {
   type AddDocumentPayload,
   type AddEventPayload,
@@ -15,7 +14,6 @@ export const useShipmentDetail = (shipmentId: string) => {
   const shipmentQuery = useQuery<CustomsShipmentDetail>({
     queryKey: ['customs-shipment', shipmentId],
     queryFn: () => customsShipmentsApi.getShipmentById(shipmentId),
-    initialData: () => getDemoShipmentDetail(shipmentId),
     staleTime: 1000 * 60 * 5,
     enabled: Boolean(shipmentId),
   });

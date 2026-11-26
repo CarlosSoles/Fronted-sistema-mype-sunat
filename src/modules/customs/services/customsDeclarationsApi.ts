@@ -80,72 +80,6 @@ export const normalizeDeclarationRecord = (
   };
 };
 
-export const DEFAULT_DEMO_SETTLEMENTS: CustomsSettlementRecord[] = [
-  {
-    id: 'set-0010',
-    declaration_id: 'dam-001',
-    settlement_type: 'TIPO_0010_DECLARACION',
-    settlement_number: '118-2026-0010-045892',
-    tax_code: '0001',
-    amount_usd: 9283.50,
-    amount_pen: 35462.97,
-    due_date: '2026-11-05',
-    status: 'GENERADA',
-    cda_number: '11826100104589',
-  },
-  {
-    id: 'set-0026',
-    declaration_id: 'dam-001',
-    settlement_type: 'TIPO_0026_MAYOR_VALOR',
-    settlement_number: '118-2026-0026-045892',
-    tax_code: '0096',
-    amount_usd: 2130.05,
-    amount_pen: 8136.78,
-    due_date: '2026-11-05',
-    status: 'GENERADA',
-    cda_number: '11826100264589',
-  },
-];
-
-export const getStoredSettlements = (): CustomsSettlementRecord[] => {
-  try {
-    const raw = typeof window !== 'undefined' ? localStorage.getItem('customs_settlements_cache') : null;
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    }
-  } catch {
-    // fallback
-  }
-  return DEFAULT_DEMO_SETTLEMENTS;
-};
-
-export const markSettlementPaidInStorage = (
-  settlementId: string,
-  payload: PaySettlementPayload
-): CustomsSettlementRecord[] => {
-  const current = getStoredSettlements();
-  const updated = current.map((s) =>
-    s.id === settlementId
-      ? {
-          ...s,
-          status: 'PAGADA' as const,
-          paid_at: payload.paid_at,
-          bank_code: payload.bank_code,
-          bank_operation_number: payload.bank_operation_number,
-        }
-      : s
-  );
-  try {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('customs_settlements_cache', JSON.stringify(updated));
-    }
-  } catch {
-    // ignorar fallo de cuota localstorage
-  }
-  return updated;
-};
-
 export const customsDeclarationsApi = {
   /**
    * Registra y numera la DAM oficial mediante el Asistente Wizard en 4 Pasos.
@@ -161,16 +95,12 @@ export const customsDeclarationsApi = {
   },
 
   /**
-   * Consulta las declaraciones aduaneras registradas de la empresa activa.
+   * Consulta las declaraciones aduaneras registradas de la empresa activa desde el backend.
    */
   getDeclarations: async (): Promise<CustomsDeclarationRecord[]> => {
-    try {
-      const response = await apiClient.get<Record<string, unknown>[]>('/customs/declarations');
-      const list = Array.isArray(response.data) ? response.data : [];
-      return list.map(normalizeDeclarationRecord);
-    } catch {
-      return [];
-    }
+    const response = await apiClient.get<Record<string, unknown>[]>('/customs/declarations');
+    const list = Array.isArray(response.data) ? response.data : [];
+    return list.map(normalizeDeclarationRecord);
   },
 
   /**
@@ -182,33 +112,23 @@ export const customsDeclarationsApi = {
   },
 
   /**
-   * Obtiene la lista de liquidaciones de cobranza tributaria pendientes de pago.
+   * Obtiene la lista de liquidaciones de cobranza tributaria pendientes de pago desde el backend.
    */
   getPendingSettlements: async (): Promise<CustomsSettlementRecord[]> => {
-    try {
-      const response = await apiClient.get<CustomsSettlementRecord[]>('/customs/settlements/pending');
-      if (Array.isArray(response.data) && response.data.length > 0) return response.data;
-      return getStoredSettlements();
-    } catch {
-      return getStoredSettlements();
-    }
+    const response = await apiClient.get<CustomsSettlementRecord[]>('/customs/settlements/pending');
+    return Array.isArray(response.data) ? response.data : [];
   },
 
   /**
-   * Obtiene las liquidaciones asociadas a una DAM específica.
+   * Obtiene las liquidaciones asociadas a una DAM específica desde el backend.
    */
   getSettlementsByDeclaration: async (
     declarationId: string
   ): Promise<CustomsSettlementRecord[]> => {
-    try {
-      const response = await apiClient.get<CustomsSettlementRecord[]>(
-        `/customs/settlements/declaration/${declarationId}`
-      );
-      if (Array.isArray(response.data) && response.data.length > 0) return response.data;
-      return getStoredSettlements().filter((s) => s.declaration_id === declarationId);
-    } catch {
-      return getStoredSettlements().filter((s) => s.declaration_id === declarationId);
-    }
+    const response = await apiClient.get<CustomsSettlementRecord[]>(
+      `/customs/settlements/declaration/${declarationId}`
+    );
+    return Array.isArray(response.data) ? response.data : [];
   },
 
   /**
@@ -222,7 +142,6 @@ export const customsDeclarationsApi = {
       `/customs/settlements/${settlementId}/pay`,
       payload
     );
-    markSettlementPaidInStorage(settlementId, payload);
     return response.data;
   },
 

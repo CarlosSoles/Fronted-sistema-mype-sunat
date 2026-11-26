@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { manualMovementSchema, type ManualMovementFormData } from '../validators/manualMovementSchema';
 import { inventoryApi } from '../services/inventoryApi';
+import { inventoryLedgerApi } from '../services/inventoryLedgerApi';
 import { type InventoryBalance } from '../types/inventory.types';
 import {
   Dialog,
@@ -33,6 +34,7 @@ export const ManualMovementModal: React.FC<ManualMovementModalProps> = ({
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [balances, setBalances] = useState<InventoryBalance[]>([]);
+  const [warehouses, setWarehouses] = useState<Array<{ warehouse_code: string; description: string }>>([]);
 
   const {
     register,
@@ -65,6 +67,24 @@ export const ManualMovementModal: React.FC<ManualMovementModalProps> = ({
       inventoryApi.getStockBalances().then((res) => {
         setBalances(res.balances || []);
       }).catch((err) => console.error('Error cargando balances:', err));
+
+      inventoryLedgerApi.getWarehouses()
+        .then((data) => {
+          if (Array.isArray(data) && data.length > 0) {
+            setWarehouses(data);
+          } else {
+            setWarehouses([
+              { warehouse_code: 'ALM-01', description: 'Almacén Principal' },
+              { warehouse_code: 'ALM-02', description: 'Almacén Secundario' },
+            ]);
+          }
+        })
+        .catch(() => {
+          setWarehouses([
+            { warehouse_code: 'ALM-01', description: 'Almacén Principal' },
+            { warehouse_code: 'ALM-02', description: 'Almacén Secundario' },
+          ]);
+        });
     }
   }, [isOpen]);
 
@@ -77,6 +97,18 @@ export const ManualMovementModal: React.FC<ManualMovementModalProps> = ({
   const currentProduct = balances.find(
     (b) => b.sku.toLowerCase() === (selectedSku || '').toLowerCase()
   );
+
+  useEffect(() => {
+    if (currentProduct && direction === 'ENTRADA') {
+      const bookCost = Number(
+        currentProduct.averageUnitCost ??
+        (currentProduct as any).cost_price ??
+        (currentProduct as any).costPrice ??
+        0
+      );
+      setValue('unit_cost', bookCost);
+    }
+  }, [currentProduct?.sku, direction, setValue]);
 
   const onSubmit = async (data: ManualMovementFormData) => {
     setIsSubmitting(true);
@@ -103,11 +135,11 @@ export const ManualMovementModal: React.FC<ManualMovementModalProps> = ({
           </DialogTitle>
         </DialogHeader>
 
-        {/* Banner Aclaratorio de Deslinde (Obs 18) */}
+        {/* Banner Aclaratorio de Deslinde */}
         <div className="flex items-start gap-2.5 p-2.5 rounded-md bg-blue-500/10 border border-blue-500/20 text-blue-700 dark:text-blue-300 text-xs">
           <Info className="h-4 w-4 shrink-0 mt-0.5" />
           <p className="leading-snug">
-            <strong>Movimiento Interno:</strong> Asienta entradas o salidas físicas dentro de un único almacén (compras, mermas, desmedros, reposición por nota de débito). Para traslados entre dos almacenes físicos con guía de remisión, use el módulo de <strong>Transferencias</strong>.
+            <strong>Movimiento Interno:</strong> Asienta entradas o salidas físicas en un almacén (ajustes de inventario, compras, mermas, desmedros, saldo inicial). Para traslados entre dos almacenes con guía de remisión, use el botón <strong>Nueva Transferencia entre Almacenes</strong>.
           </p>
         </div>
 
@@ -145,19 +177,24 @@ export const ManualMovementModal: React.FC<ManualMovementModalProps> = ({
                 {direction === 'ENTRADA' ? (
                   <>
                     <option value="02">02 - Compra Nacional</option>
+                    <option value="16">16 - Saldo Inicial / Apertura de Inventario</option>
+                    <option value="28">28 - Ajuste por Inventario Físico (Sobrante de Conteo)</option>
+                    <option value="24">24 - Devolución del Cliente (Nota de Crédito)</option>
                     <option value="08">08 - Reposición por Nota de Débito (Proveedor)</option>
-                    <option value="24">24 - Devolución del Cliente</option>
-                    <option value="28">28 - Ajuste por Inventario Físico (Sobrante)</option>
-                    <option value="16">16 - Saldo Inicial</option>
+                    <option value="19">19 - Entrada de Producción / Transformación</option>
+                    <option value="03">03 - Consignación Recibida</option>
                     <option value="99">99 - Otros Ingresos</option>
                   </>
                 ) : (
                   <>
                     <option value="01">01 - Venta Nacional</option>
-                    <option value="13">13 - Mermas (Art. 37 LIR / Manipuleo)</option>
-                    <option value="14">14 - Desmedros (Deterioro / Notarial)</option>
+                    <option value="13">13 - Mermas (Art. 37 LIR / Evaporación o manipuleo)</option>
+                    <option value="14">14 - Desmedros (Deterioro cualitativo / Destrucción notarial)</option>
+                    <option value="28">28 - Ajuste por Inventario Físico (Faltante de Conteo)</option>
+                    <option value="12">12 - Retiro de Bienes / Muestras / Promoción</option>
                     <option value="25">25 - Devolución a Proveedor</option>
-                    <option value="12">12 - Retiro de Bienes / Muestras</option>
+                    <option value="10">10 - Salida a Producción / Materia Prima</option>
+                    <option value="15">15 - Destrucción de Existencias</option>
                     <option value="99">99 - Otras Salidas</option>
                   </>
                 )}
@@ -195,8 +232,17 @@ export const ManualMovementModal: React.FC<ManualMovementModalProps> = ({
                 {...register('warehouse_code')}
                 className="w-full h-8 rounded-md border border-input bg-background px-2 text-xs mt-1"
               >
-                <option value="ALM-01">ALM-01 — Almacén Principal</option>
-                <option value="ALM-02">ALM-02 — Almacén Secundario</option>
+                {(warehouses.length > 0
+                  ? warehouses
+                  : [
+                      { warehouse_code: 'ALM-01', description: 'Almacén Principal' },
+                      { warehouse_code: 'ALM-02', description: 'Almacén Secundario' },
+                    ]
+                ).map((w) => (
+                  <option key={w.warehouse_code} value={w.warehouse_code}>
+                    {w.warehouse_code} — {w.description}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -210,11 +256,19 @@ export const ManualMovementModal: React.FC<ManualMovementModalProps> = ({
                   {currentProduct.brand ? `Marca: ${currentProduct.brand} · ` : ''}Unidad: {currentProduct.sunatUnitCode || 'NIU'}
                 </span>
               </div>
-              <div className="text-right">
-                <span className="text-[10px] text-muted-foreground uppercase block">Stock Actual en Libros:</span>
-                <Badge variant="outline" className="font-mono font-bold text-xs bg-background">
-                  {currentProduct.currentStock} {currentProduct.sunatUnitCode || 'NIU'}
-                </Badge>
+              <div className="flex items-center gap-3 text-right">
+                <div>
+                  <span className="text-[10px] text-muted-foreground uppercase block">Stock en Libros:</span>
+                  <Badge variant="outline" className="font-mono font-bold text-xs bg-background">
+                    {currentProduct.currentStock} {currentProduct.sunatUnitCode || 'NIU'}
+                  </Badge>
+                </div>
+                <div>
+                  <span className="text-[10px] text-muted-foreground uppercase block">Costo en Libros:</span>
+                  <Badge variant="outline" className="font-mono font-bold text-xs bg-background text-emerald-600 dark:text-emerald-400">
+                    S/ {Number(currentProduct.averageUnitCost ?? (currentProduct as any).cost_price ?? (currentProduct as any).costPrice ?? 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                  </Badge>
+                </div>
               </div>
             </div>
           )}
@@ -248,6 +302,9 @@ export const ManualMovementModal: React.FC<ManualMovementModalProps> = ({
                   className="mt-1 text-xs font-mono"
                   placeholder="0.0000"
                 />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  💡 Precargado con costo en libros. Edítelo si este ingreso tuvo un costo distinto.
+                </p>
               </div>
             ) : (
               <div>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Alert, AlertDescription, AlertTitle, Button, Card, CardContent, Page, PageGrid, PageHeader, PageText } from '@/components/ui';
-import { ArrowRight, FileOutput, LoaderCircle } from 'lucide-react';
+import { ArrowRight, LoaderCircle } from 'lucide-react';
 import { sireApi } from '../services/sireApi';
 import { useSireReconciliationStore } from '../stores/sireReconciliationStore';
 
@@ -87,10 +87,6 @@ export default function SireClosurePage() {
           <Button type="button" onClick={() => void closePeriod()} disabled={!summary || loading || isClosed}>
             {loading && <LoaderCircle className="animate-spin" aria-hidden="true" />}
             {loading ? 'Cerrando…' : isClosed ? 'Periodo cerrado' : 'Cerrar periodo'}
-          </Button>
-          <Button type="button" disabled>
-            <FileOutput aria-hidden="true" />
-            Generar archivo de reemplazo · Próximamente
           </Button>
         </CardContent>
       </Card>

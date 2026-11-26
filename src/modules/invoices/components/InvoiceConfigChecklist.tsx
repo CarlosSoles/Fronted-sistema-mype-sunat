@@ -1,3 +1,4 @@
+import { CheckCircle2, CircleAlert } from 'lucide-react';
 /**
  * Checklist de configuración del emisor electrónico (D1).
  *
@@ -24,10 +25,10 @@ const EstadoPunto = ({ configurado, obligatorio }: {
   configurado: boolean;
   obligatorio: boolean;
 }) => {
-  if (configurado) return <Badge variant="outline">Configurado</Badge>;
+  if (configurado) return <Badge variant="outline"><CheckCircle2 aria-hidden="true" className="h-4 w-4"/>Configurado</Badge>;
   return (
     <Badge variant={obligatorio ? 'destructive' : 'secondary'}>
-      {obligatorio ? 'Falta' : 'Sin configurar'}
+      <CircleAlert aria-hidden="true" className="h-4 w-4"/>{obligatorio ? 'Falta' : 'Sin configurar'}
     </Badge>
   );
 };

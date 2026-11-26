@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { apiClient } from '@/lib/axios';
 import {
   type ApiActionResponse,
@@ -20,8 +21,20 @@ export const authApi = {
    * El backend responde con accessToken y setea la cookie HttpOnly de refreshToken.
    */
   login: async (credentials: LoginPayload): Promise<AuthResponse> => {
-    const response = await apiClient.post<AuthResponse>('/auth/login', credentials);
-    return response.data;
+    try {
+      // Render puede tardar en despertar; 15 s producía un falso
+      // "credenciales incorrectas" mientras el backend seguía arrancando.
+      const response = await apiClient.post<AuthResponse>('/auth/login', credentials, { timeout: 60000 });
+      return response.data;
+    } catch (error: any) {
+      const sinRespuesta = !error?.response;
+      const gateway = [502, 503, 504].includes(Number(error?.response?.status));
+      if (!sinRespuesta && !gateway) throw error;
+      // Si el build apunta a un host directo caído, se reintenta por el
+      // proxy same-origin de Cloudflare Pages (/api/v1).
+      const { data } = await axios.post<AuthResponse>('/api/v1/auth/login', credentials, { withCredentials: true, timeout: 60000 });
+      return data;
+    }
   },
 
   /**

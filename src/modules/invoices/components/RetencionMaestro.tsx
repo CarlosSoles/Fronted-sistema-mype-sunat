@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useRolePermissions } from '@/hooks/useRolePermissions';
+import { useInvoiceWritePermission } from '../hooks/useInvoiceWritePermission';
 import { PartnerFormDialog } from '@/modules/customs/components/PartnerFormDialog';
 import { apiClient } from '@/lib/axios';
 
@@ -10,7 +10,7 @@ type Estado = 'sin-documento' | 'consultando' | 'sin-registro' | 'sin-indicador'
 export function RetencionMaestro({ documento, razonSocial, valor, onChange, disabled = false, spot = false }: {
   documento: string; razonSocial: string; valor: boolean; onChange: (valor: boolean, correccion: boolean) => void; disabled?: boolean; spot?: boolean;
 }) {
-  const { canEmitInvoices } = useRolePermissions();
+  const canEmitInvoices = useInvoiceWritePermission();
   const [creando, setCreando] = useState(false);
   const onChangeRef = useRef(onChange);
   const documentoAnterior = useRef(documento);

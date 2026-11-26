@@ -1,3 +1,14 @@
+// Este flujo aísla los permisos; invoiceServerPermissions prueba los hooks reales y la API.
+vi.mock('@/modules/invoices/hooks/useInvoiceWritePermission', async () => {
+ const { useAuthStore } = await import('@/stores/authStore');
+ const { serverSnapshot } = await import('../../../fixtures/permissionsServer');
+ return { INVOICE_WRITE_DENIED: 'Su rol no permite emitir ni operar envíos de facturación.', useInvoiceWritePermission: () => { useAuthStore(s=>s.user); const p=serverSnapshot();return p.modules.some(m=>m.moduleCode==='M1'&&m.canWrite)&&p.actions.some(a=>a.actionCode==='INVOICE_EMIT'&&a.allowed); } };
+});
+vi.mock('@/modules/auth/hooks/useActionPermissions', async () => {
+ const { useAuthStore }=await import('@/stores/authStore');const {serverSnapshot}=await import('../../../fixtures/permissionsServer');
+ return {useActionPermissions:()=>{useAuthStore(s=>s.user);const p=serverSnapshot();return {can:(code:string)=>p.actions.some(a=>a.actionCode===code&&a.allowed),canShow:(code:string)=>p.actions.some(a=>a.actionCode===code&&a.available),ready:true,isLoading:false,isError:false};}};
+});
+vi.mock('@/modules/invoices/hooks/useInvoiceDatePermission', () => ({ useInvoiceDatePermission: () => ({ canEditDate: true, explanation: undefined }) }));
 import { afterEach, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { apiClient } from '@/lib/axios';
@@ -18,7 +29,7 @@ it('detalle consulta solo por acción explícita y muestra estado, código y men
   expect(apiClient.post).not.toHaveBeenCalled();
   fireEvent.click(await screen.findByRole('button', { name: 'Consultar SUNAT' }));
   expect(await screen.findByText('Mensaje: Factura aceptada por SUNAT')).toBeTruthy();
-  expect(screen.getByText('Estado: ACEPTADO')).toBeTruthy(); expect(screen.getByText('Código: 0')).toBeTruthy();
+  expect(screen.getByText('Estado: Aceptada')).toBeTruthy(); expect(screen.getByText('Código: 0')).toBeTruthy();
   expect(apiClient.post).toHaveBeenCalledExactlyOnceWith(`/invoices/${comprobante.id}/consultar-sunat`);
   expect(onCerrar).not.toHaveBeenCalled(); expect(screen.getByRole('dialog')).toBeTruthy();
 });
@@ -41,7 +52,7 @@ it('deshabilita consultas simultáneas y no dispara ninguna acción de cola', as
   const button = screen.getByRole('button', { name: 'Consultando SUNAT…' }) as HTMLButtonElement;
   expect(button.disabled).toBe(true); fireEvent.click(button); expect(apiClient.post).toHaveBeenCalledTimes(1);
   resolver({ data: recuperado });
-  expect(await screen.findByText('Estado: ACEPTADO')).toBeTruthy();
+  expect(await screen.findByText('Estado: Aceptada')).toBeTruthy();
 });
 it('muestra fallo de consulta dentro de la vista y permite intentarlo otra vez', async () => {
   vi.mocked(apiClient.post).mockRejectedValue(new Error('red caída'));

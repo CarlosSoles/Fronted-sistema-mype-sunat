@@ -3,15 +3,8 @@
  * Alineado con especificacionAuth.md y fasesAuth.md
  */
 
-export type Role =
-  | 'ADMIN'
-  | 'CONTADOR'
-  | 'OPERADOR_FACTURACION'
-  | 'OPERADOR_ADUANAS'
-  | 'AUDITOR'
-  // Compatibilidad hacia atrás
-  | 'ACCOUNTANT'
-  | 'OPERATOR';
+/** Código estable de catálogo; la pertenencia se valida en el servidor. */
+export type Role = string;
 
 export interface AuthUser {
   id: string;
@@ -20,6 +13,7 @@ export interface AuthUser {
   fullName: string;
   name?: string; // compatibilidad con vistas previas
   role: Role;
+  roleName?: string;
   isActive?: boolean;
   companyRuc?: string;
   companyLegalName?: string;

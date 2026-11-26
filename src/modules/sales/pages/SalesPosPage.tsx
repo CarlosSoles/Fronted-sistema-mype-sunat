@@ -1,6 +1,9 @@
+import { useCommercialDefaults, permittedDefault } from '@/modules/invoices/hooks/useCommercialDefaults';
+import { masterDataApi } from '@/modules/customs/services/masterDataApi';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { useAuthStore } from '@/stores/authStore';
 import { CreditCard, Plus, Search, ShoppingCart, Trash2 } from 'lucide-react';
 import { Badge, Button, Card, Input, Page, PageHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
 import { apiClient } from '@/lib/axios';
@@ -11,6 +14,7 @@ import type { ProductoBuscado } from '@/modules/invoices/lib/invoiceSearch';
 import { collectionsApi } from '@/modules/collections/services/collectionsApi';
 import { salesQuotesApi } from '../services/salesQuotesApi';
 import { documentoTerceroValido } from '@/modules/customs/libPartnerValidation';
+import { PartnerFormDialog } from '@/modules/customs/components/PartnerFormDialog';
 
 interface Serie { document_type: string; series: string; is_active: boolean }
 interface Linea { producto: ProductoBuscado; cantidad: number }
@@ -32,12 +36,37 @@ export default function SalesPosPage() {
   const [tipoDoc, setTipoDoc] = useState('6');
   const [medioPago, setMedioPago] = useState('EFECTIVO');
   const [error, setError] = useState('');
+  const [documentoAviso, setDocumentoAviso] = useState('');
+  const [registrandoCliente, setRegistrandoCliente] = useState(false);
+  const [credito, setCredito] = useState<{ hasCredit: boolean; creditLimit: number | null; used: number; available: number | null } | null>(null);
   const errorDocumento = tipoDoc === '0' ? '' : documento.trim() === '' ? 'Indique el documento del cliente.' : documentoTerceroValido(tipoDoc, documento.trim()) ? '' : tipoDoc === '6' ? 'RUC inválido: 11 dígitos y módulo 11.' : 'DNI inválido: 8 dígitos.';
-  const [venta, setVenta] = useState<{ numero: string; total: number; cobroPendiente?: string; credito?: boolean } | null>(null);
+  const [venta, setVenta] = useState<{ numero: string; total: number; cobroPendiente?: string; credito?: boolean; fecha: string; cliente: string; documento: string; tipo: string; serie: string; medioPago: string; formaPago: string; items: Array<{ descripcion: string; cantidad: number; precio: number; total: number }> } | null>(null);
+  const [ticketAbierto, setTicketAbierto] = useState(false);
+  const empresa = useAuthStore((s) => s.activeCompany);
   const [formaPago, setFormaPago] = useState<'Contado' | 'Credito'>('Contado');
+  const actor = useAuthStore(state => state.user?.id);
+  const { data: paymentDefaults, isError: defaultsError } = useCommercialDefaults();
+  const { data: customerPermissions } = useQuery({
+    queryKey: ['pos-customer-permissions', empresa?.tenantId, actor, tipoDoc, documento],
+    enabled: tipoDoc !== '0' && !errorDocumento && Boolean(documento.trim()), retry: false,
+    queryFn: async () => (await masterDataApi.getPartners({ role: 'CLIENTE', q: documento.trim() })).find(partner => partner.is_active && partner.roles.includes('CLIENTE') && partner.doc_type === tipoDoc && partner.doc_number === documento.trim()) ?? null,
+  });
+  const creditAllowed = tipo === '01' && customerPermissions?.has_credit === true;
+  useEffect(() => {
+    if (paymentDefaults) { setFormaPago(permittedDefault(paymentDefaults, creditAllowed, tipo)); setMedioPago(paymentDefaults.medio_pago); }
+  }, [paymentDefaults, creditAllowed, tipo]);
+
   const [searchParams] = useSearchParams();
   const quoteId = searchParams.get('quote');
   const [vencimiento, setVencimiento] = useState(enDias(30));
+
+  const consultarCredito = async (doc: string, tipo: string) => {
+    if (!doc.trim()) { setCredito(null); return; }
+    try {
+      const { data } = await apiClient.get<{ hasCredit: boolean; creditLimit: number | null; used: number; available: number | null }>('/invoices/customers/credit', { params: { documentType: tipo, documentNumber: doc.trim() } });
+      setCredito(data);
+    } catch { setCredito(null); }
+  };
 
   useEffect(() => {
     void apiClient.get('/invoices/warehouses').then(({ data }) => {
@@ -107,6 +136,7 @@ export default function SalesPosPage() {
         customer_identity_number: documento.trim() || undefined,
         customer_legal_name: cliente.trim(),
         forma_pago: formaPago,
+        ...(formaPago === 'Contado' ? { medio_pago: medioPago as never } : {}),
         ...(formaPago === 'Credito' ? { cuotas: [{ monto: Number(total.toFixed(2)), vencimiento }] } : {}),
         items: carrito.map((l) => ({
           codigo: l.producto.sku,
@@ -143,10 +173,11 @@ export default function SalesPosPage() {
       return { ...resultado, cobroPendiente, credito: false };
     },
     onSuccess: (resultado) => {
-      setVenta({ numero: resultado.numero, total: Number(resultado.monto_total), cobroPendiente: resultado.cobroPendiente, credito: resultado.credito });
+      setVenta({ numero: resultado.numero, total: Number(resultado.monto_total), cobroPendiente: resultado.cobroPendiente, credito: resultado.credito, fecha: new Date().toISOString(), cliente: cliente.trim(), documento: documento.trim(), tipo, serie, medioPago, formaPago, items: carrito.map((l) => ({ descripcion: l.producto.descripcion, cantidad: l.cantidad, precio: Number(l.producto.precioUnitario ?? 0), total: l.cantidad * Number(l.producto.precioUnitario ?? 0) })) });
       if (quoteId) void salesQuotesApi.status(quoteId, 'CONVERTIDA');
       setCarrito([]);
-      setFormaPago('Contado');
+      setFormaPago(permittedDefault(paymentDefaults, creditAllowed, tipo));
+      setMedioPago(paymentDefaults?.medio_pago ?? 'EFECTIVO');
       setError('');
     },
     onError: (e: unknown) => setError(extractApiErrorMessage(e, 'No se pudo registrar la venta.')),
@@ -155,7 +186,8 @@ export default function SalesPosPage() {
   return (
     <Page>
       <PageHeader title="Punto de venta" description="Venta rápida con emisión de comprobante y registro de cobro." />
-      {venta ? <div className="mb-4 rounded-md border border-emerald-600/40 bg-emerald-50 p-3 text-sm text-emerald-800">Venta registrada: <strong>{venta.numero}</strong> · {money(venta.total)}{venta.credito ? <p className="mt-1 text-xs text-sky-700">Venta al crédito: el saldo quedó en Cuentas por cobrar.</p> : null}{venta.cobroPendiente ? <p className="mt-1 text-xs text-amber-700">Cobro pendiente: {venta.cobroPendiente} Regístralo en Cobros.</p> : null}</div> : null}
+      {defaultsError && <p role="alert">No se pudo leer el pago predeterminado. Verifique la condición y el medio antes de emitir.</p>}
+      {venta ? <div className="mb-4 rounded-md border border-emerald-600/40 bg-emerald-50 p-3 text-sm text-emerald-800">Venta registrada: <strong>{venta.numero}</strong> · {money(venta.total)}{venta.credito ? <p className="mt-1 text-xs text-sky-700">Venta al crédito: el saldo quedó en Cuentas por cobrar.</p> : null}{venta.cobroPendiente ? <p className="mt-1 text-xs text-amber-700">Cobro pendiente: {venta.cobroPendiente} Revise el estado del comprobante y del puente en el monitor.</p> : null}<Button size="sm" variant="outline" className="mt-2" onClick={() => setTicketAbierto(true)}>Ver ticket</Button></div> : null}
       {error ? <div className="mb-4 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive">{error}</div> : null}
       <div className="grid gap-4 lg:grid-cols-[1fr_420px]">
         <Card className="p-4">
@@ -196,9 +228,10 @@ export default function SalesPosPage() {
             <select aria-label="Tipo de documento" className="h-9 rounded-md border bg-background px-2 text-xs" value={tipoDoc} onChange={(e) => setTipoDoc(e.target.value)}>
               <option value="6">RUC</option><option value="1">DNI</option><option value="0">Sin doc.</option>
             </select>
-            <Input aria-label="Documento del cliente" inputMode="numeric" maxLength={tipoDoc === '6' ? 11 : tipoDoc === '1' ? 8 : 20} placeholder={tipoDoc === '6' ? 'RUC de 11 dígitos' : tipoDoc === '1' ? 'DNI de 8 dígitos' : 'Sin documento'} value={documento} onChange={(e) => { const v = tipoDoc === '0' ? e.target.value : e.target.value.replace(/\D/g, '').slice(0, tipoDoc === '6' ? 11 : 8); setDocumento(v); }} onBlur={() => {
+            <Input aria-label="Documento del cliente" inputMode="numeric" maxLength={tipoDoc === '6' ? 11 : tipoDoc === '1' ? 8 : 20} placeholder={tipoDoc === '6' ? 'RUC de 11 dígitos' : tipoDoc === '1' ? 'DNI de 8 dígitos' : 'Sin documento'} value={documento} onChange={(e) => { const v = tipoDoc === '0' ? e.target.value : e.target.value.replace(/\D/g, '').slice(0, tipoDoc === '6' ? 11 : 8); setDocumento(v); setDocumentoAviso(''); }} onBlur={() => {
                   if (errorDocumento || !documento.trim()) return;
                   const doc = documento.trim();
+                  void consultarCredito(doc, tipoDoc);
                   const desdeMaestro = () => invoicesApi.buscarClientes(doc).then((lista) => {
                     const match = lista.find((c) => c.numeroDocumento === doc);
                     if (match?.razonSocial) setCliente(match.razonSocial);
@@ -207,13 +240,21 @@ export default function SalesPosPage() {
                     void apiClient.get<{ razonSocial?: string }>(`/sunat/ruc/${doc}`)
                       .then(({ data }) => { if (data.razonSocial) setCliente(data.razonSocial); else return desdeMaestro(); })
                       .catch(() => desdeMaestro());
+                  } else if (tipoDoc === '1') {
+                    void apiClient.get<{ nombreCompleto?: string }>(`/sunat/dni/${doc}`)
+                      .then(({ data }) => { if (data.nombreCompleto) { setCliente(data.nombreCompleto); setDocumentoAviso(''); } else return desdeMaestro(); })
+                      .catch((e) => { setDocumentoAviso(extractApiErrorMessage(e, 'No se pudo consultar el DNI en Decolecta.')); return desdeMaestro(); });
                   } else {
                     void desdeMaestro();
                   }
                 }} />
           </div>
+          {documentoAviso ? <p className="mb-2 text-[11px] text-amber-600">{documentoAviso}</p> : null}
           <Input aria-label="Nombre del cliente" className="mb-1" placeholder="Razón social / nombre" value={cliente} onChange={(e) => setCliente(e.target.value)} />
-          {errorDocumento ? <p className="mb-3 text-[11px] text-destructive">{errorDocumento}</p> : <div className="mb-3" />}
+          {credito?.hasCredit ? <div className="mb-2 rounded border bg-muted/30 p-2 text-[11px]"><p>Crédito: límite {credito.creditLimit == null ? 'sin límite' : money(credito.creditLimit)} · usado {money(credito.used)}</p><p className={credito.available != null && credito.available < total ? 'text-destructive' : 'text-emerald-600'}>Disponible: {credito.available == null ? 'sin límite' : money(credito.available)}</p>{credito.available != null && credito.available < total ? <p className="text-destructive">La venta supera el cupo disponible.</p> : null}</div> : null}
+          {errorDocumento ? <p className="mb-2 text-[11px] text-destructive">{errorDocumento}</p> : null}
+          <Button type="button" size="sm" variant="outline" className="mb-3 h-7 text-[11px]" onClick={() => setRegistrandoCliente(true)}>Registrar cliente</Button>
+          {!errorDocumento ? <div className="mb-1" /> : null}
           <div className="mb-3 space-y-2">
             {carrito.map((l) => (
               <div key={l.producto.sku} className="flex items-center gap-2 rounded border p-2 text-xs">
@@ -226,13 +267,43 @@ export default function SalesPosPage() {
             {carrito.length === 0 ? <p className="py-6 text-center text-xs text-muted-foreground">Agregue productos para vender.</p> : null}
           </div>
           <div className="mb-3 grid grid-cols-2 gap-2">
-            <label className="text-xs">Condición<select aria-label="Condición de pago" className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-xs" value={formaPago} onChange={(e) => setFormaPago(e.target.value as 'Contado' | 'Credito')}><option value="Contado">Contado</option><option value="Credito">Crédito</option></select></label>
-            {formaPago === 'Credito' ? <label className="text-xs">Vencimiento<Input aria-label="Vencimiento" type="date" min={hoy} value={vencimiento} onChange={(e) => setVencimiento(e.target.value)} /></label> : <label className="text-xs">Medio de pago<select aria-label="Medio de pago" className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-xs" value={medioPago} onChange={(e) => setMedioPago(e.target.value)}><option value="EFECTIVO">Efectivo</option><option value="TRANSFERENCIA">Transferencia</option><option value="TARJETA">Tarjeta</option><option value="YAPE">Yape / Plin</option></select></label>}
+            <label className="text-xs">Condición<select aria-label="Condición de pago" className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-xs" value={formaPago} onChange={(e) => setFormaPago(e.target.value as 'Contado' | 'Credito')}><option value="Contado">Contado</option><option value="Credito" disabled={!creditAllowed}>Crédito</option></select></label>
+            {formaPago === 'Credito' ? <label className="text-xs">Vencimiento<Input aria-label="Vencimiento" type="date" min={hoy} value={vencimiento} onChange={(e) => setVencimiento(e.target.value)} /></label> : <label className="text-xs">Medio de pago<select aria-label="Medio de pago" className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-xs" value={medioPago} onChange={(e) => setMedioPago(e.target.value)}><option value="EFECTIVO">Efectivo</option><option value="TRANSFERENCIA">Transferencia</option><option value="TARJETA">Tarjeta</option><option value="YAPE">Yape</option><option value="PLIN">Plin</option><option value="DEPOSITO">Depósito</option><option value="CHEQUE">Cheque</option></select></label>}
           </div>
           <div className="mb-3 flex items-center justify-between border-t pt-3 text-sm"><span>Total</span><strong className="font-mono text-lg">{money(total)}</strong></div>
           <Button fullWidth disabled={cobrar.isPending || !carrito.length || !cliente.trim() || !serie || Boolean(errorDocumento)} onClick={() => cobrar.mutate()}><CreditCard className="mr-2 h-4 w-4" />{cobrar.isPending ? 'Registrando…' : formaPago === 'Credito' ? 'Emitir al crédito' : 'Cobrar y emitir'}</Button>
         </Card>
       </div>
+      {registrandoCliente ? <PartnerFormDialog enableRucLookup initialRole="CLIENTE" requiredRole="CLIENTE" initialDocument={documento} initialName={cliente} onClose={() => setRegistrandoCliente(false)} onSaved={(p) => { setDocumento(p.doc_number); setTipoDoc(p.doc_type === '6' ? '6' : '1'); setCliente(p.legal_name); setRegistrandoCliente(false); void consultarCredito(p.doc_number, p.doc_type === '6' ? '6' : '1'); }} /> : null}
+      {venta && ticketAbierto ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div id="ticket-print" className="max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-lg bg-white p-5 text-black shadow-xl">
+            <div className="text-center">
+              <p className="text-sm font-bold">{empresa?.razonSocial ?? 'SYNC-SUNAT'}</p>
+              <p className="text-[11px]">RUC {empresa?.ruc ?? '—'}</p>
+              <p className="mt-2 text-xs font-semibold">{venta.tipo === '01' ? 'FACTURA ELECTRÓNICA' : 'BOLETA ELECTRÓNICA'}</p>
+              <p className="font-mono text-sm">{venta.numero}</p>
+              <p className="text-[11px]">{new Date(venta.fecha).toLocaleString('es-PE')}</p>
+            </div>
+            <div className="my-3 border-y border-dashed py-2 text-[11px]">
+              <p>Cliente: {venta.cliente}</p>
+              <p>Documento: {venta.documento || '—'}</p>
+              <p>Condición: {venta.formaPago}{venta.formaPago === 'Contado' ? ` · ${venta.medioPago}` : ''}</p>
+            </div>
+            <table className="w-full text-[11px]">
+              <thead><tr className="border-b"><th className="text-left">Cant.</th><th className="text-left">Descripción</th><th className="text-right">Total</th></tr></thead>
+              <tbody>{venta.items.map((i, idx) => <tr key={idx}><td>{i.cantidad}</td><td>{i.descripcion}</td><td className="text-right font-mono">{money(i.total)}</td></tr>)}</tbody>
+            </table>
+            <div className="mt-3 border-t pt-2 text-right text-sm font-bold">TOTAL {money(venta.total)}</div>
+            {venta.credito ? <p className="mt-2 text-[10px]">Venta al crédito: pendiente en Cuentas por cobrar.</p> : null}
+            <p className="mt-3 text-center text-[10px]">Gracias por su compra</p>
+            <div className="no-print mt-4 flex gap-2">
+              <Button className="flex-1" onClick={() => window.print()}>Imprimir</Button>
+              <Button variant="outline" onClick={() => setTicketAbierto(false)}>Cerrar</Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </Page>
   );
 }

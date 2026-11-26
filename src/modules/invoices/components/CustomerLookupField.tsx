@@ -1,6 +1,8 @@
+import { InlineInvoiceError } from './InvoiceFormFeedback';
+import { useRucAutofill } from '../hooks/useRucAutofill';
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useRolePermissions } from '@/hooks/useRolePermissions';
+import { useInvoiceWritePermission } from '../hooks/useInvoiceWritePermission';
 import { masterDataApi, type BusinessPartnerRecord } from '@/modules/customs/services/masterDataApi';
 import { PartnerFormDialog } from '@/modules/customs/components/PartnerFormDialog';
 import { PageText } from '@/components/ui';
@@ -23,6 +25,8 @@ export const partnerToCustomer = (p: BusinessPartnerRecord): ClienteBuscado => {
 
 type Campo = 'documento' | 'nombre';
 interface CustomerLookupFieldProps {
+  unico?: boolean;
+  erroresExternos?: {documento?:string;nombre?:string};
   documento: string;
   razonSocial: string;
   onElegir: (cliente: ClienteBuscado) => void;
@@ -35,11 +39,19 @@ interface CustomerLookupFieldProps {
 }
 
 /** Busca clientes activos del maestro desde cualquiera de los dos campos. */
-export const CustomerLookupField = ({ documento, razonSocial, onElegir, onDocumentoChange, onRazonSocialChange, labelDocumento, placeholderDocumento, errorDocumento, disabled = false }: CustomerLookupFieldProps) => {
+export const CustomerLookupField = ({ unico = false, erroresExternos, documento, razonSocial, onElegir, onDocumentoChange, onRazonSocialChange, labelDocumento, placeholderDocumento, errorDocumento, disabled = false }: CustomerLookupFieldProps) => {
   const queryClient = useQueryClient();
-  const { canEmitInvoices } = useRolePermissions();
+  const [salidos,setSalidos] = useState<string[]>([]);
+  const docError = erroresExternos ? erroresExternos.documento : salidos.includes('doc-cliente') ? errorDocumento || (!documento.trim()?'Indique el documento del cliente.':undefined) : undefined;
+  const nombreError = erroresExternos ? erroresExternos.nombre : salidos.includes('razon-cliente') && !razonSocial.trim() ? 'Indique la razón social o nombre del cliente.' : undefined;
+  const canEmitInvoices = useInvoiceWritePermission();
   const [registering, setRegistering] = useState(false);
+  const [identityText, setIdentityText] = useState<string | null>(null);
+  const autofill = useRucAutofill(datos => {
+    onElegir({ numeroDocumento: datos.ruc, tipoDocumento: datos.ruc.length === 8 ? '1' : '6', razonSocial: datos.razonSocial, direccion: datos.direccionFiscal ?? undefined, tieneCredito: false, admiteDescuento: false });
+  });
   const elegir = (cliente: ClienteBuscado) => {
+    autofill.cancelar(); setIdentityText(null);
     onElegir(cliente);
     setConsulta(null);
     void queryClient.invalidateQueries({ queryKey: ['master-data', 'partner-tax-status'] });
@@ -97,25 +109,39 @@ export const CustomerLookupField = ({ documento, razonSocial, onElegir, onDocume
     const actual = opciones.indexOf(document.activeElement as HTMLButtonElement);
     opciones[(actual + (e.key === 'ArrowDown' ? 1 : opciones.length - 1) + opciones.length) % opciones.length]?.focus();
   };
-  return <div onKeyDown={navegar} ref={contenedor} className="contents">
+  return <div onFocusCapture={e=>setSalidos(v=>v.filter(id=>id!==(e.target as HTMLElement).id))} onBlurCapture={e=>{const id=(e.target as HTMLElement).id;setSalidos(v=>[...new Set([...v,id])]);}} onKeyDown={navegar} ref={contenedor} className="contents">
+    {unico ? <div className="relative space-y-1 sm:col-span-2">
+      <label htmlFor="doc-cliente" className="text-xs font-medium">{labelDocumento} · DNI, RUC o razón social</label>
+      <input id="doc-cliente" aria-label={labelDocumento} autoComplete="off" disabled={disabled} className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={identityText ?? (documento || razonSocial)} placeholder="DNI, RUC o razón social" aria-invalid={Boolean(docError)}
+        onFocus={() => setConsulta({campo: /^\d+$/.test(identityText ?? documento) ? 'documento' : 'nombre', texto: identityText ?? (documento || razonSocial)})}
+        onChange={e => { const value=e.target.value; setIdentityText(value); const numeric=/^\d*$/.test(value); autofill.cancelar();
+          if(numeric) { onDocumentoChange?.(value); autofill.consultar(value); } else onRazonSocialChange?.(value);
+          setRespuesta(null); setConsulta({campo:numeric?'documento':'nombre',texto:value}); }} />
+      {lista(consulta?.campo ?? 'documento')}
+      <InlineInvoiceError mensaje={docError} />
+      {documento && razonSocial && <p className="text-xs">{documento.length === 8 ? 'DNI' : 'RUC'} {documento} · {razonSocial}</p>}
+      {autofill.aviso && <p role="status" className="text-xs">{autofill.aviso}</p>}
+      <p className="text-xs text-muted-foreground">Busque en el maestro o consulte DNI/RUC. Para completar datos manualmente, registre el cliente sin salir del formulario.</p>
+    </div> : <>
     <div className="relative space-y-1">
       <label htmlFor="doc-cliente" className="text-xs font-medium">{labelDocumento}<span aria-hidden="true"> *</span></label>
-      <input aria-label={labelDocumento} aria-required={!disabled} aria-invalid={!disabled && Boolean(errorDocumento || !documento.trim())} aria-describedby="doc-cliente-error" disabled={disabled} id="doc-cliente" className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={documento} placeholder={placeholderDocumento} autoComplete="off"
+      <input aria-label={labelDocumento} aria-required={!disabled} aria-invalid={Boolean(docError)} aria-describedby="doc-cliente-error" disabled={disabled} id="doc-cliente" className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={documento} placeholder={placeholderDocumento} autoComplete="off"
         onFocus={() => { setRespuesta(null); setConsulta({ campo: 'documento', texto: documento }); }}
         onChange={(e) => { const valor = e.target.value.replace(/\D/g, ''); onDocumentoChange?.(valor); setRespuesta(null); setConsulta({ campo: 'documento', texto: valor }); }}
         onKeyDown={(e) => { if (e.key === 'Escape') setConsulta(null); }} />
-      {!disabled && (errorDocumento || !documento.trim()) && <PageText id="doc-cliente-error" variant="error">{errorDocumento || "Indique el documento del cliente."}</PageText>}
+      <InlineInvoiceError id="doc-cliente-error" mensaje={docError} />
       {lista('documento')}
     </div>
     <div className="relative space-y-1">
       <label htmlFor="razon-cliente" className="text-xs font-medium">Razón social / nombre<span aria-hidden="true"> *</span></label>
-      <input maxLength={1500} aria-label="Razón social / nombre" aria-required={!disabled} aria-invalid={!disabled && !razonSocial.trim()} aria-describedby="razon-cliente-error" disabled={disabled} id="razon-cliente" className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={razonSocial} placeholder="FERRETERÍA LOS ANDES S.A.C." autoComplete="off"
+      <input maxLength={1500} aria-label="Razón social / nombre" aria-required={!disabled} aria-invalid={Boolean(nombreError)} aria-describedby="razon-cliente-error" disabled={disabled} id="razon-cliente" className="h-9 w-full rounded-md border bg-background px-3 text-sm" value={razonSocial} placeholder="FERRETERÍA LOS ANDES S.A.C." autoComplete="off"
         onFocus={() => { setRespuesta(null); setConsulta({ campo: 'nombre', texto: razonSocial }); }}
         onChange={(e) => { const valor = e.target.value; onRazonSocialChange?.(valor); setRespuesta(null); setConsulta({ campo: 'nombre', texto: valor }); }}
         onKeyDown={(e) => { if (e.key === 'Escape') setConsulta(null); }} />
-      {!disabled && !razonSocial.trim() && <PageText id="razon-cliente-error" variant="error">Indique la razón social o nombre del cliente.</PageText>}
+      <InlineInvoiceError id="razon-cliente-error" mensaje={nombreError} />
       {lista('nombre')}
     </div>
+    </>}
     {!disabled && canEmitInvoices && <button type="button" className="text-xs text-primary underline" onClick={() => { setConsulta(null); setRegistering(true); }}>Registrar cliente nuevo</button>}
     {registering && canEmitInvoices && <PartnerFormDialog enableRucLookup initialRole="CLIENTE" requiredRole="CLIENTE" initialDocument={documento} initialName={razonSocial} onClose={() => setRegistering(false)} onSaved={(partner) => elegir(partnerToCustomer(partner))} />}
   </div>;

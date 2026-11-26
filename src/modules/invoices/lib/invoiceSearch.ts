@@ -45,6 +45,10 @@ export interface ProductoBuscado {
   stock?: number;
   /** Afectación tributaria configurada en el producto (Catálogo 07: 10, 20, 30, 11). */
   afectacion?: string | null;
+  hasDetraction?: boolean;
+  detractionCode?: string | null;
+  detractionRate?: number | null;
+  discountRate?: number | null;
 }
 
 /** Mínimo de caracteres para disparar una búsqueda por nombre. */

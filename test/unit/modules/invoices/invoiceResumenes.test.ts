@@ -144,8 +144,8 @@ describe('TA-67 · resumen de la vista previa', () => {
     expect(esLineaReenviable({ estado: 'PENDIENTE' })).toBe(true);
     expect(esLineaReenviable({ estado: 'EN_COLA' })).toBe(true);
     expect(esLineaReenviable({ estado: 'ACEPTADO' })).toBe(false);
-    expect(ETIQUETA_ESTADO_SUNAT.ERROR_RED).toContain('Error de transporte');
-    expect(ETIQUETA_ESTADO_SUNAT.ACEPTADO).toContain('Aceptado por SUNAT');
+    expect(ETIQUETA_ESTADO_SUNAT.ERROR_RED).toContain('Interrumpida por conexión');
+    expect(ETIQUETA_ESTADO_SUNAT.ACEPTADO).toContain('Aceptada');
   });
 
   it('preselecciona Factura (01) para perfil MAYORISTA y Boleta (03) para perfil MINORISTA', () => {

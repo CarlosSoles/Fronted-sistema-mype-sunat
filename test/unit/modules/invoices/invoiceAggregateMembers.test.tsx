@@ -1,3 +1,14 @@
+// Este flujo aísla los permisos; invoiceServerPermissions prueba los hooks reales y la API.
+vi.mock('@/modules/invoices/hooks/useInvoiceWritePermission', async () => {
+ const { useAuthStore } = await import('@/stores/authStore');
+ const { serverSnapshot } = await import('../../../fixtures/permissionsServer');
+ return { INVOICE_WRITE_DENIED: 'Su rol no permite emitir ni operar envíos de facturación.', useInvoiceWritePermission: () => { useAuthStore(s=>s.user); const p=serverSnapshot();return p.modules.some(m=>m.moduleCode==='M1'&&m.canWrite)&&p.actions.some(a=>a.actionCode==='INVOICE_EMIT'&&a.allowed); } };
+});
+vi.mock('@/modules/auth/hooks/useActionPermissions', async () => {
+ const { useAuthStore }=await import('@/stores/authStore');const {serverSnapshot}=await import('../../../fixtures/permissionsServer');
+ return {useActionPermissions:()=>{useAuthStore(s=>s.user);const p=serverSnapshot();return {can:(code:string)=>p.actions.some(a=>a.actionCode===code&&a.allowed),canShow:(code:string)=>p.actions.some(a=>a.actionCode===code&&a.available),ready:true,isLoading:false,isError:false};}};
+});
+vi.mock('@/modules/invoices/hooks/useInvoiceDatePermission', () => ({ useInvoiceDatePermission: () => ({ canEditDate: true, explanation: undefined }) }));
 import {afterEach,expect,it,vi} from 'vitest';
 import {cleanup,fireEvent,render,screen,waitFor,within} from '@testing-library/react';
 import {InvoiceAggregateMonitor} from '@/modules/invoices/components/InvoiceAggregateMonitor';
@@ -12,9 +23,9 @@ it.each(['RA','RC'] as const)('%s muestra miembros y abre el detalle real por id
  vi.mocked(invoicesApi.getInvoiceById).mockResolvedValue(aInvoice({id:'i1',numero:'B001-00000014',tipo_comprobante:'03',serie:'B001',correlativo:14,fecha_emision:'2026-11-12',estado:'ACEPTADO',monto_total:118,moneda:'PEN',cliente_documento:'20100070970',cliente_nombre:'Cliente real',cdr_codigo:'0'}));
  render(<InvoiceAggregateMonitor/>);
  const card=await screen.findByLabelText(`Comprobantes de ${kind}-1`);
- expect(within(card).getByText(/B001-00000014 · tipo 03 · monto 118.00 · ACEPTADO/)).toBeTruthy();
+ expect(within(card).getByText(/B001-00000014 · tipo 03 · monto 118.00/)).toBeTruthy();
  fireEvent.click(within(card).getByRole('button',{name:'Ver comprobante B001-00000014'}));
- const dialog=await screen.findByRole('dialog');expect(dialog.textContent).toContain('B001-00000014');expect(dialog.textContent).toContain('Cliente real');
+ const dialog=await screen.findByRole('region',{name:/B001-00000014/});expect(dialog.textContent).toContain('B001-00000014');expect(dialog.textContent).toContain('Cliente real');
  expect(invoicesApi.getInvoiceById).toHaveBeenCalledWith('i1');
 });
 it('muestra el error si el miembro no se puede consultar y no fabrica detalle',async()=>{

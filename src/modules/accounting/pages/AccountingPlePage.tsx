@@ -121,7 +121,7 @@ export default function AccountingPlePage() {
         title="Libros Electrónicos (PLE / SIRE)"
         description="Generación de estructuras y tramas oficiales PLE 5.1 / SIRE para presentación tributaria ante SUNAT"
       />
-      <Card className="p-4">
+      <Card className="p-3">
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-1">
             <label
@@ -191,7 +191,7 @@ export default function AccountingPlePage() {
             <h3 className="font-semibold text-base">Libro Mayor 6.1 (PLE)</h3>
           </div>
           <p className="text-xs text-muted-foreground">
-            Centralización de saldos acumulados por código de cuenta contable del mes.
+            Movimientos del mes agrupados y ordenados por código de cuenta contable.
           </p>
           <Button
             variant="outline"
@@ -200,13 +200,12 @@ export default function AccountingPlePage() {
             onClick={() => handleExportPle('060100')}
             disabled={isDownloadingMayor}
           >
-            {isDownloadingMayor ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Download className="w-4 h-4 mr-2" />
-            )}
-            {isDownloadingMayor ? 'Generando Trama...' : 'Descargar Libro Mayor 6.1'}
+            <Download className="w-4 h-4 mr-2" />
+            {isDownloadingMayor ? 'Generando…' : 'Descargar Libro Mayor 6.1'}
           </Button>
+          <p className="text-[11px] text-muted-foreground">
+            Misma información que el Diario 5.1, centralizada por cuenta; incluye los asientos del período.
+          </p>
         </Card>
         {/* Libro de Inventarios y Balances 3.1 */}
         <Card className="p-5 space-y-3 border">

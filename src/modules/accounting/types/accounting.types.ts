@@ -7,13 +7,23 @@ export interface AccountingMovement {
 
 export interface AccountingEntry {
   id: string;
-  numeroAsiento: string;
-  fechaContable: string;
+  period?: string;
+  entryNumber?: number;
+  numeroAsiento?: string;
+  fechaContable?: string;
+  entryDate?: string;
   glosa: string;
-  totalDebe: number;
-  totalHaber: number;
-  estaCuadrado: boolean;
-  movimientos: AccountingMovement[];
+  observation?: string | null;
+  responsible?: string | null;
+  journalCode?: string | null;
+  sourceModule?: string;
+  createdAt?: string;
+  status?: 'BORRADOR' | 'ASENTADO' | 'ANULADO';
+  totalDebe?: number;
+  totalHaber?: number;
+  estaCuadrado?: boolean;
+  lines?: Array<{ accountCode: string; accountName: string; debitAmount: number; creditAmount: number }>;
+  movimientos?: AccountingMovement[];
 }
 
 export interface AccountingAccount {
@@ -26,6 +36,15 @@ export interface AccountingAccount {
   isActive: boolean;
 }
 
+/** Respuesta al editar una cuenta: incluye la cascada y los avisos. */
+export interface UpdateAccountResponse {
+  account: AccountingAccount;
+  /** Subcuentas activadas o desactivadas junto con la cuenta. */
+  descendientesAfectados: number;
+  /** Avisos que no impiden la operación (reglas, tesorería). */
+  advertencias: string[];
+}
+
 export interface AccountingPeriod {
   companyId: string;
   period: string; // YYYY-MM
@@ -34,6 +53,17 @@ export interface AccountingPeriod {
   status: 'ABIERTO' | 'CERRADO';
   openedAt: string;
   closedAt?: string | null;
+}
+
+/** Vista previa del asiento de cierre anual. */
+export interface ClosingPreview {
+  year: number;
+  totalIngresos: number;
+  totalGastos: number;
+  resultado: number;
+  tipo: 'UTILIDAD' | 'PÉRDIDA' | 'SIN RESULTADO';
+  lineas: Array<{ accountCode: string; accountName: string; debitAmount: number; creditAmount: number }>;
+  tieneAsientoCierre: boolean;
 }
 
 export interface AccountingLineInput {
@@ -60,8 +90,12 @@ export interface LedgerMovement {
   entryDate: string;
   glosa: string;
   sourceModule: string;
+  /** Documento que originó el asiento (factura, DAM, etc.), si lo hay. */
+  sourceReferenceId?: string | null;
   accountCode: string;
   accountName: string;
+  /** Estado del asiento: ANULADO se marca en el mayor. */
+  status?: 'BORRADOR' | 'ASENTADO' | 'ANULADO';
   debit: number;
   credit: number;
   saldo: number;
@@ -84,6 +118,8 @@ export interface LedgerResponse {
 export interface TrialBalanceRow {
   accountCode: string;
   accountName: string;
+  /** Saldo que venía de períodos anteriores (deudor positivo). */
+  openingBalance?: number;
   debit: number;
   credit: number;
   balance: number;
@@ -94,6 +130,9 @@ export interface TrialBalanceResponse {
   rows: TrialBalanceRow[];
   totalDebit: number;
   totalCredit: number;
+  /** Saldo de arrastre de los períodos anteriores (opcional: backend antiguo). */
+  totalOpening?: number;
+  totalBalance?: number;
 }
 
 export interface IncomeStatementLine {

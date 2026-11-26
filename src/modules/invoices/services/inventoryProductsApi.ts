@@ -11,6 +11,10 @@ export interface ProductoPrecio {
   vendible?: boolean;
   activo?: boolean;
   motivo?: string | null;
+  hasDetraction?: boolean;
+  detractionCode?: string | null;
+  detractionRate?: number | string | null;
+  discountRate?: number | string | null;
 }
 interface RespuestaStocks {
   balances?: ProductoPrecio[];
@@ -39,6 +43,10 @@ export const productosDesdeStocks = (
         valorUnitario: gravada ? Number((precio / 1.18).toFixed(10)) : precio,
         precioUnitario: precio,
         stock: Number(b.currentStock) || 0,
+        hasDetraction: Boolean(b.hasDetraction),
+        detractionCode: b.detractionCode || null,
+        detractionRate: b.detractionRate ? Number(b.detractionRate) : null,
+        discountRate: b.discountRate ? Number(b.discountRate) : 0,
         ...(b.taxAffectation ? { afectacion: b.taxAffectation.trim() } : {}),
       };
     });

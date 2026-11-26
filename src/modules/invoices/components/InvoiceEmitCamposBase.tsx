@@ -80,6 +80,7 @@ export const CampoFecha = ({
   max,
   ayuda,
   error,
+  readOnly = false,
 }: {
   id: string;
   label: string;
@@ -89,6 +90,7 @@ export const CampoFecha = ({
   max?: string;
   ayuda?: string;
   error?: string;
+  readOnly?: boolean;
 }) => (
   <PageField label={label} htmlFor={id}>
     <input
@@ -98,9 +100,11 @@ export const CampoFecha = ({
       max={max}
       className={CLASE_INPUT}
       value={value}
-      onChange={(e) => onChange(e.target.value)}
+      readOnly={readOnly}
+      aria-describedby={ayuda ? `${id}-ayuda` : undefined}
+      onChange={(e) => { if (!readOnly) onChange(e.target.value); }}
     />
-    {ayuda && <PageText variant="caption">{ayuda}</PageText>}
+    {ayuda && <PageText id={`${id}-ayuda`} variant="caption">{ayuda}</PageText>}
     {error && <PageText id={`${id}-error`} variant="error">{error}</PageText>}
   </PageField>
 );

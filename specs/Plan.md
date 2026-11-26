@@ -87,6 +87,9 @@ test/                   # ESTRUCTURA CENTRALIZADA DE PRUEBAS (Simétrica al Back
 | **D - Dependency Inversion (DIP)** | Las vistas no dependen directamente de Axios. Dependen de abstracciones expuestas por Custom Hooks (`useInvoicesList`, `useDuaCalculator`). |
 
 ### 3.3. Regla de una Única Fuente de UI (Normativa TA-23)
+
+> **Norma vinculante.** Queda formalmente prohibido que cualquier pantalla (`pages/`) o subcomponente de módulo declare HTML o CSS propio fuera de la biblioteca compartida `@/components/ui`: sin etiquetas HTML intrínsecas, sin bloques `<style>`, sin estilos inline y sin clases Tailwind de presentación. Todo lo visual se consume desde ese único punto de exportación; el catálogo con un ejemplo por componente está en [`docs/guia-de-componentes.md`](../docs/guia-de-componentes.md).
+
 * **Prohibición de HTML y CSS propios en pantallas:** Ninguna pantalla o vista (`pages/`) puede declarar elementos HTML/JSX intrínsecos (`div`, `button`, `input`, etc.), etiquetas `<style>`, estilos inline ni clases de presentación Tailwind. La estructura y presentación visual se componen mediante los componentes exportados desde `@/components/ui`.
 * **Importación centralizada obligatoria:** Las pantallas importan los componentes de interfaz exclusivamente desde el punto público `@/components/ui`; no deben importar directamente archivos internos de `src/components/ui/`.
 * **Componentes y extensiones:** Los componentes globales de interfaz, incluidos los auxiliares de composición y layout, viven en `src/components/ui/` y se exportan desde `@/components/ui`. Si hace falta una variante o un patrón visual que aún no exista, se añade allí; no se resuelve con JSX o estilos propios de una pantalla. Hooks, servicios, tipos, iconos y lógica de negocio quedan fuera de esta prohibición visual.

@@ -15,7 +15,7 @@ import { ArrowLeft, ArrowRight, RotateCcw, CheckCircle2, CreditCard } from 'luci
 export default function DuaRegistrationWizardPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const shipmentId = searchParams.get('shipmentId') || 'EXP-2026-00042';
+  const shipmentId = searchParams.get('shipmentId') || '';
   const orderId = searchParams.get('orderId');
 
   const {

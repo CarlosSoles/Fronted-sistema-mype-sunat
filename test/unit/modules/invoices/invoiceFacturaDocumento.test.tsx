@@ -9,9 +9,9 @@ vi.mock('@/modules/invoices/services/invoicesApi', () => ({ invoicesApi: { busca
 it('avisa RUC inválido o DNI en factura y acepta un RUC válido escrito manualmente', () => {
   render(<MemoryRouter><InvoiceEmissionPage /></MemoryRouter>);
   const doc = screen.getByLabelText('RUC del cliente');
-  fireEvent.change(doc, { target: { value: '20100070971' } });
+  fireEvent.change(doc, { target: { value: '20100070971' } }); fireEvent.blur(doc);
   expect(screen.getByText(/Factura exige un RUC válido/)).toBeTruthy();
-  fireEvent.change(doc, { target: { value: '45896325' } });
+  fireEvent.focus(doc); fireEvent.change(doc, { target: { value: '45896325' } }); fireEvent.blur(doc);
   expect(screen.getByText(/Factura exige un RUC válido/)).toBeTruthy();
   fireEvent.change(doc, { target: { value: '20100070970' } });
   expect(screen.queryByText(/Factura exige un RUC válido/)).toBeNull();

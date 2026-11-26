@@ -10,6 +10,7 @@ import {
 import { useShipments } from '../hooks/useShipments';
 import { useCustomsSettlements } from '../hooks/useCustomsSettlements';
 import { useExchangeRate } from '../hooks/useExchangeRate';
+import { useImportQuotations } from '../hooks/useImportQuotations';
 import { importOrdersApi, type ImportOrderRecord } from '../services/importOrdersApi';
 import {
   ArrowRight,
@@ -20,6 +21,7 @@ import {
   FileCheck2,
   Warehouse,
   CheckCircle2,
+  Handshake,
 } from 'lucide-react';
 import { type CustomsShipmentSummary } from '../types';
 
@@ -30,6 +32,7 @@ export default function CustomsDashboardPage() {
   const { shipments } = useShipments();
   const { settlements } = useCustomsSettlements();
   const { rate } = useExchangeRate();
+  const { data: quotationsData } = useImportQuotations();
   const [orders, setOrders] = useState<ImportOrderRecord[]>([]);
 
   const loadOrders = async () => {
@@ -49,6 +52,7 @@ export default function CustomsDashboardPage() {
 
   const activeShipmentsList: CustomsShipmentSummary[] = shipments;
 
+  const quotationsCount = quotationsData?.items?.length || 0;
   const pendingSettlementsCount = settlements.filter((s) => s.status === 'GENERADA').length;
   const totalCifUsd = orders.length > 0
     ? orders.reduce((acc, o) => acc + (Number(o.totalCif) || Number(o.totalFob) || 0), 0)
@@ -142,7 +146,7 @@ export default function CustomsDashboardPage() {
               <div className="flex items-center gap-2">
                 <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                 <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Ciclo de Vida de la Importación · 4 Pasos Cronológicos
+                  Ciclo de Vida de la Importación · 5 Pasos Cronológicos
                 </h2>
               </div>
               <p className="text-xs text-foreground/80 mt-0.5">
@@ -155,8 +159,37 @@ export default function CustomsDashboardPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {/* Paso 1: Pedidos al Exterior */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            {/* Paso 1: Cotizaciones y Negociación */}
+            <div
+              onClick={() => navigate('/customs/quotations')}
+              className="group relative flex flex-col justify-between p-3.5 rounded-lg border border-border bg-gradient-to-b from-card to-muted/20 hover:border-purple-500 hover:shadow-md cursor-pointer transition-all duration-200"
+            >
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                    Paso 1
+                  </span>
+                  <Handshake className="h-4 w-4 text-purple-400 group-hover:scale-110 transition-transform" />
+                </div>
+                <h3 className="text-sm font-semibold text-foreground group-hover:text-purple-400 transition-colors">
+                  1. Cotización y Negociación
+                </h3>
+                <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">
+                  Mesa de RFQ, proformas concurrentes de múltiples proveedores y matriz comparativa.
+                </p>
+              </div>
+              <div className="mt-3 pt-2.5 border-t border-border/50 flex items-center justify-between text-xs">
+                <span className="font-medium text-foreground/80">
+                  {quotationsCount > 0 ? `${quotationsCount} ${quotationsCount === 1 ? 'Mesa activa' : 'Mesas activas'}` : 'Sin mesas'}
+                </span>
+                <span className="inline-flex items-center text-purple-400 font-medium text-[11px] group-hover:translate-x-0.5 transition-transform">
+                  Negociar <ChevronRight className="h-3 w-3 ml-0.5" />
+                </span>
+              </div>
+            </div>
+
+            {/* Paso 2: Pedidos al Exterior (OC) */}
             <div
               onClick={() => navigate('/customs/orders')}
               className="group relative flex flex-col justify-between p-3.5 rounded-lg border border-border bg-gradient-to-b from-card to-muted/20 hover:border-primary hover:shadow-md cursor-pointer transition-all duration-200"
@@ -164,15 +197,15 @@ export default function CustomsDashboardPage() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                    Paso 1
+                    Paso 2
                   </span>
                   <FilePlus className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
                 </div>
                 <h3 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
-                  1. Pedidos al Exterior
+                  2. Pedidos al Exterior (OC)
                 </h3>
                 <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">
-                  Cotizaciones, proformas y órdenes de compra internacionales con proveedores.
+                  Órdenes de compra formalizadas, precarga al módulo de compras y comprobante.
                 </p>
               </div>
               <div className="mt-3 pt-2.5 border-t border-border/50 flex items-center justify-between text-xs">
@@ -185,7 +218,7 @@ export default function CustomsDashboardPage() {
               </div>
             </div>
 
-            {/* Paso 2: Tránsito y Arribo */}
+            {/* Paso 3: Tránsito y Arribo */}
             <div
               onClick={() => navigate('/customs/shipments')}
               className="group relative flex flex-col justify-between p-3.5 rounded-lg border border-border bg-gradient-to-b from-card to-muted/20 hover:border-blue-500 hover:shadow-md cursor-pointer transition-all duration-200"
@@ -193,12 +226,12 @@ export default function CustomsDashboardPage() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                    Paso 2
+                    Paso 3
                   </span>
                   <Ship className="h-4 w-4 text-blue-400 group-hover:scale-110 transition-transform" />
                 </div>
                 <h3 className="text-sm font-semibold text-foreground group-hover:text-blue-400 transition-colors">
-                  2. Tránsito y Arribo
+                  3. Tránsito y Arribo
                 </h3>
                 <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">
                   Embarque internacional, conocimiento de embarque BL / Guía aérea y tracking.
@@ -214,7 +247,7 @@ export default function CustomsDashboardPage() {
               </div>
             </div>
 
-            {/* Paso 3: Despacho y Aduanas */}
+            {/* Paso 4: Despacho y Aduanas */}
             <div
               onClick={() => navigate('/customs/declarations')}
               className="group relative flex flex-col justify-between p-3.5 rounded-lg border border-border bg-gradient-to-b from-card to-muted/20 hover:border-amber-500 hover:shadow-md cursor-pointer transition-all duration-200"
@@ -222,12 +255,12 @@ export default function CustomsDashboardPage() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                    Paso 3
+                    Paso 4
                   </span>
                   <FileCheck2 className="h-4 w-4 text-amber-400 group-hover:scale-110 transition-transform" />
                 </div>
                 <h3 className="text-sm font-semibold text-foreground group-hover:text-amber-400 transition-colors">
-                  3. Despacho y Aduanas
+                  4. Despacho y Aduanas
                 </h3>
                 <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">
                   Numeración DAM (DUA), Canales SUNAT (Verde/Naranja/Rojo) y liquidación CDA.
@@ -243,7 +276,7 @@ export default function CustomsDashboardPage() {
               </div>
             </div>
 
-            {/* Paso 4: Recojo y Almacén */}
+            {/* Paso 5: Recojo y Almacén */}
             <div
               onClick={() => navigate('/customs/landed-cost')}
               className="group relative flex flex-col justify-between p-3.5 rounded-lg border border-border bg-gradient-to-b from-card to-muted/20 hover:border-emerald-500 hover:shadow-md cursor-pointer transition-all duration-200"
@@ -251,12 +284,12 @@ export default function CustomsDashboardPage() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                    Paso 4
+                    Paso 5
                   </span>
                   <Warehouse className="h-4 w-4 text-emerald-400 group-hover:scale-110 transition-transform" />
                 </div>
                 <h3 className="text-sm font-semibold text-foreground group-hover:text-emerald-400 transition-colors">
-                  4. Recojo y Almacén
+                  5. Recojo y Almacén
                 </h3>
                 <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">
                   Recepción física de mercadería, Landed Cost NIC 2 e ingreso a Kardex (Op 18).

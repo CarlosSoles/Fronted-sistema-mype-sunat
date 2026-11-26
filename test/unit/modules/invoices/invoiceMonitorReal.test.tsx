@@ -1,3 +1,14 @@
+// Este flujo aísla los permisos; invoiceServerPermissions prueba los hooks reales y la API.
+vi.mock('@/modules/invoices/hooks/useInvoiceWritePermission', async () => {
+ const { useAuthStore } = await import('@/stores/authStore');
+ const { serverSnapshot } = await import('../../../fixtures/permissionsServer');
+ return { INVOICE_WRITE_DENIED: 'Su rol no permite emitir ni operar envíos de facturación.', useInvoiceWritePermission: () => { useAuthStore(s=>s.user); const p=serverSnapshot();return p.modules.some(m=>m.moduleCode==='M1'&&m.canWrite)&&p.actions.some(a=>a.actionCode==='INVOICE_EMIT'&&a.allowed); } };
+});
+vi.mock('@/modules/auth/hooks/useActionPermissions', async () => {
+ const { useAuthStore }=await import('@/stores/authStore');const {serverSnapshot}=await import('../../../fixtures/permissionsServer');
+ return {useActionPermissions:()=>{useAuthStore(s=>s.user);const p=serverSnapshot();return {can:(code:string)=>p.actions.some(a=>a.actionCode===code&&a.allowed),canShow:(code:string)=>p.actions.some(a=>a.actionCode===code&&a.available),ready:true,isLoading:false,isError:false};}};
+});
+vi.mock('@/modules/invoices/hooks/useInvoiceDatePermission', () => ({ useInvoiceDatePermission: () => ({ canEditDate: true, explanation: undefined }) }));
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import InvoiceMonitorPage from '@/modules/invoices/pages/InvoiceMonitorPage';
@@ -32,7 +43,7 @@ afterEach(()=>{cleanup();vi.resetAllMocks();});
 it('API sin historial: documentos únicos DLQ, estados finales, páginas y trabajos separados',async()=>{
  render(<InvoiceMonitorPage/>);
  await screen.findByText(local.numero);
- const card=within(screen.getByText('Cola de muertos (DLQ)').closest('[data-slot="card"]') as HTMLElement);
+ const card=within(screen.getByText('Envíos pendientes de revisión (DLQ)').closest('[data-slot="card"]') as HTMLElement);
  expect(card.getByText('3')).toBeTruthy();expect(card.getByText('4 trabajos en DLQ · 3 documentos únicos')).toBeTruthy();
  fireEvent.change(screen.getByLabelText('Filtrar estado del monitor'),{target:{value:'DLQ'}});
  expect(screen.getByText('Comprobantes en vuelo (3)')).toBeTruthy();
@@ -99,7 +110,7 @@ it('resuelve la DLQ del aceptado con CDR por acción explícita y actualiza la t
   expect(await screen.findByText('2 trabajos de DLQ resueltos. El comprobante fiscal conserva su estado.')).toBeTruthy();
   await waitFor(() => expect(screen.queryByText(final.numero)).toBeNull());
   expect(apiClient.post).toHaveBeenCalledExactlyOnceWith('/invoices/80/resolver-dlq');
-  const card = within(screen.getByText('Cola de muertos (DLQ)').closest('[data-slot="card"]') as HTMLElement);
+  const card = within(screen.getByText('Envíos pendientes de revisión (DLQ)').closest('[data-slot="card"]') as HTMLElement);
   expect(card.getByText('2')).toBeTruthy();
 });
 it('el aceptado sin CDR no ofrece resolución de DLQ', async () => {

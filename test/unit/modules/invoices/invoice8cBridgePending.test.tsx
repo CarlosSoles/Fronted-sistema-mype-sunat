@@ -1,3 +1,14 @@
+// Este flujo aísla los permisos; invoiceServerPermissions prueba los hooks reales y la API.
+vi.mock('@/modules/invoices/hooks/useInvoiceWritePermission', async () => {
+ const { useAuthStore } = await import('@/stores/authStore');
+ const { serverSnapshot } = await import('../../../fixtures/permissionsServer');
+ return { INVOICE_WRITE_DENIED: 'Su rol no permite emitir ni operar envíos de facturación.', useInvoiceWritePermission: () => { useAuthStore(s=>s.user); const p=serverSnapshot();return p.modules.some(m=>m.moduleCode==='M1'&&m.canWrite)&&p.actions.some(a=>a.actionCode==='INVOICE_EMIT'&&a.allowed); } };
+});
+vi.mock('@/modules/auth/hooks/useActionPermissions', async () => {
+ const { useAuthStore }=await import('@/stores/authStore');const {serverSnapshot}=await import('../../../fixtures/permissionsServer');
+ return {useActionPermissions:()=>{useAuthStore(s=>s.user);const p=serverSnapshot();return {can:(code:string)=>p.actions.some(a=>a.actionCode===code&&a.allowed),canShow:(code:string)=>p.actions.some(a=>a.actionCode===code&&a.available),ready:true,isLoading:false,isError:false};}};
+});
+vi.mock('@/modules/invoices/hooks/useInvoiceDatePermission', () => ({ useInvoiceDatePermission: () => ({ canEditDate: true, explanation: undefined }) }));
 import { beforeEach as billingBeforeEach } from 'vitest';
 import { useAuthStore as billingAuth } from '@/stores/authStore';
 import { afterEach, expect, it, vi } from 'vitest';
@@ -23,7 +34,7 @@ it('Monitor consulta solo puentes pendientes, muestra causa y usa reprocesar-pue
  vi.mocked(invoicesApi.getInvoiceById).mockResolvedValue({...invoice,historial:[]} as never);
  vi.mocked(invoicesApi.reprocesarPuente).mockResolvedValue({completo:false,errores:['Descarga omitida por servicio.']} as never);
  render(<InvoiceMonitorPage/>);const button=await screen.findByRole('button',{name:'Reprocesar puente'});
- expect(screen.getByText('ACEPTADO con puente pendiente')).toBeTruthy();fireEvent.click(button);
+ expect(screen.getByLabelText('Aceptada')).toBeTruthy();fireEvent.click(button);
  expect(await screen.findByText('Puente pendiente: Descarga omitida por servicio.')).toBeTruthy();expect(invoicesApi.reprocesarPuente).toHaveBeenCalledWith('p');
 });
 

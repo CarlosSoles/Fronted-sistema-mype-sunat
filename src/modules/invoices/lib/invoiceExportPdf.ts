@@ -1,3 +1,4 @@
+import { ETIQUETAS_BANDEJA, clasificarBandeja } from './invoiceBandejaState';
 /**
  * Construcción del PDF binario homologado del comprobante (M1).
  *
@@ -91,7 +92,7 @@ const lineasContenido = (c: ComprobanteDemo, emisor: IdentidadEmisora): string[]
     '',
     `HASH SHA-256: ${c.hashCpe}`,
     `TRAMA QR: ${trama}`,
-    `ESTADO SUNAT: ${c.estado} (${c.cdrCodigo ?? 'SIN CDR'})`,
+    `ESTADO SUNAT: ${ETIQUETAS_BANDEJA[clasificarBandeja(c)]} (${c.cdrCodigo ?? 'SIN CDR'})`,
     c.cdrDescripcion,
   ];
 };

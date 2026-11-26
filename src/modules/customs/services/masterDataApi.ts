@@ -39,12 +39,44 @@ export interface PortRecord {
   status: string;
 }
 
+export interface CustomsServiceRecord {
+  id: string;
+  sku: string;
+  description: string;
+  category: string;
+  sunat_unit_code: string;
+  tax_affectation: string;
+  cost_price: number | null;
+  sale_price: number | null;
+  is_active: boolean;
+  is_service: boolean;
+}
+
 export interface DocumentTypeRecord {
   code: string;
   name: string;
   stage: string;
   is_required: boolean;
   allowed_formats: string[];
+  is_active: boolean;
+}
+
+export interface CustomsOfficeRecord {
+  code: string;
+  name: string;
+  is_active: boolean;
+}
+
+export interface AuthorizedBankRecord {
+  code: string;
+  name: string;
+  is_active: boolean;
+}
+
+export interface VuceEntityRecord {
+  code: string;
+  name: string;
+  sector: string;
   is_active: boolean;
 }
 
@@ -249,6 +281,45 @@ export const masterDataApi = {
     await apiClient.delete(`${BASE}/document-types/${code}`);
   },
 
+  // Aduanas SUNAT
+  getCustomsOffices: async (): Promise<CustomsOfficeRecord[]> => {
+    const { data } = await apiClient.get<CustomsOfficeRecord[]>(`${BASE}/customs-offices`);
+    return data;
+  },
+  upsertCustomsOffice: async (payload: { code: string; name: string; isActive?: boolean }) => {
+    const { data } = await apiClient.put<CustomsOfficeRecord>(`${BASE}/customs-offices`, payload);
+    return data;
+  },
+  deleteCustomsOffice: async (code: string) => {
+    await apiClient.delete(`${BASE}/customs-offices/${code}`);
+  },
+
+  // Bancos autorizados SUNAT
+  getAuthorizedBanks: async (): Promise<AuthorizedBankRecord[]> => {
+    const { data } = await apiClient.get<AuthorizedBankRecord[]>(`${BASE}/authorized-banks`);
+    return data;
+  },
+  upsertAuthorizedBank: async (payload: { code: string; name: string; isActive?: boolean }) => {
+    const { data } = await apiClient.put<AuthorizedBankRecord>(`${BASE}/authorized-banks`, payload);
+    return data;
+  },
+  deleteAuthorizedBank: async (code: string) => {
+    await apiClient.delete(`${BASE}/authorized-banks/${code}`);
+  },
+
+  // Entidades de control previo VUCE
+  getVuceEntities: async (): Promise<VuceEntityRecord[]> => {
+    const { data } = await apiClient.get<VuceEntityRecord[]>(`${BASE}/vuce-entities`);
+    return data;
+  },
+  upsertVuceEntity: async (payload: { code: string; name: string; sector: string; isActive?: boolean }) => {
+    const { data } = await apiClient.put<VuceEntityRecord>(`${BASE}/vuce-entities`, payload);
+    return data;
+  },
+  deleteVuceEntity: async (code: string) => {
+    await apiClient.delete(`${BASE}/vuce-entities/${code}`);
+  },
+
   // Terceros
   getPartners: async (params?: { role?: string; q?: string }) => {
     const { data } = await apiClient.get<BusinessPartnerRecord[]>(
@@ -322,6 +393,36 @@ export const masterDataApi = {
     const { data } = await apiClient.put<AccountingMappingRecord>(
       `${BASE}/accounting-mappings`,
       payload,
+    );
+    return data;
+  },
+
+  // Servicios Aduaneros / Gastos de Despacho (Sincronizados con inventory_products)
+  getCustomsServices: async (): Promise<CustomsServiceRecord[]> => {
+    const { data } = await apiClient.get<CustomsServiceRecord[]>(
+      `${BASE}/services`,
+    );
+    return data;
+  },
+  upsertCustomsService: async (payload: {
+    sku: string;
+    description: string;
+    category?: string;
+    sunatUnitCode?: string;
+    taxAffectation?: string;
+    costPrice?: number;
+    salePrice?: number;
+    isActive?: boolean;
+  }) => {
+    const { data } = await apiClient.put<CustomsServiceRecord>(
+      `${BASE}/services`,
+      payload,
+    );
+    return data;
+  },
+  deleteCustomsService: async (sku: string) => {
+    const { data } = await apiClient.delete(
+      `${BASE}/services/${encodeURIComponent(sku)}`,
     );
     return data;
   },

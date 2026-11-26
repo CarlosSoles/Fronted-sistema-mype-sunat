@@ -1,3 +1,4 @@
+import { ETIQUETAS_BANDEJA } from '../lib/invoiceBandejaState';
 import type { EstadoBandeja } from '../lib/invoiceBandejaState';
 import { errorRangoFechas } from '../lib/invoiceDateRange';
 /**
@@ -27,22 +28,18 @@ export type { TipoEmision };
 
 /** Valores disponibles del filtro por estado CDR. */
 export const FILTROS_ESTADO: ReadonlyArray<{
-  value: EstadoBandeja | 'TODOS';
+  value: EstadoBandeja | 'TODOS' | 'ACEPTADAS' | 'PENDIENTES';
   label: string;
 }> = [
   { value: 'TODOS', label: 'Todos los estados' },
-  { value: 'ACEPTADO', label: 'Aceptado' },
-  { value: 'OBSERVADO', label: 'Observado (4xxx)' },
-  { value: 'EN_COLA', label: 'En Cola Outbox' },
-  { value: 'RECHAZADO', label: 'Rechazado (SUNAT)' },
-  { value: 'PREPARACION_LOCAL', label: 'Bloqueado en preparación local' },
-  { value: 'ERROR_RED', label: 'Error de red' },
-  { value: 'SIN_CONFIRMAR', label: 'Incertidumbre de transporte' },
+  { value: 'ACEPTADAS', label: 'Aceptadas y aceptadas con observación' },
+  { value: 'PENDIENTES', label: 'Sin respuesta definitiva' },
+  ...Object.entries(ETIQUETAS_BANDEJA).map(([value, label]) => ({ value: value as EstadoBandeja, label })),
 ];
 
 export interface InvoiceFiltros {
   busqueda: string;
-  estado: EstadoBandeja | 'TODOS';
+  estado: EstadoBandeja | 'TODOS' | 'ACEPTADAS' | 'PENDIENTES';
   desde: string;
   hasta: string;
 }
@@ -50,6 +47,7 @@ export interface InvoiceFiltros {
 interface InvoiceFiltersBarProps {
   filtros: InvoiceFiltros;
   onFiltrosChange: (filtros: InvoiceFiltros) => void;
+  onLimpiar?: () => void;
   onActualizar: () => void;
   actualizando?: boolean;
   ultimaActualizacion?: string | null;
@@ -60,6 +58,7 @@ export const InvoiceFiltersBar = ({
   filtros,
   onFiltrosChange,
   onActualizar,
+  onLimpiar,
   actualizando = false,
   ultimaActualizacion,
   onEmitir,
@@ -82,6 +81,7 @@ export const InvoiceFiltersBar = ({
   };
 
   return (
+    <div className="sticky top-0 z-10 space-y-2 rounded-lg bg-background p-1" aria-label="Filtros de comprobantes">
     <FilterBar>
       <FilterItem className="min-w-[240px]">
         <FilterSearch
@@ -151,5 +151,14 @@ export const InvoiceFiltersBar = ({
         />
       </FilterItem>
     </FilterBar>
+    <div className="flex flex-wrap gap-2" aria-label="Filtros activos">
+      {Object.entries(filtros).filter(([key, value]) => value && !(key === 'estado' && value === 'TODOS')).map(([key, value]) => (
+        <Button key={key} size="sm" variant="outline" aria-label={`Quitar filtro ${key}`} onClick={() => set({ [key]: key === 'estado' ? 'TODOS' : '' })}>
+          {key === 'estado' ? FILTROS_ESTADO.find(f=>f.value===value)?.label : `${key === 'busqueda' ? 'Búsqueda' : key === 'desde' ? 'Desde' : 'Hasta'}: ${value}`} ×
+        </Button>
+      ))}
+      {Object.values(filtros).some(value => value && value !== 'TODOS') && <Button size="sm" variant="ghost" onClick={() => { setDraft(null); if(onLimpiar)onLimpiar();else onFiltrosChange({ busqueda: '', estado: 'TODOS', desde: '', hasta: '' }); }}>Limpiar todo</Button>}
+    </div>
+    </div>
   );
 };

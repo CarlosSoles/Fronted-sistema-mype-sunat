@@ -43,7 +43,6 @@ export default function InventoryDashboardPage() {
         {[
           ['Existencias y catálogo', '/inventory/stocks'],
           ['Movimientos', '/inventory/movements'],
-          ['Transferencias', '/inventory/transfers'],
           ['Ajustes y toma física', '/inventory/adjustments'],
           ['Saldo inicial', '/inventory/opening'],
           ['Kardex valorizado', '/kardex/general'],

@@ -1,6 +1,6 @@
 import { InvoiceWriteButton } from './InvoiceWriteButton';
 import { numeroVisible } from '../lib/invoiceVisibleNumber';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button, PageText } from '@/components/ui';
 import { extractApiErrorMessage } from '@/lib/apiErrors';
 import { invoicesApi } from '../services/invoicesApi';
@@ -12,6 +12,14 @@ export function EnviarBajaPanel({ fecha, vista, onEnviado, modo = 'RA' }: { fech
   const [previa, setPrevia] = useState<{ key: string; vista: VistaPreviaResumen } | null>(null);
   const [noOtorgado, setNoOtorgado] = useState(false);
   const [confirmar, setConfirmar] = useState(false);
+  const cancelarRef=useRef<HTMLButtonElement>(null);
+  const [clientes,setClientes]=useState<Record<string,string>>({});
+  useEffect(()=>{if(confirmar)cancelarRef.current?.focus();},[confirmar]);
+  const abrirConfirmacion=async()=>{
+    setConfirmar(true);
+    const detalles=await Promise.all(seleccion.map(async s=>{try{const d=await invoicesApi.getInvoiceById(s.id);return [s.id,d.clienteRazonSocial] as const;}catch{return [s.id,'Cliente no disponible en la consulta'] as const;}}));
+    setClientes(Object.fromEntries(detalles));
+  };
   const [ocupado, setOcupado] = useState(false);
   const [resultado, setResultado] = useState<ResultadoEnvioAgregado | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +53,7 @@ export function EnviarBajaPanel({ fecha, vista, onEnviado, modo = 'RA' }: { fech
     <Button disabled={!seleccion.length || ocupado || seleccion.some(s => !s.motivo.trim())} onClick={() => void preview()}>Ver XML de selección</Button>
     {previa?.key === key && <><p>{previa.vista.errores.join(' | ')}</p>{previa.vista.xml && <details open><summary>XML de los documentos seleccionados</summary><pre className="max-h-64 overflow-auto text-xs">{previa.vista.xml}</pre></details>}</>}
     {modo === 'RC' && <label className="block text-sm"><input type="checkbox" checked={noOtorgado} onChange={e => { setNoOtorgado(e.target.checked); setConfirmar(false); }} /> Confirmo que estas notas no fueron otorgadas al receptor.</label>}
-    {!confirmar ? <InvoiceWriteButton disabled={!valida || ocupado || (modo === 'RC' && !noOtorgado)} onClick={() => setConfirmar(true)}>{modo === 'RC' ? 'Enviar anulación RC a SUNAT' : 'Enviar baja a SUNAT'}</InvoiceWriteButton> : <div className="rounded border p-3 space-y-2"><p>Confirmar baja de {seleccion.length} documento(s). La anulación se registra cuando SUNAT la acepta.</p><InvoiceWriteButton disabled={ocupado} onClick={() => void enviar()}>{ocupado ? 'Preparando…' : modo === 'RC' ? 'Confirmar anulación RC en SUNAT' : 'Confirmar baja en SUNAT'}</InvoiceWriteButton><Button variant="outline" disabled={ocupado} onClick={() => setConfirmar(false)}>Cancelar</Button></div>}
+    {!confirmar ? <InvoiceWriteButton disabled={!valida || ocupado || (modo === 'RC' && !noOtorgado)} onClick={() => void abrirConfirmacion()}>{modo === 'RC' ? 'Enviar anulación RC a SUNAT' : 'Enviar baja a SUNAT'}</InvoiceWriteButton> : <div className="rounded border p-3 space-y-2"><h3 className="font-semibold">Anular los comprobantes seleccionados</h3><ul>{seleccion.map(s=>{const l=lineas.find(l=>l.id===s.id);return <li key={s.id}>{l?numeroVisible(l.serie,l.correlativo):s.id} · {clientes[s.id]??'Consultando cliente…'} · S/ {l?.total.toFixed(2)}</li>;})}</ul><p>SUNAT registrará la baja cuando la acepte y no podrás revertirla. Si corresponde corregir una operación, revisa la emisión de una nota de crédito o de un nuevo comprobante.</p><InvoiceWriteButton disabled={ocupado} onClick={() => void enviar()}>{ocupado ? 'Preparando…' : seleccion.length===1 && lineas.find(l=>l.id===seleccion[0]?.id)?.tipoComprobante==='01' ? 'Anular factura' : 'Anular comprobantes'}</InvoiceWriteButton><Button ref={cancelarRef} variant="outline" disabled={ocupado} onClick={() => setConfirmar(false)}>Cancelar</Button></div>}
     {resultado && <p role="status">{resultado.enviado ? `Baja ${resultado.identificador} encolada (${resultado.jobId}). Consulte ticket y resultado en el Monitor.` : resultado.motivo ?? 'La baja no se encoló.'}</p>}
     {error && <p role="alert">{error}</p>}
   </section>;

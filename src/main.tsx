@@ -1,9 +1,8 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
-import { flushOutbox, startOutboxSync } from './lib/outbox';
 import './index.css';
 import { useAuthStore } from './stores/authStore';
 import {
@@ -105,22 +104,7 @@ if (sesionDemo) {
   if (useAuthStore.persist?.hasHydrated?.()) aplicarSesionDemo();
 }
 
-// Configuración global del cliente de caché de TanStack Query
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutos de caché fresca
-      retry: (failureCount, error) => {
-        const status = (error as { response?: { status?: number } })?.response?.status;
-        if (status && status >= 400 && status < 500) {
-          return false;
-        }
-        return failureCount < 1;
-      },
-      refetchOnWindowFocus: false, // Evitar refetch innecesario al cambiar de pestaña
-    },
-  },
-});
+import { queryClient } from '@/lib/queryClient';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -136,11 +120,64 @@ createRoot(document.getElementById('root')!).render(
 // Fase 0 offline: cachea el shell para abrir la app sin red.
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => undefined);
+    // `update()` fuerza a buscar un sw.js nuevo en cada arranque; si el
+    // navegador tenía una versión anterior controlando la página, se activa la
+    // nueva en la siguiente carga en lugar de quedarse con el shell viejo.
+    navigator.serviceWorker
+      .register('/sw.js', { updateViaCache: 'none' })
+      .then((registro) => registro.update())
+      .catch(() => undefined);
   });
 }
 
+/**
+ * Actualiza la aplicación cuando se publica una versión nueva.
+ *
+ * El Service Worker puede dejar el shell anterior en caché y la pantalla sigue
+ * mostrando la versión vieja aunque el despliegue ya esté hecho. Se compara el
+ * bundle cargado con el último visto: si cambió, se borran las cachés y se
+ * recarga una sola vez por sesión (la marca en `sessionStorage` evita el bucle).
+ */
+(() => {
+  const CLAVE = 'sync-sunat-build';
+  const MARCA = 'sync-sunat-recargado';
+  const actual = document.querySelector('script[type="module"][src*="/assets/"]')?.getAttribute('src');
+  if (!actual) return;
 
-// Sincroniza asientos pendientes al volver la red.
-void flushOutbox();
-startOutboxSync();
+  try {
+    const anterior = window.localStorage.getItem(CLAVE);
+    if (!anterior) {
+      window.localStorage.setItem(CLAVE, actual);
+      return;
+    }
+    if (anterior === actual) return;
+
+    window.localStorage.setItem(CLAVE, actual);
+    if (window.sessionStorage.getItem(MARCA)) return;
+    window.sessionStorage.setItem(MARCA, '1');
+
+    const recargar = () => window.location.reload();
+    if ('caches' in window) {
+      caches
+        .keys()
+        .then((claves) => Promise.all(claves.map((clave) => caches.delete(clave))))
+        .then(recargar)
+        .catch(recargar);
+    } else {
+      recargar();
+    }
+  } catch {
+    // Si el navegador bloquea el almacenamiento, se sigue sin actualizar.
+  }
+})();
+
+
+// La sincronización de la outbox se difiere para no competir con la primera carga.
+window.addEventListener('load', () => {
+  window.setTimeout(() => {
+    void import('./lib/outbox').then(({ flushOutbox, startOutboxSync }) => {
+      void flushOutbox();
+      startOutboxSync();
+    });
+  }, 1500);
+}, { once: true });

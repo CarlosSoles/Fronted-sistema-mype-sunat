@@ -54,6 +54,9 @@ export interface LineaEmisionPayload {
 }
 
 /** Alta de comprobante desde la pantalla. */
+export const MEDIOS_PAGO_VENTA = ['EFECTIVO', 'YAPE', 'PLIN', 'TARJETA', 'TRANSFERENCIA', 'DEPOSITO', 'CHEQUE'] as const;
+export type MedioPagoVenta = (typeof MEDIOS_PAGO_VENTA)[number];
+
 export interface EmitirComprobantePayload {
   almacen?: string;
   medio_pago_detraccion?: import('../lib/medioPagoDetraccion').MedioPagoDetraccion;
@@ -68,6 +71,7 @@ export interface EmitirComprobantePayload {
   agente_retencion?: boolean;
   correccion_retencion?: boolean;
   forma_pago?: 'Contado' | 'Credito';
+  medio_pago?: MedioPagoVenta;
   /**
    * Cronograma de la venta al crédito (HU-10). Obligatorio cuando
    * `forma_pago` es 'Credito': el backend exige al menos una cuota y comprueba

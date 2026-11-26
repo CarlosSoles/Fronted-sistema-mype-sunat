@@ -18,7 +18,9 @@ interface LandedCostComparisonTableProps {
   activeDeclaration?: CustomsDeclarationRecord | null;
   totalLocalExpensesPen?: number;
   fallbackDescription?: string;
-  onApplyKardex: () => Promise<unknown>;
+  onApproveLandedCost?: () => Promise<unknown>;
+  /** @deprecated Usar onApproveLandedCost */
+  onApplyKardex?: () => Promise<unknown>;
   isApplying: boolean;
 }
 
@@ -27,9 +29,11 @@ export const LandedCostComparisonTable: React.FC<LandedCostComparisonTableProps>
   activeDeclaration,
   totalLocalExpensesPen = 0,
   fallbackDescription,
+  onApproveLandedCost,
   onApplyKardex,
   isApplying,
 }) => {
+  const handleApprove = onApproveLandedCost || onApplyKardex;
   // 1. Si existe desglose ya calculado por el servicio backend, usarlo
   let breakdown = sheet?.series_breakdown || [];
   let totalCifPen = Number(sheet?.total_cif_pen) || 0;
@@ -84,7 +88,7 @@ export const LandedCostComparisonTable: React.FC<LandedCostComparisonTableProps>
         <Button
           size="sm"
           className="h-8 text-xs gap-1.5 font-bold bg-primary text-primary-foreground hover:bg-primary/90"
-          onClick={onApplyKardex}
+          onClick={handleApprove}
           disabled={isApplying || breakdown.length === 0}
         >
           <CheckCircle2 className="h-3.5 w-3.5" />

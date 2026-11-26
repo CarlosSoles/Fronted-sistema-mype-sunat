@@ -1,3 +1,4 @@
+import { ETIQUETA_ESTADO_SUNAT } from '../lib/invoiceResumenes';
 import { useState } from 'react';
 import { Button, PageText } from '@/components/ui';
 import { extractApiErrorMessage } from '@/lib/apiErrors';
@@ -23,7 +24,7 @@ export const InvoiceSunatConsulta = ({ id }: { id: string }) => {
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       {resultado && <div role="status" className="space-y-1">
         <PageText variant="label">Resultado de consulta SUNAT</PageText>
-        <PageText variant="caption">Estado: {resultado.tipo === 'RECUPERADO' ? resultado.estado : resultado.tipo}</PageText>
+        <PageText variant="caption">Estado: {resultado.tipo === 'RECUPERADO' ? ETIQUETA_ESTADO_SUNAT[resultado.estado]??'Sin resultado confirmado' : resultado.tipo}</PageText>
         <PageText variant="caption">Código: {resultado.tipo === 'RECUPERADO' ? resultado.codigo ?? 'No informado' : 'No informado'}</PageText>
         <PageText variant="caption">Mensaje: {resultado.tipo === 'RECUPERADO' ? resultado.mensaje ?? 'No informado' : (resultado.tipo === 'INCIERTO' || resultado.tipo === 'SIN_TRANSMISION') ? resultado.motivo : 'Comprobante no encontrado en SUNAT.'}</PageText>
       </div>}

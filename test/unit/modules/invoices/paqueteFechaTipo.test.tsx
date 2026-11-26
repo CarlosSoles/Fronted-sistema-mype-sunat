@@ -32,8 +32,7 @@ it('el mínimo de fecha de la página real cambia al elegir factura o boleta', a
   render(<QueryClientProvider client={q}><MemoryRouter><InvoiceEmissionPage /></MemoryRouter></QueryClientProvider>);
   const date = screen.getByLabelText('Fecha de emisión') as HTMLInputElement;
   expect(date.min).toBe(minimoDeFechaEmision(hoyEnLima(), '01'));
-  const selects = screen.getAllByRole('combobox') as HTMLSelectElement[];
-  const tipo = selects.find(s => Array.from(s.options).some(o => o.value === '03'))!;
+  const tipo = screen.getByLabelText('Tipo de comprobante');
   fireEvent.change(tipo, { target: { value: '03' } });
   await waitFor(() => expect(date.min).toBe(minimoDeFechaEmision(hoyEnLima(), '03'))); q.clear();
 });

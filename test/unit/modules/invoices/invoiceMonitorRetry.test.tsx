@@ -1,3 +1,14 @@
+// Este flujo aísla los permisos; invoiceServerPermissions prueba los hooks reales y la API.
+vi.mock('@/modules/invoices/hooks/useInvoiceWritePermission', async () => {
+ const { useAuthStore } = await import('@/stores/authStore');
+ const { serverSnapshot } = await import('../../../fixtures/permissionsServer');
+ return { INVOICE_WRITE_DENIED: 'Su rol no permite emitir ni operar envíos de facturación.', useInvoiceWritePermission: () => { useAuthStore(s=>s.user); const p=serverSnapshot();return p.modules.some(m=>m.moduleCode==='M1'&&m.canWrite)&&p.actions.some(a=>a.actionCode==='INVOICE_EMIT'&&a.allowed); } };
+});
+vi.mock('@/modules/auth/hooks/useActionPermissions', async () => {
+ const { useAuthStore }=await import('@/stores/authStore');const {serverSnapshot}=await import('../../../fixtures/permissionsServer');
+ return {useActionPermissions:()=>{useAuthStore(s=>s.user);const p=serverSnapshot();return {can:(code:string)=>p.actions.some(a=>a.actionCode===code&&a.allowed),canShow:(code:string)=>p.actions.some(a=>a.actionCode===code&&a.available),ready:true,isLoading:false,isError:false};}};
+});
+vi.mock('@/modules/invoices/hooks/useInvoiceDatePermission', () => ({ useInvoiceDatePermission: () => ({ canEditDate: true, explanation: undefined }) }));
 import { beforeEach as billingBeforeEach } from 'vitest';
 import { useAuthStore as billingAuth } from '@/stores/authStore';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -42,7 +53,7 @@ describe('retroalimentación del reintento de CDR en el Monitor', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Reintentar' }));
     await waitFor(() => expect(invoicesApi.getAlertas).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Reintentar' }).hasAttribute('disabled')).toBe(false));
-    const alerta = within(screen.getByRole('alert'));
+    const alerta = within(screen.getByRole(encolado ? 'status' : 'alert', { name: 'Aviso prioritario' }));
     expect(alerta.getByText(titulo)).toBeTruthy();
     expect(alerta.getByText(mensaje)).toBeTruthy();
     expect(invoicesApi.retryCdr).toHaveBeenCalledWith(comprobante.id);
@@ -51,7 +62,7 @@ describe('retroalimentación del reintento de CDR en el Monitor', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Actualizar' }));
     await waitFor(() => expect(invoicesApi.getAlertas).toHaveBeenCalledTimes(3));
     await screen.findByRole('button', { name: 'Actualizar' });
-    expect(within(screen.getByRole('alert')).getByText(mensaje)).toBeTruthy();
+    expect(within(screen.getByRole(encolado ? 'status' : 'alert', { name: 'Aviso prioritario' })).getByText(mensaje)).toBeTruthy();
   });
 
   it('extrae el motivo HTTP del servidor y lo conserva al actualizar la lista', async () => {
@@ -63,12 +74,12 @@ describe('retroalimentación del reintento de CDR en el Monitor', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Reintentar' }));
     const mensaje = 'La empresa no tiene permiso para reintentar este comprobante.';
     expect(await screen.findByText(mensaje)).toBeTruthy();
-    expect(within(screen.getByRole('alert')).getByText('Comprobante no reencolado')).toBeTruthy();
+    expect(within(screen.getByRole('alert', { name: 'Aviso prioritario' })).getByText('Comprobante no reencolado')).toBeTruthy();
     expect(screen.queryByText('Request failed with status code 403')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Actualizar' }));
     await waitFor(() => expect(invoicesApi.getAlertas).toHaveBeenCalledTimes(2));
     await screen.findByRole('button', { name: 'Actualizar' });
-    expect(within(screen.getByRole('alert')).getByText(mensaje)).toBeTruthy();
+    expect(within(screen.getByRole('alert', { name: 'Aviso prioritario' })).getByText(mensaje)).toBeTruthy();
   });
 });
 
@@ -81,7 +92,7 @@ it('membresía vigente distingue DLQ y filtra la misma tabla por estado', async 
   await screen.findByText(dlq.numero);
   expect(invoicesApi.getInvoiceById).not.toHaveBeenCalled();
   const fila = screen.getByText(dlq.numero).closest('tr')!;
-  expect(within(fila).getByText('DLQ')).toBeTruthy();
+  expect(within(fila).getByText('Requiere revisión de envío (DLQ)')).toBeTruthy();
   expect(within(fila).queryByText('PENDIENTE')).toBeNull();
   fireEvent.change(screen.getByLabelText('Filtrar estado del monitor'), { target: { value: 'DLQ' } });
   expect(screen.getByText(dlq.numero)).toBeTruthy(); expect(screen.queryByText(pendiente.numero)).toBeNull(); expect(screen.queryByText(comprobante.numero)).toBeNull();
@@ -103,9 +114,9 @@ it('DLQ ofrece reintento efectivo, muestra resultado y deja de rotularla DLQ al 
   vi.mocked(invoicesApi.retryCdr).mockImplementation(async () => { rescatado = true; return { id: dlq.id, estado: 'EN_COLA', encolado: true, mensaje: 'Comprobante reencolado manualmente.', resultadoCola: 'ENCOLADO' } as never; });
   render(<InvoiceMonitorPage />);
   const fila = (await screen.findByText(dlq.numero)).closest('tr')!;
-  await within(fila).findByText('DLQ'); fireEvent.click(within(fila).getByRole('button', { name: 'Reintentar' }));
+  await within(fila).findByText('Requiere revisión de envío (DLQ)'); fireEvent.click(within(fila).getByRole('button', { name: 'Reintentar' }));
   await screen.findByText('Comprobante reencolado manualmente.');
-  await waitFor(() => expect(within(screen.getByText(dlq.numero).closest('tr')!).queryByText('DLQ')).toBeNull());
+  await waitFor(() => expect(within(screen.getByText(dlq.numero).closest('tr')!).queryByText('Requiere revisión de envío (DLQ)')).toBeNull());
   expect(invoicesApi.retryCdr).toHaveBeenCalledExactlyOnceWith(dlq.id);
 });
 it.each(['ACEPTADO', 'OBSERVADO', 'ANULADO'])('una referencia DLQ histórica no habilita acción para %s', async estado => {
@@ -123,7 +134,7 @@ it('incertidumbre de transporte muestra motivo y permite conciliar sin llamarlo 
   render(<InvoiceMonitorPage />);
   const boton = await screen.findByRole('button', { name: 'Reintentar' });
   const fila = boton.closest('tr')!;
-  expect(within(fila).getByText('Incertidumbre de transporte')).toBeTruthy();
+  expect(within(fila).getByText('Sin confirmación')).toBeTruthy();
   expect(within(fila).getByText(incierto.resultadoPresentacion.motivo)).toBeTruthy();
   expect(within(fila).queryByText(/Error de red|No llegó a SUNAT/)).toBeNull();
   fireEvent.click(boton);
@@ -146,7 +157,7 @@ it('preparación local conserva Reintentar y no entra al filtro de incertidumbre
   render(<InvoiceMonitorPage />);
   await screen.findByRole('button', { name: 'Reintentar' });
   const row = screen.getByText(local.numero).closest('tr')!;
-  expect(within(row).getByText('Bloqueado en preparación local')).toBeTruthy();
+  expect(within(row).getByLabelText('Bloqueada en preparación local')).toBeTruthy();
   expect(within(row).getByText('Datos inválidos')).toBeTruthy();
   fireEvent.change(screen.getByLabelText('Filtrar estado del monitor'), { target: { value: 'INCERTIDUMBRE_TRANSPORTE' } });
   expect(screen.queryByText(local.numero)).toBeNull();

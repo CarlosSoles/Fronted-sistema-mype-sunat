@@ -1,3 +1,15 @@
+import { confirmarRevisionSiAbierta } from '../../../fixtures/invoiceEmissionProduct';
+// Este flujo aísla los permisos; invoiceServerPermissions prueba los hooks reales y la API.
+vi.mock('@/modules/invoices/hooks/useInvoiceWritePermission', async () => {
+ const { useAuthStore } = await import('@/stores/authStore');
+ const { serverSnapshot } = await import('../../../fixtures/permissionsServer');
+ return { INVOICE_WRITE_DENIED: 'Su rol no permite emitir ni operar envíos de facturación.', useInvoiceWritePermission: () => { useAuthStore(s=>s.user); const p=serverSnapshot();return p.modules.some(m=>m.moduleCode==='M1'&&m.canWrite)&&p.actions.some(a=>a.actionCode==='INVOICE_EMIT'&&a.allowed); } };
+});
+vi.mock('@/modules/auth/hooks/useActionPermissions', async () => {
+ const { useAuthStore }=await import('@/stores/authStore');const {serverSnapshot}=await import('../../../fixtures/permissionsServer');
+ return {useActionPermissions:()=>{useAuthStore(s=>s.user);const p=serverSnapshot();return {can:(code:string)=>p.actions.some(a=>a.actionCode===code&&a.allowed),canShow:(code:string)=>p.actions.some(a=>a.actionCode===code&&a.available),ready:true,isLoading:false,isError:false};}};
+});
+vi.mock('@/modules/invoices/hooks/useInvoiceDatePermission', () => ({ useInvoiceDatePermission: () => ({ canEditDate: true, explanation: undefined }) }));
 import { seleccionarProductoPrueba } from '../../../fixtures/invoiceEmissionProduct';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -38,7 +50,7 @@ beforeEach(() => {
 afterEach(() => { cleanup(); clients.splice(0).forEach(q => q.clear()); useAuthStore.getState().logout(); vi.resetAllMocks(); });
 async function emitir() {
   await seleccionarProductoPrueba();
-  fireEvent.click(screen.getByRole('button', { name: 'Emitir comprobante' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Emitir comprobante' })); confirmarRevisionSiAbierta();
   await waitFor(() => expect(invoicesApi.emitirComprobante).toHaveBeenCalledTimes(1));
 }
 it('página real: rellena receptor, permite editar y transporta la dirección editada sin modificar emisor', async () => {
@@ -84,7 +96,7 @@ it('seleccionar un maestro sin dirección conserva el modo manual y editar docum
   escribir('RUC del cliente', ruc.slice(0, 10)); expect(value('Dirección del cliente')).toBe('');
 });
 it('Facturación: alta real de cliente consulta RUC y guarda las correcciones editables', async () => {
-  mount(<PartnersPage context="billing" />); fireEvent.click(screen.getByRole('button', { name: 'Nuevo tercero' }));
+  mount(<PartnersPage context="billing" />); fireEvent.click(await screen.findByRole('button', { name: 'Nuevo tercero' }));
   escribir('Número', ruc); await waitFor(() => expect(value('Razón social')).toBe(datos.razonSocial));
   expect(value('Dirección fiscal / operativa')).toBe(datos.direccionFiscal);
   escribir('Razón social', 'CLIENTE EDITADO'); escribir('Dirección fiscal / operativa', 'Domicilio editado');
@@ -124,7 +136,7 @@ it.each(['sin-opción', 'proveedor', 'extranjero', 'dni', 'inválido'])('no cons
   expect(consultar()).toHaveLength(0);
 });
 it('el contexto compartido ajeno a Facturación conserva el alta sin consulta RUC', async () => {
-  mount(<PartnersPage />); fireEvent.click(screen.getByRole('button', { name: 'Nuevo tercero' }));
+  mount(<PartnersPage />); fireEvent.click(await screen.findByRole('button', { name: 'Nuevo tercero' }));
   fireEvent.click(screen.getByLabelText('CLIENTE')); escribir('Número', ruc);
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 350)); });
   expect(consultar()).toHaveLength(0); expect(value('Razón social')).toBe('');

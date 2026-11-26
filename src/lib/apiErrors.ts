@@ -2,6 +2,31 @@
  * Utilidad robusta para extracción y formateo de mensajes de error de la API.
  * Garantiza que NUNCA se retorne un objeto a React (evitando 'Objects are not valid as a React child').
  */
+export const RATE_LIMIT_MESSAGE = 'Demasiados intentos, espera un momento e inténtalo de nuevo';
+
+/** Aviso específico del formulario de login cuando el servidor limita intentos. */
+export const LOGIN_RATE_LIMIT_MESSAGE =
+  'Has intentado iniciar sesión demasiadas veces. Por favor, espera unos minutos e intenta de nuevo.';
+
+export function getApiErrorStatus(error: unknown): number | undefined {
+  const status = (error as { response?: { status?: unknown } } | null)?.response?.status;
+  return typeof status === 'number' ? status : undefined;
+}
+
+/** Retry-After admite segundos o una fecha HTTP; sin valor válido se esperan 60 s. */
+export function getApiRetryAfterMs(error: unknown, now = Date.now()): number {
+  const headers = (error as { response?: { headers?: Record<string, unknown> & { get?: (name: string) => unknown } } } | null)?.response?.headers;
+  const value = headers?.get?.('retry-after') ?? Object.entries(headers ?? {}).find(([key]) => key.toLowerCase() === 'retry-after')?.[1];
+  if (typeof value !== 'string' && typeof value !== 'number') return 60_000;
+  const text = String(value).trim();
+  if (/^\d+(?:\.\d+)?$/.test(text)) {
+    const delay = Number(text) * 1000;
+    return Number.isFinite(delay) ? Math.max(1000, delay) : 60_000;
+  }
+  const date = /^[A-Za-z]{3},/.test(text) ? Date.parse(text) : NaN;
+  return Number.isFinite(date) ? Math.max(1000, date - now) : 60_000;
+}
+
 export interface ApiValidationErrorItem {
   field?: string;
   rule?: string;
@@ -12,6 +37,7 @@ export const extractApiErrorMessage = (
   error: unknown,
   fallback = 'Ha ocurrido un error inesperado al procesar la solicitud.'
 ): string => {
+  if (getApiErrorStatus(error) === 429) return RATE_LIMIT_MESSAGE;
   if (!error) return fallback;
 
   if (typeof error === 'string') return error;

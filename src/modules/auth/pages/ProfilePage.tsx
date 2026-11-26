@@ -101,7 +101,7 @@ export default function ProfilePage() {
               Estado SUNAT: ACTIVO / HABIDO
             </Badge>
             <Badge variant="outline" className="text-[10px]">
-              Rol Asignado: {user?.role || 'ADMIN'}
+              Rol Asignado: {user?.roleName || user?.role || 'Sin rol'}
             </Badge>
           </div>
         </CardContent>

@@ -1,14 +1,23 @@
+// Este flujo aísla los permisos; invoiceServerPermissions prueba los hooks reales y la API.
+vi.mock('@/modules/invoices/hooks/useInvoiceWritePermission', async () => {
+ const { useAuthStore } = await import('@/stores/authStore');
+ const { serverSnapshot } = await import('../../../fixtures/permissionsServer');
+ return { INVOICE_WRITE_DENIED: 'Su rol no permite emitir ni operar envíos de facturación.', useInvoiceWritePermission: () => { useAuthStore(s=>s.user); const p=serverSnapshot();return p.modules.some(m=>m.moduleCode==='M1'&&m.canWrite)&&p.actions.some(a=>a.actionCode==='INVOICE_EMIT'&&a.allowed); } };
+});
+vi.mock('@/modules/auth/hooks/useActionPermissions', async () => {
+ const { useAuthStore }=await import('@/stores/authStore');const {serverSnapshot}=await import('../../../fixtures/permissionsServer');
+ return {useActionPermissions:()=>{useAuthStore(s=>s.user);const p=serverSnapshot();return {can:(code:string)=>p.actions.some(a=>a.actionCode===code&&a.allowed),canShow:(code:string)=>p.actions.some(a=>a.actionCode===code&&a.available),ready:true,isLoading:false,isError:false};}};
+});
+vi.mock('@/modules/invoices/hooks/useInvoiceDatePermission', () => ({ useInvoiceDatePermission: () => ({ canEditDate: true, explanation: undefined }) }));
 import { invoiceDetailFromDemo } from '../../../fixtures/invoiceDetailFromDemo';
 import { porApartado } from '@/modules/invoices/lib/invoiceFilters';
 import {afterEach,expect,it,vi} from 'vitest';
-import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
-import {MemoryRouter} from 'react-router-dom';
+import {cleanup,render,screen,waitFor} from '@testing-library/react';
 import {InvoiceStatusBadge} from '@/modules/invoices/components/InvoiceStatusBadge';
 import {InvoiceKpiCards} from '@/modules/invoices/components/InvoiceKpiCards';
 import {InvoiceTableRow} from '@/modules/invoices/components/InvoiceTableRow';
 import {InvoiceCdrModal} from '@/modules/invoices/components/InvoiceCdrModal';
-import {InvoiceTabsNav,contarPorTab,RUTA_POR_TAB} from '@/modules/invoices/components/InvoiceTabsNav';
-import {Tabs} from '@/components/ui';
+import { INVOICE_SECTION_ROUTES, sectionFromPath } from '@/modules/invoices/lib/invoiceSections';
 import {calcularResumenFiscal} from '@/modules/invoices/lib/invoiceMetrics';
 import {construir} from '@/modules/invoices/data/invoiceDemoTypes';
 import {clasificarBandeja,ETIQUETAS_BANDEJA} from '@/modules/invoices/lib/invoiceBandejaState';
@@ -28,7 +37,7 @@ it.each([
  expect(screen.getByLabelText(ETIQUETAS_BANDEJA[categoria])).toBeTruthy();
 });
 it.each([undefined,'0','9999'])('badge conserva código útil %s',(codigo)=>{
- render(<InvoiceStatusBadge estado="ACEPTADO" codigo={codigo}/>);expect(screen.getByText(codigo==='9999'?'Aceptado · 9999':'Aceptado')).toBeTruthy();
+ render(<InvoiceStatusBadge estado="ACEPTADO" codigo={codigo}/>);expect(screen.getByText(codigo==='9999'?'Aceptada · 9999':'Aceptada')).toBeTruthy();
 });
 it('tarjeta hace visible ICBPER verificado y la igualdad al céntimo',()=>{
  const comprobante={...c,baseImponible:100,igv:18,totalNeto:118.5,importesBandeja:{base:100,igv:18,icbper:.5,total:118.5,verificado:true}};
@@ -52,10 +61,9 @@ it.each([['ERROR_RED','TRANSPORTE_INCIERTO',false,true],['ERROR_RED',undefined,f
  expect(screen.queryByText('Consulta SUNAT disponible')).toBeNull();
  await screen.findByText('No hay eventos de auditoría registrados.');await waitFor(()=>expect(Boolean(screen.queryByText('Consulta SUNAT disponible'))).toBe(visible));
 });
-it('Notas tiene conteo de 15 y conserva la ruta existente',()=>{
- const rows=Array.from({length:15},(_,i)=>({...c,id:String(i),tipo:(i%2?'07':'08') as '07'|'08'}));const navegar=vi.fn();
- render(<MemoryRouter><Tabs defaultValue="comprobantes" onValueChange={x=>navegar(RUTA_POR_TAB[x as keyof typeof RUTA_POR_TAB])}><InvoiceTabsNav conteo={contarPorTab(rows)}/></Tabs></MemoryRouter>);
- const tab=screen.getByRole('tab',{name:/Notas de Crédito y Débito.*15/});fireEvent.mouseDown(tab,{button:0,ctrlKey:false});fireEvent.click(tab);expect(navegar).toHaveBeenCalledWith('/invoices/notas');
+it('Notas conserva su ruta y la agrupación de 15 documentos sin depender de pestañas',()=>{
+ const rows=Array.from({length:15},(_,i)=>({...c,id:String(i),tipo:(i%2?'07':'08') as '07'|'08'}));
+ expect(INVOICE_SECTION_ROUTES.notas).toBe('/invoices/notas');expect(sectionFromPath('/invoices/notas')).toBe('notas');expect(porApartado(rows,'notas')).toHaveLength(15);
 });
 it('tarjeta admite el contrato anterior sin los campos opcionales nuevos',()=>{
  const r={...calcularResumenFiscal([]),icbper:undefined,incertidumbre:undefined,bloqueadosLocalmente:undefined,rechazosSunat:undefined,rechazosSinOrigen:undefined};render(<InvoiceKpiCards resumen={r}/>);expect(screen.queryByText(/ICBPER/)).toBeNull();

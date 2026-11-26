@@ -9,7 +9,7 @@ const envSchema = z.object({
   VITE_API_URL: z
     .string()
     .min(1, { message: 'VITE_API_URL no puede estar vacío' })
-    .default('/api/v1'),
+    .default(import.meta.env.PROD ? 'https://sistema-mype-sunat-back.onrender.com/api/v1' : '/api/v1'),
   VITE_SUNAT_ENV: z
     .enum(['BETA', 'PRODUCCION'], {
       message: 'VITE_SUNAT_ENV debe ser BETA o PRODUCCION',

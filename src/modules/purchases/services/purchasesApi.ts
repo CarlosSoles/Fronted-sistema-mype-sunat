@@ -70,7 +70,7 @@ export const purchasesApi = {
     }
   },
 
-  receivePurchase: async (id: string, payload: { items?: { itemId: string; quantity: number }[]; receivedAt?: string }): Promise<PurchaseRecord> => {
+  receivePurchase: async (id: string, payload: { items?: { itemId: string; quantity: number; rejectedQuantity?: number; reason?: string; notes?: string }[]; receivedAt?: string }): Promise<PurchaseRecord> => {
     const { data } = await apiClient.post<PurchaseRecord>(`/purchases/${id}/receive`, payload);
     return data;
   },
@@ -80,6 +80,13 @@ export const purchasesApi = {
     id: string,
   ): Promise<{ compra: string; asientoGenerado: boolean; motivo?: string; yaExistia: boolean }> => {
     const { data } = await apiClient.post(`/purchases/${id}/post-accounting`);
+    return data;
+  },
+
+  listCreditNotes: async (id: string): Promise<Array<{ id: string; noteNumber: string; amount: number; reason: string; issueDate: string }>> => (await apiClient.get(`/purchases/${id}/credit-notes`)).data,
+  createCreditNote: async (id: string, payload: { amount: number; reason: string; issueDate?: string; notes?: string }): Promise<{ note: { noteNumber: string }; purchase: PurchaseRecord }> => (await apiClient.post(`/purchases/${id}/credit-notes`, payload)).data,
+  cancelPurchase: async (id: string): Promise<PurchaseRecord> => {
+    const { data } = await apiClient.post<PurchaseRecord>(`/purchases/${id}/cancel`);
     return data;
   },
 

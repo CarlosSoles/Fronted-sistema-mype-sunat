@@ -1,3 +1,4 @@
+import { confirmarRevisionSiAbierta } from '../../../fixtures/invoiceEmissionProduct';
 import { seleccionarProductoPrueba } from '../../../fixtures/invoiceEmissionProduct';
 import { beforeEach as billingBeforeEach } from 'vitest';
 import { useAuthStore as billingAuth } from '@/stores/authStore';
@@ -31,14 +32,14 @@ async function montar(via: string, serieEsperada = 'F001') {
   fireEvent.change(screen.getByLabelText(via === 'modal' ? 'RUC / DNI del cliente' : 'RUC del cliente'), { target: { value: '20100070970' } });
   fireEvent.change(screen.getByLabelText('Razón social / nombre'), { target: { value: 'Cliente de prueba' } });
   await seleccionarProductoPrueba();
-  return { onEmitir, emitir: () => fireEvent.click(screen.getByRole('button', { name: via === 'modal' ? 'Emitir Factura' : 'Emitir comprobante' })) };
+  return { onEmitir, emitir: () => { fireEvent.click(screen.getByRole('button', { name: via === 'modal' ? 'Emitir Factura' : 'Emitir comprobante' })); confirmarRevisionSiAbierta(); } };
 }
 it.each(['modal', 'pagina'])('%s: 409 conserva todos los datos y reintentar conserva la clave; editar inicia otro intento', async via => {
   vi.mocked(invoicesApi.emitirComprobante).mockRejectedValue({ response: { status: 409 } });
   const { onEmitir, emitir } = await montar(via);
   emitir();
   await screen.findByText(/Conflicto de emisión \(409\)/);
-  const datos = () => ['Razón social / nombre', 'Descripción de la línea 1', 'Valor unitario de la línea 1'].map(label => (screen.getByLabelText(label) as HTMLInputElement).value);
+  const datos = () => [(screen.getByLabelText('Razón social / nombre') as HTMLInputElement).value, screen.getByLabelText('Descripción de la línea 1').textContent, screen.getByLabelText('Valor unitario de la línea 1').textContent];
   expect(datos()).toEqual(['Cliente de prueba', 'Servicio', '100.00']);
   expect(onEmitir).not.toHaveBeenCalled();
   expect(enqueueInvoiceEmission).not.toHaveBeenCalled();

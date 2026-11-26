@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, RefreshCw, ShieldAlert } from 'lucide-react';
 import { Badge, Button, Card, Page, PageHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
+import { Toolbar } from '../components/AccountingUI';
 import { accountingApi, type AuditIssue, type RegularizationResult } from '../services/accountingApi';
 import { purchasesApi } from '@/modules/purchases/services/purchasesApi';
 import { collectionsApi } from '@/modules/collections/services/collectionsApi';
@@ -132,25 +133,36 @@ export default function AccountingAuditPage() {
         description="Reglas inválidas, asientos descuadrados y comprobantes aceptados sin asiento o sin costo"
       />
 
-      <div className="flex flex-wrap items-end gap-3 mb-4">
+      <Toolbar
+        status={
+          <>
+            {data ? (
+              <>
+                <Badge variant={data.ok ? 'outline' : 'destructive'}>
+                  {data.ok ? <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> : <ShieldAlert className="mr-1 h-3.5 w-3.5" />}
+                  {data.ok ? 'Sin errores' : `${data.resumen.errors} error(es)`}
+                </Badge>
+                <Badge variant="secondary">{data.resumen.warnings} aviso(s)</Badge>
+              </>
+            ) : null}
+            <Button variant="ghost" size="sm" onClick={() => setPeriod('')} disabled={!period}>
+              Ver todo el histórico
+            </Button>
+          </>
+        }
+      >
         <div className="space-y-1.5">
-          <label htmlFor="audit-period" className="text-xs font-medium">Período</label>
+          <label htmlFor="audit-period" className="text-xs font-medium text-muted-foreground">
+            Período
+          </label>
           <PeriodInput id="audit-period" value={period} onChange={setPeriod} />
         </div>
-        <Button variant="ghost" size="sm" onClick={() => setPeriod('')} disabled={!period}>Ver todo el histórico</Button>
         {data ? (
-          <>
-            <Badge variant={data.ok ? 'outline' : 'destructive'}>
-              {data.ok ? <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> : <ShieldAlert className="h-3.5 w-3.5 mr-1" />}
-              {data.ok ? 'Sin errores' : `${data.resumen.errors} error(es)`}
-            </Badge>
-            <Badge variant="secondary">{data.resumen.warnings} aviso(s)</Badge>
-            <span className="text-xs text-muted-foreground">
-              {data.asientos.revisados} asientos · {data.comprobantes.revisados} comprobantes · {data.catalogo.activas} cuentas activas
-            </span>
-          </>
+          <p className="pb-2 text-xs text-muted-foreground">
+            {data.asientos.revisados} asientos · {data.comprobantes.revisados} comprobantes · {data.catalogo.activas} cuentas activas
+          </p>
         ) : null}
-      </div>
+      </Toolbar>
 
       {auditoria.isLoading ? <Card className="p-4 text-sm">Revisando…</Card> : null}
       {auditoria.error ? <Card className="p-4 text-sm text-destructive">No se pudo cargar la auditoría.</Card> : null}

@@ -22,6 +22,7 @@ import {
   Building2,
   Warehouse,
   CheckCircle2,
+  Ship,
 } from 'lucide-react';
 
 interface PurchaseItemRow {
@@ -29,6 +30,9 @@ interface PurchaseItemRow {
   description: string;
   quantity: number;
   unitCost: number;
+  hasDetraction?: boolean;
+  detractionCode?: string;
+  detractionRate?: number;
 }
 
 interface NationalPurchaseModalProps {
@@ -52,29 +56,60 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
   const [issueDate, setIssueDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [warehouseCode, setWarehouseCode] = useState('ALM-01');
   const [currencyCode, setCurrencyCode] = useState('PEN');
+  const [shipmentId, setShipmentId] = useState('');
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<PurchaseItemRow[]>([
     { sku: '', description: '', quantity: 1, unitCost: 0 },
   ]);
 
-  const [availableProducts, setAvailableProducts] = useState<Array<{ sku: string; name: string; currentCost?: number }>>([]);
+  const [availableProducts, setAvailableProducts] = useState<
+    Array<{
+      sku: string;
+      name: string;
+      isService?: boolean;
+      currentCost?: number;
+      hasDetraction?: boolean;
+      detractionCode?: string;
+      detractionRate?: number;
+    }>
+  >([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Cargar catálogo de productos para autocompletar SKUs
+  // Cargar catálogo de productos y servicios para autocompletar SKUs
   useEffect(() => {
     if (isOpen) {
-      inventoryApi.getStockBalances().then((res) => {
-        if (res?.balances) {
-          const list = res.balances.map((b) => ({
+      Promise.all([
+        inventoryApi.getAllProducts().catch(() => []),
+        inventoryApi.getStockBalances().catch(() => ({ totalValuationPen: 0, totalItemsCount: 0, balances: [] })),
+      ]).then(([allProds, balancesRes]) => {
+        const balancesMap = new Map((balancesRes?.balances || []).map((b) => [b.sku.toUpperCase(), b]));
+        if (allProds && allProds.length > 0) {
+          const list = allProds.map((p) => {
+            const bal = balancesMap.get(p.sku.toUpperCase());
+            return {
+              sku: p.sku,
+              name: p.description || p.sku,
+              isService: p.isService,
+              currentCost: p.costPrice ?? bal?.averageUnitCost,
+              hasDetraction: p.hasDetraction,
+              detractionCode: p.detractionCode,
+              detractionRate: p.detractionRate,
+            };
+          });
+          setAvailableProducts(list);
+        } else if (balancesRes?.balances) {
+          const list = balancesRes.balances.map((b) => ({
             sku: b.sku,
             name: b.description || b.sku,
+            isService: false,
             currentCost: b.averageUnitCost,
+            hasDetraction: (b as any).hasDetraction,
+            detractionCode: (b as any).detractionCode,
+            detractionRate: (b as any).detractionRate,
           }));
           setAvailableProducts(list);
         }
-      }).catch(() => {
-        // Silencioso si falla la precarga de catálogo
       });
     }
   }, [isOpen]);
@@ -86,6 +121,11 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
   );
   const igvAmount = Math.round(netAmount * 0.18 * 100) / 100;
   const totalAmount = Math.round((netAmount + igvAmount) * 100) / 100;
+
+  const itemConDetraccion = items.find((it) => it.hasDetraction && it.detractionCode);
+  const aplicaDetraccion = Boolean(itemConDetraccion && totalAmount > 700);
+  const tasaDetraccion = itemConDetraccion?.detractionRate || 12;
+  const montoDetraccion = aplicaDetraccion ? Math.round(totalAmount * (tasaDetraccion / 100) * 100) / 100 : 0;
 
   const handleAddItem = () => {
     setItems((prev) => [...prev, { sku: '', description: '', quantity: 1, unitCost: 0 }]);
@@ -101,13 +141,21 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
 
-      // Si cambia el SKU y coincide con un producto conocido, autocompletar descripción
+      // Si cambia el SKU y coincide con un producto conocido, autocompletar descripción y detracción
       if (field === 'sku') {
         const matched = availableProducts.find(
           (p) => p.sku.toLowerCase() === String(value).trim().toLowerCase(),
         );
-        if (matched && !updated[index].description) {
-          updated[index].description = matched.name;
+        if (matched) {
+          if (!updated[index].description) {
+            updated[index].description = matched.name;
+          }
+          if (matched.currentCost && !updated[index].unitCost) {
+            updated[index].unitCost = matched.currentCost;
+          }
+          updated[index].hasDetraction = matched.hasDetraction;
+          updated[index].detractionCode = matched.detractionCode;
+          updated[index].detractionRate = matched.detractionRate;
         }
       }
 
@@ -152,6 +200,7 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
       issueDate,
       warehouseCode,
       currencyCode,
+      shipmentId: shipmentId.trim() || undefined,
       notes: notes.trim() || undefined,
       items: items.map((it) => ({
         sku: it.sku.trim().toUpperCase(),
@@ -308,6 +357,23 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
                 </select>
               </div>
             </div>
+
+            {/* Vinculación opcional con Importaciones */}
+            <div className="pt-2 border-t mt-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                <label className="font-semibold text-foreground text-[11px] flex items-center gap-1.5">
+                  <Ship className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400" />
+                  Asociar a Expediente de Importación (Opcional - Gastos Locales Landed Cost)
+                </label>
+                <span className="text-[10px] text-muted-foreground">Para servicios de agenciamiento, flete local o almacenaje</span>
+              </div>
+              <Input
+                placeholder="ej: EXP-2026-0001 (Se integrará a la Hoja de Liquidación de Costeo Aduanero)"
+                value={shipmentId}
+                onChange={(e) => setShipmentId(e.target.value.toUpperCase())}
+                className="mt-1 h-8 text-xs font-mono uppercase bg-background"
+              />
+            </div>
           </div>
 
           {/* Detalle de Productos Facturados */}
@@ -315,7 +381,7 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
             <div className="flex items-center justify-between">
               <h3 className="font-semibold text-foreground flex items-center gap-1.5 text-xs">
                 <Warehouse className="h-4 w-4 text-emerald-600" />
-                Mercaderías Adquiridas (Entrada a Kardex)
+                Mercaderías y Servicios Adquiridos (NIC 2)
               </h3>
               <Button
                 type="button"
@@ -325,7 +391,7 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
                 className="h-7 text-xs gap-1"
               >
                 <Plus className="h-3.5 w-3.5" />
-                Agregar Producto
+                Agregar Ítem
               </Button>
             </div>
 
@@ -333,7 +399,7 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
             <datalist id="products-catalog-list">
               {availableProducts.map((p) => (
                 <option key={p.sku} value={p.sku}>
-                  {p.name}
+                  {p.isService ? `[SERVICIO] ${p.name}` : p.name}
                 </option>
               ))}
             </datalist>
@@ -366,12 +432,22 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
                           />
                         </td>
                         <td className="py-1.5 pr-2">
-                          <Input
-                            placeholder="Descripción del producto..."
-                            value={item.description}
-                            onChange={(e) => handleItemChange(idx, 'description', e.target.value)}
-                            className="h-7 text-xs"
-                          />
+                          <div className="flex items-center gap-1.5">
+                            <Input
+                              placeholder="Descripción del producto..."
+                              value={item.description}
+                              onChange={(e) => handleItemChange(idx, 'description', e.target.value)}
+                              className="h-7 text-xs flex-1"
+                            />
+                            {item.hasDetraction && item.detractionCode && (
+                              <span
+                                className="text-[10px] font-mono font-semibold bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 px-1 py-0.5 rounded whitespace-nowrap"
+                                title={`Sujeto a SPOT: ${item.detractionCode} (${item.detractionRate || 0}%)`}
+                              >
+                                SPOT {item.detractionCode} ({item.detractionRate || 0}%)
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="py-1.5 pr-2">
                           <Input
@@ -436,6 +512,18 @@ export const NationalPurchaseModal: React.FC<NationalPurchaseModalProps> = ({
                   <span>Total Factura (CxP):</span>
                   <span className="text-emerald-600">{money(totalAmount)}</span>
                 </div>
+                {aplicaDetraccion && (
+                  <div className="flex justify-between text-blue-600 font-semibold border-t pt-1">
+                    <span>Retención SPOT ({tasaDetraccion}%):</span>
+                    <span>-{money(montoDetraccion)}</span>
+                  </div>
+                )}
+                {aplicaDetraccion && (
+                  <div className="flex justify-between text-muted-foreground text-[11px]">
+                    <span>Neto a Pagar Proveedor:</span>
+                    <span>{money(totalAmount - montoDetraccion)}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>

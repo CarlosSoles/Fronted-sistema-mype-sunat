@@ -159,11 +159,12 @@ export const InvoiceIssuerConfigForm = ({ config, ruc, guardar }: {
           <input
             key={fileKey}
             id="cfg-cert"
+            className="block w-full min-w-0 rounded-md border bg-background p-2 text-sm file:mr-3 file:cursor-pointer file:rounded-md file:border file:border-input file:bg-muted file:px-3 file:py-2 file:text-foreground"
             type="file"
             accept=".p12,.pfx"
             onChange={(e) => setFile(e.target.files?.[0])}
           />
-          <p>Cargue un archivo .p12 o .pfx (máximo 96 KiB). Solo se envía el archivo seleccionado.</p>
+          <p>Seleccione un archivo .pfx o .p12 (máximo 96 KiB). Solo se envía el archivo seleccionado.</p>
         </PageField>
         <PageField label="Nueva contraseña del certificado" htmlFor="cfg-cert-password">
           <input
