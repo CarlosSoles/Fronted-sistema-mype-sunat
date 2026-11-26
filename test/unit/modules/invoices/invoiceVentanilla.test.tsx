@@ -58,6 +58,33 @@ it('agrupa operación a la izquierda y facturación, liquidación y emisión en 
   expect(pago.getByRole('button', { name: 'Crédito' })).toBeDisabled();
 });
 
+it('mantiene facturación y liquidación en flujo, sin panel fijo ni scroll interno', async () => {
+  await mount();
+  const panel = screen.getByRole('region', { name: 'Facturación y pago' });
+  const card = panel.querySelector('[data-slot="card"]')!;
+  const content = card.querySelector('[data-slot="card-content"]')!;
+  for (const element of [panel, card, content]) {
+    expect(element.className).not.toMatch(/sticky|top-4|max-h-|overflow-(?:[xy]-)?(?:auto|scroll|hidden|clip)|min-h-0/);
+    expect(element).not.toHaveAttribute('style');
+  }
+  const liquidacion = within(panel).getByRole('heading', { name: 'Liquidación' });
+  const seccion = liquidacion.parentElement!;
+  const medio = within(panel).getByLabelText('Medio de pago');
+  const total = within(seccion).getByText('Importe total');
+  const emitir = within(seccion).getByRole('button', { name: 'Emitir comprobante' });
+  expect(content.lastElementChild).toBe(seccion);
+  expect(seccion.className).not.toMatch(/shrink-0|border-t|bg-muted/);
+  expect(liquidacion).toHaveAttribute('id', 'emision-liquidacion');
+  expect(liquidacion).toHaveAttribute('tabindex', '-1');
+  expect(medio.compareDocumentPosition(liquidacion) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(liquidacion.compareDocumentPosition(total) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(total.compareDocumentPosition(emitir) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(emitir.closest('form')).toBe(panel.closest('form'));
+  const resumenMovil = screen.getByLabelText('Resumen de pago');
+  expect(resumenMovil).toHaveClass('sticky', 'bottom-0', 'lg:hidden');
+  expect(panel).not.toContainElement(resumenMovil);
+});
+
 it.each([['Efectivo', 'EFECTIVO'], ['Yape', 'YAPE'], ['Tarjeta', 'TARJETA']] as const)(
   'el acceso %s conserva el contrato de emisión y no envía entrega ni vuelto', async (nombre, medio) => {
     await preparar();

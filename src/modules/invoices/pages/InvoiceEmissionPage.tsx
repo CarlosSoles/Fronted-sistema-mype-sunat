@@ -550,32 +550,6 @@ export default function InvoiceEmissionPage() {
     }
   };
 
-  // Ajuste visual al espacio real: cabecera, avisos y zoom no ocultan la liquidación.
-  const panelPagoRef = useRef<HTMLElement>(null);
-  useEffect(() => {
-    const panel = panelPagoRef.current;
-    if (!panel) return;
-    let frame = 0;
-    const ajustar = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        const disponible = window.innerHeight - Math.max(16, panel.getBoundingClientRect().top) - 16;
-        panel.style.setProperty('--emision-panel-altura', `${Math.max(0, disponible)}px`);
-      });
-    };
-    ajustar();
-    window.addEventListener('resize', ajustar);
-    window.addEventListener('scroll', ajustar, true);
-    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(ajustar);
-    if (formRef.current) observer?.observe(formRef.current);
-    return () => {
-      cancelAnimationFrame(frame);
-      observer?.disconnect();
-      window.removeEventListener('resize', ajustar);
-      window.removeEventListener('scroll', ajustar, true);
-    };
-  }, []);
-
   const teclado = useInvoiceKeyboard(agregarItem, () => formRef.current?.requestSubmit(), enviando || !puedeOperar, formRef);
   return (
     <Page>
@@ -700,12 +674,12 @@ export default function InvoiceEmissionPage() {
           </Card>
         </section>
 
-        <section ref={panelPagoRef} aria-labelledby="emision-facturacion" className="min-w-0 lg:sticky lg:top-4">
-          <Card className="gap-0 overflow-y-auto lg:max-h-[var(--emision-panel-altura,calc(100dvh-7rem))]">
+        <section aria-labelledby="emision-facturacion" className="min-w-0">
+          <Card className="gap-0 overflow-visible">
             <CardHeader className="pb-4">
               <CardTitle id="emision-facturacion" className="text-base">Facturación y pago</CardTitle>
             </CardHeader>
-            <CardContent className="min-h-0 space-y-4 overflow-y-auto pb-4">
+            <CardContent className="space-y-4 pb-4">
               <div className="space-y-1.5">
                   <label
                     htmlFor="tipo-cpe"
@@ -776,8 +750,7 @@ export default function InvoiceEmissionPage() {
                   onCambiar={setCuotas}
                 /><InlineInvoiceError mensaje={feedback.mensaje('#emision-cuotas')}/></div>
               )}
-            </CardContent>
-            <div className="shrink-0 space-y-4 border-t bg-muted/30 px-6 py-4">
+              <div className="space-y-4">
               <h3 id="emision-liquidacion" tabIndex={-1} className="text-sm font-semibold">Liquidación</h3>
               <div className="space-y-1.5 text-sm">
               <div className="flex justify-between text-muted-foreground">
@@ -865,7 +838,8 @@ export default function InvoiceEmissionPage() {
               <Send className="mr-2 h-4 w-4" />
               {enviando ? 'Emitiendo…' : 'Revisar y emitir'}
             </InvoiceWriteButton>
-            </div>
+              </div>
+            </CardContent>
           </Card>
           {resultado && (
             <Alert variant={resultado.ok ? 'info' : 'destructive'}>
