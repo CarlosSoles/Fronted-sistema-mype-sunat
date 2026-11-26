@@ -1,3 +1,4 @@
+import './invoiceIntegratedFields.css';
 import { InlineInvoiceError } from './InvoiceFormFeedback';
 import { ChevronDown, CircleAlert } from 'lucide-react';
 import { erroresCamposLinea } from '../lib/invoiceLineFields';
@@ -98,7 +99,7 @@ export const InvoiceItemsGrid = ({
   const revision = revisarGrilla(items, productos, { nota: esNota, estado: catalogoEstado });
 
   return (
-    <div ref={grillaRef} className="@container/items min-w-0 space-y-2 sm:col-span-2">
+    <div ref={grillaRef} className="invoice-items-integrated @container/items min-w-0 space-y-2 sm:col-span-2">
       {duplicado.dialogo}
       <div className="flex items-center justify-between">
         <PageText variant="label">Detalle del comprobante</PageText>
@@ -201,7 +202,7 @@ export const InvoiceItemsGrid = ({
                     )}
                   </td>
 
-                  <td className="col-span-4 col-start-1 row-start-2 min-w-0 px-0 py-0 align-top text-right @min-[1000px]/items:col-span-1 @min-[1000px]/items:col-start-auto @min-[1000px]/items:row-start-auto @min-[1000px]/items:px-1 @min-[1000px]/items:py-2">
+                  <td className="invoice-line-field col-span-4 col-start-1 row-start-2 min-w-0 px-0 py-0 align-top text-right @min-[1000px]/items:col-span-1 @min-[1000px]/items:col-start-auto @min-[1000px]/items:row-start-auto @min-[1000px]/items:px-1 @min-[1000px]/items:py-2">
                     <span aria-hidden="true" className="mb-1 block text-left text-[10px] font-medium text-muted-foreground @min-[1000px]/items:hidden">Cant.</span>
                     {!esNota && unidadDiscreta(item.unidad) ? <InvoiceIntegerInput
                       aria-label={`Cantidad de la línea ${i + 1}`} data-line-field="cantidad" data-line-invalid={Boolean(errores.cantidad)}
@@ -235,7 +236,7 @@ export const InvoiceItemsGrid = ({
                     {cantidadesMaximas !== undefined && item.cantidad > cantidadesMaximas[i] && <p role="alert" className="text-[11px] text-destructive">Supera las unidades disponibles del origen (máximo {cantidadesMaximas[i]}).</p>}
                   </td>
 
-                  <td className="col-span-4 col-start-5 row-start-2 min-w-0 px-0 py-0 align-top text-right @min-[1000px]/items:col-span-1 @min-[1000px]/items:col-start-auto @min-[1000px]/items:row-start-auto @min-[1000px]/items:px-1 @min-[1000px]/items:py-2">
+                  <td className="invoice-line-field col-span-4 col-start-5 row-start-2 min-w-0 px-0 py-0 align-top text-right @min-[1000px]/items:col-span-1 @min-[1000px]/items:col-start-auto @min-[1000px]/items:row-start-auto @min-[1000px]/items:px-1 @min-[1000px]/items:py-2">
                     <span aria-hidden="true" className="mb-1 block text-left text-[10px] font-medium text-muted-foreground @min-[1000px]/items:hidden">V.U.</span>
                     <span
                       aria-label={`Valor unitario de la línea ${i + 1}`}
@@ -250,7 +251,7 @@ export const InvoiceItemsGrid = ({
                     {visible('valorUnitario') && <p id={`${item.clave}-valorUnitario-error`} role="alert" className="text-[11px] text-destructive"><CircleAlert aria-hidden="true" className="mr-1 inline h-3 w-3" />{errores.valorUnitario}</p>}
                   </td>
 
-                  <td className="col-span-4 col-start-9 row-start-2 min-w-0 px-0 py-0 align-top @min-[1000px]/items:col-span-1 @min-[1000px]/items:col-start-auto @min-[1000px]/items:row-start-auto @min-[1000px]/items:px-1 @min-[1000px]/items:py-2">
+                  <td className="invoice-line-field col-span-4 col-start-9 row-start-2 min-w-0 px-0 py-0 align-top @min-[1000px]/items:col-span-1 @min-[1000px]/items:col-start-auto @min-[1000px]/items:row-start-auto @min-[1000px]/items:px-1 @min-[1000px]/items:py-2">
                     <span aria-hidden="true" className="mb-1 block text-left text-[10px] font-medium text-muted-foreground @min-[1000px]/items:hidden">Desc. Cat. 53</span>
                     <select aria-label={`Tipo de descuento de la línea ${i + 1}`} className={CLASE_CELDA}
                       disabled={!admiteDescuento || Boolean(item.descuentoHeredado)}
@@ -270,7 +271,7 @@ export const InvoiceItemsGrid = ({
                     {item.descuento?.codigo === '01' && <p className="text-[10px] leading-tight text-amber-700">El asiento automático utiliza la cuenta 74. Podría quedar pendiente de revisión si la cuenta no está activa en el plan de la empresa o los importes no concuerdan.</p>}
                   </td>
 
-                  <td data-bags-visible={mostrarBolsas} className="group/bags col-span-4 col-start-13 row-start-2 min-w-0 px-0 py-0 align-top text-right @min-[1000px]/items:col-span-1 @min-[1000px]/items:col-start-auto @min-[1000px]/items:row-start-auto @min-[1000px]/items:px-1 @min-[1000px]/items:py-2">
+                  <td data-bags-visible={mostrarBolsas} className="invoice-line-field group/bags col-span-4 col-start-13 row-start-2 min-w-0 px-0 py-0 align-top text-right @min-[1000px]/items:col-span-1 @min-[1000px]/items:col-start-auto @min-[1000px]/items:row-start-auto @min-[1000px]/items:px-1 @min-[1000px]/items:py-2">
                     <span aria-hidden="true" className="mb-1 block text-left text-[10px] font-medium text-muted-foreground @min-[1000px]/items:hidden">Bolsas</span>
                     {!mostrarBolsas && <span aria-hidden="true" className="block py-2 text-muted-foreground group-focus-within/bags:hidden">—</span>}
                     <div className={mostrarBolsas ? undefined : 'sr-only focus-within:not-sr-only'}>
@@ -287,7 +288,7 @@ export const InvoiceItemsGrid = ({
                     {errorBolsas(item) && <p role="alert" className="text-[11px] text-destructive">{errorBolsas(item)}</p>}
                   </td>
 
-                  <td className="col-span-12 col-start-1 row-start-3 min-w-0 px-0 py-0 align-top @min-[1000px]/items:col-span-1 @min-[1000px]/items:col-start-auto @min-[1000px]/items:row-start-auto @min-[1000px]/items:px-1 @min-[1000px]/items:py-2">
+                  <td className="invoice-line-field col-span-12 col-start-1 row-start-3 min-w-0 px-0 py-0 align-top @min-[1000px]/items:col-span-1 @min-[1000px]/items:col-start-auto @min-[1000px]/items:row-start-auto @min-[1000px]/items:px-1 @min-[1000px]/items:py-2">
                     <span aria-hidden="true" className="mb-1 block text-left text-[10px] font-medium text-muted-foreground @min-[1000px]/items:hidden">Afectación</span>
                     <div className="flex min-w-0 items-start gap-1.5">
                       {!esNota && <label className="inline-flex shrink-0 items-center gap-1 py-1.5 text-[10px] @min-[500px]/items:text-[11px]"><input type="checkbox" aria-label={`Gratuita de la línea ${i + 1}`} checked={item.afectacion === 'GRATUITA'} disabled={item.afectacion === 'GRATUITA' && !item.origenOneroso} onChange={e => {
@@ -303,7 +304,7 @@ export const InvoiceItemsGrid = ({
                     </div>
                   </td>
 
-                  <td className="col-span-4 col-start-13 row-start-3 min-w-0 px-0 py-0 align-top @min-[1000px]/items:col-span-1 @min-[1000px]/items:col-start-auto @min-[1000px]/items:row-start-auto @min-[1000px]/items:px-1 @min-[1000px]/items:py-2">
+                  <td className="invoice-line-field col-span-4 col-start-13 row-start-3 min-w-0 px-0 py-0 align-top @min-[1000px]/items:col-span-1 @min-[1000px]/items:col-start-auto @min-[1000px]/items:row-start-auto @min-[1000px]/items:px-1 @min-[1000px]/items:py-2">
                     <span aria-hidden="true" className="mb-1 block text-left text-[10px] font-medium text-muted-foreground @min-[1000px]/items:hidden">Detracción</span>
                     <select
                       aria-label={`Detracción de la línea ${i + 1}`}
