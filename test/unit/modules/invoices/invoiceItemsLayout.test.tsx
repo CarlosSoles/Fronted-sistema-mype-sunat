@@ -9,7 +9,7 @@ afterEach(cleanup);
 const props = () => ({ onCambiar: vi.fn(), onEliminar: vi.fn(), onAgregar: vi.fn(), onAgregarBolsa: vi.fn() });
 
 describe('presentación del detalle de líneas', () => {
-  it('comparte una cabecera y las mismas columnas alineadas para todas las líneas', () => {
+  it('usa tarjetas de tres filas bajo 1000px y conserva la tabla de una fila desde 1000px', () => {
     render(<InvoiceItemsGrid items={[itemVacio('a')]} {...props()} />);
     const region = screen.getByRole('region', { name: 'Líneas del comprobante' });
     const table = screen.getByRole('table');
@@ -18,19 +18,50 @@ describe('presentación del detalle de líneas', () => {
     expect(region.tabIndex).toBe(0);
     const header = table.querySelector('thead tr')!;
     const row = screen.getByLabelText('Cantidad de la línea 1').closest('tr')!;
-    expect(row.className).toContain('grid-cols-12');
+    expect(row.className).toContain('grid-cols-16');
+    expect(row.className).not.toContain('grid-cols-12');
+    expect(row.className).toContain('rounded-lg');
+    expect(header.parentElement?.className).toContain('hidden');
+    expect(header.parentElement?.className).toContain('@min-[1000px]/items:block');
     expect(row.className).toContain('@min-[1000px]/items:grid-cols-');
-    expect(header.className).toBe(row.className.trim());
+    expect([...header.classList].find(c => c.startsWith('@min-[1000px]/items:grid-cols-'))).toBe([...row.classList].find(c => c.startsWith('@min-[1000px]/items:grid-cols-')));
     expect(Array.from(table.querySelectorAll('th'), cell => cell.textContent)).toEqual(['Producto', 'Cant.', 'V.U.', 'Desc. Cat. 53', 'Bolsas', 'Afectación', 'Detracción', 'Total', '']);
     expect(row.querySelectorAll('td')).toHaveLength(9);
-    expect(within(row).queryByText('Cant.')).toBeNull();
-    expect(within(row).queryByText('Desc. Cat. 53')).toBeNull();
+    for (const label of ['Cant.', 'V.U.', 'Desc. Cat. 53', 'Bolsas', 'Afectación', 'Detracción']) {
+      expect(within(row).getByText(label).className).toContain('@min-[1000px]/items:hidden');
+    }
+    const positions = [[11,1,1],[4,1,2],[4,5,2],[4,9,2],[4,13,2],[12,1,3],[4,13,3],[3,12,1],[2,15,1]];
+    Array.from(row.querySelectorAll('td')).forEach((cell, i) => {
+      const [span, col, band] = positions[i];
+      expect(cell.classList).toContain(`col-span-${span}`);
+      expect(cell.classList).toContain(`col-start-${col}`);
+      expect(cell.classList).toContain(`row-start-${band}`);
+      expect(cell.classList).toContain('@min-[1000px]/items:col-start-auto');
+      expect(cell.classList).toContain('@min-[1000px]/items:row-start-auto');
+    });
     expect(screen.getByLabelText('Código de la línea 1').closest('td')).toBe(screen.getByLabelText('Descripción de la línea 1').closest('td'));
     expect(screen.getByLabelText('Unidad de la línea 1').closest('td')).toBe(screen.getByLabelText('Código de la línea 1').closest('td'));
     expect(screen.getByLabelText('Detracción de la línea 1').closest('td')).not.toBe(screen.getByLabelText('Gratuita de la línea 1').closest('td'));
     expect(table.querySelectorAll('thead')).toHaveLength(1);
     expect(table.querySelectorAll('tbody')).toHaveLength(1);
     expect(screen.getByLabelText('Valor unitario de la línea 1').tagName).toBe('SPAN');
+  });
+
+  it('mantiene identidad en una línea con el texto completo accesible y total/eliminar a su derecha', () => {
+    const descripcion = 'Cemento Portland tipo I con descripción extensa para comprobar elipsis';
+    render(<InvoiceItemsGrid items={[{ ...itemVacio('a'), codigo: 'CEM-001', descripcion, unidad: 'NIU', valorUnitario: 35 }]} {...props()} />);
+    const sku = screen.getByLabelText('Código de la línea 1');
+    const nombre = screen.getByLabelText('Descripción de la línea 1');
+    const unidad = screen.getByLabelText('Unidad de la línea 1');
+    const identity = sku.closest('[data-invoice-item-identity]')!;
+    expect(identity.getAttribute('title')).toBe(`CEM-001 · ${descripcion} · NIU`);
+    expect(nombre.textContent?.trim()).toBe(descripcion);
+    expect(nombre.getAttribute('title')).toBe(descripcion);
+    expect(nombre.className).toContain('truncate');
+    expect(identity.contains(unidad)).toBe(true);
+    const row = sku.closest('tr')!;
+    expect(row.querySelectorAll('td')[7].className).toContain('row-start-1');
+    expect(screen.getByRole('button', { name: 'Eliminar la línea 1' }).closest('td')?.className).toContain('row-start-1');
   });
 
   it('muestra las afectaciones completas y conserva los handlers de cada fila', () => {
