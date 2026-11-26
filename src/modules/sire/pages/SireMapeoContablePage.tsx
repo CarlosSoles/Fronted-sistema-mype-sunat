@@ -83,6 +83,10 @@ const MapeoContableContent = ({ companyId }: { companyId?: string }) => {
     accounts,
     isLoadingAccounts,
     accountsError,
+    globalMappings,
+    isLoadingGlobalMappings,
+    globalMappingsError,
+    inheritedAccounts,
     error,
     saveError,
     successMessage,
@@ -101,7 +105,11 @@ const MapeoContableContent = ({ companyId }: { companyId?: string }) => {
     await save();
   };
 
-  const cargando = isLoading || isLoadingAccounts;
+  const accountNames = new Map(accounts.map((account) => [account.code, account.name]));
+  const globalRelevant = globalMappings.filter((mapping) =>
+    ['VENTA', 'COMPRA'].includes(mapping.processCode.toUpperCase()),
+  );
+  const cargando = isLoading || isLoadingAccounts || isLoadingGlobalMappings;
 
   return (
     <>
@@ -143,11 +151,74 @@ const MapeoContableContent = ({ companyId }: { companyId?: string }) => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <TableProperties className="h-4 w-4 text-primary" aria-hidden="true" />
-            Cuentas contables por operación
+            Cuentas Globales (Heredadas)
           </CardTitle>
           <CardDescription>
-            Selecciona la cuenta del PCGE que corresponde a cada operación. Solo se muestran
-            cuentas activas del Plan de Cuentas.
+            Cuentas del mapeo contable global de la empresa para ventas y compras. SIRE las hereda
+            mientras no definas una sobrescritura propia.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="px-0">
+          {isLoadingGlobalMappings ? (
+            <PageText variant="caption" className="flex items-center gap-2 px-4 text-muted-foreground">
+              <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+              Cargando cuentas globales…
+            </PageText>
+          ) : globalMappingsError ? (
+            <Alert variant="destructive" className="mx-4">
+              <AlertTitle>No se pudo cargar el mapeo global</AlertTitle>
+              <AlertDescription>{globalMappingsError}</AlertDescription>
+            </Alert>
+          ) : globalRelevant.length === 0 ? (
+            <PageText variant="caption" className="px-4 text-muted-foreground">
+              El backend no devolvió cuentas globales para ventas o compras.
+            </PageText>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Proceso</TableHead>
+                  <TableHead>Rol</TableHead>
+                  <TableHead>Cuenta</TableHead>
+                  <TableHead>Descripción</TableHead>
+                  <TableHead>Origen</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {globalRelevant.map((mapping) => (
+                  <TableRow key={`${mapping.processCode}-${mapping.roleCode}`}>
+                    <TableCell className="font-medium">{mapping.processCode}</TableCell>
+                    <TableCell>{mapping.roleCode}</TableCell>
+                    <TableCell className="font-mono">
+                      {accountNames.get(mapping.accountCode)
+                        ? `${mapping.accountCode} - ${accountNames.get(mapping.accountCode)}`
+                        : mapping.accountCode}
+                    </TableCell>
+                    <TableCell>{mapping.description || '—'}</TableCell>
+                    <TableCell>
+                      {mapping.isCustom ? (
+                        <span className="text-xs font-medium text-primary">Personalizada</span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Global</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card flush>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TableProperties className="h-4 w-4 text-primary" aria-hidden="true" />
+            Sobrescrituras SIRE por operación
+          </CardTitle>
+          <CardDescription>
+            Selecciona una cuenta solo si quieres reemplazar la global para SIRE. Las operaciones
+            vacías heredan la cuenta global.
           </CardDescription>
         </CardHeader>
         <CardContent className="px-0">
@@ -172,6 +243,7 @@ const MapeoContableContent = ({ companyId }: { companyId?: string }) => {
                 ) : (
                   SIRE_MAPEO_TIPOS.map((tipo) => {
                     const seleccionada = values[tipo];
+                    const heredadas = inheritedAccounts[tipo];
                     const existeEnCatalogo = accounts.some((account) => account.code === seleccionada);
                     return (
                       <TableRow key={tipo}>
@@ -187,7 +259,13 @@ const MapeoContableContent = ({ companyId }: { companyId?: string }) => {
                               setCuenta(tipo, event.target.value);
                             }}
                           >
-                            <option value="">Selecciona una cuenta…</option>
+                            <option value="">
+                              {heredadas.length > 0
+                                ? `Heredar global: ${heredadas
+                                    .map((cuenta) => `${cuenta.code} - ${cuenta.name}`)
+                                    .join(' / ')}`
+                                : 'Selecciona una cuenta…'}
+                            </option>
                             {seleccionada && !existeEnCatalogo && (
                               <option value={seleccionada}>{seleccionada} · Cuenta guardada</option>
                             )}
@@ -217,7 +295,7 @@ const MapeoContableContent = ({ companyId }: { companyId?: string }) => {
                 {isSaving ? 'Guardando…' : 'Guardar Mapeo'}
               </Button>
               <PageText variant="caption" className="text-muted-foreground">
-                Se guardan las cinco operaciones a la vez.
+                Solo se guardan las cuentas que sobrescribas; las vacías heredan la cuenta global.
               </PageText>
             </div>
           </form>

@@ -2,6 +2,7 @@ import { apiClient } from '@/lib/axios';
 import { cachedGet } from '@/lib/offlineCache';
 import {
   type AccountingAccount,
+  type AccountingGlobalMapping,
   type UpdateAccountResponse,
   type ClosingPreview,
   type AccountingEntry,
@@ -188,6 +189,19 @@ export const accountingApi = {
   getPlanCuentas: async (): Promise<AccountingAccount[]> => {
     const response = await apiClient.get<AccountingAccount[]>('/contabilidad/plan-cuentas');
     return response.data;
+  },
+
+  /** Mapeo contable global por proceso/rol (cuentas heredadas). */
+  getAccountingMappings: async (): Promise<AccountingGlobalMapping[]> => {
+    const response = await apiClient.get<Array<Record<string, unknown>>>('/accounting/mappings');
+    const text = (value: unknown): string => (typeof value === 'string' ? value : '');
+    return response.data.map((item) => ({
+      processCode: text(item.process_code ?? item.processCode),
+      roleCode: text(item.role_code ?? item.roleCode),
+      accountCode: text(item.account_code ?? item.accountCode),
+      description: text(item.description),
+      isCustom: item.is_custom === true || item.isCustom === true,
+    }));
   },
 
   getPeriods: async (): Promise<AccountingPeriod[]> => {

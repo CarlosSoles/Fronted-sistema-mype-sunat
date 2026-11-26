@@ -36,6 +36,21 @@ export interface AccountingAccount {
   isActive: boolean;
 }
 
+/**
+ * Cuenta del mapeo contable global de la empresa.
+ *
+ * El backend devuelve los defaults del AccountingMappingService y los
+ * reemplaza por la cuenta guardada de la empresa cuando existe. `isCustom`
+ * indica si la empresa ya personalizó ese proceso/rol.
+ */
+export interface AccountingGlobalMapping {
+  processCode: string;
+  roleCode: string;
+  accountCode: string;
+  description: string;
+  isCustom: boolean;
+}
+
 /** Respuesta al editar una cuenta: incluye la cascada y los avisos. */
 export interface UpdateAccountResponse {
   account: AccountingAccount;

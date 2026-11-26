@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { accountingApi } from '@/modules/accounting/services/accountingApi';
-import type { AccountingAccount } from '@/modules/accounting/types/accounting.types';
+import type {
+  AccountingAccount,
+  AccountingGlobalMapping,
+} from '@/modules/accounting/types/accounting.types';
 import { sireApi } from '../services/sireApi';
 import {
   SIRE_MAPEO_TIPOS,
@@ -27,6 +30,36 @@ const fromMapeos = (mapeos: SireMapeoContable[]): SireMapeoForm => {
   return form;
 };
 
+/** Cuenta global heredada, ya resuelta con su nombre PCGE. */
+export interface SireCuentaHeredada {
+  code: string;
+  name: string;
+  description: string;
+  isCustom: boolean;
+}
+
+export type SireMapeoHeredado = Record<SireMapeoTipoOperacion, SireCuentaHeredada[]>;
+
+/**
+ * Equivalencia entre cada operación SIRE y el proceso/rol del mapeo global.
+ *
+ * El mapeo global es la fuente por defecto; SIRE solo guarda sus propias
+ * sobrescrituras. BASE admite las dos cuentas globales de base (venta/compra).
+ */
+const GLOBAL_KEYS: Record<
+  SireMapeoTipoOperacion,
+  ReadonlyArray<{ processCode: string; roleCode: string }>
+> = {
+  VENTAS: [{ processCode: 'VENTA', roleCode: 'CXC' }],
+  COMPRAS: [{ processCode: 'COMPRA', roleCode: 'CXP' }],
+  IGV_VENTAS: [{ processCode: 'VENTA', roleCode: 'IGV' }],
+  IGV_COMPRAS: [{ processCode: 'COMPRA', roleCode: 'IGV_CREDITO' }],
+  BASE: [
+    { processCode: 'VENTA', roleCode: 'INGRESO' },
+    { processCode: 'COMPRA', roleCode: 'GASTO_COMPRA' },
+  ],
+};
+
 export interface UseSireMapeoContable {
   /** Está cargando los mapeos guardados (`GET /sire/mapeo-contable`). */
   isLoading: boolean;
@@ -40,6 +73,14 @@ export interface UseSireMapeoContable {
   isLoadingAccounts: boolean;
   /** Error al cargar las cuentas del PCGE. */
   accountsError: string | null;
+  /** Mapeo contable global de la empresa (incluye defaults del backend). */
+  globalMappings: AccountingGlobalMapping[];
+  /** Está cargando el mapeo global. */
+  isLoadingGlobalMappings: boolean;
+  /** Error al cargar el mapeo global. */
+  globalMappingsError: string | null;
+  /** Cuentas globales heredadas por operación SIRE. */
+  inheritedAccounts: SireMapeoHeredado;
   /** Error al cargar los mapeos existentes. */
   error: string | null;
   /** Error al guardar los mapeos. */
@@ -48,7 +89,7 @@ export interface UseSireMapeoContable {
   successMessage: string | null;
   /** Actualiza la cuenta contable de un tipo de operación. */
   setCuenta: (tipo: SireMapeoTipoOperacion, value: string) => void;
-  /** Guarda las cuatro cuentas contables. */
+  /** Guarda las sobrescrituras SIRE (las cuentas vacías heredan la global). */
   save: () => Promise<boolean>;
   /** Limpia los mensajes de resultado. */
   resetMessages: () => void;
@@ -57,18 +98,21 @@ export interface UseSireMapeoContable {
 /**
  * Estado del mapeo contable SIRE de la empresa.
  *
- * Al montar consulta `GET /sire/mapeo-contable` y llena la tabla con lo que ya
- * esté guardado. `POST /sire/mapeo-contable` reemplaza el mapeo completo con el
- * arreglo de las cuatro operaciones.
+ * Al montar consulta `GET /sire/mapeo-contable` y el mapeo global. Las cuentas
+ * globales se muestran como herencia; si el usuario selecciona una cuenta
+ * distinta, `POST /sire/mapeo-contable` guarda solo esa sobrescritura SIRE.
  */
 export const useSireMapeoContable = (companyId?: string): UseSireMapeoContable => {
   const [values, setValues] = useState<SireMapeoForm>(emptyForm);
   const [accounts, setAccounts] = useState<AccountingAccount[]>([]);
+  const [globalMappings, setGlobalMappings] = useState<AccountingGlobalMapping[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingAccounts, setIsLoadingAccounts] = useState(true);
+  const [isLoadingGlobalMappings, setIsLoadingGlobalMappings] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [accountsError, setAccountsError] = useState<string | null>(null);
+  const [globalMappingsError, setGlobalMappingsError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -106,6 +150,32 @@ export const useSireMapeoContable = (companyId?: string): UseSireMapeoContable =
   useEffect(() => {
     let active = true;
 
+    accountingApi
+      .getAccountingMappings()
+      .then((result) => {
+        if (active) setGlobalMappings(result);
+      })
+      .catch((cause: unknown) => {
+        if (active) {
+          setGlobalMappingsError(
+            cause instanceof Error
+              ? cause.message
+              : 'No se pudo cargar el mapeo contable global.',
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setIsLoadingGlobalMappings(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
     sireApi
       .getMapeoContable(companyId)
       .then((mapeos) => {
@@ -129,6 +199,30 @@ export const useSireMapeoContable = (companyId?: string): UseSireMapeoContable =
     };
   }, [companyId]);
 
+  const accountNames = new Map(accounts.map((account) => [account.code, account.name]));
+  const inheritedAccounts = SIRE_MAPEO_TIPOS.reduce<SireMapeoHeredado>(
+    (result, tipo) => {
+      result[tipo] = GLOBAL_KEYS[tipo]
+        .map((key) => {
+          const mapping = globalMappings.find(
+            (item) =>
+              item.processCode.toUpperCase() === key.processCode &&
+              item.roleCode.toUpperCase() === key.roleCode,
+          );
+          if (!mapping?.accountCode) return null;
+          return {
+            code: mapping.accountCode,
+            name: accountNames.get(mapping.accountCode) ?? mapping.description,
+            description: mapping.description,
+            isCustom: mapping.isCustom,
+          };
+        })
+        .filter((item): item is SireCuentaHeredada => item !== null);
+      return result;
+    },
+    {} as SireMapeoHeredado,
+  );
+
   const setCuenta = useCallback((tipo: SireMapeoTipoOperacion, value: string) => {
     setValues((current) => ({ ...current, [tipo]: value }));
     setSaveError(null);
@@ -136,25 +230,27 @@ export const useSireMapeoContable = (companyId?: string): UseSireMapeoContable =
   }, []);
 
   const save = useCallback(async () => {
-    const faltante = SIRE_MAPEO_TIPOS.find((tipo) => !values[tipo].trim());
-    if (faltante) {
-      setSaveError(`Completa la cuenta contable de ${faltante}.`);
-      setSuccessMessage(null);
-      return false;
+    const overrides = SIRE_MAPEO_TIPOS
+      .map((tipo) => ({
+        tipoOperacion: tipo,
+        cuentaContable: values[tipo].trim(),
+      }))
+      .filter((item) => item.cuentaContable);
+
+    if (overrides.length === 0) {
+      setSaveError(null);
+      setSuccessMessage(
+        'No hay sobrescrituras SIRE; se usarán las cuentas globales.',
+      );
+      return true;
     }
 
     setIsSaving(true);
     setSaveError(null);
     setSuccessMessage(null);
     try {
-      await sireApi.saveMapeoContable(
-        SIRE_MAPEO_TIPOS.map((tipo) => ({
-          tipoOperacion: tipo,
-          cuentaContable: values[tipo].trim(),
-        })),
-        companyId,
-      );
-      setSuccessMessage('Mapeo contable guardado exitosamente.');
+      await sireApi.saveMapeoContable(overrides, companyId);
+      setSuccessMessage('Mapeo contable SIRE guardado exitosamente.');
       return true;
     } catch (cause) {
       setSaveError(
@@ -180,6 +276,10 @@ export const useSireMapeoContable = (companyId?: string): UseSireMapeoContable =
     accounts,
     isLoadingAccounts,
     accountsError,
+    globalMappings,
+    isLoadingGlobalMappings,
+    globalMappingsError,
+    inheritedAccounts,
     error,
     saveError,
     successMessage,
