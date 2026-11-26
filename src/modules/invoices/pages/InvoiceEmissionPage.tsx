@@ -1,3 +1,4 @@
+import '../components/invoiceIntegratedFields.css';
 import { useInvoiceBlur } from '../hooks/useInvoiceBlur';
 import { flushSync } from 'react-dom';
 import { useAuthStore } from '@/stores/authStore';
@@ -559,7 +560,7 @@ export default function InvoiceEmissionPage() {
       />
 
       {defaultsError && <p role="alert">No se pudo leer el pago predeterminado. Verifique la forma y el medio antes de emitir.</p>}
-      <form noValidate ref={formRef} onChangeCapture={borradorLocal.marcar} onBlurCapture={feedback.alSalir} onFocusCapture={feedback.alEntrar} onKeyDown={teclado.handler} onSubmit={emitir} className="grid min-w-0 grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
+      <form noValidate ref={formRef} onChangeCapture={borradorLocal.marcar} onBlurCapture={feedback.alSalir} onFocusCapture={feedback.alEntrar} onKeyDown={teclado.handler} onSubmit={emitir} className="emision-etiquetas grid min-w-0 grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
         {teclado.revision}
         {borradorLocal.disponible && <section className="space-y-2 rounded border p-3 lg:col-span-2" aria-label="Borrador disponible"><p>Hay un borrador guardado en este navegador.</p><Button type="button" variant="outline" onClick={()=>void retomar()}>Retomar borrador</Button><Button type="button" variant="ghost" onClick={borradorLocal.descartar}>Descartar borrador</Button></section>}
         {borradorLocal.savedAt && <p role="status" className="text-xs lg:col-span-2">Borrador guardado {new Date(borradorLocal.savedAt).toLocaleTimeString('es-PE',{timeZone:'America/Lima',hour:'2-digit',minute:'2-digit',hour12:false})}</p>}
