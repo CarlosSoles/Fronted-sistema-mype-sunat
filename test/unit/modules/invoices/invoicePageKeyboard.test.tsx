@@ -17,6 +17,7 @@ afterEach(()=>{cleanup();clients.splice(0).forEach(c=>c.clear());vi.clearAllMock
 async function montar(modal=false){const qc=new QueryClient({defaultOptions:{queries:{retry:false,gcTime:0}}});clients.push(qc);render(<MemoryRouter><QueryClientProvider client={qc}>{modal?<InvoiceEmitModal tipoInicial="01" fecha="2026-11-12" existentes={[]} seriesConfiguradas={[{document_type:'01',series:'F001',is_active:true}]} onEmitir={vi.fn()} onCerrar={vi.fn()}/>:<InvoiceEmissionPage/>}</QueryClientProvider></MemoryRouter>);await screen.findByLabelText('Buscar producto');}
 it('Alt+C/P/L funciona desde body y por code, sin duplicarse dentro del formulario',async()=>{
  await montar();
+ expect(screen.queryByText(/^Atajos: Alt\+C cliente/)).toBeNull();
  fireEvent.keyDown(document.body,{altKey:true,key:'ç',code:'KeyC'});expect(document.activeElement).toBe(document.getElementById('doc-cliente'));
  fireEvent.keyDown(document.body,{altKey:true,key:'π',code:'KeyP'});expect(document.activeElement).toBe(screen.getByLabelText('Buscar producto'));
  fireEvent.keyDown(document.body,{altKey:true,key:'¬',code:'KeyL'});expect(screen.queryAllByLabelText(/Descripción de la línea/)).toHaveLength(0);
@@ -35,7 +36,7 @@ it('no captura los atajos de otro diálogo y elimina el listener al desmontar',a
  cleanup();fireEvent.keyDown(document.body,{altKey:true,key:'l',code:'KeyL'});expect(screen.queryByLabelText('Descripción de la línea 1')).toBeNull();
 });
 it('conserva alcance del modal y reconoce Option por code',async()=>{
- await montar(true);fireEvent.keyDown(screen.getByLabelText('Buscar producto'),{altKey:true,key:'¬',code:'KeyL'});expect(screen.queryAllByLabelText(/Descripción de la línea/)).toHaveLength(0);fireEvent.keyDown(screen.getByLabelText('Buscar producto'),{altKey:true,key:'¬',code:'KeyL'});expect(screen.queryAllByLabelText(/Descripción de la línea/)).toHaveLength(0);
+ await montar(true);expect(screen.getByText(/^Atajos: Alt\+C cliente/)).toBeTruthy();fireEvent.keyDown(screen.getByLabelText('Buscar producto'),{altKey:true,key:'¬',code:'KeyL'});expect(screen.queryAllByLabelText(/Descripción de la línea/)).toHaveLength(0);fireEvent.keyDown(screen.getByLabelText('Buscar producto'),{altKey:true,key:'¬',code:'KeyL'});expect(screen.queryAllByLabelText(/Descripción de la línea/)).toHaveLength(0);
 });
 
 // Las operaciones de esta suite se ejecutan con un rol autorizado de facturación.
