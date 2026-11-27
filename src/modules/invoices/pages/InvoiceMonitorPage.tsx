@@ -1,7 +1,9 @@
 import { ETIQUETAS_ALERTA } from '../lib/invoiceAlertas';
 import { InvoicePriorityNotice } from '../components/InvoicePriorityNotice';
 import { InvoiceStatusBadge } from '../components/InvoiceStatusBadge';
-import { InvoiceIssueGuidance } from '../components/InvoiceIssueGuidance';
+import { InvoiceIssueSummary } from '../components/InvoiceIssueSummary';
+import { InvoiceCdrModal } from '../components/InvoiceCdrModal';
+import { aComprobanteDemo } from '../lib/invoiceApiMapper';
 import { InvoiceWait } from '../components/InvoiceWait';
 import { InvoiceUxPage as Page } from '../components/InvoiceUxPage';
 import { useActionPermissions } from '@/modules/auth/hooks/useActionPermissions';
@@ -86,6 +88,7 @@ export default function InvoiceMonitorPage() {
   const moduleWrite = useInvoiceWritePermission();
   const canResolve = moduleWrite && actions.can('INVOICE_RESOLVE_DLQ');
   const canBridge = moduleWrite && actions.can('INVOICE_REPROCESS_BRIDGE');
+  const [detalleError, setDetalleError] = useState<Invoice | null>(null);
   const [alertas, setAlertas] = useState<AlertasOperativas | null>(null);
   const [enVuelo, setEnVuelo] = useState<readonly Invoice[]>([]);
   const [avisoPuente, setAvisoPuente] = useState<string | null>(null);
@@ -314,7 +317,7 @@ export default function InvoiceMonitorPage() {
                   <TableCell>
                     <InvoiceStatusBadge estado={inv.cdrStatus==='ACEPTADO_SUNAT'?'ACEPTADO':inv.cdrStatus==='RECHAZADO_SUNAT'?'RECHAZADO':'EN_COLA'} estadoBackend={inv.estadoBackend} resultado={inv.resultadoPresentacion} codigo={inv.cdrCodigo}/>
                     {inv.enDlq && <p className="text-sm font-semibold">Requiere revisión de envío (DLQ)</p>}
-                    {(inv.enDlq || ['ERROR_RED','RECHAZADO'].includes(inv.estadoBackend??'')) && <InvoiceIssueGuidance codigo={inv.resultadoPresentacion?.codigo??inv.ultimoErrorCodigo??inv.cdrCodigo} motivo={inv.resultadoPresentacion?.motivo??inv.ultimoErrorMensaje??inv.cdrMensaje}/>}
+                    {(inv.enDlq || ['ERROR_RED','RECHAZADO'].includes(inv.estadoBackend??'')) && <InvoiceIssueSummary codigo={inv.resultadoPresentacion?.codigo??inv.ultimoErrorCodigo??inv.cdrCodigo} onVerDetalle={() => setDetalleError(inv)}/>}
                     {['TRANSPORTE_INCIERTO', 'PREPARACION_LOCAL', 'BRIDGE_PENDING'].includes(inv.resultadoPresentacion?.origen ?? '') && <p className="text-xs text-muted-foreground">{inv.resultadoPresentacion?.motivo}</p>}
                   </TableCell>
                   <TableCell align="center">
@@ -344,6 +347,8 @@ export default function InvoiceMonitorPage() {
           </TableBody>
         </Table>
       </Card>}
+      {detalleError && <InvoiceCdrModal comprobante={aComprobanteDemo(detalleError)} modoInicial="xml" onCerrar={() => setDetalleError(null)}
+        orientacion={{ codigo: detalleError.resultadoPresentacion?.codigo??detalleError.ultimoErrorCodigo??detalleError.cdrCodigo, motivo: detalleError.resultadoPresentacion?.motivo??detalleError.ultimoErrorMensaje??detalleError.cdrMensaje }} />}
       <InvoiceAggregateMonitor />
       <InvoiceRvieSection />
     </Page>
