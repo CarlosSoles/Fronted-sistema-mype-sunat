@@ -132,7 +132,7 @@ export const InvoiceTableRow = ({
 
       <TableCell align="center">
         <InvoiceStatusBadge estadoBackend={c.estadoBackend} estado={c.estado} codigo={c.cdrCodigo} resultado={c.resultadoPresentacion} />
-        {c.estado === 'RECHAZADO' && <InvoiceIssueSummary codigo={c.resultadoPresentacion?.codigo ?? c.ultimoErrorCodigo ?? c.cdrCodigo} onVerDetalle={() => onVerXml(c)} />}
+        {c.estado === 'RECHAZADO' && <InvoiceIssueSummary codigo={c.resultadoPresentacion?.codigo ?? c.ultimoErrorCodigo ?? c.cdrCodigo} />}
       </TableCell>
 
       {!sinAcciones && <TableCell align="right" onClick={(e) => e.stopPropagation()}>
