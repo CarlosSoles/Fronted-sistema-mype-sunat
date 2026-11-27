@@ -95,7 +95,7 @@ it.each(['07','08'])('Notas %s conserva el reintento de la fila dentro del modal
 });
 
 const motivo3105 = `SOAP Fault del billService [3105]: El XML debe contener al menos un tributo por linea de afectacion por IGV - Detalle: xxx.xxx.xxx value='ticket: 1794529417139 error: Error en la linea: 2: 3105 (nodo: "/" valor: "")'`;
-it.each(['01','03','07','08'] as const)('rechazo %s: resumen compacto abre el modal existente con toda la orientación, una sola vez',async tipo=>{
+it.each(['01','03','07','08'] as const)('rechazo %s: resumen sin botón conserva la apertura por fila y toda la orientación en el modal',async tipo=>{
  const serie=tipo==='03'?'B001':tipo==='07'?'FC01':tipo==='08'?'FD01':'F001';
  factura={...factura,tipoComprobante:tipo,serie,correlativo:79,numero:`${serie}-00000079`,estadoBackend:'RECHAZADO',cdrStatus:'RECHAZADO_SUNAT',cdrCodigo:'3105',cdrMensaje:motivo3105,resultadoPresentacion:{origen:'SUNAT',codigo:'3105',motivo:motivo3105}};
  const row=await mount(['07','08'].includes(tipo)?'/invoices/notas':'/invoices/facturas');
@@ -104,7 +104,8 @@ it.each(['01','03','07','08'] as const)('rechazo %s: resumen compacto abre el mo
  expect(within(row).queryByText(/Motivo informado:/)).toBeNull();
  expect(within(row).queryByText(/Abra el detalle, revise el motivo/)).toBeNull();
  expect(within(row).queryByText('Ver detalle técnico')).toBeNull();
- const user=userEvent.setup();await user.click(within(row).getByRole('button',{name:'Ver detalle'}));
+ expect(within(row).queryByRole('button',{name:'Ver detalle'})).toBeNull();
+ const user=userEvent.setup();await user.click(row);
  const modal=await screen.findByRole('dialog',{name:new RegExp(`${serie}-00000079`)});
  expect(screen.getAllByRole('dialog')).toHaveLength(1);
  expect(within(modal).getAllByText('El comprobante requiere revisión.')).toHaveLength(1);

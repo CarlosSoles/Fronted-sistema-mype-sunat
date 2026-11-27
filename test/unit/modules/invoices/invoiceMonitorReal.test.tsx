@@ -110,6 +110,7 @@ it('resuelve la DLQ del aceptado con CDR por acción explícita y actualiza la t
   expect(await screen.findByText('2 trabajos de DLQ resueltos. El comprobante fiscal conserva su estado.')).toBeTruthy();
   await waitFor(() => expect(screen.queryByText(final.numero)).toBeNull());
   expect(apiClient.post).toHaveBeenCalledExactlyOnceWith('/invoices/80/resolver-dlq');
+  expect(screen.queryByRole('dialog')).toBeNull();
   const card = within(screen.getByText('Envíos pendientes de revisión (DLQ)').closest('[data-slot="card"]') as HTMLElement);
   expect(card.getByText('2')).toBeTruthy();
 });
@@ -132,9 +133,10 @@ it('un error del servidor al resolver conserva la fila y muestra el motivo', asy
   expect(await screen.findByText('No se pudo limpiar la cola.')).toBeTruthy();
   expect(screen.getByText(final.numero)).toBeTruthy();
   expect(apiClient.post).toHaveBeenCalledExactlyOnceWith('/invoices/80/resolver-dlq');
+  expect(screen.queryByRole('dialog')).toBeNull();
 });
 
-it.each([local,incierto,final])('compacta la orientación de $numero y abre el visor existente desde Ver detalle',async documento=>{
+it.each([local,incierto,final])('compacta la orientación de $numero y abre el visor existente al pulsar la fila',async documento=>{
  const original=vi.mocked(apiClient.get).getMockImplementation()!;
  vi.mocked(apiClient.get).mockImplementation(async(url,options)=>{
   if(url===`/invoices/${documento.id}`)return {data:{...documento,ruc_emisor:'20100070970',historial:[]}} as never;
@@ -144,8 +146,27 @@ it.each([local,incierto,final])('compacta la orientación de $numero y abre el v
  const row=(await screen.findByText(documento.numero)).closest('tr')!;
  expect(within(row).queryByText('Motivo informado: Motivo local')).toBeNull();
  expect(within(row).queryByText('Ver detalle técnico')).toBeNull();
- fireEvent.click(within(row).getByRole('button',{name:'Ver detalle'}));
+ expect(within(row).queryByRole('button',{name:'Ver detalle'})).toBeNull();
+ expect(within(row).getByText('El comprobante requiere revisión.')).toBeTruthy();
+ fireEvent.click(row);
  const modal=await screen.findByRole('dialog');
+ expect(screen.getAllByRole('dialog')).toHaveLength(1);
  expect(within(modal).getByText('Motivo informado: Motivo local')).toBeTruthy();
  expect(within(modal).getAllByText('El comprobante requiere revisión.')).toHaveLength(1);
+});
+
+
+it('reprocesar puente mantiene su llamada y no abre el visor al pulsar la acción',async()=>{
+ const puente=raw('82','ACEPTADO',false,'BRIDGE_PENDING');
+ const original=vi.mocked(apiClient.get).getMockImplementation()!;
+ vi.mocked(apiClient.get).mockImplementation(async(url,options)=>{
+  if(url==='/invoices'&&(options?.params as Record<string,string> | undefined)?.puente_pendiente==='true')return {data:{data:[puente],total:1,page:1,page_size:100,total_pages:1}} as never;
+  return original(url,options);
+ });
+ vi.mocked(apiClient.post).mockResolvedValue({data:{completo:true,errores:[]}});
+ render(<InvoiceMonitorPage/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Reprocesar puente'}));
+ await screen.findByText('Puente completado.');
+ expect(apiClient.post).toHaveBeenCalledExactlyOnceWith('/invoices/82/reprocesar-puente');
+ expect(screen.queryByRole('dialog')).toBeNull();
 });
