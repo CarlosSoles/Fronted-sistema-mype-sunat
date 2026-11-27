@@ -52,6 +52,8 @@ interface InvoiceCdrModalProps {
   modoInicial?: 'cdr' | 'xml';
   onCerrar: () => void;
   lateral?: boolean;
+  /** Orientación ya visible en el listado operativo del Monitor. */
+  orientacion?: { codigo?: string | null; motivo?: string | null };
   onActualizado?: (detalle: Invoice) => void;
   /** Acción de la fila trasladada al detalle de Facturas y Boletas. */
   onReintentarCdr?: (comprobante: ComprobanteDemo) => void;
@@ -62,6 +64,7 @@ export const InvoiceCdrModal = ({
   comprobante,
   modoInicial = 'cdr',
   lateral = false,
+  orientacion,
   onActualizado,
   onReintentarCdr,
   onCerrar,
@@ -230,7 +233,7 @@ export const InvoiceCdrModal = ({
         </DialogHeader>
 
         {['ACEPTADO','OBSERVADO','RECHAZADO'].includes(clasificarBandeja(c)) && <h3 role="status" aria-live="polite" className="font-semibold">{c.estado==='RECHAZADO'?'Comprobante rechazado':c.estado==='OBSERVADO'?'Comprobante aceptado con observación por SUNAT':'Comprobante aceptado por SUNAT'}</h3>}
-        {c.estado==='RECHAZADO'&&<InvoiceIssueGuidance codigo={c.resultadoPresentacion?.codigo??c.ultimoErrorCodigo??c.cdrCodigo} motivo={c.resultadoPresentacion?.motivo??c.ultimoErrorMensaje??c.cdrDescripcion}/>}
+        {(c.estado==='RECHAZADO' || orientacion) && <InvoiceIssueGuidance codigo={orientacion ? orientacion.codigo : c.resultadoPresentacion?.codigo??c.ultimoErrorCodigo??c.cdrCodigo} motivo={orientacion ? orientacion.motivo : c.resultadoPresentacion?.motivo??c.ultimoErrorMensaje??c.cdrDescripcion}/>}
         <InvoiceForcedResend key={`forzar-${c.id}`} id={c.id} incierto={c.resultadoPresentacion?.origen === 'TRANSPORTE_INCIERTO' && !['ACEPTADO','OBSERVADO'].includes(c.estado)} />
         {consultarSunatAporta({...c,tieneCdr:ficha?.tieneCdr}) && <InvoiceSunatConsulta key={c.id} id={c.id} />}
         <InvoiceBridgeReprocess key={`puente-${c.id}`} id={c.id} estado={c.estado} />

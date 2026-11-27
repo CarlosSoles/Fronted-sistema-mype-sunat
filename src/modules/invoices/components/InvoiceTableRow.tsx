@@ -1,4 +1,4 @@
-import { InvoiceIssueGuidance } from './InvoiceIssueGuidance';
+import { InvoiceIssueSummary } from './InvoiceIssueSummary';
 import { InvoiceWriteButton } from './InvoiceWriteButton';
 import { numeroVisible } from '../lib/invoiceVisibleNumber';
 /**
@@ -132,7 +132,7 @@ export const InvoiceTableRow = ({
 
       <TableCell align="center">
         <InvoiceStatusBadge estadoBackend={c.estadoBackend} estado={c.estado} codigo={c.cdrCodigo} resultado={c.resultadoPresentacion} />
-        {c.estado === 'RECHAZADO' && <InvoiceIssueGuidance codigo={c.resultadoPresentacion?.codigo ?? c.ultimoErrorCodigo ?? c.cdrCodigo} motivo={c.resultadoPresentacion?.motivo ?? c.ultimoErrorMensaje ?? c.cdrDescripcion} />}
+        {c.estado === 'RECHAZADO' && <InvoiceIssueSummary codigo={c.resultadoPresentacion?.codigo ?? c.ultimoErrorCodigo ?? c.cdrCodigo} onVerDetalle={() => onVerXml(c)} />}
       </TableCell>
 
       {!sinAcciones && <TableCell align="right" onClick={(e) => e.stopPropagation()}>

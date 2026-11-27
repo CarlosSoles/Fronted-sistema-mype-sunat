@@ -30,7 +30,8 @@ async function mount(path = '/invoices/facturas'){
  render(<QueryClientProvider client={q}><MemoryRouter initialEntries={[path]}><InvoiceList/></MemoryRouter></QueryClientProvider>);
  return (await screen.findByText(factura.numero)).closest('tr')!;
 }
-it('la tabla termina en Estado CDR, sin columna ni controles de acciones',async()=>{
+it.each(['ACEPTADO','OBSERVADO','EN_COLA','ERROR_RED'])('fila %s no rechazada conserva Estado CDR sin nuevos controles ni orientación',async estado=>{
+ factura={...factura,estadoBackend:estado};
  const row=await mount();const table=row.closest('table')!;
  const headers=within(table).getAllByRole('columnheader');expect(headers).toHaveLength(9);expect(headers.at(-1)).toHaveTextContent('Estado CDR');
  expect(within(table).queryByRole('columnheader',{name:'Acciones'})).toBeNull();expect(within(row).getAllByRole('cell')).toHaveLength(9);
@@ -91,4 +92,26 @@ it.each(['07','08'])('Notas %s conserva el reintento de la fila dentro del modal
  const serie=tipo==='07'?'FC01':'FD01';factura={...factura,tipoComprobante:tipo,serie,numero:`${serie}-00000097`,estadoBackend:'ERROR_RED',cdrStatus:'SIN_CONFIRMAR',cdrCodigo:undefined,transporteAcreditado:true};
  const row=await mount('/invoices/notas');const user=userEvent.setup();await user.click(row);const modal=await screen.findByRole('dialog');
  const retry=await within(modal).findByRole('button',{name:'Reintentar CDR'});await waitFor(()=>expect(retry).toBeEnabled());await user.click(retry);await waitFor(()=>expect(invoicesApi.retryCdr).toHaveBeenCalledWith('invoice'));
+});
+
+const motivo3105 = `SOAP Fault del billService [3105]: El XML debe contener al menos un tributo por linea de afectacion por IGV - Detalle: xxx.xxx.xxx value='ticket: 1794529417139 error: Error en la linea: 2: 3105 (nodo: "/" valor: "")'`;
+it.each(['01','03','07','08'] as const)('rechazo %s: resumen compacto abre el modal existente con toda la orientación, una sola vez',async tipo=>{
+ const serie=tipo==='03'?'B001':tipo==='07'?'FC01':tipo==='08'?'FD01':'F001';
+ factura={...factura,tipoComprobante:tipo,serie,correlativo:79,numero:`${serie}-00000079`,estadoBackend:'RECHAZADO',cdrStatus:'RECHAZADO_SUNAT',cdrCodigo:'3105',cdrMensaje:motivo3105,resultadoPresentacion:{origen:'SUNAT',codigo:'3105',motivo:motivo3105}};
+ const row=await mount(['07','08'].includes(tipo)?'/invoices/notas':'/invoices/facturas');
+ expect(within(row).getByLabelText('Rechazada')).toHaveTextContent('3105');
+ expect(within(row).getByText('El comprobante requiere revisión.')).toHaveClass('truncate');
+ expect(within(row).queryByText(/Motivo informado:/)).toBeNull();
+ expect(within(row).queryByText(/Abra el detalle, revise el motivo/)).toBeNull();
+ expect(within(row).queryByText('Ver detalle técnico')).toBeNull();
+ const user=userEvent.setup();await user.click(within(row).getByRole('button',{name:'Ver detalle'}));
+ const modal=await screen.findByRole('dialog',{name:new RegExp(`${serie}-00000079`)});
+ expect(screen.getAllByRole('dialog')).toHaveLength(1);
+ expect(within(modal).getAllByText('El comprobante requiere revisión.')).toHaveLength(1);
+ expect(within(modal).getByText('Abra el detalle, revise el motivo informado y corrija la información que corresponda antes de reintentar.')).toBeVisible();
+ expect(within(modal).getByText(`Motivo informado: ${motivo3105}`)).toBeVisible();
+ expect(within(modal).getByText(`Motivo informado: ${motivo3105}`)).toHaveClass('whitespace-pre-wrap');
+ await user.click(within(modal).getByText('Ver detalle técnico'));
+ expect(within(modal).getByText('Código: 3105')).toBeVisible();
+ expect(within(modal).getByRole('tab',{name:'Visor XML UBL 2.1'})).toHaveAttribute('data-state','active');
 });

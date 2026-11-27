@@ -133,3 +133,19 @@ it('un error del servidor al resolver conserva la fila y muestra el motivo', asy
   expect(screen.getByText(final.numero)).toBeTruthy();
   expect(apiClient.post).toHaveBeenCalledExactlyOnceWith('/invoices/80/resolver-dlq');
 });
+
+it.each([local,incierto,final])('compacta la orientación de $numero y abre el visor existente desde Ver detalle',async documento=>{
+ const original=vi.mocked(apiClient.get).getMockImplementation()!;
+ vi.mocked(apiClient.get).mockImplementation(async(url,options)=>{
+  if(url===`/invoices/${documento.id}`)return {data:{...documento,ruc_emisor:'20100070970',historial:[]}} as never;
+  return original(url,options);
+ });
+ render(<InvoiceMonitorPage/>);
+ const row=(await screen.findByText(documento.numero)).closest('tr')!;
+ expect(within(row).queryByText('Motivo informado: Motivo local')).toBeNull();
+ expect(within(row).queryByText('Ver detalle técnico')).toBeNull();
+ fireEvent.click(within(row).getByRole('button',{name:'Ver detalle'}));
+ const modal=await screen.findByRole('dialog');
+ expect(within(modal).getByText('Motivo informado: Motivo local')).toBeTruthy();
+ expect(within(modal).getAllByText('El comprobante requiere revisión.')).toHaveLength(1);
+});
