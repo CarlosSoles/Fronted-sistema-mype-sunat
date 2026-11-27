@@ -206,12 +206,14 @@ export const InvoiceCdrModal = ({
   const Titulo = lateral ? 'h2' : DialogTitle;
   const contenido = (<>
 
-        <DialogHeader className="pr-8">
-          <Titulo tabIndex={-1} {...(lateral ? { id: 'm1-detalle-titulo' } : {})} className="flex flex-wrap items-center gap-2">
-            <span>
+        <DialogHeader className="min-w-0 pr-12">
+          <Titulo tabIndex={-1} {...(lateral ? { id: 'm1-detalle-titulo' } : {})} className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-2">
+            <span className="min-w-0 whitespace-normal break-words">
               {numeroSerie} · {c.clienteRazonSocial}
             </span>
+            <span className="min-w-0 max-w-full [&_.m1-status]:[overflow-wrap:anywhere]">
             <InvoiceStatusBadge estadoBackend={c.estadoBackend} estado={c.estado} codigo={c.cdrCodigo} resultado={c.resultadoPresentacion} />
+            </span>
           </Titulo>
           <PageText variant="caption">
             {/* `null` es DESCONOCIDO, no "Contado": los comprobantes emitidos

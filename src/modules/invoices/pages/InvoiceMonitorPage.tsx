@@ -304,7 +304,9 @@ export default function InvoiceMonitorPage() {
               </TableRow>
             ) : (
               visibles.map((inv) => (
-                <TableRow key={inv.id}>
+                <TableRow key={inv.id} className="cursor-pointer focus-visible:outline-2" tabIndex={0} aria-label={`Ver detalle de ${inv.numero}`}
+                  onClick={() => setDetalleError(inv)}
+                  onKeyDown={event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setDetalleError(inv); } }}>
                   <TableCell>{inv.numero}{inv.tipoComprobante && <PageText variant="caption">{ETIQUETA_TIPO[inv.tipoComprobante] ?? inv.tipoComprobante} ({inv.tipoComprobante})</PageText>}</TableCell>
                   <TableCell>
                     <PageText variant="label">
@@ -317,10 +319,10 @@ export default function InvoiceMonitorPage() {
                   <TableCell>
                     <InvoiceStatusBadge estado={inv.cdrStatus==='ACEPTADO_SUNAT'?'ACEPTADO':inv.cdrStatus==='RECHAZADO_SUNAT'?'RECHAZADO':'EN_COLA'} estadoBackend={inv.estadoBackend} resultado={inv.resultadoPresentacion} codigo={inv.cdrCodigo}/>
                     {inv.enDlq && <p className="text-sm font-semibold">Requiere revisión de envío (DLQ)</p>}
-                    {(inv.enDlq || ['ERROR_RED','RECHAZADO'].includes(inv.estadoBackend??'')) && <InvoiceIssueSummary codigo={inv.resultadoPresentacion?.codigo??inv.ultimoErrorCodigo??inv.cdrCodigo} onVerDetalle={() => setDetalleError(inv)}/>}
+                    {(inv.enDlq || ['ERROR_RED','RECHAZADO'].includes(inv.estadoBackend??'')) && <InvoiceIssueSummary codigo={inv.resultadoPresentacion?.codigo??inv.ultimoErrorCodigo??inv.cdrCodigo}/>}
                     {['TRANSPORTE_INCIERTO', 'PREPARACION_LOCAL', 'BRIDGE_PENDING'].includes(inv.resultadoPresentacion?.origen ?? '') && <p className="text-xs text-muted-foreground">{inv.resultadoPresentacion?.motivo}</p>}
                   </TableCell>
-                  <TableCell align="center">
+                  <TableCell align="center" onClick={event => event.stopPropagation()}>
                     {inv.enDlq === true && inv.estadoBackend === 'ACEPTADO' && inv.cdrCodigo === '0' && (
                       <InvoiceWriteButton className="h-auto min-h-7 max-w-full whitespace-normal" variant="outline" size="sm" action="INVOICE_RESOLVE_DLQ" disabled={!canResolve || reintentando === inv.id} onClick={() => void resolverDlq(inv.id)}>
                         Resolver DLQ
