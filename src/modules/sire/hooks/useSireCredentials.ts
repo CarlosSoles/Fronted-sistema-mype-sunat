@@ -69,7 +69,7 @@ export const useSireCredentials = (companyId?: string): UseSireCredentials => {
     try {
       const status = await sireApi.saveConfiguracion(payload, companyId);
       setConfigured(status.configured);
-      setSuccessMessage('Credenciales guardadas exitosamente.');
+      setSuccessMessage('Credenciales guardadas correctamente');
       return status.configured;
     } catch (cause) {
       setSaveError(

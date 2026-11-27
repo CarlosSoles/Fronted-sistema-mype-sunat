@@ -186,6 +186,8 @@ export interface SireConfiguracionPayload {
  */
 export interface SireConfiguracionStatus {
   configured: boolean;
+  /** Mensaje que devuelve el backend al guardar (opcional). */
+  message?: string;
 }
 
 /**

@@ -60,6 +60,6 @@ describe('SireCredentialsPage', () => {
       }, undefined);
     });
 
-    expect(await screen.findByText('Credenciales guardadas exitosamente.')).toBeInTheDocument();
+    expect(await screen.findByText('Credenciales guardadas correctamente')).toBeInTheDocument();
   });
 });
