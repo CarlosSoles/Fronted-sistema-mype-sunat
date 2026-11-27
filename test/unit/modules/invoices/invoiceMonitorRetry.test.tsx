@@ -57,6 +57,8 @@ describe('retroalimentación del reintento de CDR en el Monitor', () => {
     expect(alerta.getByText(titulo)).toBeTruthy();
     expect(alerta.getByText(mensaje)).toBeTruthy();
     expect(invoicesApi.retryCdr).toHaveBeenCalledWith(comprobante.id);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(invoicesApi.getInvoiceById).not.toHaveBeenCalled();
     // El refresco automático y uno manual conservan el resultado, aunque
     // el worker todavía no haya cambiado el estado fiscal ERROR_RED.
     fireEvent.click(screen.getByRole('button', { name: 'Actualizar' }));
