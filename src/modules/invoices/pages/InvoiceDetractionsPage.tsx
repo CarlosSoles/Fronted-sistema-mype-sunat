@@ -1,3 +1,4 @@
+import './invoiceDetractionsPage.css';
 import { CheckCircle2, Clock3 } from 'lucide-react';
 import { InvoiceUxPage as Page } from '../components/InvoiceUxPage';
 import { InvoiceMoneyInput } from '../components/InvoiceMoneyInput';
@@ -18,10 +19,17 @@ export default function InvoiceDetractionsPage() {
   const [period, setPeriod] = useState(periodoActual);
   const [selected, setSelected] = useState<Detraccion | null>(null);
   const [editing, setEditing] = useState<Deposit | null>(null);
+  const [choosing, setChoosing] = useState<Detraccion | null>(null);
   const balance = (d: Detraccion) => d.balance ?? Math.max(0, d.detraction - (d.depositedAmount ?? 0));
   const [form, setForm] = useState({ amount: '', date: new Date().toISOString().slice(0, 10), constancia: '' });
   const [error, setError] = useState('');
   const { data = [], isLoading, isError } = useQuery({ queryKey: ['detractions', period], queryFn: async () => (await apiClient.get<Detraccion[]>('/invoices/detractions', { params: { period } })).data });
+  const summary = data.reduce((sum, d) => ({
+    detraction: sum.detraction + d.detraction,
+    deposited: sum.deposited + (d.depositedTotal ?? d.depositedAmount ?? 0),
+    balance: sum.balance + balance(d),
+  }), { detraction: 0, deposited: 0, balance: 0 });
+  const periodLabel = new Intl.DateTimeFormat('es-PE', { month: 'long', timeZone: 'UTC' }).format(new Date(`${period}-01T00:00:00Z`)).toLocaleLowerCase('es-PE') + ` ${period.slice(0, 4)}`;
   const errorMonto = selected ? errorMontoDeposito(Number(form.amount), balance(selected) + (editing?.amount ?? 0)) : undefined;
   const errorConstancia = errorConstanciaDeposito(form.constancia);
   const registrar = useMutation({
@@ -38,28 +46,45 @@ export default function InvoiceDetractionsPage() {
     setSelected(d); setEditing(deposit); setError('');
     setForm({ amount: String(deposit?.amount ?? balance(d)), date: deposit?.date.slice(0, 10) ?? new Date().toISOString().slice(0, 10), constancia: deposit?.constancia ?? '' });
   };
-  return <Page>
+  return <Page className="m1-detractions">
     <PageHeader title="Detracciones" description="Control de depósitos de detracción por comprobante" />
-    <Card className="p-4 mb-4"><div className="flex flex-wrap items-end gap-3"><label className="text-xs">Período<PeriodInput value={period} onChange={setPeriod} /></label></div></Card>
-    {error ? <Card className="p-3 mb-3 text-sm text-destructive">{error}</Card> : null}
+    <Card className="detractions-period">
+      <div className="detractions-period-controls"><span className="text-xs font-medium text-muted-foreground">Período</span><div className="detractions-period-input"><span aria-hidden="true">Año</span><span aria-hidden="true">Mes</span><PeriodInput value={period} onChange={setPeriod} /></div></div>
+      <div className="detractions-summary" role="group" aria-label="Resumen del período">
+        <span><strong>{data.length}</strong> comprobantes</span>
+        <span>Detracción total <strong>{formatCurrency(summary.detraction, 'PEN')}</strong></span>
+        <span>Depositado <strong>{formatCurrency(summary.deposited, 'PEN')}</strong></span>
+        <span>Saldo pendiente <strong>{formatCurrency(summary.balance, 'PEN')}</strong></span>
+      </div>
+    </Card>
+    {error ? <Card className="p-3 mb-3 text-sm">{error}</Card> : null}
     {isError && <p role="alert">No se pudieron consultar las detracciones. Reintente la consulta antes de registrar un depósito.</p>}
-    <a href="/invoices/facturas" className="underline">Ver comprobantes</a>
-    <Card flush><Table><caption className="sr-only">Depósitos y saldo de detracción por comprobante</caption><TableHeader><TableRow><TableHead>Comprobante</TableHead><TableHead>Fecha</TableHead><TableHead>Cliente</TableHead><TableHead align="right">Total</TableHead><TableHead align="right">Detracción</TableHead><TableHead>Depósitos</TableHead><TableHead align="right">Total depositado</TableHead><TableHead align="right">Saldo</TableHead><TableHead align="right">Acción</TableHead></TableRow></TableHeader><TableBody>
-      {isLoading ? <TableRow><TableCell colSpan={9}>Cargando…</TableCell></TableRow> : null}
-      {!isLoading && !isError && data.length === 0 ? <TableRow><TableCell colSpan={9}>No hay comprobantes con detracción en este periodo. Cambie el periodo o revise la bandeja.</TableCell></TableRow> : null}
+    <h2 className="text-base font-semibold">Comprobantes <span className="text-sm font-normal text-muted-foreground">· {periodLabel}</span></h2>
+    <Card flush><Table className="detractions-table">
+      <caption className="sr-only">Depósitos y saldo de detracción por comprobante</caption>
+      <colgroup>{[13, 8, 13, 7.5, 8, 19, 6, 8.5, 7, 10].map((width, index) => <col key={index} style={{ width: `${width}%` }} />)}</colgroup>
+      <TableHeader><TableRow><TableHead>Comprobante</TableHead><TableHead>Fecha</TableHead><TableHead>Cliente</TableHead><TableHead align="right">Total</TableHead><TableHead align="right">Detracción</TableHead><TableHead>Depósitos</TableHead><TableHead align="center">Editar</TableHead><TableHead align="right">Total depositado</TableHead><TableHead align="right">Saldo</TableHead><TableHead align="right">Acción</TableHead></TableRow></TableHeader><TableBody>
+      {isLoading ? <TableRow><TableCell colSpan={10}>Cargando…</TableCell></TableRow> : null}
+      {!isLoading && !isError && data.length === 0 ? <TableRow><TableCell colSpan={10}>No hay comprobantes con detracción en este periodo. Cambie el periodo o revise la bandeja.</TableCell></TableRow> : null}
       {data.map((d) => <TableRow key={d.id}>
-        <TableCell className="font-mono text-xs">{d.numero}<span className="flex items-center gap-1 font-sans">{balance(d)<=0?<CheckCircle2 aria-hidden="true" className="h-4 w-4"/>:<Clock3 aria-hidden="true" className="h-4 w-4"/>}{balance(d)<=0?'Depositada':'Pendiente de depósito'}</span></TableCell><TableCell>{formatDateToPeru(d.date)}</TableCell><TableCell>{d.customer}</TableCell>
-        <TableCell align="right">{formatCurrency(d.total, 'PEN')}</TableCell><TableCell align="right">{formatCurrency(d.detraction, 'PEN')}</TableCell>
-        <TableCell>{d.deposits?.length ? <ul className="space-y-2">{d.deposits.map(deposit => <li key={deposit.id} className="text-xs">
-          {formatDateToPeru(deposit.date)} · {formatCurrency(deposit.amount, 'PEN')} · Constancia {deposit.constancia || '—'}
-          <Button size="sm" variant="ghost" aria-label={`Editar depósito ${deposit.constancia || deposit.id}`} onClick={() => open(d, deposit)}>Editar</Button>
-        </li>)}</ul> : d.depositedAt ? `${formatDateToPeru(d.depositedAt)} · ${d.constancia || '—'}` : 'Sin depósitos'}</TableCell>
-        <TableCell align="right">{formatCurrency(d.depositedTotal ?? d.depositedAmount ?? 0, 'PEN')}</TableCell><TableCell align="right">{formatCurrency(balance(d), 'PEN')}</TableCell>
-        <TableCell align="right"><Button size="sm" variant="outline" disabled={balance(d) <= 0} onClick={() => open(d)}>{d.depositedAt || d.deposits?.length ? 'Agregar depósito' : 'Registrar'}</Button></TableCell>
+        <TableCell><strong className="detractions-number">{d.numero}</strong><span className="detractions-status">{balance(d)<=0?<CheckCircle2 aria-hidden="true" className="h-3 w-3 shrink-0"/>:<Clock3 aria-hidden="true" className="h-3 w-3 shrink-0"/>}{balance(d)<=0?'Depositada':'Pendiente de depósito'}</span></TableCell>
+        <TableCell className="detractions-date">{formatDateToPeru(d.date)}</TableCell><TableCell className="detractions-customer">{d.customer}</TableCell>
+        <TableCell align="right" className="detractions-money">{formatCurrency(d.total, 'PEN')}</TableCell><TableCell align="right" className="detractions-money">{formatCurrency(d.detraction, 'PEN')}</TableCell>
+        <TableCell className="detractions-deposits">{d.deposits?.length ? <ul>{d.deposits.map(deposit => <li key={deposit.id}>
+          <span className="whitespace-nowrap">{formatDateToPeru(deposit.date)} · <strong>{formatCurrency(deposit.amount, 'PEN')}</strong></span> · <span className="text-muted-foreground">Constancia N.º {deposit.constancia || '—'}</span>
+        </li>)}</ul> : d.depositedAt ? `${formatDateToPeru(d.depositedAt)} · ${d.constancia || '—'}` : <span className="text-muted-foreground">Sin depósitos</span>}</TableCell>
+        <TableCell align="center" className="detractions-edit">{Boolean(d.deposits?.length) && <Button size="sm" variant="outline" aria-label={`Editar depósitos de ${d.numero}`} onClick={() => { if (d.deposits?.length === 1) open(d, d.deposits[0]); else setChoosing(d); }}>Editar</Button>}</TableCell>
+        <TableCell align="right" className="detractions-money">{formatCurrency(d.depositedTotal ?? d.depositedAmount ?? 0, 'PEN')}</TableCell><TableCell align="right" className={`detractions-money ${balance(d) > 0 ? 'font-semibold' : ''}`}>{formatCurrency(balance(d), 'PEN')}</TableCell>
+        <TableCell align="right" className="detractions-action"><Button size="sm" variant={balance(d) > 0 && !d.depositedAt && !d.deposits?.length ? 'default' : 'outline'} disabled={balance(d) <= 0} onClick={() => open(d)}>{d.depositedAt || d.deposits?.length ? 'Agregar depósito' : 'Registrar'}</Button></TableCell>
       </TableRow>)}
     </TableBody></Table></Card>
+    <Dialog open={choosing !== null} onOpenChange={(open) => { if (!open) setChoosing(null); }}>
+      <DialogContent className="detractions-dialog"><DialogHeader><DialogTitle>Seleccionar depósito para editar</DialogTitle><DialogDescription>{choosing?.numero} · {choosing?.customer}</DialogDescription></DialogHeader>
+        <ul className="space-y-2">{choosing?.deposits?.map(deposit => <li key={deposit.id}><Button variant="outline" className="h-auto w-full justify-start whitespace-normal text-left" aria-label={`Editar depósito ${deposit.constancia || deposit.id}`} onClick={() => { open(choosing, deposit); setChoosing(null); }}>{formatDateToPeru(deposit.date)} · {formatCurrency(deposit.amount, 'PEN')} · Constancia N.º {deposit.constancia || '—'}</Button></li>)}</ul>
+      </DialogContent>
+    </Dialog>
     <Dialog open={selected !== null} onOpenChange={(open) => { if (!open) setSelected(null); }}>
-      <DialogContent><DialogHeader><DialogTitle>{editing ? 'Editar depósito de detracción' : 'Registrar depósito de detracción'}</DialogTitle><DialogDescription>{selected?.numero} · {selected?.customer} · Detracción {selected ? formatCurrency(selected.detraction, 'PEN') : ''}</DialogDescription></DialogHeader>
+      <DialogContent className="detractions-dialog"><DialogHeader><DialogTitle>{editing ? 'Editar depósito de detracción' : 'Registrar depósito de detracción'}</DialogTitle><DialogDescription>{selected?.numero} · {selected?.customer} · Detracción {selected ? formatCurrency(selected.detraction, 'PEN') : ''}</DialogDescription></DialogHeader>
         <div className="space-y-3">{error && <p role="alert" className="text-xs text-destructive">{error}</p>}<label className="text-xs block">Monto<InvoiceMoneyInput aria-invalid={Boolean(errorMonto)} aria-describedby="deposit-amount-error" value={Number(form.amount)} onValue={(amount) => setForm({ ...form, amount: String(amount) })} /></label>{errorMonto && <p id="deposit-amount-error" role="alert" className="text-xs text-destructive">{errorMonto}</p>}<label className="text-xs block">Fecha<Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></label><label className="text-xs block">Constancia<Input inputMode="numeric" aria-invalid={Boolean(errorConstancia)} aria-describedby="deposit-constancia-error" value={form.constancia} onChange={(e) => setForm({ ...form, constancia: e.target.value })} /></label>{errorConstancia && <p id="deposit-constancia-error" role="alert" className="text-xs text-destructive">{errorConstancia}</p>}<Button onClick={() => registrar.mutate()} disabled={registrar.isPending || Boolean(errorMonto || errorConstancia)}>{registrar.isPending ? 'Guardando…' : 'Guardar depósito'}</Button></div>
       </DialogContent>
     </Dialog>
