@@ -110,7 +110,14 @@ export function AccountCombobox({
   useEffect(() => {
     if (!abierto) return;
     const alClicFuera = (evento: MouseEvent) => {
-      if (contenedor.current && !contenedor.current.contains(evento.target as Node)) setAbierto(false);
+      const destino = evento.target as Node | null;
+      if (!destino) return;
+      // El panel se dibuja en un portal (fuera del contenedor), así que hay que
+      // comprobarlo también: si no, arrastrar su barra de desplazamiento o pulsar
+      // una opción contaba como clic externo y cerraba la lista.
+      if (contenedor.current?.contains(destino)) return;
+      if (panel.current?.contains(destino)) return;
+      setAbierto(false);
     };
     document.addEventListener('mousedown', alClicFuera);
     return () => document.removeEventListener('mousedown', alClicFuera);
