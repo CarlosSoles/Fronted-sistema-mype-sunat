@@ -176,7 +176,7 @@ it('revisión permite cambiar una sección sin enviar ni perder las líneas', as
   expect(within(dialog).getByText('Cliente de prueba',{exact:false})).toBeTruthy();
   fireEvent.click(within(dialog).getByRole('button',{name:'Cambiar cliente'}));
   await waitFor(()=>expect(screen.getByLabelText('RUC del cliente')).toHaveFocus());
-  expect(screen.getByLabelText('Cantidad de la línea 1',{exact:true})).toHaveValue('1');
+  expect(screen.getByLabelText('Cantidad de la línea 1',{exact:true})).toHaveValue(1);
   expect(invoicesApi.emitirComprobante).not.toHaveBeenCalled();
 });
 it('recupera el borrador real de la pantalla y conserva lo digitado tras un error de envío',async()=>{
@@ -187,8 +187,8 @@ it('recupera el borrador real de la pantalla y conserva lo digitado tras un erro
  cleanup();await mount();expect(screen.getByRole('button',{name:'Retomar borrador'})).toBeVisible();
  fireEvent.click(screen.getByRole('button',{name:'Retomar borrador'}));
  await waitFor(()=>expect(screen.getByLabelText('Razón social / nombre')).toHaveValue('Cliente de prueba'));
- expect(screen.getByLabelText('Cantidad de la línea 1',{exact:true})).toHaveValue('2');
+ expect(screen.getByLabelText('Cantidad de la línea 1',{exact:true})).toHaveValue(2);
  vi.mocked(invoicesApi.emitirComprobante).mockRejectedValueOnce({response:{data:{message:'El servicio no pudo procesar el intento.'}}});
  fireEvent.click(screen.getByRole('button',{name:'Emitir comprobante'}));fireEvent.click(await screen.findByRole('button',{name:'Confirmar emisión'}));
- await screen.findByText('No se emitió');expect(screen.getByLabelText('Cantidad de la línea 1',{exact:true})).toHaveValue('2');expect(screen.getByLabelText('Razón social / nombre')).toHaveValue('Cliente de prueba');expect(localStorage.getItem(key)).not.toBeNull();localStorage.removeItem(key);
+ await screen.findByText('No se emitió');expect(screen.getByLabelText('Cantidad de la línea 1',{exact:true})).toHaveValue(2);expect(screen.getByLabelText('Razón social / nombre')).toHaveValue('Cliente de prueba');expect(localStorage.getItem(key)).not.toBeNull();localStorage.removeItem(key);
 });
