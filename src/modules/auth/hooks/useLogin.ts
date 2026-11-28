@@ -1,12 +1,28 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+﻿import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { authApi } from '../services/authApi';
 import { cargarEmpresaActiva } from '../lib/empresaActiva';
 import { useAuthStore } from '@/stores/authStore';
 import { type LoginCredentials } from '../types/auth.types';
 
+/**
+ * A dónde volver después de iniciar sesión.
+ *
+ * `ProtectedRoute` envía a /login con `state.from` para no perder la página que
+ * el usuario intentaba abrir, pero hasta ahora nadie lo leía: siempre se
+ * aterrizaba en el inicio. Solo se acepta una ruta interna para no permitir
+ * redirecciones a otro dominio.
+ */
+export const destinoSeguro = (from: unknown): string => {
+  const pathname = (from as { pathname?: unknown } | null)?.pathname;
+  return typeof pathname === 'string' && pathname.startsWith('/') && !pathname.startsWith('//')
+    ? pathname
+    : '/';
+};
+
 export const useLogin = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient=useQueryClient();
   const { setSession, setActiveCompany } = useAuthStore();
 
@@ -36,7 +52,8 @@ export const useLogin = () => {
         await cargarEmpresaActiva(true);
       }
       queryClient.removeQueries({queryKey:['permissions-me']});
-      navigate('/');
+      // Vuelve a la página que el usuario intentaba abrir antes del login.
+      navigate(destinoSeguro((location.state as { from?: unknown } | null)?.from), { replace: true });
     },
     onError: (error) => {
       console.error('Error al iniciar sesión:', error);
