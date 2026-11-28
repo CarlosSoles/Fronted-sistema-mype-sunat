@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { AccountingAccount } from '../types/accounting.types';
@@ -51,7 +52,29 @@ export function AccountCombobox({
   const [texto, setTexto] = useState('');
   const [resaltado, setResaltado] = useState(0);
   const [recientes, setRecientes] = useState<string[]>([]);
+  /** Posición del panel cuando se dibuja en un portal. */
+  const [rect, setRect] = useState<{ top: number; left: number; width: number } | null>(null);
   const contenedor = useRef<HTMLDivElement>(null);
+
+  /** Recalcula la posición del panel a partir del campo. */
+  const actualizarPosicion = () => {
+    const caja = contenedor.current?.getBoundingClientRect();
+    if (caja) setRect({ top: caja.bottom + 4, left: caja.left, width: caja.width });
+  };
+
+  useEffect(() => {
+    if (!abierto) return;
+    actualizarPosicion();
+    // Al desplazar la página o el contenedor, el panel flotante quedaría
+    // desanclado: se cierra en lugar de mostrarse en el sitio equivocado.
+    const cerrar = () => setAbierto(false);
+    window.addEventListener('scroll', cerrar, true);
+    window.addEventListener('resize', cerrar);
+    return () => {
+      window.removeEventListener('scroll', cerrar, true);
+      window.removeEventListener('resize', cerrar);
+    };
+  }, [abierto]);
 
   const porCodigo = useMemo(() => new Map(accounts.map((cuenta) => [cuenta.code, cuenta])), [accounts]);
   const seleccionada = porCodigo.get(value);
@@ -204,12 +227,14 @@ export function AccountCombobox({
         />
       </div>
 
-      {abierto ? (
-        <div
-          id={`${idPrefijo}-lista`}
-          role="listbox"
-          className="absolute z-50 mt-1 max-h-80 w-[28rem] max-w-[90vw] overflow-auto rounded-md border bg-popover p-1 shadow-lg"
-        >
+      {abierto && rect
+        ? createPortal(
+            <div
+              id={`${idPrefijo}-lista`}
+              role="listbox"
+              style={{ top: rect.top, left: rect.left, minWidth: rect.width }}
+              className="fixed z-50 max-h-80 w-[28rem] max-w-[90vw] overflow-auto rounded-md border bg-popover p-1 shadow-lg"
+            >
           {filtradas.length === 0 ? (
             <p className="px-3 py-2 text-xs text-muted-foreground">Sin cuentas que coincidan.</p>
           ) : (
@@ -246,8 +271,10 @@ export function AccountCombobox({
               ) : null}
             </>
           )}
-        </div>
-      ) : null}
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
