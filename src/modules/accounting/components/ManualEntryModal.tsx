@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { AccountCombobox } from './AccountCombobox';
 import { CheckCircle2, Plus, Trash2, TriangleAlert } from 'lucide-react';
 import {
   Button,
@@ -17,7 +18,6 @@ import {
 } from '@/components/ui';
 import { accountingApi } from '../services/accountingApi';
 import { enqueueAccountingEntry } from '@/lib/outbox';
-import type { AccountingAccount } from '../types/accounting.types';
 
 interface LineDraft {
   accountCode: string;
@@ -296,21 +296,15 @@ export default function ManualEntryModal({ open, onClose, onSaved, proximoNumero
                   {lines.map((line, index) => (
                     <tr key={`linea-${index}`} className="border-t">
                       <td className="min-w-56 p-2">
-                        <Select
-                          value={line.accountCode || undefined}
-                          onValueChange={(value) => updateLine(index, { accountCode: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Seleccionar cuenta" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {cuentasImputables.map((account: AccountingAccount) => (
-                              <SelectItem key={account.code} value={account.code}>
-                                {account.code} · {account.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        {/* Con buscador: la lista de cuentas imputables es larga y
+                            un desplegable simple obligaba a recorrerla entera. */}
+                        <AccountCombobox
+                          accounts={cuentasImputables}
+                          value={line.accountCode}
+                          onChange={(codigo) => updateLine(index, { accountCode: codigo })}
+                          placeholder="Buscar cuenta imputable"
+                          idPrefijo={`asiento-linea-${index}`}
+                        />
                       </td>
                       <td className="p-2">
                         <Input
