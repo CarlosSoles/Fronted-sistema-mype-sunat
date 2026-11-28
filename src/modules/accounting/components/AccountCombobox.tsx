@@ -66,21 +66,12 @@ export function AccountCombobox({
   useEffect(() => {
     if (!abierto) return;
     actualizarPosicion();
-    // Al desplazar la página o el contenedor, el panel flotante quedaría
-    // desanclado: se cierra en lugar de mostrarse en el sitio equivocado.
-    // Solo se cierra cuando se desplaza algo distinto del panel: desplazar la
-    // lista con la rueda o con la barra no debe cerrarla.
-    const cerrar = (evento: Event) => {
-      const destino = evento.target as Node | null;
-      if (panel.current && destino && panel.current.contains(destino)) return;
-      setAbierto(false);
-    };
-    window.addEventListener('scroll', cerrar, true);
-    window.addEventListener('resize', cerrar);
-    return () => {
-      window.removeEventListener('scroll', cerrar, true);
-      window.removeEventListener('resize', cerrar);
-    };
+    // No se cierra con el desplazamiento: la lista debe poder recorrerse con la
+    // rueda y con la barra. Al cambiar el tamaño de la ventana solo se recalcula
+    // la posición para que siga anclada al campo.
+    const alRedimensionar = () => actualizarPosicion();
+    window.addEventListener('resize', alRedimensionar);
+    return () => window.removeEventListener('resize', alRedimensionar);
   }, [abierto]);
 
   const porCodigo = useMemo(() => new Map(accounts.map((cuenta) => [cuenta.code, cuenta])), [accounts]);
@@ -248,7 +239,7 @@ export function AccountCombobox({
               id={`${idPrefijo}-lista`}
               role="listbox"
               style={{ top: rect.top, left: rect.left, minWidth: rect.width }}
-              className="fixed z-50 max-h-80 w-[28rem] max-w-[90vw] overflow-auto rounded-md border bg-popover p-1 shadow-lg"
+              className="fixed z-50 max-h-80 w-[28rem] max-w-[90vw] overflow-auto overscroll-contain rounded-md border bg-popover p-1 shadow-lg"
             >
           {filtradas.length === 0 ? (
             <p className="px-3 py-2 text-xs text-muted-foreground">Sin cuentas que coincidan.</p>
