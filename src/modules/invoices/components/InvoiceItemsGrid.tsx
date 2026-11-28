@@ -23,7 +23,6 @@ import { Button, PageText } from '@/components/ui';
 import { InventoryProductSearchSelect } from './InventoryProductSearchSelect';
 import {
   calcularItem,
-  unidadDiscreta,
   type ItemBorrador,
 } from '../lib/invoiceItems';
 import { CODIGOS_DETRACCION } from '../lib/invoiceDetraccion';
@@ -204,33 +203,21 @@ export const InvoiceItemsGrid = ({
 
                   <td className="invoice-line-field col-span-4 col-start-1 row-start-2 min-w-0 px-0 py-0 align-top text-right @min-[1000px]/items:col-span-1 @min-[1000px]/items:col-start-auto @min-[1000px]/items:row-start-auto @min-[1000px]/items:px-1 @min-[1000px]/items:py-2">
                     <span aria-hidden="true" className="mb-1 block text-left text-[10px] font-medium text-muted-foreground @min-[1000px]/items:hidden">Cant.</span>
-                    {!esNota && unidadDiscreta(item.unidad) ? <InvoiceIntegerInput
+                    <InvoiceIntegerInput
                       aria-label={`Cantidad de la línea ${i + 1}`} data-line-field="cantidad" data-line-invalid={Boolean(errores.cantidad)}
+                      min={1} max={cantidadesMaximas?.[i]}
                       aria-describedby={visible('cantidad') ? `${item.clave}-cantidad-error` : undefined}
                       aria-invalid={visible('cantidad') || (cantidadesMaximas !== undefined && item.cantidad > cantidadesMaximas[i])}
                       className={`${CLASE_CELDA} text-right`} value={item.cantidad}
-                      onValue={cantidad => onCambiar(i, { cantidad })} /> : (
-                    <input
-                      aria-label={`Cantidad de la línea ${i + 1}`} data-line-field="cantidad" data-line-invalid={Boolean(errores.cantidad)} aria-describedby={visible('cantidad') ? `${item.clave}-cantidad-error` : undefined}
-                      max={cantidadesMaximas?.[i]}
-                      aria-invalid={visible('cantidad') || (cantidadesMaximas !== undefined && item.cantidad > cantidadesMaximas[i])}
-                      type="number"
-                      min="0.001"
-                      step="0.001"
-                      className={`${CLASE_CELDA} text-right`}
-                      value={item.cantidad}
-                      onChange={(e) => {
-                        const cant = Number(e.target.value);
+                      onValue={cantidad => {
                         const descMonto = item.descuentoHeredado && item.descuentoPorcentaje
-                          ? Number(((cant * item.valorUnitario * item.descuentoPorcentaje) / 100).toFixed(2))
+                          ? Number(((cantidad * item.valorUnitario * item.descuentoPorcentaje) / 100).toFixed(2))
                           : item.descuento?.monto;
                         onCambiar(i, {
-                          cantidad: cant,
+                          cantidad,
                           ...(item.descuentoHeredado && item.descuento ? { descuento: { ...item.descuento, monto: descMonto ?? 0 } } : {}),
                         });
-                      }}
-                    />
-                    )}
+                      }} />
                     {revisionLinea?.gravedad==='error' && enEdicion!==`${item.clave}:cantidad` && (mostrarErrores||editados.has(`${item.clave}:cantidad`)) && <InlineInvoiceError mensaje={revisionLinea.mensaje}/>}
                     {visible('cantidad') && <p id={`${item.clave}-cantidad-error`} role="alert" className="text-[11px] text-destructive"><CircleAlert aria-hidden="true" className="mr-1 inline h-3 w-3" />{errores.cantidad}</p>}
                     {cantidadesMaximas !== undefined && item.cantidad > cantidadesMaximas[i] && <p role="alert" className="text-[11px] text-destructive">Supera las unidades disponibles del origen (máximo {cantidadesMaximas[i]}).</p>}
