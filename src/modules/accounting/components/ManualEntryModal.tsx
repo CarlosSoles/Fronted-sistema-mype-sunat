@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { AccountPickerInline } from './AccountPickerInline';
 import { CheckCircle2, Plus, Trash2, TriangleAlert } from 'lucide-react';
 import {
   Button,
@@ -17,7 +18,6 @@ import {
 } from '@/components/ui';
 import { accountingApi } from '../services/accountingApi';
 import { enqueueAccountingEntry } from '@/lib/outbox';
-import type { AccountingAccount } from '../types/accounting.types';
 
 interface LineDraft {
   accountCode: string;
@@ -86,6 +86,18 @@ export default function ManualEntryModal({ open, onClose, onSaved, proximoNumero
     () => new Map(accounts.map((account) => [account.code, account])),
     [accounts],
   );
+
+  /**
+   * Solo cuentas imputables: sin subcuentas y activas.
+   *
+   * El selector ofrecía el catálogo completo, así que se podía elegir una cuenta
+   * de mayor (por ejemplo 12) y el asiento solo se rechazaba al guardar. Las
+   * cuentas con hijas no admiten imputación directa en el PCGE.
+   */
+  const cuentasImputables = useMemo(() => {
+    const conHijas = new Set(accounts.map((cuenta) => cuenta.parentCode).filter(Boolean));
+    return accounts.filter((cuenta) => cuenta.isActive && !conHijas.has(cuenta.code));
+  }, [accounts]);
 
   // Al abrir, el formulario vuelve a su estado inicial: dos líneas vacías.
   useEffect(() => {
@@ -284,21 +296,15 @@ export default function ManualEntryModal({ open, onClose, onSaved, proximoNumero
                   {lines.map((line, index) => (
                     <tr key={`linea-${index}`} className="border-t">
                       <td className="min-w-56 p-2">
-                        <Select
-                          value={line.accountCode || undefined}
-                          onValueChange={(value) => updateLine(index, { accountCode: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Seleccionar cuenta" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {accounts.map((account: AccountingAccount) => (
-                              <SelectItem key={account.code} value={account.code}>
-                                {account.code} · {account.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        {/* Con buscador: la lista de cuentas imputables es larga y
+                            un desplegable simple obligaba a recorrerla entera. */}
+                        <AccountPickerInline
+                          accounts={cuentasImputables}
+                          value={line.accountCode}
+                          onChange={(codigo) => updateLine(index, { accountCode: codigo })}
+                          
+                          idPrefijo={`asiento-linea-${index}`}
+                        />
                       </td>
                       <td className="p-2">
                         <Input

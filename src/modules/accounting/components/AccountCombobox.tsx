@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { AccountingAccount } from '../types/accounting.types';
@@ -51,7 +52,27 @@ export function AccountCombobox({
   const [texto, setTexto] = useState('');
   const [resaltado, setResaltado] = useState(0);
   const [recientes, setRecientes] = useState<string[]>([]);
+  /** Posición del panel cuando se dibuja en un portal. */
+  const [rect, setRect] = useState<{ top: number; left: number; width: number } | null>(null);
   const contenedor = useRef<HTMLDivElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+
+  /** Recalcula la posición del panel a partir del campo. */
+  const actualizarPosicion = () => {
+    const caja = contenedor.current?.getBoundingClientRect();
+    if (caja) setRect({ top: caja.bottom + 4, left: caja.left, width: caja.width });
+  };
+
+  useEffect(() => {
+    if (!abierto) return;
+    actualizarPosicion();
+    // No se cierra con el desplazamiento: la lista debe poder recorrerse con la
+    // rueda y con la barra. Al cambiar el tamaño de la ventana solo se recalcula
+    // la posición para que siga anclada al campo.
+    const alRedimensionar = () => actualizarPosicion();
+    window.addEventListener('resize', alRedimensionar);
+    return () => window.removeEventListener('resize', alRedimensionar);
+  }, [abierto]);
 
   const porCodigo = useMemo(() => new Map(accounts.map((cuenta) => [cuenta.code, cuenta])), [accounts]);
   const seleccionada = porCodigo.get(value);
@@ -80,7 +101,14 @@ export function AccountCombobox({
   useEffect(() => {
     if (!abierto) return;
     const alClicFuera = (evento: MouseEvent) => {
-      if (contenedor.current && !contenedor.current.contains(evento.target as Node)) setAbierto(false);
+      const destino = evento.target as Node | null;
+      if (!destino) return;
+      // El panel se dibuja en un portal (fuera del contenedor), así que hay que
+      // comprobarlo también: si no, arrastrar su barra de desplazamiento o pulsar
+      // una opción contaba como clic externo y cerraba la lista.
+      if (contenedor.current?.contains(destino)) return;
+      if (panel.current?.contains(destino)) return;
+      setAbierto(false);
     };
     document.addEventListener('mousedown', alClicFuera);
     return () => document.removeEventListener('mousedown', alClicFuera);
@@ -204,12 +232,15 @@ export function AccountCombobox({
         />
       </div>
 
-      {abierto ? (
-        <div
-          id={`${idPrefijo}-lista`}
-          role="listbox"
-          className="absolute z-50 mt-1 max-h-80 w-[28rem] max-w-[90vw] overflow-auto rounded-md border bg-popover p-1 shadow-lg"
-        >
+      {abierto && rect
+        ? createPortal(
+            <div
+              ref={panel}
+              id={`${idPrefijo}-lista`}
+              role="listbox"
+              style={{ top: rect.top, left: rect.left, minWidth: rect.width }}
+              className="fixed z-50 max-h-80 w-[28rem] max-w-[90vw] overflow-auto overscroll-contain rounded-md border bg-popover p-1 shadow-lg"
+            >
           {filtradas.length === 0 ? (
             <p className="px-3 py-2 text-xs text-muted-foreground">Sin cuentas que coincidan.</p>
           ) : (
@@ -246,8 +277,10 @@ export function AccountCombobox({
               ) : null}
             </>
           )}
-        </div>
-      ) : null}
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

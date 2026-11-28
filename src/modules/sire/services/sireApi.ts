@@ -101,13 +101,33 @@ export const sireApi = {
         method: 'POST',
         body: JSON.stringify(body),
       });
-      if (!isConfiguracionStatusResponse(response)) {
-        throw new SireApiError(
-          'El servidor devolvió el resultado de la configuración SIRE con un formato inválido.',
-          null,
-        );
+
+      // El backend devuelve 200/201 con { success, message, configured, companyId }.
+      // Nunca se registra el payload enviado para no exponer secretos.
+      console.log('[SIRE] Respuesta al guardar credenciales:', response);
+
+      if (isConfiguracionStatusResponse(response)) {
+        return {
+          configured: response.configured,
+          message: response.message,
+        };
       }
-      return { configured: response.configured };
+
+      // Compatibilidad con respuestas 200/201 que solo confirman éxito.
+      if (typeof response === 'object' && response !== null) {
+        const record = response as Record<string, unknown>;
+        if (record.success === true || record.configured === undefined) {
+          return {
+            configured: typeof record.configured === 'boolean' ? record.configured : true,
+            message: typeof record.message === 'string' ? record.message : undefined,
+          };
+        }
+      }
+
+      throw new SireApiError(
+        'El servidor devolvió el resultado de la configuración SIRE con un formato inválido.',
+        null,
+      );
     } catch (cause) {
       const status = cause instanceof SireApiError ? cause.status : null;
       const message = cause instanceof Error ? cause.message : '';
