@@ -3,10 +3,12 @@ import '@testing-library/jest-dom/vitest';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider, useAuthContext } from '@/context/AuthContext';
 import { authApi } from '@/modules/auth/services/authApi';
+import { useAuthStore } from '@/stores/authStore';
 
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  useAuthStore.getState().logout();
 });
 
 const ConsumerComponent = () => {
@@ -120,5 +122,57 @@ describe('AuthContext & Session Life Cycle', () => {
     expect(refreshSpy).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId('access-token')).toHaveTextContent('jwt-after-login');
     expect(screen.getByTestId('user-name')).toHaveTextContent('Usuario Prueba');
+  });
+
+  it('descarta la sesión guardada cuando el refresco responde 401', async () => {
+    // Sesión fantasma: hay token en el store pero el servidor ya no la acepta.
+    useAuthStore.setState({
+      token: 'token-vencido',
+      user: {
+        id: 'u-1',
+        companyId: 'c-1',
+        email: 'admin@mype.pe',
+        fullName: 'Sesión vieja',
+        role: '',
+      } as never,
+    });
+    vi.spyOn(authApi, 'refreshToken').mockRejectedValue({ response: { status: 401 } });
+
+    await act(async () => {
+      render(
+        <AuthProvider>
+          <ConsumerComponent />
+        </AuthProvider>
+      );
+    });
+
+    // Sin limpiar el token, la ruta protegida dejaba pasar y el usuario
+    // acababa en un 403 de módulo en lugar del login.
+    expect(screen.getByTestId('auth-status')).toHaveTextContent('No Autenticado');
+    expect(screen.getByTestId('access-token')).toHaveTextContent('sin-token');
+  });
+
+  it('conserva la sesión si el refresco falla por red y no por credenciales', async () => {
+    useAuthStore.setState({
+      token: 'token-vivo',
+      user: {
+        id: 'u-1',
+        companyId: 'c-1',
+        email: 'admin@mype.pe',
+        fullName: 'Sesión viva',
+        role: 'ADMIN',
+      } as never,
+    });
+    vi.spyOn(authApi, 'refreshToken').mockRejectedValue(new Error('Network Error'));
+
+    await act(async () => {
+      render(
+        <AuthProvider>
+          <ConsumerComponent />
+        </AuthProvider>
+      );
+    });
+
+    expect(screen.getByTestId('access-token')).toHaveTextContent('token-vivo');
   });
 });

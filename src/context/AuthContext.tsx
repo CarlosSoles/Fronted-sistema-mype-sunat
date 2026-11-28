@@ -9,6 +9,7 @@ import {
 } from '@/modules/auth/types/auth.types';
 import { useAuthStore } from '@/stores/authStore';
 import { queryClient } from '@/lib/queryClient';
+import { getApiErrorStatus } from '@/lib/apiErrors';
 
 export interface AuthContextType {
   user: AuthUser | null;
@@ -79,12 +80,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // refresh la devuelven, y sin ella la sesión quedaba sin RUC emisor.
           void cargarEmpresaActiva();
         }
-      } catch {
+      } catch (error) {
+        if (!isMounted) return;
         const enStore = useAuthStore.getState();
-        if (isMounted && enStore.token) {
+        // 401/403 significan que la sesión guardada ya no sirve. Antes se
+        // conservaba el token aunque el refresco hubiera sido rechazado, y el
+        // usuario entraba con una sesión fantasma: el layout se renderizaba sin
+        // rol y la pantalla acababa en un 403 de módulo en vez del login.
+        // Cualquier otro fallo (red, servidor despertando) sí mantiene la
+        // sesión: expulsar a alguien por una caída del backend sería peor.
+        const status = getApiErrorStatus(error);
+        if (status === 401 || status === 403) {
+          // Se limpia también el estado local: el token derivado caería al
+          // valor del store solo si el local no lo tapara con el viejo.
+          setAccessToken(null);
+          setUser(null);
+          useAuthStore.getState().logout();
+        } else if (enStore.token) {
           setAccessToken(enStore.token);
           if (enStore.user) setUser(enStore.user as AuthUser);
-        } else if (isMounted) {
+        } else {
           useAuthStore.getState().logout();
         }
       } finally {
