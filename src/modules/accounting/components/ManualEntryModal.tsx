@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { AccountCombobox } from './AccountCombobox';
+import { AccountPickerInline } from './AccountPickerInline';
 import { CheckCircle2, Plus, Trash2, TriangleAlert } from 'lucide-react';
 import {
   Button,
@@ -298,11 +298,11 @@ export default function ManualEntryModal({ open, onClose, onSaved, proximoNumero
                       <td className="min-w-56 p-2">
                         {/* Con buscador: la lista de cuentas imputables es larga y
                             un desplegable simple obligaba a recorrerla entera. */}
-                        <AccountCombobox
+                        <AccountPickerInline
                           accounts={cuentasImputables}
                           value={line.accountCode}
                           onChange={(codigo) => updateLine(index, { accountCode: codigo })}
-                          placeholder="Buscar cuenta imputable"
+                          
                           idPrefijo={`asiento-linea-${index}`}
                         />
                       </td>
