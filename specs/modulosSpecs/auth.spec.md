@@ -68,6 +68,6 @@ src/modules/auth/
 
 * **Ubicación Exclusiva:** `test/unit/modules/auth/`
 * **Casos Críticos a Probar:**
-  1. **`loginSchema.test.ts`:** Validación de correo electrónico bien formado, rechazo de contraseñas cortas (< 8 caracteres), y obligatoriedad de campos.
+  1. **`loginSchema.test.ts`:** Validación de correo electrónico bien formado, contraseña no vacía (la política de longitud y complejidad se aplica en registro y cambio de contraseña, no en el login) y obligatoriedad de campos.
   2. **`authStore.test.ts`:** Persistencia correcta de JWT y empresa activa en LocalStorage, y borrado total de credenciales tras cerrar sesión.
 

@@ -3,6 +3,12 @@ import { validateRucModulo11 } from './rucValidator';
 
 /**
  * Esquema de validación para inicio de sesión.
+ *
+ * La contraseña solo se exige no vacía: en el login no se aplica la política
+ * de longitud ni de complejidad. Esa regla vive en `registerSchema` y en el
+ * cambio de contraseña. Aplicarla aquí generaría un mensaje que contradice al
+ * del registro y sugeriría al usuario que su contraseña está mal cuando el
+ * problema puede ser la cuenta.
  */
 export const loginSchema = z.object({
   email: z
@@ -11,7 +17,7 @@ export const loginSchema = z.object({
     .email({ message: 'Ingresa un correo electrónico válido' }),
   password: z
     .string()
-    .min(6, { message: 'La contraseña debe tener al menos 6 caracteres' }),
+    .min(1, { message: 'Ingresa tu contraseña' }),
 });
 
 export type LoginFormData = z.infer<typeof loginSchema>;

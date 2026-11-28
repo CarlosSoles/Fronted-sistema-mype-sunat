@@ -54,7 +54,7 @@ describe('LoginForm & Demo Box', () => {
     expect(passwordInput.value).toBe('Password123!#');
   });
 
-  it('loginSchema valida sintaxis de correo y longitud de contraseña', () => {
+  it('loginSchema valida sintaxis de correo y exige contraseña no vacía', () => {
     const valid = loginSchema.safeParse({
       email: 'admin@mype.pe',
       password: 'Password123!#',
@@ -67,10 +67,18 @@ describe('LoginForm & Demo Box', () => {
     });
     expect(invalidEmail.success).toBe(false);
 
+    // En el login no se aplica la política de contraseñas: una clave corta es
+    // válida y la decide el servidor. Solo se rechaza el campo vacío.
     const shortPass = loginSchema.safeParse({
       email: 'admin@mype.pe',
       password: '123',
     });
-    expect(shortPass.success).toBe(false);
+    expect(shortPass.success).toBe(true);
+
+    const emptyPass = loginSchema.safeParse({
+      email: 'admin@mype.pe',
+      password: '',
+    });
+    expect(emptyPass.success).toBe(false);
   });
 });
