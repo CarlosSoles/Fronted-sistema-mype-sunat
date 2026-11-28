@@ -55,6 +55,7 @@ export function AccountCombobox({
   /** Posición del panel cuando se dibuja en un portal. */
   const [rect, setRect] = useState<{ top: number; left: number; width: number } | null>(null);
   const contenedor = useRef<HTMLDivElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
 
   /** Recalcula la posición del panel a partir del campo. */
   const actualizarPosicion = () => {
@@ -67,7 +68,13 @@ export function AccountCombobox({
     actualizarPosicion();
     // Al desplazar la página o el contenedor, el panel flotante quedaría
     // desanclado: se cierra en lugar de mostrarse en el sitio equivocado.
-    const cerrar = () => setAbierto(false);
+    // Solo se cierra cuando se desplaza algo distinto del panel: desplazar la
+    // lista con la rueda o con la barra no debe cerrarla.
+    const cerrar = (evento: Event) => {
+      const destino = evento.target as Node | null;
+      if (panel.current && destino && panel.current.contains(destino)) return;
+      setAbierto(false);
+    };
     window.addEventListener('scroll', cerrar, true);
     window.addEventListener('resize', cerrar);
     return () => {
@@ -230,6 +237,7 @@ export function AccountCombobox({
       {abierto && rect
         ? createPortal(
             <div
+              ref={panel}
               id={`${idPrefijo}-lista`}
               role="listbox"
               style={{ top: rect.top, left: rect.left, minWidth: rect.width }}
