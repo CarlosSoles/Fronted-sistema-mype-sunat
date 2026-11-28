@@ -87,6 +87,18 @@ export default function ManualEntryModal({ open, onClose, onSaved, proximoNumero
     [accounts],
   );
 
+  /**
+   * Solo cuentas imputables: sin subcuentas y activas.
+   *
+   * El selector ofrecía el catálogo completo, así que se podía elegir una cuenta
+   * de mayor (por ejemplo 12) y el asiento solo se rechazaba al guardar. Las
+   * cuentas con hijas no admiten imputación directa en el PCGE.
+   */
+  const cuentasImputables = useMemo(() => {
+    const conHijas = new Set(accounts.map((cuenta) => cuenta.parentCode).filter(Boolean));
+    return accounts.filter((cuenta) => cuenta.isActive && !conHijas.has(cuenta.code));
+  }, [accounts]);
+
   // Al abrir, el formulario vuelve a su estado inicial: dos líneas vacías.
   useEffect(() => {
     if (!open) return;
@@ -292,7 +304,7 @@ export default function ManualEntryModal({ open, onClose, onSaved, proximoNumero
                             <SelectValue placeholder="Seleccionar cuenta" />
                           </SelectTrigger>
                           <SelectContent>
-                            {accounts.map((account: AccountingAccount) => (
+                            {cuentasImputables.map((account: AccountingAccount) => (
                               <SelectItem key={account.code} value={account.code}>
                                 {account.code} · {account.name}
                               </SelectItem>
